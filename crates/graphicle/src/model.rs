@@ -93,6 +93,22 @@ pub struct Config {
     /// The folder sync's settings ([`SyncSettings`]).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sync: Option<SyncSettings>,
+    /// Claude Code's prompt-context hook's settings ([`PromptContextSettings`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub prompt_context: Option<PromptContextSettings>,
+}
+
+/// The prompt-context hook's settings (`prompt_context.*` in the
+/// configuration file; [`crate::prompt_hook`]).
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PromptContextSettings {
+    /// `prompt_context.seconds`: how long the hook waits for a packet (1 to
+    /// [`crate::prompt_hook::MAX_SECONDS`]; left out:
+    /// [`crate::prompt_hook::SECONDS`]). The environment variable
+    /// `GRAPHICLE_PROMPT_CONTEXT_SECONDS` wins over it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seconds: Option<u64>,
 }
 
 /// The folder sync's settings (`sync.*` in the configuration file).
@@ -124,6 +140,7 @@ impl Default for Config {
             limits: BTreeMap::new(),
             update_notifier: None,
             sync: None,
+            prompt_context: None,
         }
     }
 }
@@ -176,6 +193,14 @@ impl Config {
             return Err(Error::bad("Invalid ingestion bounds"));
         }
         crate::limits::Limits::resolve(&self.limits, |_| None)?;
+        if let Some(seconds) = self.prompt_context.as_ref().and_then(|p| p.seconds)
+            && !(1..=crate::prompt_hook::MAX_SECONDS).contains(&seconds)
+        {
+            return Err(Error::bad(format!(
+                "prompt_context.seconds must be 1 to {}",
+                crate::prompt_hook::MAX_SECONDS
+            )));
+        }
         for (name, p) in &self.models {
             if name.is_empty()
                 || name.len() > 100
@@ -265,11 +290,20 @@ pub fn checked_url(value: &str) -> Result<url::Url> {
     }
     Ok(url)
 }
+/// `localhost` or any loopback address: 127.0.0.0/8, `::1`, and IPv4-mapped
+/// 127.0.0.0/8.
 fn loopback(url: &url::Url) -> bool {
-    matches!(
-        url.host_str(),
-        Some("localhost" | "127.0.0.1" | "[::1]" | "::1")
-    )
+    match url.host() {
+        Some(url::Host::Domain(host)) => host == "localhost",
+        Some(url::Host::Ipv4(address)) => address.is_loopback(),
+        Some(url::Host::Ipv6(address)) => {
+            address.is_loopback()
+                || address
+                    .to_ipv4_mapped()
+                    .is_some_and(|mapped| mapped.is_loopback())
+        }
+        None => false,
+    }
 }
 /// No user name, password, query or fragment.
 fn bare(url: &url::Url) -> bool {
@@ -1551,6 +1585,32 @@ mod tests {
         }
         // Connectors and OAuth use the strict rule, whatever the list says.
         assert!(checked_url("http://192.168.210.33:8000/v1").is_err());
+    }
+
+    #[test]
+    fn plain_http_reaches_every_loopback_address_and_nothing_else() {
+        for url in [
+            "http://localhost:11434/v1",
+            "http://127.0.0.1:11434/v1",
+            "http://127.0.0.2:11434/v1",
+            "http://127.255.255.254/v1",
+            "http://[::1]:8080/v1",
+            "http://[::ffff:127.0.0.1]:8080/v1",
+        ] {
+            assert!(checked_url(url).is_ok(), "{url}");
+            assert!(provider_url_with(url, true, &[]).is_ok(), "{url}");
+        }
+        for url in [
+            "http://128.0.0.1/v1",
+            "http://126.255.255.255/v1",
+            "http://0.0.0.0/v1",
+            "http://[::2]/v1",
+            "http://[::ffff:10.0.0.1]/v1",
+            "http://127.0.0.1.example.com/v1",
+            "http://localhost.example.com/v1",
+        ] {
+            assert!(checked_url(url).is_err(), "{url}");
+        }
     }
 
     #[test]

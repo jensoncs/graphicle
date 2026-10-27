@@ -3,6 +3,432 @@
 Notable changes to Graphicle: the graph engine (`graphicle-graph`), the memory
 library (`graphicle-memory`) and the `graphicle` program.
 
+## 0.1.8 - 2026-10-26
+
+Every crate is at 0.1.8, and `graphicle --version` prints
+`graphicle 0.1.8 (core)`. The Python and TypeScript SDKs are at 0.1.8 too.
+
+### After upgrading
+
+- Run `graphicle sync` once in each project. Until that sync, a question
+  reads the code graph from the store, which on a shallow clone of
+  kubernetes took a median of 22.5 seconds per question (16 cores of a
+  Linux server, the 22 questions of #8), and on a project of 2,000 files
+  or more the prompt hook gives only the files that define the code names
+  a prompt gives.
+
+### Questions on large projects
+
+- A question no longer decodes the whole saved code graph (#8). After each
+  code graph build, a sync also saves a query file beside the saved graph
+  (`gf-cache/<project>/query/<episode>.query`). `graphicle context`, the
+  prompt hook and the memory server's `recall_project` read it in place
+  (mapped into memory on macOS and Linux, read whole on Windows) and decode
+  only what the question needs: every node's text once, to weigh the
+  question's words, then the postings of its own words, the scoring
+  strings of the nodes those leave and the records of the code it cites.
+  A lookup ("Where is X defined?", a bare name, "who calls X") reads the
+  symbols and references of its names. Packets and the prompt hook's
+  output are unchanged, byte for byte.
+  - Measured on a shallow clone of kubernetes at `ca8a2a9e4` (30,315
+    files) on a Linux server, against 0.1.7 on the same cores, each call a
+    new process as the hook runs it. Over the 22 questions of #8 the
+    median `graphicle context` call took 1.34 seconds on 16 cores, against
+    2.99 seconds with 0.1.7 (90th percentile 1.87 against 3.37 seconds),
+    and 1.38 seconds on 4 cores, against 3.89 seconds (90th percentile
+    1.87 against 4.56 seconds). On the 20 of them the prompt hook answers,
+    it took a median of 1.53 seconds on 16 cores and 1.59 seconds on 4,
+    against 3.11 and 3.96 seconds.
+  - Over 8 lookups the median `graphicle context` call took 0.96 seconds
+    on 16 cores and 0.99 seconds on 4, against 2.52 and 3.44 seconds.
+  - With the data folder and the program dropped from the operating
+    system's file cache before each call, the median over the 22 questions
+    was 1.84 seconds on 16 cores and 1.90 seconds on 4, against 3.68 and
+    4.55 seconds.
+  - The peak memory of a `graphicle context` call fell from 3.5 GB to 0.6
+    GB (the median over the 22 questions on 16 cores).
+  - A question read about a third of the query file (a median of 35% of
+    its pages over the 22 questions, at most 46%); a lookup read a median
+    of 0.3%.
+  - The query file takes 206 MB of the data folder for that clone, beside
+    the saved graph's 270 MB (6.45 GB in all, against 6.24 GB).
+  - The main figures of this run, with their labels, are in a table in
+    [docs/benchmarks.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.8/docs/benchmarks.md#our-own-run-on-kubernetes-017-and-018).
+- A sync that builds the code graph also writes the query file: on that
+  clone a sync after a one-file change took a median of 117.7 seconds,
+  against 109.5 seconds with 0.1.7, of which saving the graph and the
+  query file took 28.0 seconds, against 21.0 seconds for the graph alone.
+  A sync with nothing to do took 2.4 seconds, against 2.5.
+- Going back to the head set synced just before (a branch switched back
+  to) finds that head set's saved files: on that clone such a sync took a
+  median of 17.2 seconds, against 28.6 seconds with 0.1.7, and a question
+  then took a median of 1.38 seconds over the 22 questions. 0.1.7 kept the
+  saved graph of the latest episode only, so after such a switch its
+  questions read the code graph from the store, a median of 22.3 seconds
+  each, until the next code graph build.
+- The keys of the saved graph and of the query file now cover the
+  program's sources and its locked dependencies, not only the engine's, so
+  a file another build wrote is never read. The first sync after upgrading
+  writes both again (26.9 seconds on that clone). Until then a question
+  reads the code graph from the store (a median of 22.5 seconds on 16
+  cores over the 22 questions), on a project of 2,000 files or more the
+  prompt hook gives the files that define the code names a prompt gives,
+  and `graphicle doctor` says so.
+- A query file that cannot be written for a reason that can pass, such as
+  a full disk, is tried again by later syncs after a wait (10 minutes,
+  doubled after each failure in a row, at most 6 hours) and at once by
+  `graphicle sync`, `graphicle setup` and `graphicle doctor --fix`. A code
+  graph the file cannot hold (a node id that is not a string, a value
+  nested more than 64 levels deep, a section past 4 GiB) is not tried
+  again until the code graph or the program changes. `graphicle doctor`
+  says which, under Questions, and what to do.
+- A query file, saved graph or file relationships file that is truncated,
+  malformed or damaged is read around, with the same packet, and written
+  again. The query file has checksums over its header and each page, and
+  the saved graph and the file relationships now end with their length
+  and a checksum: a sync checks the query file's header and the other
+  files' lengths, and the read that finds damage removes the file, so the
+  next sync writes it. A file relationships file whose pairs name files
+  outside its table no longer makes `graphicle context` fail, as it did
+  in 0.1.7. `GRAPHICLE_QUERY_FILE=0` makes every question read the saved
+  graph.
+
+### Packaging
+
+- `server.json` at the repository's root is the MCP Registry entry of
+  0.1.7, the latest listed release (it named 0.1.6). A release's entry is
+  committed after its listing, as
+  [packaging/mcpb/README.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.8/packaging/mcpb/README.md#steps-at-release-time)
+  describes.
+
+## 0.1.7 - 2026-10-25
+
+Every crate is at 0.1.7, and `graphicle --version` prints
+`graphicle 0.1.7 (core)`. The Python and TypeScript SDKs, at 0.1.0 until
+now, are at 0.1.7 too.
+
+### Code graph
+
+- The engine follows Graphify 0.9.95 (0.1.6 followed 0.9.91): the four
+  releases 0.9.92 to 0.9.95 are ported. Against 0.9.95 every comparison check
+  passes on Linux, and the file ledger marks all 96 application modules
+  verified
+  ([docs/benchmarks.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.7/docs/benchmarks.md#parity-with-graphify)).
+  What changes in the graph:
+  - YAML: `.yaml` and `.yml` files are code, read structurally: a node per
+    key under its file, with `contains` edges, keys nested at most seven
+    levels deep and 500 keys a file. YAML that holds data rather than
+    configuration is declined by design and listed as skipped, and unsafe
+    tags are refused.
+  - C#: each overload of a method is a node of its own (the first keeps its
+    id, the others get ids salted by their signature), and calls bind by
+    argument count. A `delegate` is a type.
+  - Type aliases and declarations: Python `TypeAlias`, `type X =` and
+    `NewType`; Go `type A = B`; Rust `type` aliases and `union` items; C++
+    namespace-scope `using A = B;` and `typedef`; Kotlin `typealias`; Dart
+    `typedef`; Swift `macro` declarations and `#macro(...)` calls.
+  - Names that differ only by `_`, `$`, `#` or case keep separate nodes:
+    JavaScript and TypeScript members, Python module-level classes beside a
+    function or class of the same id, Go and Rust declarations.
+  - Calls: TypeScript `this.field` is typed from an assignment in any method;
+    a JavaScript call on an untyped receiver waits for receiver-typed
+    resolution; a CommonJS `require` binding no longer shadows the export it
+    requires; a pytest fixture parameter is typed from the fixture's return;
+    Python `module.func()` binds the child named exactly `func`; a bare call
+    resolved only through a module import stays `INFERRED`; Solidity
+    inherited calls, `super` calls and modifiers resolve through C3
+    linearization; a Rust `use` rooted at a sibling `mod` reaches its
+    declaration; an Objective-C member call resolves across a header and an
+    implementation in different folders; a cross-repository call edge points
+    at the call site.
+  - SQL: T-SQL names are unbracketed (`dbo.Alpha`, not `[dbo].[Alpha]`),
+    procedures record `reads_from` and `writes_to`, `GO` ends a statement, a
+    table referenced before its `CREATE TABLE` folds onto it, and a
+    `CREATE TABLE` the grammar cannot parse is recovered.
+  - Each `package.json` dependency entry declares the node its importers
+    resolve to, labelled `name@range`. Markdown vault-relative wikilinks
+    resolve, and a bare method link needs its class cited. Objective-C
+    `NS_CLOSED_ENUM` is an enum, and category ids are relative to the
+    repository. Metal and CUDA qualifiers no longer create nodes without a
+    source, and a `.h` with `extern "C"` goes to the C++ extractor.
+  - Graph building: string confidences that drifted from the enum are
+    folded onto it, on nodes as on edges; a node with a source file wins
+    over a namesake without one; a build without clustering resolves imports
+    through the old-stem alias index. An incremental build no longer queues
+    again a file declined by design.
+- The AST cache format changed, so the first sync after upgrading re-extracts
+  every file once.
+- graph.json keeps parallel edges between two nodes (`multigraph: true`).
+  Every reader of a saved graph.json, not only the MCP server (`export` and
+  `merge-driver` among them), reads a file written before (parallel links
+  under `multigraph: false`) the same way, so a result does not depend on
+  which release wrote the file.
+- A dependency entry of a JSON manifest such as `package.json`, which the
+  engine now labels `name@range` and joins to the package it declares, keeps
+  the stable id of its name (its label up to the first `@` after the first
+  character), so a reviewed memory linked to it survives the new label and
+  later version bumps. Other keys that hold `@`, such as pnpm overrides or a
+  jest `moduleNameMapper` pattern, keep their whole label.
+- A code graph episode is named by the engine's graph format as well as the
+  project's files, so the first sync after upgrading builds the graph again
+  even when no file changed: C# overloads become nodes of their own and the
+  nodes the new engine no longer makes are closed. Before, an unchanged
+  project kept the older engine's graph until one of its files changed.
+- `graphicle graph update` works on a project whose graph is over 512 MiB,
+  such as kubernetes: before, even its first update failed, reading back its
+  own temporary graph under the size cap. The engine reads a graph.json over
+  the cap that it wrote itself (`update`, `watch`, `serve`, `query`,
+  `explain`, `path`, `merge-graphs`, `cluster-only`, `label`); a larger
+  graph.json from elsewhere is still refused, and `GRAPHICLE_MAX_GRAPH_BYTES`,
+  when set, applies to every file. A graph.json over the cap that an earlier
+  release wrote has no record of being the engine's own, so updates and hook
+  rebuilds refuse it until it is rebuilt once, as the error says: run
+  `GRAPHICLE_MAX_GRAPH_BYTES=<N>GB graphicle graph extract --force <project>`,
+  with N above the file's size (add `--code-only` when no LLM backend is set
+  up).
+- The engine extracts YAML structurally (above), so graph.json and the
+  `graphicle graph` commands have its keys, but Graphicle Core does not yet
+  use those keys for its answers: its code graph leaves out the YAML files
+  the engine reads as keys (the `apm.yml` package manifests stay in, as
+  before), and a YAML path quoted in a memory is taken for data, as a JSON
+  path is, not for a code file.
+
+### Commands, hooks and the language model
+
+- `GRAPHICLE_BACKEND` chooses the LLM provider (`none` turns LLM work off);
+  an auto-detected provider is named before anything is sent.
+- The semantic extraction prompt now pins each node to the file it came
+  from; cached semantic results are extracted again once, which costs one
+  round of LLM calls.
+- Git hooks: a rebase, `pull --rebase`, cherry-pick or revert rebuilds the
+  graph once; a merge commit rebuilds; a new branch at the same commit does
+  not; hooks run from the repository's top level. Run
+  `graphicle-graph hook install` to add the post-rewrite hook and update the
+  others.
+- `--version` and `--help` no longer refresh installed skills, and `--help`
+  lists every `--platform` value.
+- `query` refuses a name shared by several nodes (exit 3) and an unknown
+  `--seed` exits 4; `explain`, `get_node` and `get_neighbors` report a
+  substring near miss instead of answering with it.
+- Merged graphs: `explain` and `path` keep same-path files of two repos
+  apart and name the repo; the tree export draws one root per repo.
+- `prs` reads CI state from legacy status contexts and keeps a default
+  branch such as `release/2.x` whole; a Maven pom contributes only its own
+  dependencies; `serve` over streamable-http on an IPv6 address accepts its
+  `[::1]:port` Host header.
+- Detection: only a valid `.git` marks a repository root; versioned shebangs
+  such as `python3.12` are recognised; an unreadable PDF warns once; images,
+  audio and video count no words; a `.graphiclerc` saved with a byte order
+  mark keeps its first setting.
+
+### Connections
+
+- The `graphicle` program allows plain `http://` to every loopback address
+  for the services it calls (models, connectors, OAuth, vector and graph
+  endpoints): the rest of 127.0.0.0/8, such as `127.0.0.2`, and IPv4-mapped
+  loopback, such as `[::ffff:127.0.0.1]`, as well as `localhost`,
+  `127.0.0.1` and `[::1]`. Before, a local model or connector on another
+  loopback address was refused (#11, by @rudycelekli).
+
+### SDKs
+
+- The Python SDK keeps the service's `Retry-After` on an error:
+  `GraphicleError.retry_after` is the delay in seconds (from a number of
+  seconds or an HTTP date), and the error's text names it, so a caller whose
+  monthly request budget is spent knows when to try again, as the
+  TypeScript SDK's `retryAfterSeconds` already says (#10, by @rudycelekli).
+  A `Retry-After` that is neither leaves `retry_after` as `None`, and the
+  error is still a `GraphicleError`.
+
+### Security
+
+- URLs with credentials, a bad or zero port, or no host are refused;
+  multicast addresses are blocked; Obsidian tags and Google Workspace
+  sidecars escape hostile values.
+- Installing or refreshing a skill (`graphicle graph install`) no longer
+  writes through a symbolic link. A link at the skill's `SKILL.md`, or at
+  the version stamp beside it, is replaced by the new file, and the file it
+  pointed to is left alone; before, that file was overwritten.
+  `references/` is staged in a new private folder with a random name
+  instead of `references.tmp`, so a link put there in advance cannot
+  redirect the copy, and the backups (`SKILL.md.bak` and the
+  `.graphicle-bak` copies of agent settings) never follow a link.
+- A symbolic link that a repository commits at `.graphicle/.rebuild.lock`,
+  at the rebuild's temporary graph or at `.gitattributes` is no longer
+  followed: before, `graphicle graph update`, a hook rebuild or
+  `graphicle graph hook install` could truncate, overwrite or add a line to
+  the file it names. `update --no-cluster` and the GraphML export replace a
+  link at their output instead of writing through it.
+- Credential-shaped text in docstrings and comments is redacted before it
+  becomes a rationale label.
+
+### Dependencies and packaging
+
+- yoke-derive 0.8.4 replaces 0.8.3, which its authors yanked and
+  `cargo deny` warned about. Only the lock files and the third-party
+  licence pages change.
+- `server.json` at the repository's root is again the MCP Registry entry of
+  the latest listed release (0.1.6; it still named 0.1.2). An entry lists
+  the SHA-256 of each bundle the `mcp-registry` workflow builds from the
+  release, so a release's entry is committed after its listing, as
+  [packaging/mcpb/README.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.7/packaging/mcpb/README.md#steps-at-release-time)
+  describes.
+
+## 0.1.6 - 2026-10-24
+
+Every crate is at 0.1.6, and `graphicle --version` prints
+`graphicle 0.1.6 (core)`.
+
+### SDKs
+
+- The Python and TypeScript SDKs allow plain `http://` to every loopback
+  address: the rest of 127.0.0.0/8, such as `127.0.0.2`, and IPv4-mapped
+  loopback, such as `[::ffff:127.0.0.1]`, as well as `127.0.0.1`, `[::1]`
+  and `localhost`. Before, a local service on another loopback address
+  needed `insecure_http=True` (Python) or `insecureHttp: true`
+  (TypeScript) (#9, by @rudycelekli). The Python SDK reads an IPv4-mapped
+  address by its IPv4 address on every Python version, and its requests
+  to all of these addresses ignore proxy settings, as they did for
+  `127.0.0.1`.
+
+### Security
+
+- tokio 1.53.3 and ctutils 0.4.4, for RUSTSEC-2026-0386 (the safe
+  constructors of tokio's `AsyncFd` break I/O safety; Graphicle does not
+  call them) and RUSTSEC-2026-0385 (ctutils made masks and `u128`
+  comparisons that were not constant-time). Only the lock files and the
+  third-party licence pages change.
+- The Python environment of the engine's comparison suite pins pypdf
+  6.21.2, which fixes security advisories.
+
+### Documentation
+
+- `docs/benchmarks.md` has a section of
+  [independent measurements](https://github.com/Graphicle-AI/graphicle/blob/v0.1.6/docs/benchmarks.md#independent-measurements).
+  Its first entry is the rerun by @selimaytac, who reported #8, of their
+  22 questions about kubernetes on an Apple M3 Pro, with no answer model:
+  `graphicle context` took a median of 153.5 s per question on 0.1.3 and
+  9.5 s on 0.1.5, and the prompt hook returned a packet for 18 of 22.
+
+## 0.1.5 - 2026-10-22
+
+Every crate is at 0.1.5, and `graphicle --version` prints
+`graphicle 0.1.5 (core)`.
+
+### Questions on large projects
+
+- Each sync keeps a passage index of the project's files in the store, and
+  `graphicle context`, the memory server's `recall_project` and the prompt
+  hook look a question up in it instead of reading and scoring every file of
+  the project (#8, reported by @selimaytac). A sync reads only the files
+  that changed since the last one. After each code graph build, Graphicle
+  also saves the graph and its search index in the data folder
+  (`gf-cache/<project>/query/`), so a question reads them instead of
+  rebuilding them from the store.
+  - Over the 22 kubernetes questions of #8, on a shallow clone of
+    kubernetes (30,315 files) on 16 cores of a Linux server, a question to
+    `graphicle context` took a median of 3.1 seconds, against 27.9 seconds
+    with 0.1.4. On duckdb (14,309 files) the median over 10 questions was
+    2.6 seconds, against 20.9 seconds.
+  - A question ranks every passage of the project, as the full path does
+    within its bounds. A project past those bounds (50,000 documents or
+    40,000 passages) was ranked on the documents that matched the question
+    best, and is now ranked whole.
+  - The index takes room in the store and time at a first sync: on that
+    kubernetes clone the data folder held 6.22 GB after a first sync,
+    against 5.80 GB with 0.1.4, and the sync took 239.5 seconds, against
+    235.4 seconds. On duckdb a first sync took 125.9 seconds, against 112.4
+    seconds. Later syncs read only the files that changed; a sync merges
+    the index when the files that changed since it was built hold more than
+    30% of its passages, and `storage.prune` merges it too, so the entries
+    of files that went away go.
+  - A store from an earlier version builds its index at its next sync, and
+    its questions take the full path until then. Calls with options the
+    index does not serve, such as `include`, and projects with reviewed
+    memory also take the full path; `docs/configuration.md` lists them. The
+    packet says what it read in `passage_index`.
+    `GRAPHICLE_PASSAGE_INDEX=0` makes every question take the full path,
+    and `GRAPHICLE_SAVED_GRAPH=0` makes it read the code graph from the
+    store.
+
+### Prompt hook
+
+- The hook's time budget is a setting: `graphicle config set
+  prompt_context.seconds N` (1 to 25 seconds, 10 by default) or the
+  `GRAPHICLE_PROMPT_CONTEXT_SECONDS` variable. The hook's own timeout is 30
+  seconds.
+- While the passage index of a project of 2,000 files or more is not
+  ready, the hook gives the files that define the code names a prompt
+  gives, from the code graph, without reading the project's other files. A
+  smaller project, and a project with reviewed memory (whose memories only
+  the full read gives), are asked in full, as before.
+- When the hook gives up for time, or answers that way, Claude Code shows
+  one note a session that says so and what to run. For a project with
+  reviewed memory, the note says that a sync does not make it faster.
+- Graphicle 0.1.4 and earlier refuse a configuration that sets
+  `prompt_context`, a field they do not know. After setting it, do not run
+  an older Graphicle on the same data folder, such as an MCP server started
+  before the upgrade.
+- A prompt that asks where code is in plain words, such as "Which file and
+  functions compute this?" or "Where is that latency recorded?", is read as
+  a code question.
+- Over the same 22 kubernetes questions, the hook gave a packet within its
+  10-second budget for 20 of them, and read the other 2 as questions in
+  plain words. With 0.1.4 it gave none: it ran out of time on 11 and did
+  not read the other 11 as code questions.
+
+### Setup and doctor
+
+- `graphicle doctor` has a Questions check: whether the project's passage
+  index is built and current and its code graph saved, or what makes its
+  questions slow (a missing or stale index, reviewed memory), with the
+  command that fixes it. `graphicle setup` says the same in its `questions`
+  field and line. A project of fewer than 2,000 files is only described.
+
+### Packets
+
+- A packet tells its reader to read on with what the reader has:
+  `read_project_source` over MCP, and from `graphicle context` and the
+  prompt hook, the line of the file to continue at. It no longer names
+  `read_repository_file` or `read_project_evidence`, which no tool set has.
+
+### Sync
+
+- On a file system that ignores case (the default on macOS and Windows), a
+  tracked file that an ignore pattern matches only in another case, such as
+  `src/Foo.js` against `foo.js`, was read twice, and its bytes counted
+  twice. It is read once. Two hard links to one file are still read as two
+  files.
+
+### Extension interface
+
+- When an installed extension sets the most tokens a read's result may
+  hold, a `context` result over it is packed again with a smaller budget
+  until it fits (at most 4 rounds, down to 256 tokens, reported in
+  `response_sized`), instead of refused with 413. Other reads are still
+  refused.
+
+### Windows
+
+- `graphicle.exe` and `graphicle-graph.exe` are signed through SignPath with
+  a test certificate, which Windows does not trust, so Windows still treats
+  them as unsigned programs. When the signing fails, the release ships them
+  unsigned; the release notes say which.
+- `graphicle.exe` and `graphicle-graph.exe` carry version information
+  (product name, company, description and version), which Windows shows in
+  each file's properties.
+
+### Other changes
+
+- The install scripts and the Homebrew formula say that Graphicle checks for
+  a newer release at most once a day by default, and how to turn that off.
+- The code signing policy, `docs/code-signing.md`, lists every case in which
+  Graphicle contacts the network, what each one sends and how to turn it off
+  or avoid it.
+- The release workflow's signing and Homebrew tap jobs run in GitHub
+  environments that only version tags reach and a maintainer approves, and
+  only those jobs can read their tokens.
+
 ## 0.1.4 - 2026-10-21
 
 Every crate is at 0.1.4, and `graphicle --version` prints

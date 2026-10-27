@@ -2427,9 +2427,11 @@ pub fn ollama_url(value: &str) -> Option<String> {
     }
     let (scheme, rest, default_port) = match value.split_once("://") {
         None => ("http", value, 11434),
-        Some(("http", rest)) => ("http", rest, 80),
-        Some(("https", rest)) => ("https", rest, 443),
-        Some(_) => return None,
+        Some((raw, rest)) => match raw.to_ascii_lowercase().as_str() {
+            "http" => ("http", rest, 80),
+            "https" => ("https", rest, 443),
+            _ => return None,
+        },
     };
     let hostport = rest.split('/').next().unwrap_or_default();
     let (host, port) = if let Some(bracketed) = hostport.strip_prefix('[') {
@@ -2984,6 +2986,9 @@ pub fn config_command(
             // GRAPHICLE_SYNC_TRACKED_IGNORED overrides the file.
             shown["sync"] =
                 json!({"tracked_ignored": crate::local::tracked_ignored_setting(Some(&config))});
+            // GRAPHICLE_PROMPT_CONTEXT_SECONDS overrides the file.
+            shown["prompt_context"] =
+                json!({"seconds": crate::prompt_hook::budget(Some(&config)).as_secs()});
             shown["limits"] = crate::limits::Limits::from_environment(&config.limits)?.view();
             emit(&shown, json, config_show_text)
         }
@@ -2997,6 +3002,9 @@ pub fn config_command(
             } else if key == "sync.tracked_ignored" {
                 // GRAPHICLE_SYNC_TRACKED_IGNORED overrides the file.
                 Some(json!(crate::local::tracked_ignored_setting(Some(&load()?))))
+            } else if key == "prompt_context.seconds" {
+                // GRAPHICLE_PROMPT_CONTEXT_SECONDS overrides the file.
+                Some(json!(crate::prompt_hook::budget(Some(&load()?)).as_secs()))
             } else if key == crate::update_notice::SETTING {
                 // GRAPHICLE_NO_UPDATE_NOTIFIER overrides the file.
                 Some(json!(crate::update_notice::on(&path)))
@@ -3176,7 +3184,9 @@ pub fn context_text(packet: &Value, style: Style) -> String {
         // agent which tool reads on, and the budget, which the line above
         // gives.
         for line in s(packet, "markdown").lines().skip(1).filter(|line| {
-            *line != crate::identifier_route::READ_ON && !line.starts_with("Budget: ")
+            *line != crate::identifier_route::READ_ON
+                && *line != crate::identifier_route::READ_ON_FILES
+                && !line.starts_with("Budget: ")
         }) {
             let _ = writeln!(out, "{line}");
         }
@@ -4386,11 +4396,11 @@ fn apply_fixes(options: &Doctor<'_>) -> Vec<Value> {
                 local::sync(&store, &mut session, &folder, Some(&resolved.id))
             })
             .and_then(|synced| {
-                let graph = local::build_graph(&store, &session, &resolved.id, true)?;
+                let graph = local::sync_graph(&store, &session, &resolved.id, true)?;
                 Ok(json!({"fix":"sync","project":resolved.name,"folder":folder,
                         "changed":synced["replayed"]!=true,"graph":graph["status"]}))
             }),
-            None => local::build_graph(&store, &session, &resolved.id, true).map(
+            None => local::sync_graph(&store, &session, &resolved.id, true).map(
                 |graph| json!({"fix":"graph","project":resolved.name,"graph":graph["status"]}),
             ),
         };
@@ -4805,6 +4815,30 @@ fn checks(options: &Doctor<'_>) -> Vec<Check> {
                         Err(error) => Check::new("graph", State::Fail, "Code graph", error.message)
                             .with_fix("graphicle sync"),
                     });
+                    // How fast questions are: the passage index and the saved
+                    // code graph (crate::indexed_query::readiness).
+                    if let Ok(check) = store.authorized_read(
+                        &session.workspace,
+                        &session.capability,
+                        "read",
+                        |db, _| crate::indexed_query::readiness(db, &resolved.id),
+                    ) {
+                        let state = match check["state"].as_str() {
+                            Some("ready") => State::Ok,
+                            Some("small") => State::Info,
+                            _ => State::Warn,
+                        };
+                        let mut line = Check::new(
+                            "context",
+                            state,
+                            "Questions",
+                            s(&check, "detail").to_string(),
+                        );
+                        if state == State::Warn {
+                            line = line.with_fix(s(&check, "fix").to_string());
+                        }
+                        checks.push(line);
+                    }
                     // Freshness (ux-fresh): the folder against its last
                     // sync, read only.
                     if let Ok(fresh) = crate::fresh::check(&store, &session, &resolved.id) {
@@ -5925,6 +5959,18 @@ args = ["-y", "thing"]
         }
         for value in ["", "  ", "ftp://host", "host:port", "[::1"] {
             assert_eq!(ollama_url(value), None, "{value}");
+        }
+        // A scheme is case-insensitive. Rejecting HTTP:// makes config set
+        // ignore OLLAMA_HOST and save http://127.0.0.1:11434.
+        for (value, url) in [
+            ("HTTP://gpu.lan:11434", "http://gpu.lan:11434"),
+            (
+                "Https://ollama.example.com",
+                "https://ollama.example.com:443",
+            ),
+            ("HTTP://[::1]:11434", "http://[::1]:11434"),
+        ] {
+            assert_eq!(ollama_url(value).as_deref(), Some(url), "{value}");
         }
         let profile = model_profile_at("ollama", None, None, None, "http://[::1]:11500").unwrap();
         assert_eq!(profile["base_url"], "http://[::1]:11500");
