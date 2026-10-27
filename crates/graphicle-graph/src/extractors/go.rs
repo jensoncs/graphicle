@@ -219,8 +219,6 @@ struct Extractor<'source, 'tree> {
     callable_class: HashSet<String>,
     imports: Map<String, Value>,
     groups: HashMap<String, HashSet<String>>,
-    labels: HashMap<String, String>,
-    call_pairs: HashSet<(String, String)>,
     raw_calls: Vec<Value>,
 }
 impl<'tree> Extractor<'_, 'tree> {
@@ -680,27 +678,9 @@ impl<'tree> Extractor<'_, 'tree> {
                 callee = None;
             }
             if let Some(callee) = callee.filter(|s| !s.is_empty() && !is_language_builtin(s)) {
-                let target = if import_path.as_ref().is_some_and(|s| !s.is_empty()) {
-                    None
-                } else {
-                    self.labels.get(&callee).filter(|s| !s.is_empty()).cloned()
-                };
-                if let Some(target) = target.filter(|s| s != caller) {
-                    if self.call_pairs.insert((caller.into(), target.clone())) {
-                        self.edge(
-                            caller,
-                            &target,
-                            "calls",
-                            node.start_position().row + 1,
-                            Some("call"),
-                        );
-                    }
-                } else {
-                    // `member_receiver` is a key of its own: `receiver` means
-                    // "imported package" here, and other languages' member
-                    // resolvers read `receiver`.
-                    self.raw_calls.push(json!({"caller_nid":caller,"callee":callee,"is_member_call":member,"language":"go","receiver":receiver,"member_receiver":member_receiver,"receiver_type":member_receiver_type,"import_path":import_path,"source_file":self.path,"source_location":format!("L{}",node.start_position().row+1)}));
-                }
+                // A name alone is not a Go function identity. Corpus assembly
+                // resolves these sites through go/types for the active build.
+                self.raw_calls.push(json!({"caller_nid":caller,"callee":callee,"is_member_call":member,"language":"go","receiver":receiver,"member_receiver":member_receiver,"receiver_type":member_receiver_type,"import_path":import_path,"source_file":self.path,"source_location":format!("L{}",node.start_position().row+1)}));
             }
         }
         for n in children(node) {
@@ -748,8 +728,6 @@ pub fn extract_go(path: &Path) -> Value {
         callable_class: HashSet::new(),
         imports: Map::new(),
         groups: HashMap::new(),
-        labels: HashMap::new(),
-        call_pairs: HashSet::new(),
         raw_calls: vec![],
     };
     ex.node(&file, &name, 1);
@@ -767,20 +745,6 @@ pub fn extract_go(path: &Path) -> Value {
         }
     }
     let type_table = receiver_type_table(tree.root_node(), &source);
-    ex.labels = ex
-        .nodes
-        .iter()
-        .filter_map(|n| {
-            Some((
-                n["label"]
-                    .as_str()?
-                    .trim_matches(['(', ')'])
-                    .trim_start_matches('.')
-                    .to_string(),
-                n["id"].as_str()?.into(),
-            ))
-        })
-        .collect();
     for scope in std::mem::take(&mut ex.bodies) {
         ex.calls(scope.body, &scope.caller, &scope);
     }

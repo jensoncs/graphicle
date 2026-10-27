@@ -60,7 +60,7 @@ pub fn changed_candidates(raw: &Path, change_root: &Path, watch_root: &Path) -> 
     out
 }
 pub fn relativize(payload: &mut Value, root: &Path, scope: Option<&Path>) {
-    for bucket in ["nodes", "edges", "hyperedges"] {
+    for bucket in ["nodes", "edges", "hyperedges", "unresolved_calls"] {
         if let Some(a) = payload.get_mut(bucket).and_then(Value::as_array_mut) {
             for item in a {
                 for key in ["source_file", "definition_file"] {
@@ -85,7 +85,7 @@ pub fn rebase(payload: &mut Value, source_root: &Path, target_root: &Path) {
     if source_root == target_root {
         return;
     }
-    for bucket in ["nodes", "edges", "hyperedges"] {
+    for bucket in ["nodes", "edges", "hyperedges", "unresolved_calls"] {
         if let Some(a) = payload.get_mut(bucket).and_then(Value::as_array_mut) {
             for item in a {
                 for key in ["source_file", "definition_file"] {

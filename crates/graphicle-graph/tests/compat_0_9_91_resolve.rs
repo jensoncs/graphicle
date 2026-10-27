@@ -104,11 +104,11 @@ fn go_run(app: &str) -> Value {
 }
 
 #[test]
-fn go_typed_parameter_types_the_receiver_inferred() {
+fn go_typed_parameter_uses_compiler_evidence() {
     let r = go_run("package svc\n\nfunc Run(g *Greeter) { g.Greet() }\n");
     assert_eq!(
         call_to(&r, "un()", ".Greet()").as_deref(),
-        Some("INFERRED"),
+        Some("EXTRACTED"),
         "{:?}",
         calls(&r)
     );
@@ -132,22 +132,35 @@ fn go_receiver_typing_sources() {
 }
 
 #[test]
-fn go_untyped_or_foreign_receivers_resolve_to_nothing() {
+fn go_compiler_follows_constructor_returns_and_field_chains() {
     for app in [
-        // A constructor's return type is not read.
+        // Deliberate #321 deviation: go/types reads constructor return types.
         "package svc\n\nfunc NewG() *Greeter { return &Greeter{} }\n\nfunc Run() {\n\tg := NewG()\n\tg.Greet()\n}\n",
-        // A chain not rooted at the method's own receiver.
+        // It also follows fields of any statically typed receiver.
         "package svc\n\ntype App struct {\n\tgreeter *Greeter\n}\n\nfunc Run(p *App) { p.greeter.Greet() }\n",
-        // A package-qualified type.
-        "package svc\n\nimport \"example.com/other\"\n\nfunc Run(g *other.Greeter) { g.Greet() }\n",
     ] {
         let r = go_run(app);
         assert!(
-            call_to(&r, "un()", ".Greet()").is_none(),
+            call_to(&r, "un()", ".Greet()").as_deref() == Some("EXTRACTED"),
             "{app}: {:?}",
             calls(&r)
         );
     }
+}
+
+#[test]
+fn go_unavailable_foreign_receiver_stays_unresolved() {
+    let r = go_run(
+        "package svc\n\nimport \"example.com/other\"\n\nfunc Run(g *other.Greeter) { g.Greet() }\n",
+    );
+    assert!(call_to(&r, "un()", ".Greet()").is_none(), "{r}");
+    assert!(
+        r["unresolved_calls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|u| u["reason"] == "unresolved_type")
+    );
 }
 
 #[test]

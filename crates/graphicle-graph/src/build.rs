@@ -752,6 +752,15 @@ fn build_core<R: Record, E: EdgeItem<Record = R>>(
     let profiled = crate::profile::span("build.core.file_labels");
     disambiguate_file_node_labels(&mut graph);
     drop(profiled);
+    if let Some(Value::Array(calls)) = extraction.get_mut("unresolved_calls")
+        && !calls.is_empty()
+    {
+        graph.attributes["unresolved_calls"] = Value::Array(if consume {
+            std::mem::take(calls)
+        } else {
+            calls.clone()
+        });
+    }
     Ok(graph)
 }
 /// Fold semantic ghosts into the AST nodes they shadow (removing them from

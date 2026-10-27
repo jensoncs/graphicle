@@ -1931,6 +1931,7 @@ const PYTHON_DYNAMIC_NAMESPACE_NAMES: [&str; 7] = [
 /// facts are cached because every member call in a scope asks again.
 pub struct PythonReceiverShadow {
     dynamic_binding: bool,
+    from_imports: bool,
     scopes: BTreeMap<usize, ShadowFacts>,
 }
 
@@ -1955,7 +1956,16 @@ impl PythonReceiverShadow {
         }
         Self {
             dynamic_binding,
+            from_imports: false,
             scopes: BTreeMap::new(),
+        }
+    }
+
+    /// The same lexical guard for bare names imported with `from ... import`.
+    pub fn for_imports(root: Node<'_>, source: &[u8]) -> Self {
+        Self {
+            from_imports: true,
+            ..Self::new(root, source)
         }
     }
 
@@ -1969,12 +1979,17 @@ impl PythonReceiverShadow {
                 "module" | "function_definition" | "class_definition" | "lambda"
             ) {
                 let dynamic_binding = self.dynamic_binding;
-                let (bound, plain_imports, unsafe_scope) = self
-                    .scopes
-                    .entry(current.id())
-                    .or_insert_with(|| python_shadow_facts(current, source, dynamic_binding));
+                let (bound, plain_imports, unsafe_scope) =
+                    self.scopes.entry(current.id()).or_insert_with(|| {
+                        python_shadow_facts(current, source, dynamic_binding, self.from_imports)
+                    });
                 if *unsafe_scope || bound.contains(receiver) {
                     return true;
+                }
+                if self.from_imports
+                    && let Some(count) = plain_imports.get(receiver)
+                {
+                    return *count != 1;
                 }
                 if kind == "module" {
                     found_module = true;
@@ -1989,11 +2004,17 @@ impl PythonReceiverShadow {
     }
 }
 
-fn python_shadow_facts(scope: Node<'_>, source: &[u8], dynamic_binding: bool) -> ShadowFacts {
+fn python_shadow_facts(
+    scope: Node<'_>,
+    source: &[u8],
+    dynamic_binding: bool,
+    from_imports: bool,
+) -> ShadowFacts {
     let module = scope.kind_name() == "module";
     let mut scan = ShadowScan {
         source,
         scope,
+        from_imports,
         bound: BTreeSet::new(),
         plain_imports: BTreeMap::new(),
         unsafe_scope: scope.has_error()
@@ -2021,6 +2042,7 @@ fn python_shadow_facts(scope: Node<'_>, source: &[u8], dynamic_binding: bool) ->
 struct ShadowScan<'a, 't> {
     source: &'a [u8],
     scope: Node<'t>,
+    from_imports: bool,
     bound: BTreeSet<String>,
     plain_imports: BTreeMap<String, usize>,
     unsafe_scope: bool,
@@ -2049,9 +2071,13 @@ impl ShadowScan<'_, '_> {
                     match python_import_names(child, self.source) {
                         None => self.unsafe_scope = true,
                         Some(names)
-                            if kind == "import_statement"
+                            if (kind == "import_statement"
                                 && self.scope.kind_name() == "module"
-                                && node == self.scope =>
+                                && node == self.scope)
+                                || (self.from_imports
+                                    && (node == self.scope
+                                        || self.scope.child_by_field_name("body")
+                                            == Some(node))) =>
                         {
                             for name in names {
                                 *self.plain_imports.entry(name).or_default() += 1;

@@ -22,6 +22,13 @@
       "behavior": "EJS templates (Graphify 0.9.88, #3811) read inline <script> types with the same reviewed attribute parser as Astro and Svelte, so a quoted JavaScript type (type=\"module\", type=\"text/javascript\") keeps its body instead of being masked by the backtracking negative lookahead upstream shares between the three maskers.",
       "native_regression": "tests/compat_0_9_88_languages.rs; ejs_masker_keeps_lines_and_neutralises_output_tags",
       "oracle_adaptation": "One exact-context hunk against Graphify 0.9.88 extract.py makes _ejs_mask_non_script call _astro_script_is_javascript (added by the Astro hunk) instead of _NON_JS_SCRIPT_TYPE_RE; the pinned archive is unchanged."
+    },
+    {
+      "kind": "native_regression",
+      "reviewed_utc": "2026-10-28",
+      "behavior": "Python imported call names with lexical rebinding are reported as unsupported_rebinding after all resolution passes, including precise mode. Go calls use go list build selection and go/types declaration identities; unavailable, incomplete, dynamic or unmapped targets remain unresolved. Go resolved-file caches use a full-resolution fallback so build configuration cannot reuse stale call targets.",
+      "native_regression": "tests/resolution_regressions.rs",
+      "oracle_adaptation": "Deliberate native safety deviation for #304, #321 and #314. The pinned Python reference is unchanged; these compiler and rebinding guarantees are checked by native regression tests rather than asserted as upstream parity."
     }
   ],
   "graphify/cache.py": [
@@ -155,6 +162,33 @@
       "url": "https://github.com/Graphify-Labs/graphify/issues/3041",
       "behavior": "Invalidate pinned and LRU graph contexts when learning sidecars are created, changed or deleted.",
       "native_regression": "learning_sidecar_invalidates_both_pinned_and_lru_contexts"
+    }
+  ],
+  "graphify/extractors/go.py": [
+    {
+      "kind": "native_regression",
+      "reviewed_utc": "2026-10-28",
+      "behavior": "Remove same-name local call resolution. Per-file extraction records candidates; only the compiler-backed corpus pass may emit Go calls.",
+      "native_regression": "tests/resolution_regressions.rs",
+      "oracle_adaptation": "Deliberate native safety deviation for #304, #321 and #314. The pinned Python reference is unchanged; these compiler and rebinding guarantees are checked by native regression tests rather than asserted as upstream parity."
+    }
+  ],
+  "graphify/watch.py": [
+    {
+      "kind": "native_regression",
+      "reviewed_utc": "2026-10-28",
+      "behavior": "Directory notifications, including missing directories with stored descendants, use the full-rebuild fallback. File and directory moves and deletions are compared against a clean graph.",
+      "native_regression": "tests/resolution_regressions.rs",
+      "oracle_adaptation": "Deliberate native safety deviation for #304, #321 and #314. The pinned Python reference is unchanged; these compiler and rebinding guarantees are checked by native regression tests rather than asserted as upstream parity."
+    }
+  ],
+  "graphify/build.py": [
+    {
+      "kind": "native_regression",
+      "reviewed_utc": "2026-10-28",
+      "behavior": "Carry unresolved_calls through direct and consuming graph builds as well as the aggregate build path. Incremental reconciliation preserves unchanged diagnostics and drops deleted or rebuilt owners.",
+      "native_regression": "tests/resolution_regressions.rs::updates_preserve_unsupported_calls_until_their_source_is_deleted",
+      "oracle_adaptation": "Native call-safety metadata preservation; no pinned reference source is changed."
     }
   ]
 }

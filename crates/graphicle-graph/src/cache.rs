@@ -28,8 +28,8 @@ use std::{
 /// quoted-include provenance) and records the target files an entry's edges
 /// resolved to; 7 invalidated records whose source paths leaked a walked
 /// directory alias when the extraction root was canonicalized (6 added
-/// receiver shadows).
-pub const AST_CACHE_SCHEMA: i64 = 9;
+/// receiver shadows). 10 removes Go's same-name call guesses.
+pub const AST_CACHE_SCHEMA: i64 = 10;
 /// Where an AST entry lists the `target_file` stamps that named an existing
 /// file when it was written; a hit whose target is gone is a miss (#4185).
 pub const CACHED_TARGETS_KEY: &str = "_cached_target_files";

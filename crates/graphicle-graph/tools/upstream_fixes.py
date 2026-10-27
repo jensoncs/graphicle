@@ -27,6 +27,16 @@ _UNCHANGED = {'graphify/build.py', 'graphify/dedup.py', 'graphify/extractors/eng
               'graphify/wiki.py'}
 
 
+# Native safety deviations are tested against language/compiler behavior rather
+# than emulated by edits to the pinned Python oracle. See the adaptation ledger
+# and tests/resolution_regressions.rs (#304, #321, #314).
+NATIVE_SAFETY_DEVIATIONS = {
+    "python_import_rebinding": "unsupported_rebinding after every call pass",
+    "go_call_identity": "go list + go/types, unresolved without compiler proof",
+    "watch_directory_moves": "full rebuild for directory change notifications",
+}
+
+
 def adapted_modules():
     """Pinned modules with reviewed exact-context adaptations, in a stable order."""
     return sorted({'graphify/cache.py', *_EXACT_HUNKS})

@@ -28,6 +28,7 @@ pub mod erlang;
 pub mod evidence;
 pub mod fortran;
 pub mod go;
+pub mod go_types;
 pub mod json_config;
 pub mod julia;
 pub mod markdown;
@@ -49,6 +50,7 @@ pub mod precise_js;
 pub mod precise_python;
 /// Opt-in `--precise` call edges from SCIP indexes.
 pub mod precise_scip;
+pub mod python_import_safety;
 pub mod r;
 pub mod razor;
 pub mod receiver_bindings;

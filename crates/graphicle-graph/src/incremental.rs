@@ -20,8 +20,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-// v11: the private owner/shared keys below were renamed with the product.
-const SCHEMA: &str = "resolution-files-v11";
+// v12: Python import rebinding guards; Go uses the compiler build each run.
+const SCHEMA: &str = "resolution-files-v12";
 const OWNER: &str = "__graphicle_private_resolution_owner";
 const SHARED: &str = "__graphicle_private_shared_resolution_node";
 const ARRAYS: [&str; 5] = [
@@ -375,10 +375,13 @@ fn order(value: &mut Value) {
 }
 fn append(output: &mut Value, mut part: Value) {
     for key in ARRAYS {
-        if let Some(a) = part.get_mut(key).and_then(Value::as_array_mut)
-            && let Some(b) = output.get_mut(key).and_then(Value::as_array_mut)
-        {
-            b.append(a);
+        if let Some(a) = part.get_mut(key).and_then(Value::as_array_mut) {
+            if output.get(key).is_none() {
+                output[key] = json!([]);
+            }
+            if let Some(b) = output.get_mut(key).and_then(Value::as_array_mut) {
+                b.append(a);
+            }
         }
     }
 }
@@ -497,7 +500,7 @@ fn partition(
         }
     }
     let mut parts = (0..files.len())
-        .map(|_| empty(receiver))
+        .map(|_| empty(receiver || output.get("unresolved_calls").is_some()))
         .collect::<Vec<_>>();
     for key in ARRAYS {
         if let Some(items) = output.get_mut(key).and_then(Value::as_array_mut) {
@@ -659,6 +662,14 @@ pub fn extract(
         .iter()
         .map(|p| extractors::resolution::resolved(p))
         .collect::<Vec<_>>();
+    // The Go build (tags, target platform, module/workspace and dependencies)
+    // is compiler-owned. Do not reuse name-based dependency cache entries.
+    if paths
+        .iter()
+        .any(|p| p.extension().is_some_and(|e| e == "go"))
+    {
+        return full(input_paths, options, "go_build_requires_full_resolution");
+    }
     let supported = paths.iter().all(|p| {
         extract::get_extractor(p).is_none()
             || matches!(
@@ -1147,7 +1158,10 @@ mod tests {
             let mut expected = extract::extract(&paths, &options).unwrap();
             order(&mut expected);
             assert_eq!(actual, expected, "step {step}");
-            assert!(report.fallback.is_none(), "{:?}", report.fallback);
+            assert_eq!(
+                report.fallback.as_deref(),
+                (!paths.is_empty()).then_some("go_build_requires_full_resolution")
+            );
             assert_eq!(
                 actual["nodes"]
                     .as_array()
@@ -1436,8 +1450,14 @@ mod tests {
                 let mut full = extract::extract(&paths, &options).unwrap();
                 order(&mut full);
                 assert_eq!(actual, full, "{} step {step} {report:?}", entries[0].0);
-                assert!(report.fallback.is_none(), "{report:?}");
-                if step == 5 {
+                let go_build = paths
+                    .iter()
+                    .any(|p| p.extension().is_some_and(|e| e == "go"));
+                assert_eq!(
+                    report.fallback.as_deref(),
+                    go_build.then_some("go_build_requires_full_resolution")
+                );
+                if step == 5 && !go_build {
                     assert_eq!(report.resolved_files, 0, "{report:?}");
                 }
             }

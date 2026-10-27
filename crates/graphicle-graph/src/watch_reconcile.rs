@@ -429,6 +429,7 @@ pub struct Plan {
     /// Stored hyperedges that pass every filter but the new hyperedge ids
     /// and their members' presence.
     hyper: Vec<Value>,
+    unresolved: Vec<Value>,
 }
 /// The part of [`reconcile`] that reads only the stored graph, the file
 /// system and the ignore rules, never the new extraction: every filter is a
@@ -577,6 +578,19 @@ pub fn plan(
         .filter(|e| !sp.evicted(e, &hyper_evicted) || sp.evicted(e, &excluded))
         .cloned()
         .collect::<Vec<_>>();
+    let unresolved = existing
+        .get("unresolved_calls")
+        .or_else(|| {
+            existing
+                .get("graph")
+                .and_then(|g| g.get("unresolved_calls"))
+        })
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|u| !sp.evicted(u, &edge_evicted) && !sp.evicted(u, &rebuilt))
+        .cloned()
+        .collect();
     Plan {
         sp,
         deleted_paths,
@@ -584,6 +598,7 @@ pub fn plan(
         nodes,
         edges,
         hyper,
+        unresolved,
     }
 }
 /// [`reconcile`] of a [`plan`] with the new extraction `result`.
@@ -606,9 +621,18 @@ pub fn finish(
         nodes,
         edges,
         hyper,
+        mut unresolved,
     } = plan;
     o.deleted_paths.extend(deleted_paths);
     messages.extend(planned);
+    for call in &mut unresolved {
+        sp.rebase_preserved(call);
+    }
+    if !unresolved.is_empty() {
+        let mut calls = take_items(&mut result, "unresolved_calls");
+        calls.extend(unresolved);
+        result["unresolved_calls"] = json!(calls);
+    }
     // With nothing left to keep from the stored graph (a full rebuild of a
     // code graph), the new ids and endpoints that only filter those records
     // are not collected.
@@ -731,5 +755,11 @@ pub fn finish(
     out.insert("hyperedges".into(), Value::Array(hs));
     out.insert("input_tokens".into(), json!(0));
     out.insert("output_tokens".into(), json!(0));
+    if let Some(calls) = result
+        .as_object_mut()
+        .and_then(|r| r.shift_remove("unresolved_calls"))
+    {
+        out.insert("unresolved_calls".into(), calls);
+    }
     Ok(Value::Object(out))
 }

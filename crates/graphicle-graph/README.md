@@ -324,6 +324,15 @@ does not cover them.
   prints the phases of every update; `GRAPHICLE_PROFILE=1` on `extract`,
   `update` and `watch` adds wall time, CPU time, cores used and memory per
   stage, pass and resolver on stderr.
+- **Call target safety.** Go calls use the installed `go` tool's active build
+  selection and `go/types` declaration identities, including method receivers.
+  `GOOS`, `GOARCH`, `GOFLAGS` build tags and module/workspace configuration
+  apply. Calls carry `resolution: go_types` and `evidence: type`; missing Go
+  tools, incomplete packages, interface dispatch and function values remain
+  in `unresolved_calls`. Go updates re-run type resolution rather than reuse
+  resolved-file caches. Python imports that are rebound or shadowed remain
+  `unsupported_rebinding` in both default and precise mode; the current
+  flow-insensitive analysis cannot prove their runtime target.
 - **Precise call resolution.** `--precise` (or `GRAPHICLE_PRECISE=1`) on
   `extract`, `update`, `watch` and `serve --watch` adds call edges that name
   matching, the upstream default, misses:

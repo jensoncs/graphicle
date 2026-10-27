@@ -13,7 +13,7 @@
 //!
 //! Levels only go up, and an edge that already has a level keeps it
 //! (incremental builds reuse cached edges). Default output, without
-//! `--precise`, has no `evidence` attribute.
+//! `--precise`, has no `evidence` attribute except for compiler-checked Go calls.
 use crate::extractors::resolution::source_key;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde_json::{Value, json};
@@ -56,7 +56,7 @@ fn s<'a>(v: &'a Value, key: &str) -> &'a str {
 fn found(e: &Value) -> usize {
     match s(e, "resolution") {
         "scip" => 3,
-        "oxc_type" | "super_call" => 2,
+        "go_types" | "oxc_type" | "super_call" => 2,
         "points_to" | "oxc_binding" | "dart_import" => 1,
         _ => match s(e, "receiver_evidence") {
             "constructor" | "annotation" | "self_method" => 2,

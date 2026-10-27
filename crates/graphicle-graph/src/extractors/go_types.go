@@ -1,0 +1,277 @@
+// Compiler-backed call targets. This helper uses only the Go standard library.
+// go list selects the active build; go/types owns declaration and method identity.
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"go/ast"
+	"go/importer"
+	"go/parser"
+	"go/token"
+	"go/types"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+)
+
+type request struct{ Paths []string }
+type metadata struct {
+	Dir, ImportPath, Name string
+	GoFiles, CgoFiles     []string
+	ImportMap             map[string]string
+	Error                 *struct{ Err string }
+	Module                *struct{ GoVersion string }
+}
+type site struct {
+	File       string `json:"file"`
+	Line       int    `json:"line"`
+	Column     int    `json:"column"`
+	Caller     string `json:"caller"`
+	CallerLine int    `json:"caller_line"`
+	TargetFile string `json:"target_file,omitempty"`
+	TargetLine int    `json:"target_line,omitempty"`
+	Target     string `json:"target,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+}
+type loader struct {
+	fset     *token.FileSet
+	meta     map[string]*metadata
+	packages map[string]*types.Package
+	busy     map[string]bool
+	sites    []site
+	wanted   map[string]bool
+	fallback types.Importer
+	sizes    types.Sizes
+}
+
+func (l *loader) Import(path string) (*types.Package, error) {
+	if path == "unsafe" {
+		return types.Unsafe, nil
+	}
+	if p := l.packages[path]; p != nil {
+		return p, nil
+	}
+	m := l.meta[path]
+	if m == nil {
+		return l.fallback.Import(path)
+	}
+	if l.busy[path] {
+		return nil, fmt.Errorf("import cycle: %s", path)
+	}
+	l.busy[path] = true
+	defer delete(l.busy, path)
+	files := []*ast.File{}
+	for _, name := range m.GoFiles {
+		f, err := parser.ParseFile(l.fset, filepath.Join(m.Dir, name), nil, 0)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, f)
+	}
+	info := &types.Info{Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}, Types: map[ast.Expr]types.TypeAndValue{}}
+	conf := types.Config{Importer: mappedImporter{l, m.ImportMap}, Sizes: l.sizes, Error: func(error) {}}
+	if m.Module != nil && m.Module.GoVersion != "" {
+		conf.GoVersion = "go" + m.Module.GoVersion
+	}
+	pkg, err := conf.Check(path, l.fset, files, info)
+	valid := err == nil && m.Error == nil && len(m.CgoFiles) == 0
+	if valid {
+		l.packages[path] = pkg
+	}
+	for _, file := range files {
+		filename := l.fset.PositionFor(file.Pos(), false).Filename
+		if !l.wanted[filename] {
+			continue
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				continue
+			}
+			ast.Inspect(fn.Body, func(n ast.Node) bool {
+				// A closure has no declaration node in the current graph. Do not
+				// attribute its calls to the enclosing function.
+				if _, ok := n.(*ast.FuncLit); ok {
+					return false
+				}
+				call, ok := n.(*ast.CallExpr)
+				if !ok {
+					return true
+				}
+				pos := l.fset.PositionFor(call.Pos(), false)
+				s := site{File: filename, Line: pos.Line, Column: pos.Column, Caller: fn.Name.Name, CallerLine: l.fset.PositionFor(fn.Pos(), false).Line, Reason: "unresolved_type"}
+				fun := unparen(call.Fun)
+				if index, ok := fun.(*ast.IndexExpr); ok {
+					fun = unparen(index.X)
+				}
+				if index, ok := fun.(*ast.IndexListExpr); ok {
+					fun = unparen(index.X)
+				}
+				var obj types.Object
+				switch f := fun.(type) {
+				case *ast.Ident:
+					obj = info.Uses[f]
+				case *ast.SelectorExpr:
+					if sel := info.Selections[f]; sel != nil {
+						recv := sel.Recv()
+						if p, ok := recv.(*types.Pointer); ok {
+							recv = p.Elem()
+						}
+						// Interface dispatch requires runtime information.
+						if _, dynamic := recv.Underlying().(*types.Interface); !dynamic {
+							obj = sel.Obj()
+						}
+					} else {
+						obj = info.Uses[f.Sel]
+					}
+				}
+				if _, builtin := obj.(*types.Builtin); builtin {
+					return true
+				}
+				if tv, ok := info.Types[call.Fun]; ok && tv.IsType() {
+					return true
+				}
+				if target, ok := obj.(*types.Func); ok && valid {
+					// A concrete struct may promote an embedded interface's
+					// method. That declaration is still dynamic dispatch.
+					sig := target.Type().(*types.Signature)
+					dynamic := false
+					if recv := sig.Recv(); recv != nil {
+						_, dynamic = recv.Type().Underlying().(*types.Interface)
+					}
+					if !dynamic {
+						p := l.fset.PositionFor(target.Origin().Pos(), false)
+						if p.IsValid() {
+							s.TargetFile, s.TargetLine, s.Target, s.Reason = p.Filename, p.Line, target.Name(), ""
+						}
+					}
+				}
+				l.sites = append(l.sites, s)
+				return true
+			})
+		}
+	}
+	if !valid {
+		return nil, fmt.Errorf("incomplete package %s", path)
+	}
+	return pkg, nil
+}
+
+type mappedImporter struct {
+	l       *loader
+	imports map[string]string
+}
+
+func (m mappedImporter) Import(path string) (*types.Package, error) {
+	if mapped := m.imports[path]; mapped != "" {
+		path = mapped
+	}
+	return m.l.Import(path)
+}
+func unparen(e ast.Expr) ast.Expr {
+	for {
+		p, ok := e.(*ast.ParenExpr)
+		if !ok {
+			return e
+		}
+		e = p.X
+	}
+}
+func main() {
+	var req request
+	if err := json.NewDecoder(os.Stdin).Decode(&req); err != nil {
+		panic(err)
+	}
+	l := &loader{fset: token.NewFileSet(), meta: map[string]*metadata{}, packages: map[string]*types.Package{}, busy: map[string]bool{}, wanted: map[string]bool{}}
+	l.fallback = importer.ForCompiler(l.fset, "source", nil)
+	configuration, err := exec.Command("go", "env", "-json", "GOARCH", "GOFLAGS", "GO111MODULE").Output()
+	if err != nil {
+		panic(err)
+	}
+	var config map[string]string
+	if err := json.Unmarshal(configuration, &config); err != nil {
+		panic(err)
+	}
+	// The Rust graph reads disk sources, not Go overlay replacements. An
+	// overlay cannot be safely mapped back to those declaration identities.
+	if strings.Contains(config["GOFLAGS"], "-overlay") || strings.Contains(config["GOFLAGS"], "-compiler") {
+		fmt.Println("[]")
+		return
+	}
+	l.sizes = types.SizesFor("gc", config["GOARCH"])
+	if l.sizes == nil {
+		panic("unsupported Go architecture")
+	}
+	dirs := map[string]bool{}
+	for _, p := range req.Paths {
+		p, _ = filepath.Abs(p)
+		l.wanted[p] = true
+		dirs[filepath.Dir(p)] = true
+	}
+	roots := map[string]bool{}
+	for _, dir := range sortedKeys(dirs) {
+		cmd := exec.Command("go", "list", "-e", "-deps", "-json", ".")
+		cmd.Dir = dir
+		// Standalone examples outside a module still have a well-defined Go build.
+		module := false
+		workspace := false
+		for p := dir; ; p = filepath.Dir(p) {
+			if _, err := os.Stat(filepath.Join(p, "go.work")); err == nil {
+				workspace = true
+			}
+			if _, err := os.Stat(filepath.Join(p, "go.mod")); err == nil {
+				module = true
+				break
+			}
+			if filepath.Dir(p) == p {
+				break
+			}
+		}
+		if !module && !workspace && os.Getenv("GOWORK") == "" && config["GO111MODULE"] == "" {
+			cmd.Env = append(os.Environ(), "GO111MODULE=off")
+		}
+		data, err := cmd.Output()
+		if err != nil {
+			continue
+		}
+		dec := json.NewDecoder(strings.NewReader(string(data)))
+		for {
+			var m metadata
+			if err := dec.Decode(&m); err != nil {
+				if err != io.EOF {
+					panic(err)
+				}
+				break
+			}
+			if m.Dir == "" || m.ImportPath == "" {
+				continue
+			}
+			l.meta[m.ImportPath] = &m
+			if dirs[m.Dir] {
+				roots[m.ImportPath] = true
+			}
+		}
+	}
+	for _, path := range sortedKeys(roots) {
+		_, _ = l.Import(path)
+	}
+	if l.sites == nil {
+		l.sites = []site{}
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(l.sites); err != nil {
+		panic(err)
+	}
+}
+
+func sortedKeys(values map[string]bool) []string {
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}

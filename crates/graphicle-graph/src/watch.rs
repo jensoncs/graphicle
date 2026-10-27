@@ -1721,14 +1721,51 @@ fn rebuild_inner(path: &Path, out: &Path, o: &RebuildOptions) -> Result<RebuildR
     // unchanged files; such a change set rebuilds every file, as `update`
     // does (see `extractors::routes`).
     let changed_paths = o.changed_paths.as_ref().filter(|changed| {
-        if !crate::extractors::routes::enabled() || !graph_path.exists() {
-            return true;
-        }
+        // Watchers may report a directory move as two directory paths rather
+        // than every child. The old directory no longer exists, so also check
+        // stored source identities. Re-scan the whole corpus in either case;
+        // treating the directory as a deleted file loses its moved children.
         let cwd = resolved(Path::new("."));
         let files = changed
             .iter()
             .flat_map(|raw| changed_candidates(raw, &cwd, &watch_root))
             .collect::<Vec<_>>();
+        let directory_change = files.iter().any(|p| {
+            p.starts_with(&watch_root)
+                && (p.is_dir()
+                    || (!p.exists()
+                        && items_ref(&existing, "nodes").iter().any(|n| {
+                            let source = PathBuf::from(sp.identity(&text(n, "source_file")));
+                            source != *p && source.starts_with(p)
+                        })))
+        });
+        if directory_change {
+            result
+                .messages
+                .push("Directory change - rebuilding every file.".into());
+            return false;
+        }
+        // A changed declaration or build file can alter method selection in
+        // unchanged Go callers. The compiler resolves a build, not one file.
+        if code
+            .iter()
+            .any(|p| p.extension().is_some_and(|e| e == "go"))
+            && files.iter().any(|p| {
+                p.extension().is_some_and(|e| e == "go")
+                    || matches!(
+                        p.file_name().and_then(|s| s.to_str()),
+                        Some("go.mod" | "go.sum" | "go.work" | "go.work.sum")
+                    )
+            })
+        {
+            result
+                .messages
+                .push("Go build changed - rebuilding every file.".into());
+            return false;
+        }
+        if !crate::extractors::routes::enabled() || !graph_path.exists() {
+            return true;
+        }
         let moved =
             crate::extractors::routes::stored_mounts(&existing, |s| PathBuf::from(sp.identity(s)))
                 .moved_by(&files);

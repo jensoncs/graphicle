@@ -47,7 +47,8 @@ pub struct ExtractOptions {
     /// Opt-in receiver-aware method resolution for Python, TypeScript/JavaScript
     /// and Go (`extractors::receiver_resolution`). Adds `calls` edges tagged
     /// `receiver_evidence` and an `unresolved_calls` list; the parity default
-    /// (`false`) leaves the output byte-identical.
+    /// (`false`) disables this heuristic pass. Import-rebinding guards and Go
+    /// compiler resolution run independently in every mode.
     pub receiver_resolution: bool,
     /// Add exact literal Jest/Vitest test registrations and attribute callback
     /// calls to them. Dynamic/duplicate names stay unresolved. Parity is off.
@@ -1731,7 +1732,7 @@ fn assemble_records(
         EdgeList::Records(records) => drop_rust_use_groups(records),
     }
     let profiled = crate::profile::span("assemble.receiver_precise_routes");
-    let unresolved_calls = if options.receiver_resolution {
+    let mut unresolved_calls = if options.receiver_resolution {
         let per: &[Value] = match per.as_mut() {
             Some(per) => per.values(),
             None => &[],
@@ -1791,6 +1792,39 @@ fn assemble_records(
             extractors::evidence::runtime_pairs(&all, root, &traces)
         };
         extractors::evidence::annotate(edges.values(), &indexer, &runtime);
+    }
+    if paths
+        .iter()
+        .any(|p| p.extension().is_some_and(|e| e == "py"))
+    {
+        let unsupported = match &mut edges {
+            EdgeList::Values(values) => {
+                extractors::python_import_safety::suppress(paths, values, root)
+            }
+            EdgeList::Records(records) => {
+                extractors::python_import_safety::suppress(paths, records, root)
+            }
+        };
+        if !unsupported.is_empty() {
+            unresolved_calls
+                .get_or_insert_with(Vec::new)
+                .extend(unsupported);
+        }
+    }
+    if paths
+        .iter()
+        .any(|p| p.extension().is_some_and(|e| e == "go"))
+    {
+        let go_unresolved = extractors::go_types::resolve(
+            paths,
+            &nodes,
+            &options.resolution_context_nodes,
+            edges.values(),
+            root,
+        );
+        let unresolved = unresolved_calls.get_or_insert_with(Vec::new);
+        unresolved.retain(|u| u["language"] != "go");
+        unresolved.extend(go_unresolved);
     }
     if extractors::routes::enabled() {
         extractors::routes::resolve(

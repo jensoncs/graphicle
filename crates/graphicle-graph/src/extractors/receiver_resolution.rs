@@ -1384,28 +1384,32 @@ func main() {
 "#,
         );
         let paths = vec![a, b];
-        assert!(calls(&run(root, &paths, false)).is_empty());
-        let on = run(root, &paths, true);
-        let c = calls(&on);
-        assert!(
-            has(&c, "cmd_main_use", "pkg_conn_send", "annotation"),
-            "{c:?}"
-        );
-        assert!(
-            has(&c, "cmd_main_main", "pkg_conn_send", "constructor"),
-            "{c:?}"
-        );
-        assert!(
-            has(&c, "cmd_main_main", "pkg_other_send", "constructor"),
-            "{c:?}"
-        );
-        let u = unresolved(&on);
-        let iface = u
-            .iter()
-            .find(|u| u["receiver"] == "s")
-            .expect("interface receiver stays unresolved");
-        assert_eq!(iface["reason"], "ambiguous");
-        assert!(!iface["candidates"].as_array().unwrap().is_empty());
+        for on in [false, true] {
+            let graph = run(root, &paths, on);
+            for (caller, target) in [
+                ("cmd_main_use", "pkg_conn_send"),
+                ("cmd_main_main", "pkg_conn_send"),
+                ("cmd_main_main", "pkg_other_send"),
+            ] {
+                assert!(count_calls(&graph, caller, target) > 0, "{graph}");
+            }
+            assert!(
+                graph["edges"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .filter(|e| e["relation"] == "calls")
+                    .all(|e| e["resolution"] == "go_types")
+            );
+            assert!(
+                unresolved(&graph)
+                    .iter()
+                    .any(|u| u["source_file"] == "cmd/main.go"
+                        && u["source_location"] == "L5"
+                        && u["reason"] == "unresolved_type"),
+                "{graph}"
+            );
+        }
     }
 
     #[test]
