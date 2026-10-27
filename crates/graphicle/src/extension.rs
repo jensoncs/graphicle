@@ -81,10 +81,9 @@ use std::{
 /// A boxed, sendable future, so hooks can be async without a new dependency.
 pub type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
-/// Core operations an extension may take over. With no extension serving
-/// them, the core answers them with 501 after authorization
-/// (`core_capabilities::not_included`); their HTTP routes run through the same
-/// operation table.
+/// Core operations an extension may take over. Without an override, Core
+/// serves pinned snapshot review and revision-bound coverage. HTTP routes
+/// use the same operation table.
 pub const OVERRIDABLE_OPERATIONS: &[&str] = &["impact.report", "coverage.upload", "graph.impact"];
 
 /// The edition a program is. An extension declares the edition it makes

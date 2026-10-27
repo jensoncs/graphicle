@@ -18,13 +18,23 @@ import (
 	"strings"
 )
 
-type request struct{ Paths []string }
+type request struct {
+	Paths  []string
+	Review *reviewRequest `json:"review,omitempty"`
+}
+type moduleMetadata struct {
+	Path, Version, Dir, GoMod, GoVersion string
+	Replace                              *moduleMetadata
+}
 type metadata struct {
-	Dir, ImportPath, Name string
-	GoFiles, CgoFiles     []string
-	ImportMap             map[string]string
-	Error                 *struct{ Err string }
-	Module                *struct{ GoVersion string }
+	Dir, ImportPath, Name              string
+	GoFiles, CgoFiles                  []string
+	ImportMap                          map[string]string
+	Error                              *struct{ Err string }
+	Module                             *moduleMetadata
+	Standard, DepOnly, Incomplete      bool
+	Imports, TestGoFiles, XTestGoFiles []string
+	DepsErrors                         []struct{ Err string }
 }
 type site struct {
 	File       string `json:"file"`
@@ -41,14 +51,27 @@ type loader struct {
 	fset     *token.FileSet
 	meta     map[string]*metadata
 	packages map[string]*types.Package
+	failures map[string]error
 	busy     map[string]bool
 	sites    []site
 	wanted   map[string]bool
 	fallback types.Importer
 	sizes    types.Sizes
+	review   *reviewCollector
 }
 
-func (l *loader) Import(path string) (*types.Package, error) {
+func (l *loader) Import(path string) (result *types.Package, failure error) {
+	if err := l.failures[path]; err != nil {
+		return nil, err
+	}
+	defer func() {
+		if failure != nil {
+			if l.failures == nil {
+				l.failures = map[string]error{}
+			}
+			l.failures[path] = failure
+		}
+	}()
 	if path == "unsafe" {
 		return types.Unsafe, nil
 	}
@@ -57,7 +80,13 @@ func (l *loader) Import(path string) (*types.Package, error) {
 	}
 	m := l.meta[path]
 	if m == nil {
+		if l.review != nil {
+			return nil, fmt.Errorf("package missing from selected build: %s", path)
+		}
 		return l.fallback.Import(path)
+	}
+	if l.review != nil && !m.Standard && !l.review.allowed(m.Dir) {
+		return nil, fmt.Errorf("package outside pinned snapshots: %s", path)
 	}
 	if l.busy[path] {
 		return nil, fmt.Errorf("import cycle: %s", path)
@@ -72,13 +101,16 @@ func (l *loader) Import(path string) (*types.Package, error) {
 		}
 		files = append(files, f)
 	}
-	info := &types.Info{Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}, Types: map[ast.Expr]types.TypeAndValue{}}
+	info := &types.Info{Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}, Types: map[ast.Expr]types.TypeAndValue{}}
 	conf := types.Config{Importer: mappedImporter{l, m.ImportMap}, Sizes: l.sizes, Error: func(error) {}}
 	if m.Module != nil && m.Module.GoVersion != "" {
 		conf.GoVersion = "go" + m.Module.GoVersion
 	}
 	pkg, err := conf.Check(path, l.fset, files, info)
-	valid := err == nil && m.Error == nil && len(m.CgoFiles) == 0
+	valid := err == nil && m.Error == nil && !m.Incomplete && len(m.DepsErrors) == 0 && len(m.CgoFiles) == 0
+	if l.review != nil && !m.Standard {
+		l.review.collect(l, m, files, info, valid)
+	}
 	if valid {
 		l.packages[path] = pkg
 	}
@@ -186,6 +218,10 @@ func main() {
 	if err := json.NewDecoder(os.Stdin).Decode(&req); err != nil {
 		panic(err)
 	}
+	if req.Review != nil {
+		runReview(*req.Review)
+		return
+	}
 	l := &loader{fset: token.NewFileSet(), meta: map[string]*metadata{}, packages: map[string]*types.Package{}, busy: map[string]bool{}, wanted: map[string]bool{}}
 	l.fallback = importer.ForCompiler(l.fset, "source", nil)
 	configuration, err := exec.Command("go", "env", "-json", "GOARCH", "GOFLAGS", "GO111MODULE").Output()
@@ -207,14 +243,22 @@ func main() {
 		panic("unsupported Go architecture")
 	}
 	dirs := map[string]bool{}
+	testDirs := map[string]bool{}
 	for _, p := range req.Paths {
 		p, _ = filepath.Abs(p)
 		l.wanted[p] = true
 		dirs[filepath.Dir(p)] = true
+		if strings.HasSuffix(p, "_test.go") {
+			testDirs[filepath.Dir(p)] = true
+		}
 	}
 	roots := map[string]bool{}
 	for _, dir := range sortedKeys(dirs) {
-		cmd := exec.Command("go", "list", "-e", "-deps", "-json", ".")
+		args := []string{"list", "-e", "-deps", "-json"}
+		if testDirs[dir] {
+			args = append(args, "-test")
+		}
+		cmd := exec.Command("go", append(args, ".")...)
 		cmd.Dir = dir
 		// Standalone examples outside a module still have a well-defined Go build.
 		module := false
@@ -247,7 +291,7 @@ func main() {
 				}
 				break
 			}
-			if m.Dir == "" || m.ImportPath == "" {
+			if m.Dir == "" || m.ImportPath == "" || (m.Name == "main" && strings.HasSuffix(m.ImportPath, ".test")) {
 				continue
 			}
 			l.meta[m.ImportPath] = &m

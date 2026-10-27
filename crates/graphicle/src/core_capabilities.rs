@@ -30,8 +30,10 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
     let mut capabilities = json!({"edition": edition,
         "code_graph": true, "memory": true, "observer": true,
         "local_inference": cfg!(feature = "local-inference"),
-        "change_impact": false,
-        "execution_coverage": false,
+        "change_impact": true,
+        "change_impact_scope": "pinned-go-snapshot-sets-v1",
+        "execution_coverage": true,
+        "execution_coverage_scope": "pinned-source-ranges-v1",
         "provider_permission_sync": false});
     if let Some(map) = capabilities.as_object_mut() {
         extensions.capabilities(map);
@@ -40,10 +42,9 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
     capabilities
 }
 
-/// The answer to an overridable operation (`extension::OVERRIDABLE_OPERATIONS`)
-/// that no installed extension serves: 501 after the caller is authorized to
-/// read `repository`, so a Core build never reports an unauthorized caller's
-/// request as merely unimplemented.
+/// Compatibility helper for an extension that cannot serve an operation.
+/// Core's impact and coverage routes have implementations and do not call this.
+/// Authorization precedes the unsupported-operation response.
 pub fn not_included(
     store: &Store,
     workspace: &str,
@@ -54,8 +55,7 @@ pub fn not_included(
         repo(db, principal, repository)?;
         Err(Error {
             status: axum::http::StatusCode::NOT_IMPLEMENTED,
-            message: "This build does not include change-impact or execution-coverage operations"
-                .into(),
+            message: "This operation is not included in the selected extension".into(),
             provider_failure: None,
         })
     })

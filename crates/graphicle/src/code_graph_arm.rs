@@ -204,6 +204,20 @@ pub fn node_span(
     content_len: usize,
 ) -> (usize, usize, usize, usize) {
     let total_lines = offsets.len();
+    if let (Some(a), Some(z)) = (
+        attributes.get("byte_start").and_then(Value::as_u64),
+        attributes.get("byte_end").and_then(Value::as_u64),
+    ) {
+        let (a, z) = (a as usize, z as usize);
+        if a <= z && z <= content_len {
+            return (
+                offsets.partition_point(|&v| v <= a).max(1),
+                offsets.partition_point(|&v| v < z).max(1),
+                a,
+                z,
+            );
+        }
+    }
     match lines(attributes) {
         Some((start, explicit_end)) => {
             let start = start.max(1);

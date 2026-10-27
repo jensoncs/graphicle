@@ -664,6 +664,7 @@ impl Store {
                 // Identical tree, possibly a new commit identity: the existing
                 // episode still gains the sha from this sync's metadata.
                 let metadata:Value=serde_json::from_str(&metadata)?;
+                crate::review::bind_snapshot(db,identifier,&snapshot,&metadata)?;
                 let projection=crate::jobs::enqueue_projection(db,identifier,p,&snapshot,&metadata)?;
                 return Ok(json!({"snapshot":snapshot,"sync_id":null,"missing":[],"replayed":true,"projection_job":projection}));
             }
@@ -916,6 +917,7 @@ impl Store {
             event(db,identifier,"synced",json!({"snapshot":sync["snapshot"],"changed":changed,"removed":removed}))?;
             // Every commit yields a graph episode labelled with its commit identity.
             let metadata:Value=serde_json::from_str(s(&sync,"metadata")).unwrap_or(Value::Null);
+            crate::review::bind_snapshot(db,identifier,s(&sync,"snapshot"),&metadata)?;
             let projection=crate::jobs::enqueue_projection(db,identifier,p,s(&sync,"snapshot"),&metadata)?;
             // A head set that was already projected (a file edited, then restored) gets no new projection to clear the markers above.
             crate::graph_projection::clear_stale_when_current(db,identifier)?;

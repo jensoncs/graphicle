@@ -208,8 +208,8 @@ fn impact_between_episodes_reports_removed_symbol_and_dependents() {
 
     let report = f.graph_impact(json!({"base_episode":episode1,"head_episode":episode2}));
     if !pro_edition() {
-        // Core: the overridable operation answers 501 after authorization.
-        assert_eq!(report.unwrap_err().status, StatusCode::NOT_IMPLEMENTED);
+        // Core requires pinned snapshot sets; episode-only requests are invalid.
+        assert_eq!(report.unwrap_err().status, StatusCode::BAD_REQUEST);
         return;
     }
     let report = report.unwrap();
@@ -814,7 +814,7 @@ async fn http_routes_project_list_and_diff_and_reject_unauthorized_principals() 
         .await;
         assert_eq!(status, StatusCode::BAD_REQUEST, "{error}");
     } else {
-        // Core keeps the route: 501 after authorization, never 404.
+        // Core keeps the route and validates its pinned-snapshot request.
         let (status, error) = call(
             &app,
             "POST",
@@ -823,7 +823,7 @@ async fn http_routes_project_list_and_diff_and_reject_unauthorized_principals() 
             json!({"base_episode":episode1,"head_episode":episode2}),
         )
         .await;
-        assert_eq!(status, StatusCode::NOT_IMPLEMENTED, "{error}");
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{error}");
     }
     let missing = format!(
         "/api/workspaces/{}/repositories/nope/graph/episodes",

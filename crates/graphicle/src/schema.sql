@@ -442,3 +442,36 @@
                     created_at TEXT NOT NULL);
                 CREATE INDEX IF NOT EXISTS gf_report_timings_repo
                     ON gf_report_timings(repository_id,id);
+
+-- Revision-bound receipts contain identities only, never source text.
+CREATE TABLE IF NOT EXISTS repo_review_packets (
+    id TEXT NOT NULL,
+    repository_id TEXT NOT NULL REFERENCES repo_projects(id) ON DELETE CASCADE,
+    principal_hash TEXT NOT NULL,
+    receipt TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    PRIMARY KEY(id, repository_id, principal_hash));
+
+-- A source tree may be attested by several commits or admission policies.
+CREATE TABLE IF NOT EXISTS repo_snapshot_bindings (
+    repository_id TEXT NOT NULL,
+    snapshot TEXT NOT NULL,
+    commit_id TEXT NOT NULL,
+    policy_sha256 TEXT NOT NULL,
+    scope_complete INTEGER NOT NULL,
+    PRIMARY KEY(repository_id, snapshot, commit_id, policy_sha256),
+    FOREIGN KEY(repository_id, snapshot) REFERENCES repo_snapshots(repository_id, sha256) ON DELETE CASCADE);
+
+-- Immutable caller-attested execution observations for an exact snapshot/build.
+CREATE TABLE IF NOT EXISTS repo_review_coverage (
+    id TEXT PRIMARY KEY,
+    repository_id TEXT NOT NULL,
+    snapshot TEXT NOT NULL,
+    commit_id TEXT NOT NULL,
+    policy_sha256 TEXT NOT NULL,
+    profile_sha256 TEXT NOT NULL,
+    data TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    FOREIGN KEY(repository_id, snapshot) REFERENCES repo_snapshots(repository_id, sha256) ON DELETE CASCADE);
+CREATE INDEX IF NOT EXISTS repo_review_coverage_binding ON repo_review_coverage
+    (repository_id, snapshot, commit_id, policy_sha256, profile_sha256);

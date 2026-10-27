@@ -72,8 +72,8 @@ fn core_build_combines_projected_graph_and_reviewed_memory_then_retracts_stale_m
 fn compiled_capabilities_match_available_tools_and_native_operations() {
     let pro = pro_edition();
     let capabilities = graphicle_runtime::core_capabilities::capabilities();
-    assert_eq!(capabilities["change_impact"], pro);
-    assert_eq!(capabilities["execution_coverage"], pro);
+    assert_eq!(capabilities["change_impact"], true);
+    assert_eq!(capabilities["execution_coverage"], true);
     let tools = graphicle_runtime::api::mcp_tools(false);
     assert_eq!(
         tools["tools"]
@@ -87,8 +87,7 @@ fn compiled_capabilities_match_available_tools_and_native_operations() {
     let result = graphicle_runtime::native("graph.impact.diff", json!({"base":empty,"head":empty}));
     assert_eq!(result.is_ok(), pro);
     if !pro {
-        // Core answers every overridable operation with 501, but only after
-        // authorizing the caller.
+        // Core validates pinned requests only after authorizing the caller.
         let f = Fixture::new(&[("a.py", A)]);
         let app = graphicle_runtime::api::App::new(
             f.store.clone(),
@@ -102,7 +101,7 @@ fn compiled_capabilities_match_available_tools_and_native_operations() {
                 graphicle_runtime::api::command(&app, &f.workspace, &f.key, operation, &args)
                     .unwrap_err()
                     .status,
-                axum::http::StatusCode::NOT_IMPLEMENTED,
+                axum::http::StatusCode::BAD_REQUEST,
                 "{operation}"
             );
             assert_eq!(

@@ -8,6 +8,67 @@ use std::{fs, path::Path};
 // Extraction uses process-wide run caches; edits must not overlap other runs.
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+#[test]
+fn go_internal_and_external_test_calls_resolve_without_same_name_guesses() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    write(&root, "go.mod", "module example/fixture\ngo 1.23\n");
+    write(
+        &root,
+        "main.go",
+        "package fixture\ntype A struct{}\ntype B struct{}\nfunc (A) Target() {}\nfunc (B) Target() {}\n",
+    );
+    write(
+        &root,
+        "internal_test.go",
+        "package fixture\nfunc InternalTestHelper() { A{}.Target() }\n",
+    );
+    write(
+        &root,
+        "external_test.go",
+        "package fixture_test\nimport f \"example/fixture\"\nfunc ExternalTestHelper() { f.A{}.Target() }\n",
+    );
+    write(
+        &root,
+        "excluded_test.go",
+        "//go:build graphicle_excluded_fixture\n\npackage fixture\nfunc Excluded() { B{}.Target() }\n",
+    );
+    let paths = [
+        "main.go",
+        "internal_test.go",
+        "external_test.go",
+        "excluded_test.go",
+    ]
+    .map(|p| root.join(p));
+    let options = ExtractOptions {
+        root: Some(root.clone()),
+        cache_root: Some(root.clone()),
+        ..Default::default()
+    };
+    for _ in 0..2 {
+        let graph = extract(&paths, &options).unwrap();
+        let nodes = graph["nodes"].as_array().unwrap();
+        let node = |id: &Value| nodes.iter().find(|n| n["id"] == *id).unwrap();
+        let calls: Vec<_> = graph["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["relation"] == "calls")
+            .collect();
+        for file in ["internal_test.go", "external_test.go"] {
+            let call = calls
+                .iter()
+                .find(|e| node(&e["source"])["source_file"] == file)
+                .unwrap_or_else(|| panic!("missing {file}: {graph}"));
+            assert_eq!(node(&call["target"])["source_file"], "main.go");
+            assert_eq!(node(&call["target"])["source_location"], "L4");
+            assert_eq!(call["resolution"], "go_types");
+        }
+        assert_eq!(calls.len(), 2, "{graph}");
+    }
+}
+
 fn write(root: &Path, name: &str, body: &str) {
     let path = root.join(name);
     fs::create_dir_all(path.parent().unwrap()).unwrap();

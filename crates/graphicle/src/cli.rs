@@ -41,6 +41,16 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Review changes between authorized, pinned Go snapshot sets.
+    Review {
+        #[arg(long)]
+        request: PathBuf,
+    },
+    /// Publish or query immutable, source-only context snapshots in GCS.
+    SharedContext {
+        #[command(subcommand)]
+        action: crate::shared_context::Command,
+    },
     /// Set up this repository for you and your agents in one step.
     ///
     /// Syncs the folder and builds its code graph, connects the agent
@@ -903,6 +913,9 @@ where
         return print(&result);
     }
     let directory = cli.data_dir.unwrap_or_else(local::data_dir);
+    if let Command::SharedContext { action } = command {
+        return print(&crate::shared_context::run(&directory, action).await?);
+    }
     if let Command::Hook { client, event } = &command {
         hook(&directory, client, event);
         return Ok(());
@@ -1157,6 +1170,16 @@ where
             crate::terminal::emit(&reply, json, crate::offboard::text)
         }
         Command::DocumentWorker { .. } => unreachable!(),
+        Command::Review { request } => {
+            let session = local::session(&store, false)?;
+            print(&crate::review::run(
+                &store,
+                &session.workspace,
+                &session.capability,
+                &crate::review::read_request(&request)?,
+            )?)
+        }
+        Command::SharedContext { .. } => unreachable!(),
         Command::Restore { .. } => unreachable!(),
         Command::RedisWorker { .. } => unreachable!(),
         Command::Init { name } => {
@@ -2493,6 +2516,33 @@ mod tests {
         assert_eq!(
             super::serve_hosts(usual),
             vec!["127.0.0.1:8854".to_string(), "localhost:8854".to_string()]
+        );
+    }
+
+    #[test]
+    fn shared_context_requires_explicit_destination_binding_and_expiry() {
+        use clap::Parser;
+        let args = [
+            "graphicle",
+            "shared-context",
+            "publish",
+            "--prefix",
+            "gs://code-review-transcripts/graphicle/",
+            "--identity",
+            "identity.json",
+        ];
+        assert!(super::Cli::try_parse_from(args).is_err());
+        let mut complete = args.to_vec();
+        complete.extend(["--expires-at", "2000000000"]);
+        assert!(super::Cli::try_parse_from(complete).is_ok());
+        assert!(
+            super::Cli::try_parse_from([
+                "graphicle",
+                "shared-context",
+                "context",
+                "where is billing?"
+            ])
+            .is_err()
         );
     }
 

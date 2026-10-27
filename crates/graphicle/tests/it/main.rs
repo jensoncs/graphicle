@@ -83,3 +83,5 @@ mod temporal_graph;
 mod ux_terminal;
 mod workflows;
 mod workspace_scope;
+
+mod pinned_review;

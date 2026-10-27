@@ -4,13 +4,14 @@
 //! labels (`ids.make_id`), so two symbols with one label collapse and a rename
 //! looks like a delete plus an add. This pass leaves those identifiers untouched
 //! and adds, per node, a logical `stable_id` (repository, path, qualified name,
-//! kind, ordinal), a content `revision` (hash of the symbol's own source lines)
+//! kind, ordinal), a content `revision` (hash of its exact declaration, with a conservative
+//! whole-file fallback)
 //! and the `qualified_name` it was derived from; per edge it adds `derivation`
 //! (from the confidence label) and a `provenance` record. The graph shape is
 //! unchanged, so every parity oracle still holds on the annotated graph.
 //!
-//! The Python oracle (`tools/check_identity.py`) recomputes the same values
-//! from the node-link graph and the source files.
+//! `legacy_revision` retains the prior next-symbol slicing for compatibility;
+//! stable IDs and logical memory-anchor identities keep their existing format.
 use crate::graph::{
     Error, Result,
     graph::Graph,
@@ -223,19 +224,24 @@ fn is_file_node(attributes: &impl crate::graph::record::Properties, relpath: &st
     !basename.is_empty() && (label == basename || label == relpath)
 }
 
-/// The content revision: the node's own lines, from its start line up to the
+/// Legacy revision retained for compatibility: lines from the start up to the
 /// line before the next symbol that starts in the same file
 /// ([`span::byte_range`]). File nodes hash the whole file. Lines are compared
 /// as bytes; a trailing newline is kept.
 struct SourceText<'a> {
     text: std::borrow::Cow<'a, str>,
     starts: Vec<usize>,
+    symbols: Vec<Value>,
 }
 
 impl<'a> SourceText<'a> {
     fn new(text: std::borrow::Cow<'a, str>) -> Self {
         let starts = span::line_starts(&text);
-        Self { text, starts }
+        Self {
+            text,
+            starts,
+            symbols: vec![],
+        }
     }
 
     fn revision(&self, start: Option<usize>, next: Option<usize>, file: bool) -> String {
@@ -276,7 +282,14 @@ impl Loader<'_> {
                         std::borrow::Cow::Owned(String::from_utf8_lossy(&bytes).into_owned())
                     }
                 };
-                Some(SourceText::new(source))
+                let symbols = crate::structure::analyze(relpath, &source)
+                    .ok()
+                    .filter(|v| v["issues"].as_array().is_some_and(Vec::is_empty))
+                    .and_then(|v| v["symbols"].as_array().cloned())
+                    .unwrap_or_default();
+                let mut loaded = SourceText::new(source);
+                loaded.symbols = symbols;
+                Some(loaded)
             })
             .as_ref()
     }
@@ -454,7 +467,7 @@ pub fn annotate(graph: &mut Graph, options: &IdentityOptions) -> Result<Identity
     };
     let mut with_revision = 0;
     let mut missing = BTreeSet::new();
-    let mut updates: Vec<(String, Option<String>)> = Vec::with_capacity(count);
+    let mut updates = Vec::with_capacity(count);
     for index in 0..count {
         let stable_id = stable_hash(
             &options.repo,
@@ -463,12 +476,48 @@ pub fn annotate(graph: &mut Graph, options: &IdentityOptions) -> Result<Identity
             &kinds[index],
             ordinal[index],
         );
+        let mut legacy_revision = None;
+        let mut exact = None;
         let revision = if relpaths[index].is_empty() {
             None
         } else {
             match loader.source(&relpaths[index]) {
                 Some(source) => {
-                    Some(source.revision(starts[index], next_start[index], files[index]))
+                    legacy_revision =
+                        Some(source.revision(starts[index], next_start[index], files[index]));
+                    if !files[index] {
+                        let matches: Vec<_> = source
+                            .symbols
+                            .iter()
+                            .filter(|s| {
+                                s["line"].as_u64().map(|n| n as usize) == starts[index]
+                                    && s["name"].as_str().is_some_and(|name| {
+                                        name == qualified[index]
+                                            || name.rsplit('.').next()
+                                                == qualified[index].rsplit('.').next()
+                                    })
+                            })
+                            .collect();
+                        if matches.len() == 1 {
+                            let symbol = matches[0];
+                            if let (Some(a), Some(z)) =
+                                (symbol["byte_start"].as_u64(), symbol["byte_end"].as_u64())
+                                && source.text.get(a as usize..z as usize).is_some()
+                            {
+                                exact = Some(symbol.clone());
+                            }
+                        }
+                    }
+                    let bytes = exact
+                        .as_ref()
+                        .and_then(|s| {
+                            source.text.get(
+                                s["byte_start"].as_u64()? as usize
+                                    ..s["byte_end"].as_u64()? as usize,
+                            )
+                        })
+                        .unwrap_or(&source.text);
+                    Some(sha256_hex(&[bytes.as_bytes()]))
                 }
                 None => {
                     missing.insert(relpaths[index].clone());
@@ -479,9 +528,33 @@ pub fn annotate(graph: &mut Graph, options: &IdentityOptions) -> Result<Identity
         if revision.is_some() {
             with_revision += 1;
         }
-        updates.push((stable_id, revision));
+        updates.push((stable_id, revision, legacy_revision, exact));
     }
-    for ((index, node), (stable_id, revision)) in graph.nodes_mut().enumerate().zip(updates) {
+    for ((index, node), (stable_id, revision, legacy_revision, exact)) in
+        graph.nodes_mut().enumerate().zip(updates)
+    {
+        node.attributes
+            .insert("legacy_revision".into(), json!(legacy_revision));
+        node.attributes.insert(
+            "revision_basis".into(),
+            json!(if files[index] {
+                "file"
+            } else if exact.is_some() {
+                "exact_declaration_v2"
+            } else {
+                "conservative_file_v2"
+            }),
+        );
+        // Reannotation cannot retain obsolete exact spans.
+        for field in ["byte_start", "byte_end", "end_line"] {
+            node.attributes.remove(field);
+        }
+        if let Some(exact) = exact {
+            for field in ["byte_start", "byte_end", "end_line"] {
+                node.attributes.insert(field.into(), exact[field].clone());
+            }
+        }
+
         node.attributes
             .insert("stable_id".into(), Value::String(stable_id));
         node.attributes.insert(
@@ -1007,6 +1080,67 @@ mod tests {
     }
 
     #[test]
+    fn exact_nested_spans_keep_outer_tail_and_stable_memory_anchors() {
+        let source = "def outer():\n    def inner():\n        return 1\n    return inner() + 10\n";
+        let build = |source: &str| {
+            let mut graph = Graph::new(true, false);
+            for (id, line) in [("outer", 1), ("inner", 2)] {
+                graph
+                    .add_node(
+                        json!(id),
+                        attributes([
+                            ("label", json!(id)),
+                            ("source_file", json!("nested.py")),
+                            ("source_location", json!(format!("L{line}"))),
+                            ("file_type", json!("code")),
+                        ]),
+                    )
+                    .unwrap();
+            }
+            graph
+                .add_edge(
+                    json!("outer"),
+                    json!("inner"),
+                    None,
+                    attributes([("relation", json!("contains"))]),
+                )
+                .unwrap();
+            annotate(
+                &mut graph,
+                &IdentityOptions {
+                    sources: BTreeMap::from([("nested.py".into(), source.into())]),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            graph
+        };
+        let before = build(source);
+        let after = build(&source.replace("+ 10", "+ 20"));
+        assert_eq!(
+            attr(&before, "outer", "revision_basis"),
+            json!("exact_declaration_v2")
+        );
+        assert_ne!(
+            attr(&before, "outer", "revision"),
+            attr(&after, "outer", "revision")
+        );
+        assert_eq!(
+            attr(&before, "inner", "revision"),
+            attr(&after, "inner", "revision")
+        );
+        for id in ["outer", "inner"] {
+            assert_eq!(
+                attr(&before, id, "stable_id"),
+                attr(&after, id, "stable_id")
+            );
+        }
+        let a = attr(&before, "inner", "byte_start").as_u64().unwrap() as usize;
+        let z = attr(&before, "inner", "byte_end").as_u64().unwrap() as usize;
+        assert_eq!(&source[a..z], "def inner():\n        return 1");
+    }
+
+    #[test]
     fn stable_ids_are_scoped_by_repository() {
         let mut a = sample();
         let mut b = sample();
@@ -1261,7 +1395,10 @@ mod tests {
             };
             annotate(&mut graph, &options).unwrap();
             for (node, want) in graph.nodes().iter().zip(&expected) {
-                let got = node.attributes.get("revision").and_then(Value::as_str);
+                let got = node
+                    .attributes
+                    .get("legacy_revision")
+                    .and_then(Value::as_str);
                 assert_eq!(got, want.as_deref(), "{name}: {}", string(&node.id));
                 compared += usize::from(want.is_some());
             }

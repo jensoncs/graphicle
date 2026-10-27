@@ -25,6 +25,8 @@ fn helper() -> Option<&'static Path> {
                 "go-types"
             });
             std::fs::write(&source, include_str!("go_types.go")).ok()?;
+            let review = dir.path().join("review.go");
+            std::fs::write(&review, include_str!("go_review.go")).ok()?;
             let host = crate::process::capture(
                 Command::new("go")
                     .args(["env", "-json", "GOHOSTOS", "GOHOSTARCH"])
@@ -42,6 +44,7 @@ fn helper() -> Option<&'static Path> {
                     .args(["build", "-o"])
                     .arg(&binary)
                     .arg(&source)
+                    .arg(&review)
                     .current_dir(dir.path())
                     .env("GOWORK", "off")
                     .env("GO111MODULE", "off")
@@ -56,6 +59,35 @@ fn helper() -> Option<&'static Path> {
         })
         .as_ref()
         .map(|(_, path)| path.as_path())
+}
+
+/// Compiler facts for an isolated, explicitly pinned Go snapshot set. The
+/// helper shares go/types resolution with extraction, but records build inputs,
+/// exact declarations and every call site instead of graph-name guesses.
+pub fn review(root: &Path, request: &Value) -> crate::Result<Value> {
+    let binary = helper().ok_or("Go compiler helper unavailable")?;
+    let cache = tempfile::tempdir()?;
+    let output = crate::process::capture_bounded(
+        Command::new(binary)
+            .current_dir(root)
+            .env("GOTOOLCHAIN", "local")
+            .env("GOENV", "off")
+            .env("GOWORK", "off")
+            .env("GOFLAGS", "")
+            .env("GOPROXY", "off")
+            .env("GOSUMDB", "off")
+            .env("GOVCS", "*:off")
+            .env("GOMODCACHE", cache.path().join("modules"))
+            .env("GOCACHE", cache.path().join("build"))
+            .env("CGO_ENABLED", "0"),
+        Duration::from_secs(120),
+        Some(serde_json::to_vec(&json!({"review":request}))?),
+        64 * 1024 * 1024,
+    )?;
+    if !output.success || output.stdout.len() > 64 * 1024 * 1024 {
+        return Err("Go review analysis failed or exceeded its output bound".into());
+    }
+    Ok(serde_json::from_slice(&output.stdout)?)
 }
 
 #[derive(Deserialize)]

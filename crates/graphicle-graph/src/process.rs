@@ -24,6 +24,35 @@ pub fn capture_with_input(
     timeout: Duration,
     input: Option<Vec<u8>>,
 ) -> io::Result<Output> {
+    capture_bounded(command, timeout, input, usize::MAX)
+}
+
+/// Drain both streams without retaining unbounded subprocess output.
+pub fn capture_bounded(
+    command: &mut Command,
+    timeout: Duration,
+    input: Option<Vec<u8>>,
+    max_bytes: usize,
+) -> io::Result<Output> {
+    fn drain(mut stream: impl Read, max: usize) -> io::Result<Vec<u8>> {
+        let mut bytes = Vec::new();
+        let mut buffer = [0u8; 8192];
+        let mut exceeded = false;
+        loop {
+            let n = stream.read(&mut buffer)?;
+            if n == 0 {
+                break;
+            }
+            let keep = n.min(max.saturating_sub(bytes.len()));
+            bytes.extend_from_slice(&buffer[..keep]);
+            exceeded |= keep != n;
+        }
+        if exceeded {
+            Err(io::Error::other("command output bound exceeded"))
+        } else {
+            Ok(bytes)
+        }
+    }
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt;
@@ -43,16 +72,10 @@ pub fn capture_with_input(
         std::thread::spawn(move || stdin.write_all(&bytes))
     });
     // Drain both pipes concurrently, including during the deadline wait.
-    let mut stdout = child.stdout.take().expect("piped stdout");
-    let mut stderr = child.stderr.take().expect("piped stderr");
-    let out = std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stdout.read_to_end(&mut bytes).map(|_| bytes)
-    });
-    let err = std::thread::spawn(move || {
-        let mut bytes = Vec::new();
-        stderr.read_to_end(&mut bytes).map(|_| bytes)
-    });
+    let stdout = child.stdout.take().expect("piped stdout");
+    let stderr = child.stderr.take().expect("piped stderr");
+    let out = std::thread::spawn(move || drain(stdout, max_bytes));
+    let err = std::thread::spawn(move || drain(stderr, max_bytes));
     let status = child.wait_timeout(timeout);
     if !matches!(status, Ok(Some(_))) {
         #[cfg(unix)]
@@ -99,6 +122,17 @@ pub fn capture_with_input(
 mod tests {
     #[cfg(unix)]
     use super::*;
+    #[test]
+    #[cfg(unix)]
+    fn output_limit_refuses_without_pipe_deadlock() {
+        let result = capture_bounded(
+            &mut Command::new("/bin/cat"),
+            Duration::from_secs(5),
+            Some(vec![b'x'; 100_000]),
+            1024,
+        );
+        assert!(result.err().unwrap().to_string().contains("output bound"));
+    }
     #[test]
     #[cfg(unix)]
     fn drains_both_streams_and_stops_timed_out_child() {

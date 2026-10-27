@@ -288,15 +288,16 @@ fn every_flag_combination_lists_each_tool_once() {
     // `graph_stats` is the engine's (Graphify's), once.
     assert_eq!(listed.iter().filter(|n| *n == "graph_stats").count(), 1);
     // A project connection's core tools: `list_projects` is a workspace
-    // connection's, the other 22 as the one server lists them.
+    // connection's, the other 23 as the one server lists them.
     let core: Vec<String> = api::core_mcp_tools(false, false)
         .into_iter()
         .filter_map(McpTool::confined)
         .map(|tool| tool.name().to_string())
         .collect();
-    assert_eq!(core.len(), 22, "{core:?}");
-    assert_eq!(core[15..], graph_tools::NAVIGATION.map(String::from));
-    assert_eq!(listed[..22], core[..], "the core tools lead the list");
+    assert_eq!(core.len(), 23, "{core:?}");
+    assert_eq!(core[15..22], graph_tools::NAVIGATION.map(String::from));
+    assert_eq!(core[22], "review_changes");
+    assert_eq!(listed[..23], core[..], "the core tools lead the list");
     assert!(!listed.contains(&"list_projects".to_string()));
     let pull = api::mcp_tools_for(
         false,
@@ -445,11 +446,11 @@ fn graph_tools_answer_with_the_engines_text_and_checked_citations() {
                     assert_eq!(bytes, source, "{node}");
                 }
                 if node["label"] == "alpha()" {
-                    assert_eq!(bytes, "def alpha():\n    return 1\n\n", "{node}");
+                    assert_eq!(bytes, "def alpha():\n    return 1", "{node}");
                     assert_eq!(node["source_id"], "file:a.py");
                     assert_eq!(
                         (node["line"].clone(), node["end_line"].clone()),
-                        (json!(1), json!(3))
+                        (json!(1), json!(2))
                     );
                 }
             }
@@ -953,7 +954,10 @@ fn a_tool_set_serves_one_half_of_the_server() {
         .collect();
     assert_eq!(listed[..expected.len()], expected[..], "{listed:?}");
     for extra in &listed[expected.len()..] {
-        assert!(EDITION_GRAPH_TOOLS.contains(&extra.as_str()), "{listed:?}");
+        assert!(
+            EDITION_GRAPH_TOOLS.contains(&extra.as_str()) || extra == "review_changes",
+            "{listed:?}"
+        );
     }
     assert!(call(&f, &app, "recall_project", json!({"question":"alpha"})).is_err());
     assert!(call(&f, &app, "get_node", json!({"label":"alpha"})).is_ok());

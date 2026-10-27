@@ -252,7 +252,8 @@ fn already_held(shown: &[Shown], source: &SourceKey, start: u64, end: u64) -> bo
         .filter(|s| {
             s.id == source.id
                 && s.repository_id.as_deref().or(source.packet) == source.project
-                && s.sha256.as_deref().is_none_or(|h| h == source.sha256)
+                && !source.sha256.is_empty()
+                && s.sha256.as_deref().is_some_and(|h| h == source.sha256)
         })
         .map(|s| (s.start, s.end))
         .collect();

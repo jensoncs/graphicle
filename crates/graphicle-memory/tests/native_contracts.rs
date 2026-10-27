@@ -1975,7 +1975,7 @@ fn excerpts_the_caller_holds_become_references_and_their_share_goes_on() {
     assert!(plain.get("already_shown").is_none());
     let held = packing::pack(&request(
         json!([{"id":"s1","sha256":"s1-hash","byte_start":0,"byte_end":20},
-        {"id":"s1","byte_start":15,"byte_end":200}]),
+        {"id":"s1","sha256":"s1-hash","byte_start":15,"byte_end":200}]),
     ))
     .unwrap();
     let markdown = held["markdown"].as_str().unwrap();
@@ -2009,6 +2009,7 @@ fn excerpts_the_caller_holds_become_references_and_their_share_goes_on() {
     // A span of another version, or one that does not cover the excerpt,
     // leaves the text in place.
     for shown in [
+        json!([{"id":"s1","byte_start":0,"byte_end":200}]),
         json!([{"id":"s1","sha256":"older","byte_start":0,"byte_end":200}]),
         json!([{"id":"s1","byte_start":0,"byte_end":20},{"id":"s1","byte_start":21,"byte_end":200}]),
     ] {
@@ -2235,7 +2236,7 @@ fn shown_spans_and_gap_markers_keep_the_projects_of_a_workspace_apart() {
     // A span of project a's README holds a's excerpt, not b's same bytes.
     let held = packing::pack(&request(
         None,
-        json!([{"id":"file:README.md","repository_id":"a","byte_start":0,"byte_end":30}]),
+        json!([{"id":"file:README.md","repository_id":"a","sha256":"same-bytes","byte_start":0,"byte_end":30}]),
         Value::Null,
     ))
     .unwrap();
@@ -2249,7 +2250,8 @@ fn shown_spans_and_gap_markers_keep_the_projects_of_a_workspace_apart() {
     );
     // A span that names no project is the packet's project's: in a packet
     // that names none it holds nothing; in one that names b, b's excerpt.
-    let unnamed = json!([{"id":"file:README.md","byte_start":0,"byte_end":30}]);
+    let unnamed =
+        json!([{"id":"file:README.md","sha256":"same-bytes","byte_start":0,"byte_end":30}]);
     let nobody = packing::pack(&request(None, unnamed.clone(), Value::Null)).unwrap();
     assert_eq!(nobody["already_shown"], json!([]));
     let anchored = packing::pack(&request(Some("b"), unnamed, Value::Null)).unwrap();

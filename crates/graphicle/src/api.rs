@@ -734,7 +734,7 @@ async fn graph_episodes(
     )
     .await
 }
-/// `graph.impact`: base-versus-head impact between two graph episodes.
+/// `graph.impact`: pinned base/head review (or an installed extension contract).
 async fn graph_impact(
     State(app): State<App>,
     Path((workspace, repository)): Path<(String, String)>,
@@ -823,7 +823,7 @@ async fn graph_as_of(
     };
     crate::metering::serve_route(store, &headers, &workspace, &repository, "graph.as_of", run).await
 }
-/// `impact.report`: the PR change-impact report.
+/// `impact.report`: the pinned change-impact review packet.
 async fn impact_report(
     State(app): State<App>,
     Path((workspace, repository)): Path<(String, String)>,
@@ -1329,16 +1329,8 @@ pub(crate) fn dispatch(
         "claim.history" => store.claim_history(workspace, capability, args),
         "workflow.enqueue" => store.enqueue(workspace, capability, args, &app.worker.config),
         "workflow.status" => store.job_status(workspace, capability, args),
-        // Change impact and execution coverage, which an installed
-        // extension serves (above); without one: 501 after authorization.
-        "impact.report" | "coverage.upload" | "graph.impact" => {
-            crate::core_capabilities::not_included(
-                store,
-                workspace,
-                capability,
-                crate::string(args, "repository_id", 100)?,
-            )
-        }
+        "impact.report" | "graph.impact" => crate::review::run(store, workspace, capability, args),
+        "coverage.upload" => crate::coverage::upload(store, workspace, capability, args),
         "graph.source" => store.graph_source(workspace, capability, args),
         "graph.project" => store.graph_project(workspace, capability, string(args, "repository_id", 100)?),
         "graph.episodes" => {
@@ -1574,6 +1566,7 @@ fn essential_description(name: &str) -> Option<&'static str> {
 /// `repo` argument may select another repository of the workspace.
 pub fn core_mcp_tools(learning: bool, work_state: bool) -> Vec<McpTool> {
     let mut tools = vec![
+
         McpTool::new(
             tool(
                 "recall_project",
@@ -1783,6 +1776,7 @@ pub fn core_mcp_tools(learning: bool, work_state: bool) -> Vec<McpTool> {
         ), "work_state.read", false));
     }
     tools.extend(crate::graph_tools::tools(false));
+    tools.push(McpTool::new(tool("review_changes", "Compare pinned Go snapshot sets and return diffs, affected callers, dependencies, exact revisions and explicit coverage limitations. A previous packet ID requests revision-safe updates and invalidations.",crate::review::properties(), &["base","head","profile"], false),"graph.impact",true).workspace_only());
     tools
 }
 /// `identifier_route` when a call to `recall_project` leaves it out: on in
@@ -2444,6 +2438,18 @@ fn mcp_in(
                     return Err(Error::bad(
                         "Tool arguments do not match the published contract",
                     ));
+                }
+                if name == "review_changes"
+                    && let Some(repository) = repository
+                    && ["base", "head"].iter().any(|side| {
+                        args[*side]
+                            .as_array()
+                            .into_iter()
+                            .flatten()
+                            .any(|pin| pin["repository_id"] != repository)
+                    })
+                {
+                    return Err(confined("cross-repository review"));
                 }
                 for (field, value) in switches {
                     args[field] = value;
