@@ -15,8 +15,9 @@ versioned together at 0.2.0.
   slice covers the entire declaration. Old truncated nested-symbol slices
   remain conservative and require re-grounding; they cannot prove unchanged code.
 - Go discovery batches packages by module, disables cgo and network resolution,
-  isolates module/build caches, and honors supplied vendor trees. Missing offline
-  dependencies remain unresolved. Other languages retain incremental cache reuse.
+  uses a private build cache, and honors supplied vendor trees. Extraction reuses
+  locally cached modules; pinned review keeps its module cache isolated. Missing
+  offline dependencies remain unresolved. Other languages retain incremental cache reuse.
 - Review packets reserve delta control records before packing excerpts, and
   tokenize candidates individually. Scope attestations can be corrected on replay.
 - Coverage verification runs outside the write transaction. Shown-span schemas

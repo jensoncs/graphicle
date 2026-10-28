@@ -26,7 +26,7 @@
     {
       "kind": "native_regression",
       "reviewed_utc": "2026-10-28",
-      "behavior": "Python imported call names with lexical rebinding are reported as unsupported_rebinding after all resolution passes, including precise mode. Go calls use go list build selection and go/types declaration identities; unavailable, incomplete, dynamic or unmapped targets remain unresolved. Go partitions are resolved on each run while other languages retain their dependency caches, so native build changes cannot reuse stale Go call targets. Package discovery is batched per module; extraction is offline, cgo-disabled, and isolated from user module caches and Go flags.",
+      "behavior": "Python imported call names with lexical rebinding are reported as unsupported_rebinding after all resolution passes, including precise mode. Go calls use go list build selection and go/types declaration identities; unavailable, incomplete, dynamic or unmapped targets remain unresolved. Go partitions are resolved on each run while other languages retain their dependency caches, so native build changes cannot reuse stale Go call targets. Package discovery is batched per module; extraction is offline and cgo-disabled, reuses locally cached modules with a private build cache, and clears inherited Go flags. Pinned review retains an isolated module cache.",
       "native_regression": "tests/resolution_regressions.rs; incremental::tests; src/extractors/go_types_test.go",
       "oracle_adaptation": "Deliberate native safety deviation for #304, #321 and #314. The pinned Python reference is unchanged; these compiler and rebinding guarantees are checked by native regression tests rather than asserted as upstream parity."
     }

@@ -180,12 +180,14 @@ pub fn resolve(
         } else {
             "off".into()
         };
+        // Extraction may use already-cached dependencies. Keep the inherited
+        // module cache (or Go's default); offline_command and -mod=readonly
+        // prevent downloads and module-file edits. Pinned review stays isolated.
         let output = crate::process::capture_bounded(
             offline_command(&binary)
                 .current_dir(root)
                 .env("GOWORK", workspace)
                 .env("GO111MODULE", "auto")
-                .env("GOMODCACHE", cache.path().join("modules"))
                 .env("GOCACHE", cache.path().join("build")),
             Duration::from_secs(60),
             Some(serde_json::to_vec(&json!({"Paths": paths})).map_err(|_| "go_request_invalid")?),

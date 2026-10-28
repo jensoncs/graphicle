@@ -400,6 +400,160 @@ fn updates_preserve_unsupported_calls_until_their_source_is_deleted() {
 }
 
 #[test]
+fn cached_external_go_dependency_keeps_local_calls_offline() {
+    use std::{io::Write, process::Command};
+
+    // Isolate environment changes in children; fixture setup uses only a local
+    // file proxy, never the network or the developer's module cache.
+    if let Some(root) = std::env::var_os("GRAPHICLE_GO_CACHED_DEPENDENCY") {
+        let root = std::path::PathBuf::from(root);
+        let graph = extract(
+            &[root.join("main.go")],
+            &ExtractOptions {
+                root: Some(root.clone()),
+                use_cache: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let calls: Vec<_> = graph["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["relation"] == "calls")
+            .collect();
+        let unresolved = graph["unresolved_calls"].as_array().unwrap();
+        if std::env::var_os("GRAPHICLE_GO_CACHE_MISSING").is_some() {
+            assert!(calls.is_empty(), "{graph}");
+            assert_eq!(unresolved.len(), 2, "{graph}");
+            assert!(unresolved.iter().all(|u| u["reason"] == "unresolved_type"));
+        } else {
+            assert_eq!(calls.len(), 1, "{graph}");
+            assert_eq!(calls[0]["resolution"], "go_types", "{graph}");
+            let nodes = graph["nodes"].as_array().unwrap();
+            let node = |id: &Value| nodes.iter().find(|n| n["id"] == *id).unwrap();
+            assert_eq!(node(&calls[0]["source"])["label"], "Handle()");
+            assert_eq!(node(&calls[0]["target"])["label"], "helper()");
+            // The external call is typed but intentionally has no graph node.
+            assert_eq!(unresolved.len(), 1, "{graph}");
+            assert_eq!(unresolved[0]["reason"], "target_not_in_graph", "{graph}");
+
+            // Ambient cache contents must not enter an explicitly pinned review.
+            let report = graphicle::extractors::go_types::review(
+                &root,
+                &serde_json::json!({"roots":[{"directory":".","module":"."}],
+                    "goos":"linux","goarch":"amd64","tags":[],"tests":false,"workspace":""}),
+            )
+            .unwrap();
+            assert!(
+                !report["worlds"][0]["issues"].as_array().unwrap().is_empty(),
+                "{report}"
+            );
+        }
+        return;
+    }
+
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    let proxy = root.join("proxy");
+    let cache = root.join("modules");
+    let app = root.join("app");
+    let dep_mod = "module example.test/dep\ngo 1.23\n";
+    write(&proxy, "example.test/dep/@v/v1.0.0.mod", dep_mod);
+    write(
+        &proxy,
+        "example.test/dep/@v/v1.0.0.info",
+        r#"{"Version":"v1.0.0","Time":"2026-01-01T00:00:00Z"}"#,
+    );
+    let mut archive = zip::ZipWriter::new(
+        fs::File::create(proxy.join("example.test/dep/@v/v1.0.0.zip")).unwrap(),
+    );
+    for (name, source) in [
+        ("go.mod", dep_mod),
+        (
+            "dep.go",
+            "package dep\nfunc Equal(a, b int) bool { return a == b }\n",
+        ),
+    ] {
+        archive
+            .start_file(
+                format!("example.test/dep@v1.0.0/{name}"),
+                zip::write::SimpleFileOptions::default(),
+            )
+            .unwrap();
+        archive.write_all(source.as_bytes()).unwrap();
+    }
+    archive.finish().unwrap();
+    write(
+        &app,
+        "go.mod",
+        "module example.test/app\ngo 1.23\nrequire example.test/dep v1.0.0\n",
+    );
+    write(
+        &app,
+        "main.go",
+        "package app\nimport \"example.test/dep\"\nfunc helper() bool { return dep.Equal(1, 1) }\nfunc Handle() bool { return helper() }\n",
+    );
+    let downloaded = Command::new("go")
+        .args(["mod", "download", "example.test/dep"])
+        .current_dir(&app)
+        .env("GOMODCACHE", &cache)
+        .env(
+            "GOPROXY",
+            reqwest::Url::from_directory_path(&proxy).unwrap().as_str(),
+        )
+        .env("GOSUMDB", "off")
+        .env("GOVCS", "*:off")
+        .env("GOTOOLCHAIN", "local")
+        .env("GOENV", "off")
+        // Let TempDir remove the seeded cache after the test.
+        .env("GOFLAGS", "-modcacherw")
+        .env("GOWORK", "off")
+        .env("GOPRIVATE", "")
+        .env("GONOPROXY", "")
+        .env("GONOSUMDB", "")
+        .output()
+        .unwrap();
+    assert!(downloaded.status.success(), "{downloaded:?}");
+    let before = ["go.mod", "go.sum"].map(|p| fs::read(app.join(p)).unwrap());
+    for missing in [false, true] {
+        let mut command = Command::new(std::env::current_exe().unwrap());
+        command
+            .args([
+                "--exact",
+                "cached_external_go_dependency_keeps_local_calls_offline",
+                "--nocapture",
+            ])
+            .env("GRAPHICLE_GO_CACHED_DEPENDENCY", &app)
+            .env(
+                "GOMODCACHE",
+                if missing {
+                    root.join("empty")
+                } else {
+                    cache.clone()
+                },
+            )
+            // If extraction honors inherited settings it will download the
+            // missing dependency from this proxy and the negative check fails.
+            .env(
+                "GOPROXY",
+                reqwest::Url::from_directory_path(&proxy).unwrap().as_str(),
+            )
+            .env("GOFLAGS", "-mod=mod")
+            .env("GOSUMDB", "off");
+        if missing {
+            command.env("GRAPHICLE_GO_CACHE_MISSING", "1");
+        }
+        let output = command.output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        assert_eq!(
+            before,
+            ["go.mod", "go.sum"].map(|p| fs::read(app.join(p)).unwrap())
+        );
+    }
+}
+
+#[test]
 fn standard_http_import_keeps_local_go_calls() {
     // A child process can inherit hostile Go settings without racing other tests.
     if std::env::var_os("GRAPHICLE_GO_HOSTILE_FIXTURE").is_none() {

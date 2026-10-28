@@ -33,7 +33,7 @@ _UNCHANGED = {'graphify/build.py', 'graphify/dedup.py', 'graphify/extractors/eng
 NATIVE_SAFETY_DEVIATIONS = {
     "pinned_go_review": "native build worlds, exact declarations and bounded subprocess output; tests/go_review.rs",
     "python_import_rebinding": "unsupported_rebinding after every call pass",
-    "go_call_identity": "module-batched offline go list + go/types, isolated caches, unresolved without compiler proof; tests/resolution_regressions.rs; src/extractors/go_types_test.go",
+    "go_call_identity": "module-batched offline go list + go/types, cached modules and private build cache (pinned review isolated), unresolved without compiler proof; tests/resolution_regressions.rs; src/extractors/go_types_test.go",
     "watch_directory_moves": "full rebuild for directory change notifications",
 }
 
