@@ -13,9 +13,32 @@ use std::{
     time::Duration,
 };
 
-fn helper() -> Option<&'static Path> {
-    static HELPER: OnceLock<Option<(tempfile::TempDir, PathBuf)>> = OnceLock::new();
-    HELPER
+// One environment policy for helper compilation, extraction and pinned review.
+// Explicit private-module overrides must not bypass GOPROXY=off.
+fn offline_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
+    let mut command = Command::new(program);
+    command
+        .env("GOTOOLCHAIN", "local")
+        .env("GOENV", "off")
+        .env("GOFLAGS", "")
+        .env("GOWORK", "off")
+        .env("GOPROXY", "off")
+        .env("GOSUMDB", "off")
+        .env("GOVCS", "*:off")
+        .env("GOPRIVATE", "")
+        .env("GONOPROXY", "")
+        .env("GONOSUMDB", "")
+        .env("GOINSECURE", "")
+        .env("GOEXPERIMENT", "")
+        .env("CGO_ENABLED", "0");
+    command
+}
+
+fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
+    // Rust statics are not dropped at exit. Cache bytes, not a TempDir whose
+    // destructor would never run; executable scratch files live only for a call.
+    static HELPER: OnceLock<Option<Vec<u8>>> = OnceLock::new();
+    let bytes = HELPER
         .get_or_init(|| {
             let dir = tempfile::tempdir().ok()?;
             let source = dir.path().join("main.go");
@@ -28,10 +51,9 @@ fn helper() -> Option<&'static Path> {
             let review = dir.path().join("review.go");
             std::fs::write(&review, include_str!("go_review.go")).ok()?;
             let host = crate::process::capture(
-                Command::new("go")
+                offline_command("go")
                     .args(["env", "-json", "GOHOSTOS", "GOHOSTARCH"])
-                    .current_dir(dir.path())
-                    .env("GOTOOLCHAIN", "local"),
+                    .current_dir(dir.path()),
                 Duration::from_secs(5),
             )
             .ok()?;
@@ -40,46 +62,47 @@ fn helper() -> Option<&'static Path> {
             }
             let host: Value = serde_json::from_slice(&host.stdout).ok()?;
             let result = crate::process::capture(
-                Command::new("go")
+                offline_command("go")
                     .args(["build", "-o"])
                     .arg(&binary)
                     .arg(&source)
                     .arg(&review)
                     .current_dir(dir.path())
-                    .env("GOWORK", "off")
                     .env("GO111MODULE", "off")
-                    .env("GOTOOLCHAIN", "local")
-                    .env("GOFLAGS", "")
                     .env("GOOS", host["GOHOSTOS"].as_str()?)
                     .env("GOARCH", host["GOHOSTARCH"].as_str()?),
                 Duration::from_secs(60),
             )
             .ok()?;
-            result.success.then_some((dir, binary))
+            result.success.then(|| std::fs::read(binary).ok()).flatten()
         })
-        .as_ref()
-        .map(|(_, path)| path.as_path())
+        .as_ref()?;
+    let dir = tempfile::tempdir().ok()?;
+    let binary = dir.path().join(if cfg!(windows) {
+        "go-types.exe"
+    } else {
+        "go-types"
+    });
+    std::fs::write(&binary, bytes).ok()?;
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&binary, std::fs::Permissions::from_mode(0o700)).ok()?;
+    }
+    Some((dir, binary))
 }
 
 /// Compiler facts for an isolated, explicitly pinned Go snapshot set. The
 /// helper shares go/types resolution with extraction, but records build inputs,
 /// exact declarations and every call site instead of graph-name guesses.
 pub fn review(root: &Path, request: &Value) -> crate::Result<Value> {
-    let binary = helper().ok_or("Go compiler helper unavailable")?;
+    let (_helper_dir, binary) = helper().ok_or("Go compiler helper unavailable")?;
     let cache = tempfile::tempdir()?;
     let output = crate::process::capture_bounded(
-        Command::new(binary)
+        offline_command(&binary)
             .current_dir(root)
-            .env("GOTOOLCHAIN", "local")
-            .env("GOENV", "off")
-            .env("GOWORK", "off")
-            .env("GOFLAGS", "")
-            .env("GOPROXY", "off")
-            .env("GOSUMDB", "off")
-            .env("GOVCS", "*:off")
             .env("GOMODCACHE", cache.path().join("modules"))
-            .env("GOCACHE", cache.path().join("build"))
-            .env("CGO_ENABLED", "0"),
+            .env("GOCACHE", cache.path().join("build")),
         Duration::from_secs(120),
         Some(serde_json::to_vec(&json!({"review":request}))?),
         64 * 1024 * 1024,
@@ -148,20 +171,44 @@ pub fn resolve(
             }
         }
     }
-    let sites = helper().and_then(|binary| {
-        let output = crate::process::capture_with_input(
-            Command::new(binary)
+    let sites = (|| -> Result<Vec<Site>, &str> {
+        let (_helper_dir, binary) = helper().ok_or("go_helper_unavailable")?;
+        let cache = tempfile::tempdir().map_err(|_| "go_scratch_unavailable")?;
+        let workspace = root.join("go.work");
+        let workspace = if workspace.is_file() {
+            workspace.into_os_string()
+        } else {
+            "off".into()
+        };
+        let output = crate::process::capture_bounded(
+            offline_command(&binary)
                 .current_dir(root)
-                .env("GOTOOLCHAIN", "local"),
+                .env("GOWORK", workspace)
+                .env("GO111MODULE", "auto")
+                .env("GOMODCACHE", cache.path().join("modules"))
+                .env("GOCACHE", cache.path().join("build")),
             Duration::from_secs(60),
-            Some(serde_json::to_vec(&json!({"Paths": paths})).ok()?),
+            Some(serde_json::to_vec(&json!({"Paths": paths})).map_err(|_| "go_request_invalid")?),
+            64 * 1024 * 1024,
         )
-        .ok()?;
-        output
-            .success
-            .then(|| serde_json::from_slice::<Vec<Site>>(&output.stdout).ok())
-            .flatten()
-    });
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::TimedOut {
+                "go_analysis_timeout"
+            } else {
+                "go_analysis_io_failure"
+            }
+        })?;
+        if !output.success {
+            return Err("go_analysis_failed");
+        }
+        serde_json::from_slice::<Vec<Site>>(&output.stdout)
+            .map_err(|_| "go_analysis_invalid_output")
+    })();
+    if let Err(reason) = &sites {
+        for value in unresolved.values_mut() {
+            value["reason"] = json!(reason);
+        }
+    }
     // File + declaration line + name must select exactly one graph node.
     let mut declarations: BTreeMap<(String, usize, String), BTreeSet<String>> = BTreeMap::new();
     for n in nodes.iter().chain(context) {

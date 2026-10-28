@@ -398,3 +398,60 @@ fn updates_preserve_unsupported_calls_until_their_source_is_deleted() {
         assert!(!records(&root).to_string().contains("unsupported_rebinding"));
     }
 }
+
+#[test]
+fn standard_http_import_keeps_local_go_calls() {
+    // A child process can inherit hostile Go settings without racing other tests.
+    if std::env::var_os("GRAPHICLE_GO_HOSTILE_FIXTURE").is_none() {
+        let user_cache = tempfile::tempdir().unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "standard_http_import_keeps_local_go_calls",
+                "--nocapture",
+            ])
+            .env("GRAPHICLE_GO_HOSTILE_FIXTURE", "1")
+            .env("GOOS", "linux")
+            .env("GOARCH", "amd64")
+            .env("CGO_ENABLED", "1")
+            .env("GOFLAGS", "-mod=mod")
+            .env("GOPRIVATE", "*")
+            .env("GONOPROXY", "*")
+            .env("GOMODCACHE", user_cache.path())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(std::fs::read_dir(user_cache.path()).unwrap().count(), 0);
+        return;
+    }
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    write(&root, "go.mod", "module example/httpfixture\ngo 1.23\n");
+    write(
+        &root,
+        "main.go",
+        "package sample\nimport \"net/http\"\nfunc Target() int { return http.StatusOK }\nfunc Caller() int { return Target() }\n",
+    );
+    let graph = extract(
+        &[root.join("main.go")],
+        &ExtractOptions {
+            root: Some(root.clone()),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert!(
+        graph["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["relation"] == "calls" && e["resolution"] == "go_types"),
+        "{graph}"
+    );
+}

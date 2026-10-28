@@ -88,6 +88,10 @@ const MAX_MOVES: usize = 8;
 pub struct Live {
     pub stable_id: String,
     pub revision: String,
+    /// Accepted only when the old slice covers the complete declaration.
+    pub legacy_revision: Option<String>,
+    pub byte_start: Option<usize>,
+    pub byte_end: Option<usize>,
     pub identity: LogicalIdentity,
     pub node_id: String,
     pub line_start: usize,
@@ -101,7 +105,13 @@ pub struct Live {
 impl Live {
     /// The bytes the revision hashes, in `content` (the file at `sha256`).
     pub fn range(&self, starts: &[usize], len: usize) -> std::ops::Range<usize> {
-        span::byte_range(starts, len, Some(self.line_start), self.line_next)
+        match (self.byte_start, self.byte_end) {
+            (Some(start), Some(end)) if start <= end && end <= len => start..end,
+            _ => span::byte_range(starts, len, Some(self.line_start), self.line_next),
+        }
+    }
+    fn matches_revision(&self, revision: &str) -> bool {
+        self.revision == revision || self.legacy_revision.as_deref() == Some(revision)
     }
     fn tail(&self) -> &str {
         tail(&self.identity.qualified_name)
@@ -112,8 +122,7 @@ fn tail(qualified: &str) -> &str {
     qualified.rsplit('.').next().unwrap_or(qualified)
 }
 
-const COLUMNS: &str =
-    "stable_id,revision,relpath,qualified_name,kind,ordinal,node_id,line_start,line_next,sha256";
+const COLUMNS: &str = "stable_id,revision,relpath,qualified_name,kind,ordinal,node_id,line_start,line_next,sha256,legacy_revision,byte_start,byte_end";
 
 fn select(db: &Connection, filter: &str, arguments: impl rusqlite::Params) -> Result<Vec<Live>> {
     let mut statement = db.prepare_cached(&format!(
@@ -133,6 +142,9 @@ fn select(db: &Connection, filter: &str, arguments: impl rusqlite::Params) -> Re
             line_start: row.get::<_, i64>(7)?.max(1) as usize,
             line_next: row.get::<_, Option<i64>>(8)?.map(|n| n.max(1) as usize),
             sha256: row.get(9)?,
+            legacy_revision: row.get(10)?,
+            byte_start: row.get::<_, Option<i64>>(11)?.map(|n| n.max(0) as usize),
+            byte_end: row.get::<_, Option<i64>>(12)?.map(|n| n.max(0) as usize),
         })
     })?;
     Ok(found.collect::<rusqlite::Result<Vec<_>>>()?)
@@ -184,8 +196,8 @@ fn relpath(attributes: &impl graphicle::record::Properties) -> Option<String> {
 }
 
 /// The code symbols of `graph` (restricted to the files in `owners`), with
-/// each file's sha256 from `heads`. The slice ends where `identity` ends it:
-/// at the next start line of any node of the file other than the file node.
+/// each file's sha256 from `heads`. Exact declaration spans take precedence;
+/// graphs predating exact spans retain their original line-slice ranges.
 fn rows_of(
     graph: &Graph,
     heads: &BTreeMap<String, String>,
@@ -235,6 +247,17 @@ fn rows_of(
         out.push(Live {
             stable_id,
             revision,
+            legacy_revision: (attributes.get("legacy_revision_compatible") == Some(&json!(true)))
+                .then(|| attr(attributes, "legacy_revision"))
+                .flatten(),
+            byte_start: attributes
+                .get("byte_start")
+                .and_then(Value::as_u64)
+                .map(|n| n as usize),
+            byte_end: attributes
+                .get("byte_end")
+                .and_then(Value::as_u64)
+                .map(|n| n as usize),
             identity,
             node_id: match &node.id {
                 Value::String(id) => id.clone(),
@@ -358,7 +381,7 @@ fn replace(
     };
     {
         let mut insert = db.prepare_cached(
-            "INSERT OR REPLACE INTO gf_symbol_heads(repository_id,stable_id,revision,relpath,qualified_name,kind,ordinal,node_id,line_start,line_next,sha256) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            "INSERT OR REPLACE INTO gf_symbol_heads(repository_id,stable_id,revision,relpath,qualified_name,kind,ordinal,node_id,line_start,line_next,sha256,legacy_revision,byte_start,byte_end) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
         )?;
         for row in &new {
             insert.execute(params![
@@ -372,7 +395,10 @@ fn replace(
                 row.node_id,
                 row.line_start as i64,
                 row.line_next.map(|n| n as i64),
-                row.sha256
+                row.sha256,
+                row.legacy_revision,
+                row.byte_start.map(|n| n as i64),
+                row.byte_end.map(|n| n as i64)
             ])?;
         }
     }
@@ -455,6 +481,21 @@ pub fn cover<'a>(
         .map(|row| (row.range(&starts, content.len()), row))
         .filter(|(range, _)| range.start < range.end)
         .collect();
+    // A quote wholly inside one nested declaration belongs to its innermost
+    // owner, not every enclosing class/function. Equal spans remain ambiguous.
+    let mut containing: Vec<_> = ranges
+        .iter()
+        .filter(|(r, _)| r.start <= start && end <= r.end)
+        .collect();
+    containing.sort_by_key(|(r, _)| r.len());
+    if let Some((range, row)) = containing.first()
+        && containing
+            .get(1)
+            .is_none_or(|(other, _)| other.len() > range.len())
+        && start < end
+    {
+        return (true, vec![(*row, range.clone())]);
+    }
     ranges.sort_by_key(|(range, row)| (range.start, range.end, row.stable_id.clone()));
     let mut hits = Vec::new();
     let mut reached = start;
@@ -478,7 +519,7 @@ pub fn cover<'a>(
 fn occurrence_rule(covered: bool, symbols: usize) -> &'static str {
     match (covered, symbols) {
         (true, 1) => RULE_SYMBOLS,
-        (true, _) => RULE_SPANS,
+        (_, n) if n > 1 => RULE_SPANS,
         _ => RULE_OUTSIDE,
     }
 }
@@ -918,7 +959,7 @@ pub fn carry_windows(
     for facts in found {
         let Some(row) = live
             .get(s(&facts, "stable_id"))
-            .filter(|row| row.revision == s(&facts, "revision"))
+            .filter(|row| row.matches_revision(s(&facts, "revision")))
         else {
             continue;
         };
@@ -1205,7 +1246,7 @@ pub fn reground(
                     Some(row) if row.sha256 != s(doc, "sha256") => {
                         out.push(fail(entry, "projection_pending"))
                     }
-                    Some(row) if row.revision == s(&entry, "revision") => {
+                    Some(row) if row.matches_revision(s(&entry, "revision")) => {
                         let content = s(doc, "content");
                         let range = row.range(&span::line_starts(content), content.len());
                         out.push(link(&row, s(&entry, "rung"), resolver.episode(), range));
@@ -1660,13 +1701,13 @@ impl Check {
         // on under the same name (a same-name symbol inserted above shifted
         // the ordinals) reads as missing, not changed.
         let mut shifted = db.prepare_cached(
-            "SELECT 1 FROM gf_symbol_heads WHERE repository_id=?1 AND relpath=?2 AND qualified_name=?3 AND kind=?4 AND revision=?5 AND stable_id<>?6 LIMIT 1",
+            "SELECT 1 FROM gf_symbol_heads WHERE repository_id=?1 AND relpath=?2 AND qualified_name=?3 AND kind=?4 AND (revision=?5 OR legacy_revision=?5) AND stable_id<>?6 LIMIT 1",
         )?;
         for (stable, revision) in &changed_links {
             let Some(row) = check.rows.get(stable) else {
                 continue;
             };
-            if &row.revision != revision
+            if !row.matches_revision(revision)
                 && shifted.exists(params![
                     repository,
                     row.identity.relpath,
@@ -1702,7 +1743,7 @@ impl Check {
                 if self.heads.get(&row.identity.relpath) != Some(&row.sha256) {
                     return Status::Pending;
                 }
-                if row.revision == revision {
+                if row.matches_revision(revision) {
                     return Status::Current { followed, row };
                 }
                 if !followed && self.shifted.contains(cursor) {
@@ -1876,6 +1917,9 @@ mod tests {
         Live {
             stable_id: id.into(),
             revision: format!("r-{id}"),
+            legacy_revision: None,
+            byte_start: None,
+            byte_end: None,
             identity: LogicalIdentity {
                 relpath: "a.py".into(),
                 qualified_name: id.into(),

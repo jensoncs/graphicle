@@ -124,7 +124,14 @@ export class Project {
   projectGraph(options) { return this.command("graph.project", {}, options); }
   episodes(options) { return this.command("graph.episodes", {}, options); }
   graph(args = {}, options) { return this.command("graph.as_of", args, options); }
-  impact(base, head, args = {}, options) { return this.command("impact.report", {...args, base, head}, options); }
+  impact(base, head, args, options) {
+    if (!Array.isArray(base) || !Array.isArray(head)) throw new TypeError("impact requires pinned snapshot arrays, not episode IDs");
+    for (const pin of [...base, ...head]) plainObject(pin);
+    plainObject(args);
+    if (!args.profile || typeof args.profile !== "object" || Array.isArray(args.profile)) throw new TypeError("impact requires a Go build profile with goos and goarch");
+    if ("budget_tokens" in args) throw new TypeError("Use max_tokens for pinned review, not budget_tokens");
+    return this.command("impact.report", {...args, base, head}, options);
+  }
   memories(args = {}, options) { return this.command("memories", args, options); }
   history(memoryId, args = {}, options) { return this.command("memory.history", {...args, memory_id: memoryId}, options); }
   enqueue(kind, args = {}, options) { return this.command("workflow.enqueue", {...args, kind}, options); }

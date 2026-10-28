@@ -228,6 +228,48 @@ fn reasons(memory: &Value) -> Vec<String> {
 }
 
 #[test]
+fn go_memory_and_legacy_links_survive_an_unrelated_function_edit() {
+    let source = "package sample\nfunc F() int { return 1 }\nfunc G() int { return 2 }\n";
+    let f = Fixture::new(&[("a.go", source)]);
+    let memory = f.note(&[("file:a.go", "return 1")]);
+    assert_eq!(
+        memory["data"]["symbol_files"]["a.go"], "symbols",
+        "{memory}"
+    );
+    let (stable, revision) = f.symbol("a.go", "F");
+    let legacy = graphicle_memory::text::sha256(b"func F() int { return 1 }\n");
+    assert_ne!(legacy, revision);
+    // Re-ground an exported 0.1.8 link using the legacy line-slice hash.
+    let mut imported = memory["data"].clone();
+    imported["symbols"][0]["revision"] = json!(legacy);
+    f.store
+        .connect()
+        .unwrap()
+        .execute(
+            "UPDATE repo_memories SET data=? WHERE id=?",
+            rusqlite::params![imported.to_string(), memory["id"].as_str().unwrap()],
+        )
+        .unwrap();
+    let edited = source.replace("return 2", "return 20");
+    f.sync(&[("a.go", &edited)]);
+    f.drain();
+    assert_eq!(f.symbol("a.go", "F"), (stable.clone(), revision.clone()));
+    assert_eq!(f.memory(&memory["id"])["stale"], false);
+    let db = f.store.connect().unwrap();
+    let documents = vec![
+        json!({"id":"file:a.go", "sha256":graphicle_memory::text::sha256(edited.as_bytes()), "content":edited}),
+    ];
+    let result =
+        graphicle_runtime::symbols::reground(&db, &f.repo, &mut imported, &documents).unwrap();
+    assert_eq!(result, json!({"regrounded":1,"unresolved":0}));
+    assert_eq!(imported["symbols"][0]["revision"], revision);
+    // The compatibility hash must not hide an edit to F itself.
+    f.sync(&[("a.go", &edited.replace("return 1", "return 10"))]);
+    f.drain();
+    assert_eq!(f.memory(&memory["id"])["stale"], true);
+}
+
+#[test]
 fn quotes_link_the_code_symbols_that_contain_them() {
     let f = Fixture::new(&[("a.py", A), ("notes.md", "# Notes\n\nKeep alpha small.\n")]);
     let (alpha, alpha_revision) = f.symbol("a.py", "alpha");
@@ -237,7 +279,7 @@ fn quotes_link_the_code_symbols_that_contain_them() {
     let one = f.note(&[("file:a.py", "    return 1")]);
     let data = &one["data"];
     let start = A.find("def alpha").unwrap();
-    let end = A.find("def beta").unwrap();
+    let end = A.find("return 1").unwrap() + "return 1".len();
     assert_eq!(
         data["symbols"],
         json!([{"state":"resolved","stable_id":alpha,"revision":alpha_revision,

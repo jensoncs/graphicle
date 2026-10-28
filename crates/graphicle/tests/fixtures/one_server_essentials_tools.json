@@ -65,7 +65,7 @@
           "shown": {
             "type": "array",
             "maxItems": 200,
-            "description": "source spans already in your context; covered hits return as references",
+            "description": "source spans already in your context at the supplied sha256; only matching revisions return as references",
             "items": {
               "type": "object",
               "properties": {
@@ -86,6 +86,7 @@
               },
               "required": [
                 "id",
+                "sha256",
                 "byte_start",
                 "byte_end"
               ],

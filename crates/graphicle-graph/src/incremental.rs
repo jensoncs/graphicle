@@ -671,14 +671,6 @@ pub fn extract(
         .iter()
         .map(|p| extractors::resolution::resolved(p))
         .collect::<Vec<_>>();
-    // The Go build (tags, target platform, module/workspace and dependencies)
-    // is compiler-owned. Do not reuse name-based dependency cache entries.
-    if paths
-        .iter()
-        .any(|p| p.extension().is_some_and(|e| e == "go"))
-    {
-        return full(input_paths, options, "go_build_requires_full_resolution");
-    }
     let supported = paths.iter().all(|p| {
         extract::get_extractor(p).is_none()
             || matches!(
@@ -799,6 +791,11 @@ pub fn extract(
         .iter()
         .enumerate()
         .map(|(i, key)| {
+            // Compiler-owned Go resolution is refreshed every run, but the
+            // other languages keep their dependency-partition caches.
+            if paths[i].extension().is_some_and(|e| e == "go") {
+                return None;
+            }
             cache_dir.and_then(|dir| {
                 load(
                     &dir.join(format!("{key}.json")),
@@ -1135,6 +1132,31 @@ mod tests {
     }
 
     #[test]
+    fn go_refresh_reuses_unchanged_python_partitions() {
+        let _serial = extractors::parse_cache::test_serial();
+        let root = tempfile::tempdir().unwrap();
+        let cache = tempfile::tempdir().unwrap();
+        let go = root.path().join("a.go");
+        let python = root.path().join("b.py");
+        std::fs::write(&go, "package sample\nfunc F() {}\nfunc G() { F() }\n").unwrap();
+        std::fs::write(&python, "def independent():\n    return 1\n").unwrap();
+        let paths = vec![go, python];
+        let options = ExtractOptions {
+            root: Some(root.path().into()),
+            parallel: false,
+            ..Default::default()
+        };
+        extract(&paths, &options, Some(cache.path()), "mixed-go").unwrap();
+        let (actual, report) = extract(&paths, &options, Some(cache.path()), "mixed-go").unwrap();
+        assert_eq!(report.fallback, None);
+        assert_eq!(report.reused_files, 1);
+        assert_eq!(report.dirty_files, 1);
+        let mut expected = extract::extract(&paths, &options).unwrap();
+        order(&mut expected);
+        assert_eq!(actual, expected);
+    }
+
+    #[test]
     fn shared_external_go_types_live_until_the_last_referencing_file_is_removed() {
         let _serial = extractors::parse_cache::test_serial();
         let root = tempfile::tempdir().unwrap();
@@ -1165,10 +1187,7 @@ mod tests {
             let mut expected = extract::extract(&paths, &options).unwrap();
             order(&mut expected);
             assert_eq!(actual, expected, "step {step}");
-            assert_eq!(
-                report.fallback.as_deref(),
-                (!paths.is_empty()).then_some("go_build_requires_full_resolution")
-            );
+            assert_eq!(report.fallback, None);
             assert_eq!(
                 actual["nodes"]
                     .as_array()
@@ -1460,10 +1479,7 @@ mod tests {
                 let go_build = paths
                     .iter()
                     .any(|p| p.extension().is_some_and(|e| e == "go"));
-                assert_eq!(
-                    report.fallback.as_deref(),
-                    go_build.then_some("go_build_requires_full_resolution")
-                );
+                assert_eq!(report.fallback, None);
                 if step == 5 && !go_build {
                     assert_eq!(report.resolved_files, 0, "{report:?}");
                 }

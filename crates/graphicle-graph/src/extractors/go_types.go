@@ -252,30 +252,57 @@ func main() {
 			testDirs[filepath.Dir(p)] = true
 		}
 	}
-	roots := map[string]bool{}
+	// One discovery process per module, with all requested package directories.
+	// Standalone packages have no shared module root and remain separate.
+	groups := map[string]map[string]bool{}
+	modules := map[string]bool{}
 	for _, dir := range sortedKeys(dirs) {
-		args := []string{"list", "-e", "-deps", "-json"}
-		if testDirs[dir] {
-			args = append(args, "-test")
-		}
-		cmd := exec.Command("go", append(args, ".")...)
-		cmd.Dir = dir
-		// Standalone examples outside a module still have a well-defined Go build.
-		module := false
-		workspace := false
+		root := dir
 		for p := dir; ; p = filepath.Dir(p) {
-			if _, err := os.Stat(filepath.Join(p, "go.work")); err == nil {
-				workspace = true
-			}
 			if _, err := os.Stat(filepath.Join(p, "go.mod")); err == nil {
-				module = true
+				root = p
+				modules[root] = true
 				break
 			}
 			if filepath.Dir(p) == p {
 				break
 			}
 		}
-		if !module && !workspace && os.Getenv("GOWORK") == "" && config["GO111MODULE"] == "" {
+		if groups[root] == nil {
+			groups[root] = map[string]bool{}
+		}
+		groups[root][dir] = true
+	}
+	groupRoots := map[string]bool{}
+	for root := range groups {
+		groupRoots[root] = true
+	}
+	for _, root := range sortedKeys(groupRoots) {
+		// Module instances must not share go/types packages across builds.
+		l.meta = map[string]*metadata{}
+		l.packages = map[string]*types.Package{}
+		l.failures = map[string]error{}
+		roots := map[string]bool{}
+		args := []string{"list", "-e", "-deps", "-json"}
+		if modules[root] {
+			args = append(args, moduleMode(root, os.Getenv("GOWORK")))
+		}
+		patterns := []string{}
+		tests := false
+		for _, dir := range sortedKeys(groups[root]) {
+			rel, err := filepath.Rel(root, dir)
+			if err != nil {
+				continue
+			}
+			patterns = append(patterns, "./"+filepath.ToSlash(rel))
+			tests = tests || testDirs[dir]
+		}
+		if tests {
+			args = append(args, "-test")
+		}
+		cmd := exec.Command("go", append(args, patterns...)...)
+		cmd.Dir = root
+		if !modules[root] && (os.Getenv("GOWORK") == "" || os.Getenv("GOWORK") == "off") {
 			cmd.Env = append(os.Environ(), "GO111MODULE=off")
 		}
 		data, err := cmd.Output()
@@ -295,13 +322,13 @@ func main() {
 				continue
 			}
 			l.meta[m.ImportPath] = &m
-			if dirs[m.Dir] {
+			if groups[root][m.Dir] {
 				roots[m.ImportPath] = true
 			}
 		}
-	}
-	for _, path := range sortedKeys(roots) {
-		_, _ = l.Import(path)
+		for _, path := range sortedKeys(roots) {
+			_, _ = l.Import(path)
+		}
 	}
 	if l.sites == nil {
 		l.sites = []site{}
@@ -318,4 +345,15 @@ func sortedKeys(values map[string]bool) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// Respect a supplied vendor tree while preventing module-file updates otherwise.
+func moduleMode(root, workspace string) string {
+	if workspace != "" && workspace != "off" {
+		root = filepath.Dir(workspace)
+	}
+	if info, err := os.Stat(filepath.Join(root, "vendor", "modules.txt")); err == nil && !info.IsDir() {
+		return "-mod=vendor"
+	}
+	return "-mod=readonly"
 }

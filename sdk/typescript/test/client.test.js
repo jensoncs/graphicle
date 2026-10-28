@@ -100,3 +100,28 @@ test("registration is explicit while project selection performs no I/O", async t
   assert.equal(c.project("existing").id, "existing"); assert.equal(calls, 0);
   assert.equal((await c.register("my-project", "My project")).id, "registered"); assert.equal(calls, 1);
 });
+
+test("impact sends pinned snapshots, build profile and revision-safe delta options", async t => {
+  const calls = [];
+  const url = await server(t, async (req, res) => {
+    let body = ""; for await (const chunk of req) body += chunk;
+    calls.push({path: req.url, body: JSON.parse(body)});
+    res.writeHead(200, {"content-type": "application/json"});
+    res.end('{"format":"graphicle.review.v1","packet_id":"receipt","coverage":{"complete":true}}');
+  });
+  const p = client(url).project("anchor");
+  const base = [{repository_id: "anchor", directory: "fixture", commit: "a".repeat(40), snapshot: "b".repeat(64), policy_sha256: "c".repeat(64), modules: ["."]}];
+  const head = [{...base[0], commit: "d".repeat(40), snapshot: "e".repeat(64)}];
+  const profile = {goos: "linux", goarch: "amd64", tests: false, tags: ["pilot"]};
+  const args = {profile, max_depth: 0, max_tokens: 4000, previous_packet_id: "f".repeat(64)};
+  const packet = await p.impact(base, head, args, {timeoutMs: 10000});
+  assert.equal(packet.format, "graphicle.review.v1");
+  assert.deepEqual(calls, [{path: "/v1/workspaces/workspace-1/repos/anchor/commands", body: {operation: "impact.report", arguments: {...args, base, head}}}]);
+});
+
+test("impact rejects legacy episode arguments and requires a profile before transport", () => {
+  const p = client("https://example.invalid", {fetch: () => assert.fail("must not send invalid review")}).project("anchor");
+  assert.throws(() => p.impact("base-episode", "head-episode", {}), /pinned snapshot arrays/);
+  assert.throws(() => p.impact([], [], {}), /build profile/);
+  assert.throws(() => p.impact([], [], {profile: {goos: "linux", goarch: "amd64"}, budget_tokens: 4000}), /max_tokens/);
+});

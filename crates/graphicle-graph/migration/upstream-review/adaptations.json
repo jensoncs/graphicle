@@ -26,8 +26,8 @@
     {
       "kind": "native_regression",
       "reviewed_utc": "2026-10-28",
-      "behavior": "Python imported call names with lexical rebinding are reported as unsupported_rebinding after all resolution passes, including precise mode. Go calls use go list build selection and go/types declaration identities; unavailable, incomplete, dynamic or unmapped targets remain unresolved. Go resolved-file caches use a full-resolution fallback so build configuration cannot reuse stale call targets.",
-      "native_regression": "tests/resolution_regressions.rs",
+      "behavior": "Python imported call names with lexical rebinding are reported as unsupported_rebinding after all resolution passes, including precise mode. Go calls use go list build selection and go/types declaration identities; unavailable, incomplete, dynamic or unmapped targets remain unresolved. Go partitions are resolved on each run while other languages retain their dependency caches, so native build changes cannot reuse stale Go call targets. Package discovery is batched per module; extraction is offline, cgo-disabled, and isolated from user module caches and Go flags.",
+      "native_regression": "tests/resolution_regressions.rs; incremental::tests; src/extractors/go_types_test.go",
       "oracle_adaptation": "Deliberate native safety deviation for #304, #321 and #314. The pinned Python reference is unchanged; these compiler and rebinding guarantees are checked by native regression tests rather than asserted as upstream parity."
     }
   ],
@@ -162,13 +162,13 @@
       "kind": "native_regression",
       "reviewed_utc": "2026-10-28",
       "behavior": "Remove same-name local call resolution. Per-file extraction records candidates; only the compiler-backed corpus pass may emit Go calls.",
-      "native_regression": "tests/resolution_regressions.rs",
+      "native_regression": "tests/resolution_regressions.rs; incremental::tests; src/extractors/go_types_test.go",
       "oracle_adaptation": "Deliberate native safety deviation for #304, #321 and #314. The pinned Python reference is unchanged; these compiler and rebinding guarantees are checked by native regression tests rather than asserted as upstream parity."
     },
     {
       "kind": "native_regression",
       "reviewed_utc": "2026-10-28",
-      "behavior": "Pinned Go review facts use isolated per-consumer native module/build resolution and exact AST declaration/call-site spans. Output is bounded. Runtime reuses reverse traversal for base/head review packets; memory annotation preserves stable IDs and retains legacy revisions alongside exact declaration revisions. Unmodeled package-value dependencies remain explicit unresolved edges; unmapped file edits conservatively seed consumer builds.",
+      "behavior": "Pinned Go review facts use isolated per-consumer native module/build resolution and exact AST declaration/call-site spans. Output is bounded. Runtime reuses reverse traversal for base/head review packets; memory annotation preserves stable IDs and retains legacy revisions alongside exact declaration revisions. Vendor trees are resolved within the pinned set and closure keys follow lexical nesting instead of byte offsets. Unmodeled package-value dependencies remain explicit unresolved edges; unmapped file edits conservatively seed consumer builds.",
       "native_regression": "tests/go_review.rs; process::tests::output_limit_refuses_without_pipe_deadlock; ../graphicle/tests/it/pinned_review.rs; ../graphicle-memory/src/graph/identity.rs",
       "oracle_adaptation": "Deliberate native capability beyond the upstream pin. Compiler identities and packet correctness are checked by native fixtures; no claim of Python-oracle parity for these additions."
     }
@@ -178,7 +178,7 @@
       "kind": "native_regression",
       "reviewed_utc": "2026-10-28",
       "behavior": "Directory notifications, including missing directories with stored descendants, use the full-rebuild fallback. File and directory moves and deletions are compared against a clean graph.",
-      "native_regression": "tests/resolution_regressions.rs",
+      "native_regression": "tests/resolution_regressions.rs; incremental::tests; src/extractors/go_types_test.go",
       "oracle_adaptation": "Deliberate native safety deviation for #304, #321 and #314. The pinned Python reference is unchanged; these compiler and rebinding guarantees are checked by native regression tests rather than asserted as upstream parity."
     }
   ],

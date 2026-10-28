@@ -584,8 +584,13 @@ fn import_sources(
             &json!({"repository_id":project,"sync_id":prepared["sync_id"]}),
         )?;
     }
+    let stored = store.authorized_read(&session.workspace, &session.capability, "read", |db, principal| {
+        crate::store::repo(db, principal, project)?;
+        Ok(db.query_row("SELECT scope_complete FROM repo_snapshot_bindings WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?",
+            rusqlite::params![project, bundle.identity.source_snapshot, bundle.identity.commit, bundle.identity.exclusions_sha256], |row| row.get::<_, bool>(0))?)
+    })?;
     Ok(
-        json!({"repository_id":project,"commit":bundle.identity.commit,"snapshot":bundle.identity.source_snapshot,"policy_sha256":bundle.identity.exclusions_sha256,"scope_complete":complete}),
+        json!({"repository_id":project,"commit":bundle.identity.commit,"snapshot":bundle.identity.source_snapshot,"policy_sha256":bundle.identity.exclusions_sha256,"scope_complete":stored}),
     )
 }
 
@@ -1164,6 +1169,29 @@ mod tests {
             assert_eq!(count,1);
             let graphs:i64=db.query_row("SELECT count(*) FROM gf_episodes WHERE repository_id=?",[id],|r|r.get(0))?;assert_eq!(graphs,0);Ok(())
         }).unwrap();
+        for complete in [false, true, false] {
+            let replay = import_sources(
+                &store,
+                &session,
+                id,
+                &bundle,
+                &bundle.engine_sha256,
+                complete,
+            )
+            .unwrap();
+            assert_eq!(replay["scope_complete"], complete);
+            store
+                .authorized_read(&session.workspace, &session.capability, "read", |db, _| {
+                    let stored: bool = db.query_row(
+                        "SELECT scope_complete FROM repo_snapshot_bindings WHERE repository_id=?",
+                        [id],
+                        |r| r.get(0),
+                    )?;
+                    assert_eq!(stored, complete);
+                    Ok(())
+                })
+                .unwrap();
+        }
         let mut corrupt = bundle.clone();
         corrupt.sources[0].content.push('!');
         assert!(

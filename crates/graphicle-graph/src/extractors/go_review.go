@@ -197,6 +197,24 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 				}
 			}
 		}
+		// Closure identities follow lexical parents and sibling ordinals, not
+		// byte offsets. Unrelated edits before a declaration cannot churn them.
+		renamed := map[string]string{}
+		ordinals := map[string]int{}
+		for i := range local {
+			if parent, ok := renamed[local[i].Parent]; ok {
+				local[i].Parent = parent
+			}
+			if local[i].Kind == "closure" {
+				old := local[i].Key
+				parent := local[i].Parent
+				ordinal := ordinals[parent]
+				ordinals[parent]++
+				local[i].Name = fmt.Sprintf("<closure#%d>", ordinal)
+				local[i].Key = m.ImportPath + "|" + relative + "|" + parent + "|" + local[i].Name
+				renamed[old] = local[i].Key
+			}
+		}
 		owner := func(pos token.Pos) string {
 			offset := l.fset.PositionFor(pos, false).Offset
 			key := ""
@@ -405,7 +423,12 @@ func runReview(req reviewRequest) {
 			result.Worlds = append(result.Worlds, world)
 			continue
 		}
-		args := []string{"list", "-e", "-deps", "-json", "-mod=readonly"}
+		args := []string{"list", "-e", "-deps", "-json", moduleMode(filepath.Join(root, item.Directory, item.Module), func() string {
+			if req.Workspace != "" {
+				return filepath.Join(root, req.Workspace)
+			}
+			return "off"
+		}())}
 		if req.Tests {
 			args = append(args, "-test")
 		}

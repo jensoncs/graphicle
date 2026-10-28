@@ -36,7 +36,7 @@ struct Upload {
 
 pub fn upload(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<Value> {
     let repository = crate::string(args, "repository_id", 100)?;
-    store.authorized(workspace, token, "write", |db, p| {
+    let (upload, files, hashes) = store.authorized_read(workspace, token, "write", |db, p| {
         store::repo(db, p, repository)?;
         if args.to_string().len() > 4 * 1024 * 1024 {
             return Err(Error::bad("Coverage upload exceeds 4 MiB"));
@@ -76,13 +76,27 @@ pub fn upload(store: &Store, workspace: &str, token: &str, args: &Value) -> Resu
             }
             if range.line_end > files[&range.path] { return Err(Error::bad("Coverage range exceeds pinned source")); }
         }
-        let data = serde_json::to_value(&upload)?;
-        let id = crate::digest(&data);
+        let hashes: std::collections::BTreeSet<String> = files.keys().map(|path| s(&manifest[path], "sha256").to_string()).collect();
+        Ok((upload, files.len(), hashes))
+    })?;
+    let data = serde_json::to_value(&upload)?;
+    let id = crate::digest(&data);
+    let profile_sha = crate::digest(&serde_json::to_value(&upload.profile)?);
+    let encoded = data.to_string();
+    let encoded_hashes = json!(hashes).to_string();
+    store.authorized(workspace, token, "write", |db, p| {
+        store::repo(db, p, repository)?;
+        if store::one(db, "SELECT snapshot FROM repo_snapshot_bindings WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?", params![repository, upload.snapshot, upload.commit, upload.policy_sha256])?.is_none()
+            || store::one(db, "SELECT sha256 FROM repo_snapshots WHERE repository_id=? AND sha256=?", params![repository, upload.snapshot])?.is_none() {
+            return Err(Error::conflict("Coverage snapshot or binding removed during validation"));
+        }
+        let retained: usize = db.query_row("SELECT count(*) FROM repo_objects WHERE repository_id=? AND sha256 IN (SELECT value FROM json_each(?))", params![repository, encoded_hashes], |r| r.get(0))?;
+        if retained != hashes.len() { return Err(Error::conflict("Coverage source removed during validation")); }
         let inserted = db.execute("INSERT OR IGNORE INTO repo_review_coverage(id,repository_id,snapshot,commit_id,policy_sha256,profile_sha256,data,created_at) VALUES(?,?,?,?,?,?,?,?)",
-            params![id, repository, upload.snapshot, upload.commit, upload.policy_sha256, crate::digest(&serde_json::to_value(&upload.profile)?), data.to_string(), crate::now()])?;
+            params![id, repository, upload.snapshot, upload.commit, upload.policy_sha256, profile_sha, encoded, crate::now()])?;
         // Bound retained observations independently of snapshot retention.
         db.execute("DELETE FROM repo_review_coverage WHERE repository_id=? AND id NOT IN (SELECT id FROM repo_review_coverage WHERE repository_id=? ORDER BY rowid DESC LIMIT 20)", params![repository, repository])?;
-        Ok(json!({"id":id,"replayed":inserted==0,"snapshot":upload.snapshot,"commit":upload.commit,"ranges":upload.ranges.len(),"files":files.len(),"authority":"caller_attested","complete_test_inventory":false}))
+        Ok(json!({"id":id,"replayed":inserted==0,"snapshot":upload.snapshot,"commit":upload.commit,"ranges":upload.ranges.len(),"files":files,"authority":"caller_attested","complete_test_inventory":false}))
     })
 }
 

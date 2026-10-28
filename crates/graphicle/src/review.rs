@@ -80,6 +80,7 @@ struct Input {
     pins: Vec<Pin>,
     sources: BTreeMap<String, Source>,
     issues: Vec<Value>,
+    bindings: Vec<(Pin, bool)>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 struct Symbol {
@@ -251,7 +252,7 @@ pub(crate) fn validate_profile(profile: &Profile) -> Result<()> {
 }
 fn load(store: &Store, workspace: &str, token: &str, pins: &[Pin]) -> Result<Input> {
     store.authorized_read(workspace,token,"read",|db,principal|{
-        let mut input=Input{pins:pins.to_vec(),sources:BTreeMap::new(),issues:vec![]};let mut bytes=0usize;
+        let mut input=Input{pins:pins.to_vec(),sources:BTreeMap::new(),issues:vec![],bindings:vec![]};let mut bytes=0usize;
         for pin in pins {
             if store::repo(db,principal,&pin.repository_id).is_err(){input.issues.push(issue("unavailable_snapshot",json!(pin.directory)));continue}
             let row=store::one(db,"SELECT manifest,metadata FROM repo_snapshots WHERE repository_id=? AND sha256=?",params![pin.repository_id,pin.snapshot])?;
@@ -260,7 +261,9 @@ fn load(store: &Store, workspace: &str, token: &str, pins: &[Pin]) -> Result<Inp
             let binding=store::one(db,"SELECT scope_complete FROM repo_snapshot_bindings WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?",params![pin.repository_id,pin.snapshot,pin.commit,pin.policy_sha256])?;
             let legacy=metadata["commit"]==pin.commit && metadata["policy_sha256"]==pin.policy_sha256;
             if (binding.is_none() && !legacy)||crate::digest(&manifest)!=pin.snapshot {input.issues.push(issue("snapshot_binding_mismatch",json!(pin.directory)));continue}
-            if !binding.as_ref().map(|v|v["scope_complete"]==1).unwrap_or(legacy && metadata["scope_complete"]==true) {input.issues.push(issue("source_admission_incomplete",json!(pin.directory)));}
+            let complete = binding.as_ref().map(|v|v["scope_complete"]==1).unwrap_or(legacy && metadata["scope_complete"]==true);
+            input.bindings.push((pin.clone(), complete));
+            if !complete {input.issues.push(issue("source_admission_incomplete",json!(pin.directory)));}
             let files=manifest.as_object().ok_or_else(||Error::bad("Invalid stored source manifest"))?;
             for (path,entry) in files {
                 store::path(path)?;
@@ -786,14 +789,10 @@ fn pack(mut report: Value, max_tokens: usize, previous: Option<&Value>) -> Resul
         .map(|v| (s(v, "id").into(), v.clone()))
         .collect();
     let mut receipts = vec![];
-    let mut omitted = 0;
     let mut unchanged = vec![];
-    report["previous_packet_id"] = previous
-        .map(|p| p["packet_id"].clone())
-        .unwrap_or(Value::Null);
-    report["invalidated"] = json!([]);
-    report["unchanged"] = json!([]);
-    // Diffs and symbol excerpts follow one receipt/invalidation contract.
+    let mut candidates = vec![];
+    // Classify the delta before allocating any excerpt budget. All control
+    // records must fit even if every changed excerpt is omitted.
     for (collection, mut entry) in diffs
         .into_iter()
         .map(|v| ("diffs", v))
@@ -805,26 +804,46 @@ fn pack(mut report: Value, max_tokens: usize, previous: Option<&Value>) -> Resul
         if old.get(&id).is_some_and(|e| e["revision"] == revision) {
             unchanged.push(id);
             receipts.push(receipt);
-            continue;
-        }
-        entry["update"] = json!(if old.contains_key(&id) {
-            "updated"
         } else {
-            "added"
-        });
-        let mut trial = report.clone();
-        trial[collection].as_array_mut().unwrap().push(entry);
-        if text::count(&trial.to_string()) + 256 <= max_tokens {
-            report = trial;
+            entry["update"] = json!(if old.contains_key(&id) {
+                "updated"
+            } else {
+                "added"
+            });
+            candidates.push((collection, entry, receipt));
+        }
+    }
+    let retained: BTreeSet<_> = unchanged.iter().map(String::as_str).collect();
+    let mut invalidated: BTreeMap<String, Value> = old.values()
+        .filter(|v| !retained.contains(s(v, "id")))
+        .map(|v| (s(v, "id").to_string(), json!({"id":v["id"],"revision":v["revision"],"collection":v["collection"],"reason":"changed_removed_or_omitted"})))
+        .collect();
+    report["previous_packet_id"] = previous
+        .map(|p| p["packet_id"].clone())
+        .unwrap_or(Value::Null);
+    report["invalidated"] = json!(invalidated.values().collect::<Vec<_>>());
+    report["unchanged"] = json!(unchanged);
+    // Tokenize each candidate once, rather than cloning/tokenizing the growing
+    // packet for every symbol. Reserve room for JSON boundaries and final fields.
+    let mut used = text::count(&report.to_string()) + 256;
+    let mut omitted = 0;
+    for (collection, entry, receipt) in candidates {
+        let id = s(&entry, "id");
+        let removed = invalidated
+            .get(id)
+            .map_or(0, |v| text::count(&v.to_string()).saturating_sub(8));
+        let cost = text::count(&entry.to_string()) + 16;
+        let trial = used.saturating_sub(removed).saturating_add(cost);
+        if trial <= max_tokens {
+            used = trial;
+            invalidated.remove(id);
+            report[collection].as_array_mut().unwrap().push(entry);
             receipts.push(receipt);
         } else {
             omitted += 1;
         }
     }
-    let retained: BTreeSet<_> = receipts.iter().map(|v| s(v, "id")).collect();
-    let invalidated:Vec<_>=old.values().filter(|v|!retained.contains(s(v,"id"))).map(|v|json!({"id":v["id"],"revision":v["revision"],"collection":v["collection"],"reason":"changed_removed_or_omitted"})).collect();
-    report["invalidated"] = json!(invalidated);
-    report["unchanged"] = json!(unchanged);
+    report["invalidated"] = json!(invalidated.values().collect::<Vec<_>>());
     report["coverage"]["budget_omitted"] = json!(omitted);
     if omitted > 0 {
         report["coverage"]["complete"] = json!(false);
@@ -898,6 +917,12 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         }
         drop(exists);
         for input in [&base, &head] {
+            for (pin, complete) in &input.bindings {
+                let current = store::one(db,"SELECT scope_complete FROM repo_snapshot_bindings WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?",params![pin.repository_id,pin.snapshot,pin.commit,pin.policy_sha256])?;
+                if current.is_some_and(|v| (v["scope_complete"] == 1) != *complete) {
+                    return Err(Error::conflict("Snapshot scope attestation changed during review; retry"));
+                }
+            }
             for pin in &input.pins {
                 if input.sources.values().any(|source| source.repository == pin.repository_id) && store::one(db,"SELECT sha256 FROM repo_snapshots WHERE repository_id=? AND sha256=?",params![pin.repository_id,pin.snapshot])?.is_none() {
                     return Err(Error::conflict("Pinned snapshot was removed during review"));
@@ -944,7 +969,7 @@ pub(crate) fn bind_snapshot(
     {
         return Ok(());
     }
-    db.execute("INSERT OR IGNORE INTO repo_snapshot_bindings(repository_id,snapshot,commit_id,policy_sha256,scope_complete) VALUES(?,?,?,?,?)",params![repository,snapshot,commit,policy,metadata["scope_complete"]==true])?;
+    db.execute("INSERT INTO repo_snapshot_bindings(repository_id,snapshot,commit_id,policy_sha256,scope_complete) VALUES(?,?,?,?,?) ON CONFLICT(repository_id,snapshot,commit_id,policy_sha256) DO UPDATE SET scope_complete=excluded.scope_complete",params![repository,snapshot,commit,policy,metadata["scope_complete"]==true])?;
     Ok(())
 }
 
@@ -956,6 +981,58 @@ pub fn properties() -> Value {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+    #[test]
+    fn large_review_packets_remain_bounded() {
+        let entries: Vec<_> = (0..20_000).map(|i| json!({"id":format!("{i:064x}"),"revision":"r","repository_id":"repo","text":"func F() int { return 1 }\n".repeat(8)})).collect();
+        let report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
+        let start = std::time::Instant::now();
+        let (packet, _) = super::pack(report, 16_000, None).unwrap();
+        eprintln!("packed 20,000 candidates in {:?}", start.elapsed());
+        assert!(text::count(&packet.to_string()) <= 16_000);
+        assert_eq!(packet["coverage"]["required_entries"], 20_000);
+        assert!(packet["coverage"]["budget_omitted"].as_u64().unwrap() > 0);
+        assert_eq!(packet["impact"], "incomplete");
+    }
+
+    #[test]
+    fn budgeted_deltas_reserve_unchanged_and_invalidated_records() {
+        let entry = |i: usize, rev: &str| json!({"id":format!("{i:064x}"),"revision":rev,"repository_id":"repo","text":"return calculate(); ".repeat(40)});
+        let report = |entries: Vec<Value>| json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
+        let (_, previous) = super::pack(
+            report((0..24).map(|i| entry(i, "old")).collect()),
+            16000,
+            None,
+        )
+        .unwrap();
+        for budget in [4096, 6000, 8000] {
+            let next = report(
+                (0..12)
+                    .map(|i| entry(i, "old"))
+                    .chain((12..60).map(|i| entry(i, "new")))
+                    .collect(),
+            );
+            let (packet, receipt) = super::pack(next, budget, Some(&previous)).unwrap();
+            assert!(text::count(&packet.to_string()) <= budget);
+            assert_eq!(packet["unchanged"].as_array().unwrap().len(), 12);
+            for old in previous["entries"].as_array().unwrap() {
+                assert!(
+                    receipt["entries"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|e| e["id"] == old["id"])
+                        || packet["invalidated"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(|e| e["id"] == old["id"])
+                );
+            }
+            assert!(packet["coverage"]["budget_omitted"].as_u64().unwrap() > 0);
+        }
+    }
+
     #[test]
     fn reverted_change_invalidates_the_previously_supplied_diff() {
         use serde_json::json;

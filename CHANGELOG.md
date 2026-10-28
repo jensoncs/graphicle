@@ -3,6 +3,38 @@
 Notable changes to Graphicle: the graph engine (`graphicle-graph`), the memory
 library (`graphicle-memory`) and the `graphicle` program.
 
+## 0.2.0 - Unreleased
+
+The program, graph engine, memory library, and Python and TypeScript SDKs are
+versioned together at 0.2.0.
+
+### Review correctness and performance
+
+- Symbol revisions use complete declaration spans even when compiler-resolution
+  notices are present. Memory links accept old line-slice revisions when the
+  slice covers the entire declaration. Old truncated nested-symbol slices
+  remain conservative and require re-grounding; they cannot prove unchanged code.
+- Go discovery batches packages by module, disables cgo and network resolution,
+  isolates module/build caches, and honors supplied vendor trees. Missing offline
+  dependencies remain unresolved. Other languages retain incremental cache reuse.
+- Review packets reserve delta control records before packing excerpts, and
+  tokenize candidates individually. Scope attestations can be corrected on replay.
+- Coverage verification runs outside the write transaction. Shown-span schemas
+  require a source hash, and closure identities no longer depend on byte offsets.
+
+### Breaking SDK change
+
+`Project.impact` now accepts arrays of pinned base/head snapshots and requires a
+build profile. Replace episode IDs with snapshot pins and `budget_tokens` with
+`max_tokens`. Core review currently supports Go snapshot sets; inspect coverage
+limitations for unsupported or unresolved context. Extensions retaining the old
+episode contract remain accessible through `project.command("impact.report", ...)`.
+See the [pinned review guide](docs/pinned-review.md) and SDK READMEs for migration
+examples.
+
+`npm test` now runs strict TypeScript contract checks as well as runtime tests;
+run `npm ci` first. The Python cross-SDK integration skips when Node is absent.
+
 ## 0.1.8 - 2026-10-26
 
 Every crate is at 0.1.8, and `graphicle --version` prints

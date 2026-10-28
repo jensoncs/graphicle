@@ -1,6 +1,6 @@
 {
   "name": "@graphicle/sdk",
-  "version": "0.1.8",
+  "version": "0.2.0",
   "description": "Graphicle project evidence, memory, graph and workflow client",
   "private": true,
   "type": "module",
@@ -8,6 +8,10 @@
   "exports": {".": {"types": "./index.d.ts", "import": "./index.js"}},
   "types": "./index.d.ts",
   "files": ["index.js", "index.d.ts", "README.md", "LICENSE", "NOTICE"],
-  "scripts": {"test": "node --test test/*.test.js"},
+  "scripts": {
+    "test": "node --test test/*.test.js && npm run test:types",
+    "test:types": "tsc --noEmit --strict --target ES2022 --module NodeNext --moduleResolution NodeNext --lib ES2022,DOM test/impact.types.ts"
+  },
+  "devDependencies": {"typescript": "5.9.3"},
   "license": "Apache-2.0"
 }

@@ -84,6 +84,23 @@ pub fn limit_issues(analysis: &Value) -> Vec<&str> {
         .collect()
 }
 
+/// Whether declaration spans can be used independently of call/import resolution.
+/// Semantic limitations do not invalidate a complete syntactic declaration walk.
+pub fn declaration_spans_complete(analysis: &Value) -> bool {
+    matches!(
+        analysis["parser"].as_str(),
+        Some("tree-sitter-rust" | "tree-sitter-language-pack")
+    ) && limit_issues(analysis).is_empty()
+        && !analysis["issues"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .any(|issue| {
+                issue.contains("syntax errors") || issue == "Declaration nesting limit reached"
+            })
+}
+
 /// `12345678` as `12,345,678`.
 fn grouped(number: usize) -> String {
     let digits = number.to_string();

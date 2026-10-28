@@ -3,8 +3,8 @@
 
 No model calls, real repositories, provider accounts or customer data are used.
 --binary (default: $GRAPHICLE_BIN, else this crate's debug build) selects the
-program. The change-impact check runs when the program's edition includes it
-(build.info change_impact); Core skips it and says so.
+program. Core change impact uses a separate pinned Go fixture; the Python
+fixture exercises retrieval and historical citations. No models are invoked.
 """
 import argparse
 import hashlib
@@ -88,11 +88,17 @@ def sync(project, files, commit):
     rows = [{"path": path, "sha256": hashlib.sha256(text.encode()).hexdigest(), "bytes": len(text.encode())}
             for path, text in files.items()]
     begin = project.command("sync.prepare", expected_snapshot=project.status()["repository"]["snapshot"],
-                            metadata={"commit": commit}, manifest=rows)
-    project.command("sync.upload", sync_id=begin["sync_id"],
-                    files=[{"path": path, "content": text} for path, text in files.items()])
-    project.command("sync.commit", sync_id=begin["sync_id"])
-    return project.project_graph()
+                            metadata={"commit": commit, "policy_sha256": hashlib.sha256(b"complete product demo fixture v1").hexdigest(),
+                                      "scope_complete": True}, manifest=rows)
+    if begin["sync_id"] is not None:
+        project.command("sync.upload", sync_id=begin["sync_id"],
+                        files=[{"path": path, "content": text} for path, text in files.items()])
+        project.command("sync.commit", sync_id=begin["sync_id"])
+    return {**project.project_graph(), "pin": {
+        "repository_id": project.id, "directory": "demo", "commit": commit,
+        "snapshot": begin["snapshot"],
+        "policy_sha256": hashlib.sha256(b"complete product demo fixture v1").hexdigest(),
+    }}
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -131,9 +137,23 @@ def main():
             packet = project.context("How does checkout reject expired tokens?", max_tokens=1800)
             assert packet["evidence"], "The context response must include original evidence"
             info = client.command("build.info")
+            review_project = None
             if info["change_impact"]:
-                report = project.impact(base["episode"], head["episode"], budget_tokens=6000)
-                assert report["changed_nodes"], "The change report must identify modified code"
+                if info.get("change_impact_scope") == "pinned-go-snapshot-sets-v1":
+                    review_project = client.project("atlas-go-review-demo", "Pinned Go review · demo")
+                    go_files = {"go.mod": "module example/auth\ngo 1.23\n",
+                                "auth.go": "package auth\nfunc Verify(valid, expired bool) bool { return valid }\nfunc Authorize(valid, expired bool) bool { return Verify(valid, expired) }\n"}
+                    go_base = sync(review_project, go_files, "a" * 40)
+                    go_files["auth.go"] = go_files["auth.go"].replace("return valid }", "return valid && !expired }")
+                    go_head = sync(review_project, go_files, "b" * 40)
+                    report = review_project.impact([go_base["pin"]], [go_head["pin"]],
+                                                   profile={"goos": "linux", "goarch": "amd64"}, max_tokens=16000)
+                    assert report["changes"]["count"] > 0 and report["coverage"]["complete"], report
+                    assert any(e["name"].endswith("Authorize") for e in report["entries"]), report
+                else:
+                    # An installed extension may retain its own episode-based contract.
+                    report = project.command("impact.report", base=base["episode"], head=head["episode"], budget_tokens=6000)
+                    assert report["changed_nodes"], "The change report must identify modified code"
             original = project.graph_source(base["episode"], "app/auth.py")
             assert "not token.expired" not in original["quote"], "Historical reads must retain the original"
             graph = project.graph(limit=80, edge_limit=120)
@@ -160,6 +180,8 @@ def main():
             session.chmod(0o600)
             receipt = {
                 "url": client.url, "workspace": client.workspace, "project": project.id,
+                "review_project": review_project.id if review_project else None,
+                "impact_scope": info.get("change_impact_scope"),
                 "fixture_only": True, "model_calls": client.usage()["model_usage"]["calls"], "edition": info["edition"],
                 "checks": ["source_sync", "graph_projection", "historical_citation", *(["change_impact"] if info["change_impact"] else []),
                            "evidence_retrieval", "mcp_initialize", "mcp_discovery",
@@ -169,6 +191,7 @@ def main():
                 "elapsed_seconds": round(time.monotonic() - started, 3),
                 "preview_running": args.serve, "session_file": str(session)
             }
+            assert receipt["model_calls"] == 0, "The demo must never invoke a model"
             (directory / "product-receipt.json").write_text(json.dumps(receipt, indent=2) + "\n")
             print(json.dumps(receipt, indent=2), flush=True)
             if args.serve:

@@ -284,7 +284,7 @@ impl Loader<'_> {
                 };
                 let symbols = crate::structure::analyze(relpath, &source)
                     .ok()
-                    .filter(|v| v["issues"].as_array().is_some_and(Vec::is_empty))
+                    .filter(crate::structure::declaration_spans_complete)
                     .and_then(|v| v["symbols"].as_array().cloned())
                     .unwrap_or_default();
                 let mut loaded = SourceText::new(source);
@@ -478,6 +478,7 @@ pub fn annotate(graph: &mut Graph, options: &IdentityOptions) -> Result<Identity
         );
         let mut legacy_revision = None;
         let mut exact = None;
+        let mut legacy_compatible = false;
         let revision = if relpaths[index].is_empty() {
             None
         } else {
@@ -504,6 +505,16 @@ pub fn annotate(graph: &mut Graph, options: &IdentityOptions) -> Result<Identity
                                 (symbol["byte_start"].as_u64(), symbol["byte_end"].as_u64())
                                 && source.text.get(a as usize..z as usize).is_some()
                             {
+                                let legacy_range = span::byte_range(
+                                    &source.starts,
+                                    source.text.len(),
+                                    starts[index],
+                                    next_start[index],
+                                );
+                                // A legacy slice cut off by a nested declaration cannot
+                                // prove that the enclosing declaration is unchanged.
+                                legacy_compatible = legacy_range.start <= a as usize
+                                    && z as usize <= legacy_range.end;
                                 exact = Some(symbol.clone());
                             }
                         }
@@ -528,13 +539,23 @@ pub fn annotate(graph: &mut Graph, options: &IdentityOptions) -> Result<Identity
         if revision.is_some() {
             with_revision += 1;
         }
-        updates.push((stable_id, revision, legacy_revision, exact));
+        updates.push((
+            stable_id,
+            revision,
+            legacy_revision,
+            exact,
+            legacy_compatible,
+        ));
     }
-    for ((index, node), (stable_id, revision, legacy_revision, exact)) in
+    for ((index, node), (stable_id, revision, legacy_revision, exact, legacy_compatible)) in
         graph.nodes_mut().enumerate().zip(updates)
     {
         node.attributes
             .insert("legacy_revision".into(), json!(legacy_revision));
+        node.attributes.insert(
+            "legacy_revision_compatible".into(),
+            json!(legacy_compatible),
+        );
         node.attributes.insert(
             "revision_basis".into(),
             json!(if files[index] {
@@ -1080,6 +1101,77 @@ mod tests {
     }
 
     #[test]
+    fn semantic_notices_do_not_invalidate_declaration_revisions() {
+        for (path, source, f_line, g_line) in [
+            (
+                "a.go",
+                "package a\nfunc F() int { return 1 }\nfunc G() int { return 2 }\n",
+                2,
+                3,
+            ),
+            (
+                "a.js",
+                "function F() { return 1; }\nfunction G() { return 2; }\nimport(name);\n",
+                1,
+                2,
+            ),
+            (
+                "a.py",
+                "def F():\n    return 1\ndef G():\n    return 2\n__import__(name)\n",
+                1,
+                3,
+            ),
+        ] {
+            let build = |source: &str| {
+                let mut graph = Graph::new(true, false);
+                for (name, line) in [("F", f_line), ("G", g_line)] {
+                    graph
+                        .add_node(
+                            json!(name),
+                            attributes([
+                                ("label", json!(name)),
+                                ("source_file", json!(path)),
+                                ("source_location", json!(format!("L{line}"))),
+                                ("file_type", json!("code")),
+                            ]),
+                        )
+                        .unwrap();
+                }
+                annotate(
+                    &mut graph,
+                    &IdentityOptions {
+                        sources: BTreeMap::from([(path.into(), source.into())]),
+                        ..Default::default()
+                    },
+                )
+                .unwrap();
+                graph
+            };
+            let before = build(source);
+            let after = build(&source.replace("return 2", "return 20"));
+            assert_eq!(
+                attr(&before, "F", "revision_basis"),
+                json!("exact_declaration_v2"),
+                "{path}"
+            );
+            assert_eq!(
+                attr(&before, "F", "revision"),
+                attr(&after, "F", "revision"),
+                "{path}"
+            );
+            assert_ne!(
+                attr(&before, "G", "revision"),
+                attr(&after, "G", "revision"),
+                "{path}"
+            );
+            assert_eq!(
+                attr(&before, "F", "legacy_revision_compatible"),
+                json!(true)
+            );
+        }
+    }
+
+    #[test]
     fn exact_nested_spans_keep_outer_tail_and_stable_memory_anchors() {
         let source = "def outer():\n    def inner():\n        return 1\n    return inner() + 10\n";
         let build = |source: &str| {
@@ -1116,6 +1208,10 @@ mod tests {
             graph
         };
         let before = build(source);
+        assert_eq!(
+            attr(&before, "outer", "legacy_revision_compatible"),
+            json!(false)
+        );
         let after = build(&source.replace("+ 10", "+ 20"));
         assert_eq!(
             attr(&before, "outer", "revision_basis"),

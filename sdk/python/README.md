@@ -57,3 +57,49 @@ in a URL or public frontend bundle.
 Licensed under the Apache License 2.0; see LICENSE and NOTICE. The native
 server and optional model/runtime dependencies are separate artifacts with
 their own notices; this SDK does not bundle them.
+
+## Pinned change review
+
+`Project.impact` uses Core's pinned Go review contract. Check
+`client.command("build.info")["change_impact_scope"]` for
+`pinned-go-snapshot-sets-v1`; the `change_impact` boolean alone does not describe
+an extension's request format.
+
+Admit each side with `sync.prepare`, `sync.upload`, and `sync.commit` first.
+The prepare metadata must contain the full Git `commit`, `policy_sha256`, and
+an accurate `scope_complete` attestation. Use the returned source-manifest
+snapshot digest in each pin (not a graph episode ID):
+
+```python
+base_pin = {
+    "repository_id": project.id,
+    "directory": "service",  # stable checkout name on both sides
+    "commit": base_commit,
+    "snapshot": base_snapshot,
+    "policy_sha256": policy_sha256,
+    "modules": ["."],
+}
+head_pin = {**base_pin, "commit": head_commit, "snapshot": head_snapshot}
+profile = {"goos": "linux", "goarch": "amd64", "tags": [], "tests": True}
+packet = project.impact([base_pin], [head_pin], profile=profile, max_tokens=16000)
+# On the next push, replace head_pin with the newly admitted binding.
+delta = project.impact([base_pin], [next_head_pin], profile=profile,
+                       max_tokens=16000, previous_packet_id=packet["packet_id"])
+```
+
+Use `changes.count`, `entries`, `diffs`, and `coverage.complete` in the response.
+Apply `updated`/`added` objects and explicit `invalidated` IDs across both entries
+and diffs; retain only the listed `unchanged` IDs. Incomplete coverage never means
+no impact. Python and other unsupported review languages are reported as
+incomplete; ordinary retrieval still supports them. No model is called.
+
+Migration from 0.1.8 to 0.2.0: `impact(base_episode, head_episode, budget_tokens=...)` is no longer
+the Core contract. Supply pinned arrays, `profile`, and `max_tokens`. Episode IDs
+cannot safely supply missing commit, admission-policy, or build identities.
+If an installed extension explicitly supports the legacy format, use
+`project.command("impact.report", base=base_episode, head=head_episode,
+budget_tokens=4000)` for that extension. `graph_source` and `episodes` still use
+graph episode IDs.
+
+The service bounds and full packet contract are in
+[the pinned review guide](../../docs/pinned-review.md).

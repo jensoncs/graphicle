@@ -367,6 +367,10 @@ impl Store {
         crate::graph_delta::migrate(&db)?;
         db.execute_batch(include_str!("product_schema.sql"))?;
         crate::work_state::migrate(&db)?;
+        // Exact declaration provenance and safe compatibility with pre-0.2 links.
+        ensure_column(&db, "gf_symbol_heads", "legacy_revision", "TEXT")?;
+        ensure_column(&db, "gf_symbol_heads", "byte_start", "INTEGER")?;
+        ensure_column(&db, "gf_symbol_heads", "byte_end", "INTEGER")?;
         // Each folder's freshness record.
         crate::fresh::migrate(&db)?;
         // Documents' mention links to code symbols.

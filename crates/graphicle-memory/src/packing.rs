@@ -183,8 +183,9 @@ struct Shown {
 }
 /// Mastra's navigable recall (a86dc4240) answers a hit already in the
 /// caller's context with a reference rather than the text again. `shown`
-/// lists, per source ID (and SHA-256 when given), the byte spans the caller
-/// holds; at most 200. Source IDs repeat across the projects of a workspace
+/// lists, per source ID and SHA-256, the byte spans the caller
+/// holds; at most 200. Legacy hashless spans are accepted but never suppress text.
+/// Source IDs repeat across the projects of a workspace
 /// (`file:README.md`), so a span may name its project (`repository_id`); one
 /// that does not belongs to the packet's own project (`repo.id`).
 fn shown_spans(request: &Value) -> Result<Vec<Shown>> {

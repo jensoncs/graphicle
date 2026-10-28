@@ -384,8 +384,27 @@ class Project:
         """Read the retained original at an episode; never substitutes the current file."""
         return self.command("graph.source", episode=episode, path=path, **options)
 
-    def impact(self, base: str, head: str, **options: Any) -> Dict[str, Any]:
-        return self.command("impact.report", base=base, head=head, **options)
+    def impact(self, base: Sequence[Mapping[str, Any]], head: Sequence[Mapping[str, Any]], *,
+               profile: Mapping[str, Any], max_depth: Optional[int] = None,
+               max_tokens: Optional[int] = None,
+               previous_packet_id: Optional[str] = None) -> Dict[str, Any]:
+        """Review pinned snapshot sets using an explicit Go build profile.
+
+        Each pin names repository_id, directory, commit, snapshot and policy_sha256,
+        with optional module roots. Sync must first admit that commit/snapshot/policy
+        binding. Use max_tokens (not budget_tokens) and previous_packet_id for a delta.
+        Episode-only extension contracts remain accessible through command().
+        """
+        for pins in (base, head):
+            if (isinstance(pins, (str, bytes)) or not isinstance(pins, Sequence)
+                    or any(not isinstance(pin, Mapping) for pin in pins)):
+                raise TypeError("impact requires pinned snapshot arrays, not episode IDs")
+        if not isinstance(profile, Mapping):
+            raise TypeError("impact requires a Go build profile with goos and goarch")
+        return self.command("impact.report", base=[dict(pin) for pin in base],
+                            head=[dict(pin) for pin in head], profile=dict(profile),
+                            **_present({"max_depth": max_depth, "max_tokens": max_tokens,
+                                        "previous_packet_id": previous_packet_id}))
 
     def export_memories(self) -> Dict[str, Any]:
         return self.command("memory.export")

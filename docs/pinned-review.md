@@ -31,8 +31,10 @@ The collector must verify that the sources came from that commit and that all
 relevant files were admitted. These fields are collector attestations, not
 cryptographic proof of Git history. Graphicle verifies source bytes against the
 immutable manifest and retains separate commit/policy bindings when different
-commits have identical trees. An absent or false `scope_complete` produces an
-explicit coverage limitation. A binding cannot later be silently upgraded.
+commits have identical trees. Re-importing the same binding replaces its scope
+attestation, including downgrades from complete to incomplete. An absent or
+false `scope_complete` produces an explicit coverage limitation. Upgrading it
+requires a new explicit collector attestation.
 
 Existing source limits, permissions, upload validation, and compare-and-swap
 sync checks apply. Retain both sides' source objects until review completes;
@@ -104,8 +106,8 @@ A local Go toolchain must be installed. Each consumer gets its own native
 `go list`/`go/types` resolution world. Build tags, platform, module versions,
 workspace/local replacements, and test variants determine the selected source
 and target declaration. Modules and toolchains are **never downloaded during
-review**; CGO is disabled. Provide pinned local replacements or a workspace for
-the dependency source. An arbitrary compatible checkout is never substituted
+review**; CGO is disabled. Provide pinned local replacements, a workspace, or
+a vendor tree for the dependency source. An arbitrary compatible checkout is never substituted
 for an installed version. Missing dependencies remain unresolved.
 
 The compiler helper refuses symlinks and replacements outside the pinned
@@ -157,7 +159,8 @@ fewer tokens alone is not a successful review.
 Keep the base pins/profile fixed and send the previous `packet_id` as
 `previous_packet_id`. Receipts are issued by this store and bound to the
 principal and anchor repository. Up to 20 receipts are retained per pair.
-A foreign, expired, revoked, or incompatible receipt requires a full packet.
+A foreign, evicted, revoked, or incompatible receipt requires a full packet.
+Receipts have count-based retention (20 per principal/repository), not a time-based expiry.
 Caller-provided hashless “already shown” spans cannot suppress changed source.
 
 Apply a delta atomically across both `diffs` and `entries`: remove `invalidated`

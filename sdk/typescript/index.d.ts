@@ -8,6 +8,24 @@ export interface ClientOptions {
 }
 export interface Evidence extends Result {id: string; sha256?: string; text?: string; quote?: string}
 export interface Context extends Result {evidence: Evidence[]; memories: Result[]}
+/** Immutable source binding admitted through sync.prepare/upload/commit. */
+export interface SnapshotPin {
+  repository_id: string; directory: string; commit: string;
+  snapshot: string; policy_sha256: string; modules?: readonly string[];
+}
+export interface ReviewProfile {
+  goos: string; goarch: string; tags?: readonly string[]; tests?: boolean; workspace?: string;
+}
+export interface ReviewOptions {
+  profile: ReviewProfile; max_depth?: number; max_tokens?: number; previous_packet_id?: string;
+}
+export interface ReviewPacket extends Result {
+  format: "graphicle.review.v1"; packet_id: string; previous_packet_id: string | null;
+  base: SnapshotPin[]; head: SnapshotPin[]; profile: ReviewProfile;
+  impact: "potential_impact" | "no_changes_in_scope" | "incomplete";
+  changes: Result & {count: number}; coverage: Result & {complete: boolean; budget_omitted: number};
+  entries: Result[]; diffs: Result[]; invalidated: Result[]; unchanged: string[]; tokens: number;
+}
 export class GraphicleError extends Error {
   status: number; body?: unknown; retryAfterSeconds?: number;
   constructor(message: string, options?: {status?: number; body?: unknown; retryAfterSeconds?: number; cause?: unknown});
@@ -35,7 +53,8 @@ export class Project {
   projectGraph(options?: RequestOptions): Promise<Result>;
   episodes(options?: RequestOptions): Promise<Result>;
   graph(args?: Arguments, options?: RequestOptions): Promise<Result>;
-  impact(base: string, head: string, args?: Arguments, options?: RequestOptions): Promise<Result>;
+  /** Pinned Go review. Episode-only extension contracts use command("impact.report", ...). */
+  impact(base: readonly SnapshotPin[], head: readonly SnapshotPin[], args: ReviewOptions, options?: RequestOptions): Promise<ReviewPacket>;
   memories(args?: Arguments, options?: RequestOptions): Promise<Result[]>;
   history(memoryId: string, args?: Arguments, options?: RequestOptions): Promise<Result>;
   enqueue(kind: string, args?: Arguments, options?: RequestOptions): Promise<Result>;

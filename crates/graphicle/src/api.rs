@@ -1576,7 +1576,7 @@ pub fn core_mcp_tools(learning: bool, work_state: bool) -> Vec<McpTool> {
                 "reading_guidance":{"type":"boolean","description":"add guidance on weighing what users said against what assistants suggested"},
                 "skip_shown":{"type":"boolean","description":"answer excerpts this connection already returned with one-line references and spend their budget on further hits"},
                 "include":{"type":"array","minItems":1,"maxItems":32,"items":{"type":"string","minLength":1,"maxLength":300},"description":"search only sources whose id starts with one of these prefixes: file: for the project's files, file:docs/ for a folder, connector:<id>: for one connector's documents"},
-                "shown":{"type":"array","maxItems":200,"description":"source spans already in your context; covered hits return as references","items":{"type":"object","properties":{"id":{"type":"string"},"sha256":{"type":"string"},"byte_start":{"type":"integer","minimum":0},"byte_end":{"type":"integer","minimum":1}},"required":["id","byte_start","byte_end"],"additionalProperties":false}},
+                "shown":{"type":"array","maxItems":200,"description":"source spans already in your context at the supplied sha256; only matching revisions return as references","items":{"type":"object","properties":{"id":{"type":"string"},"sha256":{"type":"string"},"byte_start":{"type":"integer","minimum":0},"byte_end":{"type":"integer","minimum":1}},"required":["id","sha256","byte_start","byte_end"],"additionalProperties":false}},
                 "repo":{"type":"string","description":REPO_DESCRIPTION}}),
                 &["question"],
                 false,
@@ -2873,6 +2873,18 @@ mod operation_table_tests {
             }
         }
         names
+    }
+
+    #[test]
+    fn recall_schema_requires_revision_for_shown_spans() {
+        let tool = core_mcp_tools(false, false)
+            .into_iter()
+            .find(|t| t.spec["name"] == "recall_project")
+            .unwrap();
+        let required = tool.spec["inputSchema"]["properties"]["shown"]["items"]["required"]
+            .as_array()
+            .unwrap();
+        assert!(required.contains(&json!("sha256")));
     }
 
     #[test]
