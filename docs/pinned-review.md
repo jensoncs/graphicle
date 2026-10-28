@@ -160,6 +160,10 @@ Keep the base pins/profile fixed and send the previous `packet_id` as
 `previous_packet_id`. Receipts are issued by this store and bound to the
 principal and anchor repository. Up to 20 receipts are retained per pair.
 A foreign, evicted, revoked, or incompatible receipt requires a full packet.
+If a receipt includes a repository the caller cannot access (even one already
+reported as `unavailable_snapshot`), the delta returns HTTP 409 and asks for a
+full packet. Retry without `previous_packet_id`; unavailable pins remain explicit
+coverage limitations in the full packet.
 Receipts have count-based retention (20 per principal/repository), not a time-based expiry.
 Caller-provided hashless “already shown” spans cannot suppress changed source.
 

@@ -383,6 +383,22 @@ fn budget_and_inaccessible_repository_omissions_are_visible() {
             .contains("unavailable_snapshot")
     );
     assert!(text::count(&report.to_string()) <= 4000);
+    args["previous_packet_id"] = report["packet_id"].clone();
+    let error = review::run(&f.store, &f.workspace, &f.token, &args).unwrap_err();
+    assert_eq!(error.status, axum::http::StatusCode::CONFLICT);
+    assert_eq!(
+        error.message,
+        "Previous packet references an unavailable repository; request a full packet"
+    );
+    // Dropping the receipt recovers without exposing the inaccessible pin.
+    args.as_object_mut().unwrap().remove("previous_packet_id");
+    let full = f.run(&args);
+    assert_eq!(full["impact"], "incomplete");
+    assert!(
+        full["coverage"]["issues"]
+            .to_string()
+            .contains("unavailable_snapshot")
+    );
 }
 
 #[test]

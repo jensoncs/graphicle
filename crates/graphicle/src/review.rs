@@ -862,6 +862,28 @@ fn pack(mut report: Value, max_tokens: usize, previous: Option<&Value>) -> Resul
     Ok((report, receipt))
 }
 
+fn check_receipt_access(
+    db: &rusqlite::Connection,
+    principal: &store::Principal,
+    receipt: &Value,
+) -> Result<()> {
+    for side in ["base", "head"] {
+        for pin in receipt[side]
+            .as_array()
+            .ok_or_else(|| Error::conflict("Invalid review receipt; request a full packet"))?
+        {
+            // Full packets can report unavailable pins. A delta cannot reuse
+            // such a receipt safely; keep the access check and offer recovery.
+            store::repo(db, principal, s(pin, "repository_id")).map_err(|_| {
+                Error::conflict(
+                    "Previous packet references an unavailable repository; request a full packet",
+                )
+            })?;
+        }
+    }
+    Ok(())
+}
+
 pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<Value> {
     // Authorization precedes parsing scope details, preserving the core API's
     // refusal boundary even for legacy/unsupported request shapes.
@@ -881,7 +903,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         let row=store::one(db,"SELECT receipt FROM repo_review_packets WHERE id=? AND repository_id=? AND principal_hash=?",params![id,anchor,p.hash])?.ok_or_else(||Error::conflict("Previous packet unavailable; request a full packet"))?;
         let receipt:Value=serde_json::from_str(s(&row,"receipt"))?;
         if receipt["profile"]!=serde_json::to_value(&r.profile)? || receipt["base"]!=serde_json::to_value(&r.base)?{return Err(Error::conflict("Review profile changed; request a full packet"));}
-        for side in ["base","head"] { for pin in receipt[side].as_array().ok_or_else(||Error::conflict("Invalid review receipt"))? { store::repo(db,p,s(pin,"repository_id"))?; } }
+        check_receipt_access(db,p,&receipt)?;
         Ok(Some(receipt))
     })?;
     let base = load(store, workspace, token, &r.base)?;
@@ -907,8 +929,8 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     let (report, receipt) = pack(report, r.max_tokens, previous.as_ref())?;
     store.authorized(workspace,token,"read",|db,p|{
         store::repo(db,p,anchor)?;
+        if let Some(previous)=&previous {check_receipt_access(db,p,previous)?;}
         for repository in base.sources.values().chain(head.sources.values()).map(|s|&s.repository).collect::<BTreeSet<_>>(){store::repo(db,p,repository)?;}
-        if let Some(previous)=&previous {for side in ["base","head"] {for pin in previous[side].as_array().unwrap() {store::repo(db,p,s(pin,"repository_id"))?;}}}
         // Source forgetting/retention may run while the compiler is working.
         // Do not serve materialized bytes that have since been removed.
         let mut exists=db.prepare_cached("SELECT EXISTS(SELECT 1 FROM repo_objects WHERE repository_id=? AND sha256=? AND bytes=?)")?;
