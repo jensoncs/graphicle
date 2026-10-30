@@ -535,7 +535,7 @@ fn analyse_batch(
     for group in files.chunks(2_000) {
         let contents = store.read(|db| {
             let mut load = db.prepare_cached(
-                "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=?",
+                "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=? AND typeof(content)='text'",
             )?;
             let mut contents = Vec::with_capacity(group.len());
             for (path, sha) in group {

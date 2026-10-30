@@ -12,6 +12,7 @@ use unicode_normalization::UnicodeNormalization;
 
 pub const DEFAULT_AFFECTED_RELATIONS: &[&str] = &[
     "calls",
+    "may_call",
     "indirect_call",
     "references",
     "imports",

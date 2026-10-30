@@ -19,6 +19,7 @@ import (
 )
 
 type request struct {
+	Semantic *semanticRequest `json:"semantic,omitempty"`
 	Paths  []string
 	Review *reviewRequest `json:"review,omitempty"`
 }
@@ -27,16 +28,19 @@ type moduleMetadata struct {
 	Replace                              *moduleMetadata
 }
 type metadata struct {
-	Dir, ImportPath, Name              string
-	GoFiles, CgoFiles                  []string
-	ImportMap                          map[string]string
-	Error                              *struct{ Err string }
-	Module                             *moduleMetadata
-	Standard, DepOnly, Incomplete      bool
-	Imports, TestGoFiles, XTestGoFiles []string
-	DepsErrors                         []struct{ Err string }
+	Deps                                                        []string
+	Dir, ImportPath, Name                                       string
+	GoFiles, CgoFiles                                           []string
+	IgnoredGoFiles, EmbedFiles, TestEmbedFiles, XTestEmbedFiles []string
+	ImportMap                                                   map[string]string
+	Error                                                       *struct{ Err string }
+	Module                                                      *moduleMetadata
+	Standard, DepOnly, Incomplete                               bool
+	Imports, TestGoFiles, XTestGoFiles                          []string
+	DepsErrors                                                  []struct{ Err string }
 }
 type site struct {
+	Candidate  bool   `json:"candidate,omitempty"`
 	File       string `json:"file"`
 	Line       int    `json:"line"`
 	Column     int    `json:"column"`
@@ -114,10 +118,16 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 	if valid {
 		l.packages[path] = pkg
 	}
+	var bindings map[types.Object]ast.Expr
+	var flow *callableFlow
 	for _, file := range files {
 		filename := l.fset.PositionFor(file.Pos(), false).Filename
 		if !l.wanted[filename] {
 			continue
+		}
+		if flow == nil {
+			bindings = localValueBindings(files, info)
+			flow = functionValueFlow(files, info, bindings)
 		}
 		for _, decl := range file.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
@@ -136,7 +146,7 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 				}
 				pos := l.fset.PositionFor(call.Pos(), false)
 				s := site{File: filename, Line: pos.Line, Column: pos.Column, Caller: fn.Name.Name, CallerLine: l.fset.PositionFor(fn.Pos(), false).Line, Reason: "unresolved_type"}
-				fun := unparen(call.Fun)
+				fun := boundExpression(call.Fun, bindings, info)
 				if index, ok := fun.(*ast.IndexExpr); ok {
 					fun = unparen(index.X)
 				}
@@ -182,6 +192,29 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 						}
 					}
 				}
+				if valid && s.TargetFile == "" {
+					candidates, limited := flow.candidates(call.Fun)
+					if limited {
+						s.Reason = "function_value_budget"
+					}
+					seen := map[token.Pos]bool{}
+					for _, candidate := range candidates {
+						fn := callableTarget(candidate, info)
+						if fn == nil || seen[fn.Origin().Pos()] {
+							continue
+						}
+						seen[fn.Origin().Pos()] = true
+						p := l.fset.PositionFor(fn.Origin().Pos(), false)
+						if !p.IsValid() {
+							continue
+						}
+						possible := s
+						possible.Candidate = true
+						possible.Reason = ""
+						possible.TargetFile, possible.TargetLine, possible.Target = p.Filename, p.Line, fn.Name()
+						l.sites = append(l.sites, possible)
+					}
+				}
 				l.sites = append(l.sites, s)
 				return true
 			})
@@ -218,6 +251,7 @@ func main() {
 	if err := json.NewDecoder(os.Stdin).Decode(&req); err != nil {
 		panic(err)
 	}
+	if req.Semantic != nil { runSemantic(*req.Semantic); return }
 	if req.Review != nil {
 		runReview(*req.Review)
 		return

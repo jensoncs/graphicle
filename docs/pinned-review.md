@@ -9,7 +9,9 @@ explicitly override. Core also accepts revision-bound execution observations thr
 
 This first implementation analyzes **Go package calls in supplied immutable
 snapshot sets**. It does not prove behavioral propagation, discover every
-consumer in an organization, or link RPC/HTTP/event contracts. Python and other
+consumer in an organization. Explicit pinned HTTP/gRPC/event wiring is supported
+through [service-boundary manifests](service-boundaries.md); it is not automatic
+runtime service discovery. Python and other
 languages remain available to ordinary graph retrieval, but their presence in
 a review scope is reported as unsupported. An incomplete result must never be
 interpreted as “no impact.”
@@ -53,7 +55,7 @@ it. Import requires a short-lived `GRAPHICLE_GCS_ACCESS_TOKEN`, the exact
 expected identity and object digest, and a compatible engine digest. It checks
 expiry and source integrity before syncing. **Import changes the selected
 project's current source snapshot** while retaining earlier immutable snapshots.
-It imports source bytes only and rebuilds compiler facts for review. Omitting
+It imports source bytes only; review computes or reuses locally verified compiler facts. Omitting
 `--scope-complete` imports the source with an incomplete admission attestation.
 No bucket configuration, overwrite, public sharing, or lifecycle changes occur.
 Local imported copies are governed by local repository permissions and retention;
@@ -102,6 +104,12 @@ resolve within the admitted layout. `modules` lists module roots within each
 checkout. A workspace file can be selected with, for example,
 `"workspace":"checkout/go.work"`. Otherwise workspace discovery is off.
 
+Optionally set `"business_context": {}` to attach conservative domain candidates,
+or supply its `history` array from the local `review-history` collector. Historical
+assertions are bound to exact pins and source hashes, share the packet budget,
+and participate in delta invalidation. See [business context](business-context.md)
+for collection, provenance limits and the review-value fixture.
+
 A local Go toolchain must be installed. Each consumer gets its own native
 `go list`/`go/types` resolution world. Build tags, platform, module versions,
 workspace/local replacements, and test variants determine the selected source
@@ -109,6 +117,49 @@ and target declaration. Modules and toolchains are **never downloaded during
 review**; CGO is disabled. Provide pinned local replacements, a workspace, or
 a vendor tree for the dependency source. An arbitrary compatible checkout is never substituted
 for an installed version. Missing dependencies remain unresolved.
+
+For a non-vendored repository, prepare each pinned revision separately with Go's
+native vendoring in a disposable source copy before admission. An offline
+preparation can use an explicit module cache with `GOPROXY=off`, `GOVCS=*:off`,
+`GOTOOLCHAIN=local` and read-only module metadata. Verify cached modules, preserve
+the original source and `go.mod`/`go.sum` hashes, and include `vendor/modules.txt`
+and the dependency files in the admitted snapshot. Retain the source commit,
+policy, build profile, toolchain and generated-file hashes as preparation evidence.
+Populating the review server's ambient module cache does not admit dependencies.
+Missing or policy-withheld source still requires an incomplete scope attestation.
+
+Required binary compiler assets can be uploaded with `content_base64` instead of
+`content` in `sync.upload`. Supply exactly one field. Manifest hashes and sizes
+always describe decoded original bytes. The store retains binary objects as bytes;
+compiler materialization and shared-bundle export/import preserve them exactly.
+Text-only retrieval and excerpt generation exclude binary payloads. Existing text
+snapshots and hashes remain compatible, including stores created before binary
+input support. The usual upload, retained-source, authorization and deletion
+limits apply; base64 does not bypass them.
+
+The collector must attest each binary path and hash as a native selected embed.
+Credential scanning still applies to the bytes. Arbitrary binaries are not admitted
+by the evaluation harness. Changed binary inputs are listed in `file_changes`
+with before/after hashes and `binary: true`, without a fabricated text diff;
+unmodeled binary inputs and changed embeds keep impact coverage incomplete.
+The shared-bundle wire-size limit includes base64 expansion.
+
+Keep original test and platform-specific files in the source inventory; the build
+profile selects them. A collector may trim newly generated vendor files to the
+native selected Go, assembly, header and embedded inputs for one profile. Record
+omitted paths without reading their contents, preserve every original file, and
+re-run native discovery to verify the selected input set did not change. Required
+files cannot be omitted to satisfy a source-policy check. Such preparation must
+include `metadata.dependency_preparation.profile`; review reports
+`dependency_preparation_profile_mismatch` and incomplete coverage for another
+profile. Prepare a new dependency closure before changing platforms, tags or tests.
+
+Source-aware admission may distinguish Go symbolic references from credential
+values using parsed declaration and literal spans. Preserve the original bytes
+and record the classifier identity, file hashes and classification counts. Keep
+provider-token, private-key and decoded-literal checks; failure to prove a
+classification must still refuse admission. An empty package selection has an explicit empty file list, while
+discovery and type-check failures continue to qualify coverage.
 
 The compiler helper refuses symlinks and replacements outside the pinned
 checkout set. Source materialization is bounded to 64 MiB and 20,000 files per
@@ -121,17 +172,32 @@ The packet includes both commit sets, build profile, analyzer/toolchain identity
 source diffs, symbol changes, conservative move/rename correspondence, exact
 symbol text and fingerprints, and dependency paths explaining inclusion.
 
-Entries marked `change_seed` can be directly changed symbols or conservative
-seeds from configuration/unmapped source changes. The `changes` list separately
-identifies declaration changes. Package-global value references currently produce
-explicit unresolved data-flow edges; an unmapped source edit also seeds the
-consumer builds selecting that file.
+Entries marked `change_seed` are changed declarations. Conservative seeds from
+configuration/unmapped source changes use `conservative_scope` and
+`uncertain_scope: true`. The `changes` list identifies declaration changes.
+Package constants and variables have exact declaration spans; grouped declarations
+stay together to preserve implicit expressions and `iota`. `uses_value` links
+references to those declarations. `references_callable` links stored or passed
+functions without asserting a runtime call. Changed variable initializers and
+`init` functions also include the owning packages and their consumers because
+initialization may have side effects. An unmapped edit keeps conservative scope.
+
+Local function aliases, closures and interface receivers resolve when one
+initializing write proves the target and the variable's address does not escape.
+Reassignment (including captured writes), parameters, fields and mutable global
+callbacks retain explicit uncertainty. Arbitrary runtime dispatch cannot be
+proven from syntax alone.
 
 Deleted symbols seed the base graph; additions seed the head graph. Modified
 symbols seed both. Configuration and dependency-binding changes conservatively
 seed the affected scope. Incoming paths include potential consumers; outgoing
 paths provide dependencies and named types. Test callers participate when tests
 are enabled. The traversal reuses the graph engine's reverse traversal.
+Changed declarations retain their own change reason. Other entries retain one
+shortest example path per direction, with deterministic tie-breaking, rather
+than repeating every route to the same symbol. Coverage records this policy as
+`path_selection: "shortest_example_per_direction"`; these examples are not an
+enumeration of all dependency paths.
 
 Exact AST declarations include an enclosing function's entire body. Signature
 and implementation revisions are separate. Move/rename matches require unique
@@ -149,7 +215,32 @@ scope is complete and no changes were found. It is not an organization-wide
 “no impact” claim. The packet bounds change/issue examples while retaining
 counts and digests; package metadata is represented by its digest and counts.
 
-Packing prioritizes diffs and changed symbols, then selected dependency context.
+Native input inventories distinguish selected source, excluded tests/build files,
+and embedded assets. README/documentation edits and excluded tests do not select
+all declarations. Package-local unknowns and changed import bindings conservatively
+include the owning packages and their transitive consumers, using the native
+build inventory. They do not seed unrelated suppliers. Unknown build inputs still
+retain broader scope and explicit limitations. `file_changes` reports classifications with bounded
+examples, a total count and a digest; examples are not the complete inventory.
+
+Diffs use separate exact-byte hunks with three context lines. Packing gives
+current-head changed declarations priority, reserving up to a quarter of the
+budget for diff hunks. Deleted/base symbols and compiler-linked consumers and
+dependencies follow; uncertain fallback text comes last. Unused reservations
+are reclaimed without re-tokenizing candidates. `context_order` defines the
+selected view. Full and delta packets select the same bounded context at the same
+budget, independent of previously supplied text. `coverage.current_head` reports
+required/selected changed head declarations, `complete`, and whether any useful
+head context survived. `minimum_tokens_with_hunk_reserve` estimates the budget
+needed for all changed head declarations plus the current hunk allowance; it does
+not promise complete dependency coverage. A fixed budget cannot hold arbitrary
+source size: increase `max_tokens` (up to 64,000) when that lower-priority context
+would otherwise crowd out required evidence. Consumers must require complete
+coverage as well as useful head context
+before treating the packet as a complete dependency slice. Selective reuse has a
+separate per-file proof described below; it never changes this global flag. Deletion-only and non-compiler-input
+changes may legitimately require no head declaration.
+
 If required content does not fit, `budget_omitted` is nonzero and impact is
 `incomplete`. Increase the budget or narrow the explicitly declared scope;
 fewer tokens alone is not a successful review.
@@ -175,6 +266,69 @@ Moved/deleted/omitted excerpts are invalidated. A smaller budget cannot silently
 drop invalidation metadata: if that metadata cannot fit, the request fails.
 Receipts contain revisions/identities, never excerpt bodies.
 
+### Reuse source bytes
+
+Set `reuse_text: true` to omit an updated entry's identical text. The entry still
+contains its current binding, `text_sha256`, and `text_ref: true`; its bytes must
+come from the same entry ID in `previous_packet_id`. The default remains false.
+Python's `apply_review_delta(previous, packet)` and TypeScript's asynchronous
+`applyReviewDelta(previous, packet)` validate references, hashes, invalidations,
+and `context_order`, then return the current materialized view. Pass `None`/`null`
+for the first full packet. Keep that view locally; there is no need to request a
+second full packet on every push. A materialized view omits the wire token count;
+measure the actual reviewer prompt separately. Equal bytes never preserve old
+commit bindings or certify equivalent review inputs.
+
+### Reuse completed review coverage
+
+Send `reviewed_entries` with the head entry IDs from a previous **completed**
+review. Each head entry carries `review_basis`: a component fingerprint,
+`complete`, and a reason. Components connect native packages through both
+incoming and outgoing imports across the base/head graphs. Their fingerprint
+covers every member's exact source, transitive package inputs, configuration,
+policy, analyzer and toolchain. A changed consumer invalidates a supplier too.
+
+Unresolved calls block their whole component. Analysis failures, unavailable
+snapshots, unsupported inputs, traversal limits and issues without a safe owner
+block all proofs. Every declaration and consumer-build view of the reviewed file
+must be present, and all selected component context and diff hunks must fit the
+packet. Packing omissions revoke the proof and update its delta revision.
+An unrelated component's uncertainty or omitted text does not revoke a complete
+local proof. Global `coverage.complete` and omissions remain unchanged.
+
+`review_reuse.eligible` contains only requested entries whose prior stored proof
+and current packed proof are complete, whose file and component fingerprints
+match, and whose attached business/execution evidence is unchanged. Older
+receipts without this proof require full review. Eligibility proves input
+equivalence, **not a review verdict or that a review took place**. The consumer
+must account for every required file, require every view of a file to qualify,
+retain validated completion evidence and freeze the review schema, invariants,
+instructions, author context, source policy and reviewer contract. Any missing
+proof, changed contract or omitted view requires explicit full-review fallback.
+Never infer completion from carried-forward findings or excerpt presence.
+
+### Reuse compiler facts
+
+The store retains up to four compiler fact sets (each at most 64 MiB, stored as
+gzip/base64) per anchor repository. Keys include exact snapshot sets, source hashes, repository/policy
+identity, profile, toolchain, analyzer and helper implementation. Commits do not
+change byte-identical compiler inputs; current binding envelopes are always
+recomputed. Every read rechecks authorization, retained source and exact spans.
+Deleting any input snapshot invalidates dependent cache records. Native transport
+remains bounded to 64 MiB; decoding directly to typed facts caps expansion at
+512 MiB. Corrupt or truncated encodings fail. The graph is bounded to 200,000
+symbols (including package values) and 500,000 call/dependency records. Native
+binding uses a per-package/file declaration index. Traversal reuses declaration
+identities and materializes call-site evidence only for selected paths. `GRAPHICLE_PHASE_TIMINGS=1` reports loading,
+native analysis, decoding, comparison and packing times to local stderr.
+
+`analysis_cache` reports base/head hits and `granularity: "exact_snapshot_set"`.
+These execution diagnostics are outside semantic packet identity. An unchanged
+base or repeated head can avoid compiler execution. A new source snapshot still
+requires that side's analysis; per-package incremental compiler rebuilding is
+not implemented. Unavailable/incomplete native worlds are not stored as reusable
+fact sets. This cache does not admit missing dependency source.
+
 ## Verification
 
 `tests/it/pinned_review.rs` exercises a three-repository chain, unchanged callers,
@@ -187,7 +341,16 @@ Memory tests cover exact nested revisions and hashless shown-context reuse.
 The chain fixture computes call-edge precision/recall, affected-symbol recall,
 and required-context recall at 16,000 tokens. It also checks that applying a
 subsequent-push delta produces the same entry revisions as a fresh packet.
+`tools/validate_review_rca.py --binary <built graphicle> --output <new directory>`
+runs unpaid selection, budget, identical-tree byte reuse and warm-cache checks.
+The matching evaluation harness validates pinned dependency closure and useful
+current-head context before dispatch. Its opt-in replay adapter requests one
+packet per push; it is not enabled in the live watcher.
+
 These are bounded fixtures, not evidence of complete production-language recall.
+Policy-withheld dependencies/assets still block the real historical replay. No
+paid quality/cost benchmark or production review pruning is established by these
+checks.
 
 ## Upload execution observations
 

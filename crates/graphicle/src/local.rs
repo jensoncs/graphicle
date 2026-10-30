@@ -172,6 +172,16 @@ pub(crate) fn sensitive(name: &str) -> bool {
         .contains(&name)
 }
 
+/// Source admission checks directory policy separately from credential filenames.
+/// A public package directory named `credentials` is not a credential file.
+pub(crate) fn excluded_source_path(path: &str) -> bool {
+    skipped_file(path)
+        || sensitive(path.rsplit('/').next().unwrap_or(path))
+        || path
+            .split('/')
+            .any(|p| p.starts_with(".env") || p == "secrets" || SKIPPED_NAMES.contains(&p))
+}
+
 /// Files a folder sync never reads, by their folder-relative path: the
 /// backups setup and connect keep (`<file>.graphicle-bak`)
 /// and Claude Code's personal settings (`.claude/settings.local.json`,

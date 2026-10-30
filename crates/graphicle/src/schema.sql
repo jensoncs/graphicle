@@ -46,7 +46,7 @@
                     created_at TEXT NOT NULL, updated_at TEXT NOT NULL, UNIQUE(workspace_id,project_key));
                 CREATE TABLE IF NOT EXISTS repo_objects (
                     repository_id TEXT NOT NULL REFERENCES repo_projects(id) ON DELETE CASCADE,
-                    sha256 TEXT NOT NULL, content TEXT NOT NULL, bytes INTEGER NOT NULL,
+                    sha256 TEXT NOT NULL, content BLOB NOT NULL, bytes INTEGER NOT NULL,
                     PRIMARY KEY(repository_id,sha256));
                 CREATE TABLE IF NOT EXISTS repo_parses (
                     repository_id TEXT NOT NULL, path TEXT NOT NULL, sha256 TEXT NOT NULL,
@@ -475,3 +475,18 @@ CREATE TABLE IF NOT EXISTS repo_review_coverage (
     FOREIGN KEY(repository_id, snapshot) REFERENCES repo_snapshots(repository_id, sha256) ON DELETE CASCADE);
 CREATE INDEX IF NOT EXISTS repo_review_coverage_binding ON repo_review_coverage
     (repository_id, snapshot, commit_id, policy_sha256, profile_sha256);
+
+CREATE TABLE IF NOT EXISTS repo_review_analysis (
+    repository_id TEXT NOT NULL REFERENCES repo_projects(id) ON DELETE CASCADE,
+    id TEXT NOT NULL, facts TEXT NOT NULL, sha256 TEXT NOT NULL, used_at TEXT NOT NULL,
+    PRIMARY KEY(repository_id,id));
+CREATE TABLE IF NOT EXISTS repo_review_analysis_inputs (
+    repository_id TEXT NOT NULL, id TEXT NOT NULL,
+    input_repository TEXT NOT NULL, snapshot TEXT NOT NULL,
+    PRIMARY KEY(repository_id,id,input_repository,snapshot),
+    FOREIGN KEY(repository_id,id) REFERENCES repo_review_analysis(repository_id,id) ON DELETE CASCADE,
+    FOREIGN KEY(input_repository,snapshot) REFERENCES repo_snapshots(repository_id,sha256) ON DELETE CASCADE);
+CREATE TRIGGER IF NOT EXISTS review_analysis_input_removed AFTER DELETE ON repo_review_analysis_inputs
+BEGIN
+    DELETE FROM repo_review_analysis WHERE repository_id=OLD.repository_id AND id=OLD.id;
+END;

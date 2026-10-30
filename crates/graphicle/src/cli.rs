@@ -41,6 +41,24 @@ struct Cli {
 }
 #[derive(Subcommand)]
 enum Command {
+    /// Go statement flow and validated, local-only semantic edits.
+    Semantic { #[command(subcommand)] action: crate::semantic_edit::Command },
+    /// Collect request-local Git assertions for explicitly selected pinned files.
+    ReviewHistory {
+        #[arg(long)]
+        path: PathBuf,
+        /// JSON SnapshotPin, including the admitted snapshot and policy hashes.
+        #[arg(long)]
+        pin: PathBuf,
+        #[arg(long = "file", required = true)]
+        files: Vec<String>,
+        /// Include bounded function history, coupling and risk evidence.
+        #[arg(long)]
+        analyze: bool,
+        /// Compact JSON budget for this bundle; base/head share 512 KiB in requests.
+        #[arg(long, default_value_t = crate::business_context::DEFAULT_HISTORY_BYTES)]
+        max_bytes: usize,
+    },
     /// Review changes between authorized, pinned Go snapshot sets.
     Review {
         #[arg(long)]
@@ -855,6 +873,7 @@ where
         let directory = cli.data_dir.unwrap_or_else(local::data_dir);
         return crate::terminal::home(&directory, cli.config.as_deref());
     };
+    if let Command::Semantic { action } = command { return print(&crate::semantic_edit::run(action)?); }
     if let Command::Help { all, command } = &command {
         return crate::terminal::help_command(interface, *all, command);
     }
@@ -913,6 +932,22 @@ where
         return print(&result);
     }
     let directory = cli.data_dir.unwrap_or_else(local::data_dir);
+    if let Command::ReviewHistory {
+        path,
+        pin,
+        files,
+        analyze,
+        max_bytes,
+    } = command
+    {
+        let pin = serde_json::from_value(crate::review::read_request(&pin)?)?;
+        let history = if analyze {
+            crate::business_context::collect_analysis_with_budget(&path, pin, &files, max_bytes)?
+        } else {
+            crate::business_context::collect_with_budget(&path, pin, &files, max_bytes)?
+        };
+        return print(&serde_json::to_value(history)?);
+    }
     if let Command::SharedContext { action } = command {
         return print(&crate::shared_context::run(&directory, action).await?);
     }
@@ -1180,6 +1215,8 @@ where
             )?)
         }
         Command::SharedContext { .. } => unreachable!(),
+        Command::ReviewHistory { .. } => unreachable!(),
+        Command::Semantic { .. } => unreachable!(),
         Command::Restore { .. } => unreachable!(),
         Command::RedisWorker { .. } => unreachable!(),
         Command::Init { name } => {

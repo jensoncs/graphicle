@@ -10,6 +10,58 @@ versioned together at 0.2.0.
 
 ### Review correctness and performance
 
+- Add opt-in, snapshot-bound secondary context in Python and TypeScript SDKs; failures preserve primary review context and never grant review-scope reductions.
+- Add Go statement control/data-flow queries, isolated architectural what-if previews, and local function-binding rename previews with source/configuration revalidation.
+
+- Structured symbol search reuses declaration metadata for Python, JS/TS, Go
+  and Java with explicit field coverage. Go callback candidates follow values
+  through assignments, arguments and bounded literal storage while retaining
+  unresolved calls. Search and review expose ordered, cited potential static
+  flows, including configured HTTP/gRPC/event paths. See
+  [symbol search and flows](docs/symbol-search-and-flows.md).
+
+- Business/history annotations now use capacity left after required current-head
+  code and diff reservations. Bounded history preserves complete recent commit
+  membership before optional patch detail and never skips an unaffordable unit
+  to retain older fixes. Unknown-gap continuity checks remain in force.
+
+- Pinned `graphicle-services.json` manifests connect HTTP, gRPC and event
+  boundaries to local calls in review traversal. Relationships retain service
+  identity, exact configuration/contract citations and snapshot provenance;
+  ambiguous or dynamic targets stay unresolved. Source-backed assertions are
+  labelled explicitly, and wiring changes invalidate prior context. See
+  [service boundaries](docs/service-boundaries.md) for scope and accuracy checks.
+
+- Pinned source uploads and shared bundles preserve binary compiler inputs using
+  `content_base64` and hashes of raw bytes. Binary assets are materialized exactly,
+  excluded from text retrieval, and conservatively accounted for during review.
+  Public package directories named `credentials` no longer exclude their code.
+
+- Review selection uses compiler input roles: excluded tests and documentation
+  no longer expand to every symbol. Bounded hunk diffs follow current-head source
+  selection, and packets report useful-head coverage and canonical context order.
+- Review caches exact snapshot-set compiler facts with authorization, source and
+  deletion checks. Opt-in body references reuse identical excerpt bytes across
+  commits; SDK materializers validate deltas without a second full request.
+- Review input-equivalence eligibility now uses resolved package components,
+  including incoming consumers. Every file declaration and build view must be
+  present; omitted component context revokes its proof and updates the delta.
+  Unrelated graph uncertainty remains global without invalidating complete local
+  proofs. Consumers must attest completed reviews and unchanged contracts, and
+  explicitly review all files without a valid proof.
+
+- Optional static business context adds evidence-bearing domain candidates and
+  pinned Git assertions to review entries, with revision-safe deltas and existing
+  token limits. The local `review-history` collector reads explicit files at exact
+  commits; business importance and runtime hotness remain unknown.
+- `review-history --analyze` adds bounded function patches, weighted co-change
+  coupling, churn/decision hotspots, pseudonymous ownership, candidate fix-to-cause
+  links and local lexical retrieval. Exact historical peers and explainable review
+  priority share existing pinned-source validation, budgets and delta invalidation.
+- History collection scans decoded fields and bounds retained evidence as it is
+  collected. Two default bundles fit the unchanged 512 KiB aggregate limit;
+  explicit omissions and partial commit membership preserve conservative scores.
+
 - Symbol revisions use complete declaration spans even when compiler-resolution
   notices are present. Memory links accept old line-slice revisions when the
   slice covers the entire declaration. Old truncated nested-symbol slices
@@ -18,6 +70,9 @@ versioned together at 0.2.0.
   uses a private build cache, and honors supplied vendor trees. Extraction reuses
   locally cached modules; pinned review keeps its module cache isolated. Missing
   offline dependencies remain unresolved. Other languages retain incremental cache reuse.
+- Empty Go package selections serialize an explicit file inventory. Test-only,
+  build-excluded and CGO-only packages no longer fail packet construction with
+  "Compiler package has no file inventory"; unresolved builds remain qualified.
 - Review packets reserve delta control records before packing excerpts, and
   tokenize candidates individually. Scope attestations can be corrected on replay.
 - Coverage verification runs outside the write transaction. Shown-span schemas

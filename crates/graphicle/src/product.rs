@@ -253,7 +253,7 @@ impl Store {
                 .ok_or_else(|| Error::bad("File absent from the cited graph episode"))?;
             let original = one(
                 db,
-                "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=?",
+                "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=? AND typeof(content)='text'",
                 params![identifier, sha],
             )?
             .ok_or_else(|| Error::bad("The cited original was removed"))?;

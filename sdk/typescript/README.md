@@ -69,11 +69,41 @@ const delta = await project.impact([basePin], [nextHeadPin], {
 }, {timeoutMs: 120000});
 ```
 
+Set `business_context: {}` in the impact options for static domain candidates, or
+`business_context: {history: [baseHistory, headHistory]}` for bundles collected by
+`graphicle review-history`. Historical assertions remain untrusted; they are not
+confirmed business-criticality scores. See
+[business context](../../docs/business-context.md) for collection and evaluation.
+Add `--analyze` during collection for function history, co-change suggestions,
+hotspot/ownership evidence and explainable review priority. This remains local
+and makes no model calls; uncertainty and packet omissions remain explicit.
+
 Read `changes.count`, `entries`, `diffs`, and `coverage.complete`. Apply deltas
 across both entries and diffs using their `update` fields, `invalidated`, and
 `unchanged`. Incomplete coverage never means no impact. Core's first review
 implementation is Go-only; unsupported languages produce explicit limitations.
 No model is called.
+
+For validated text reuse without requesting another full packet:
+
+```typescript
+import {applyReviewDelta} from "@graphicle/sdk";
+let view = await applyReviewDelta(null, packet);
+const next = await project.impact([basePin], [nextHeadPin], {
+  profile, previous_packet_id: view.packet_id, reuse_text: true,
+});
+view = await applyReviewDelta(view, next);
+```
+
+The helper checks the prior receipt, body hashes, invalidations, and exact
+`context_order`. Updated bindings remain current even when bytes are reused.
+Conflicts require explicit recovery with a full packet. Global `coverage.complete`
+and useful `coverage.current_head` are required for a complete dependency slice.
+For selective reuse, `reviewed_entries` requests per-file input-equivalence proof:
+all head views need complete `review_basis` and `review_reuse.eligible`, validated
+prior completion, and unchanged review instructions. Other required files need
+full review. Global uncertainty remains visible; eligibility is not a verdict.
+See the pinned review guide for the full reuse and cache contract.
 
 Migration from 0.1.8 to 0.2.0: episode strings and `budget_tokens` are not Core review arguments.
 Use pinned arrays, a build profile, and `max_tokens`. Graph episodes remain valid

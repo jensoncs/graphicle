@@ -123,7 +123,7 @@ pub fn centrality(
 /// with its whole-graph early exit) over the nodes of `order`, in that order,
 /// with `successors` in dict order. Each component is returned as the
 /// sequence its Python `set` was built in, which fixes its iteration order.
-fn nx_scc(order: &[usize], successors: &dyn Fn(usize) -> Vec<usize>, n: usize) -> Vec<Vec<usize>> {
+pub(crate) fn nx_scc(order: &[usize], successors: &dyn Fn(usize) -> Vec<usize>, n: usize) -> Vec<Vec<usize>> {
     let total = order.len();
     let mut found = Vec::new();
     if total == 0 {

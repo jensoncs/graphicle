@@ -5,7 +5,9 @@
 //! before extraction. The lock stays alive for the entire graph build. A busy
 //! cache uses an isolated temporary tree instead of racing another process.
 use crate::{Error, Result, store::path};
-use rusqlite::{Connection, params};
+use rusqlite::Connection;
+#[cfg(test)]
+use rusqlite::params;
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use std::{
@@ -102,38 +104,25 @@ fn sync(
             fs::remove_dir(directory)?;
         }
     }
-    let mut query =
-        db.prepare_cached("SELECT content FROM repo_objects WHERE repository_id=? AND sha256=?")?;
     for (relative, expected) in heads {
         let target = tree.root.join(relative);
         if target.is_file() && file_hash(&target)? == *expected {
             tree.report.reused += 1;
             continue;
         }
-        let content: String = query
-            .query_row(params![repository, expected], |row| row.get(0))
-            .map_err(|error| match error {
-                rusqlite::Error::QueryReturnedNoRows => {
-                    Error::conflict("Head references a missing source object")
-                }
-                other => other.into(),
-            })?;
-        if format!("{:x}", Sha256::digest(content.as_bytes())) != *expected {
-            return Err(Error::conflict(
-                "Source object does not match its content digest",
-            ));
-        }
+        let content = crate::source_object::load(db, repository, expected)?
+            .ok_or_else(|| Error::conflict("Head references a missing source object"))?;
         let parent = target
             .parent()
             .ok_or_else(|| Error::bad("Source path has no parent"))?;
         fs::create_dir_all(parent)?;
         let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
-        temporary.write_all(content.as_bytes())?;
+        temporary.write_all(content.bytes())?;
         temporary
             .persist(target)
             .map_err(|error| Error::from(error.error))?;
         tree.report.written += 1;
-        tree.report.bytes_written += content.len();
+        tree.report.bytes_written += content.bytes().len();
     }
     Ok(())
 }
@@ -250,6 +239,28 @@ mod tests {
                 ((*path).into(), hash)
             })
             .collect()
+    }
+
+    #[test]
+    fn binary_inputs_reuse_and_repair_exact_bytes() {
+        let _flock = crate::fork_guard::flock_sensitive();
+        let db = database();
+        let bytes = vec![0, 255, 13, 10];
+        let hash = format!("{:x}", Sha256::digest(&bytes));
+        db.execute(
+            "INSERT INTO repo_objects VALUES('repo',?,?)",
+            params![hash, bytes],
+        )
+        .unwrap();
+        let heads = BTreeMap::from([("data.binpb".to_string(), hash)]);
+        let cache = TempDir::new().unwrap();
+        let first = prepare(&db, "repo", &heads, Some(cache.path())).unwrap();
+        assert_eq!(fs::read(first.path().join("data.binpb")).unwrap(), bytes);
+        let root = first.path().to_path_buf();
+        drop(first);
+        fs::write(root.join("data.binpb"), b"corrupt").unwrap();
+        let repaired = prepare(&db, "repo", &heads, Some(cache.path())).unwrap();
+        assert_eq!(fs::read(repaired.path().join("data.binpb")).unwrap(), bytes);
     }
 
     #[test]

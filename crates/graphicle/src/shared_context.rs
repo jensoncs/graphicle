@@ -66,7 +66,26 @@ impl Identity {
 struct Source {
     path: String,
     sha256: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
     content: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    content_base64: Option<String>,
+}
+impl Source {
+    fn data(&self) -> Result<crate::source_object::Content> {
+        let value = if let Some(encoded) = &self.content_base64 {
+            if !self.content.is_empty() {
+                return Err(Error::bad("Ambiguous shared source encoding"));
+            }
+            json!({"content_base64":encoded})
+        } else {
+            json!({"content":self.content})
+        };
+        crate::source_object::Content::decode(&value, MAX_BYTES)
+    }
+    fn manifest(&self) -> Result<Value> {
+        Ok(json!({"path":self.path,"sha256":self.sha256,"bytes":self.data()?.bytes().len()}))
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -82,14 +101,7 @@ pub struct Bundle {
 
 fn allowed_path(path: &str) -> Result<()> {
     store::path(path)?;
-    if local::skipped_file(path)
-        || path.split('/').any(|part| {
-            local::sensitive(part)
-                || part.starts_with(".env")
-                || part == "secrets"
-                || local::SKIPPED_NAMES.contains(&part)
-        })
-    {
+    if local::excluded_source_path(path) {
         return Err(Error::bad(
             "Snapshot contains a source excluded from sharing",
         ));
@@ -114,7 +126,11 @@ impl Bundle {
         let mut manifest = BTreeMap::new();
         for source in &self.sources {
             allowed_path(&source.path)?;
-            if sha256(source.content.as_bytes()) != source.sha256 || source.content.contains('\0') {
+            let data = source.data()?;
+            if source.content_base64.is_some() && data.text().is_some() {
+                return Err(Error::bad("Noncanonical shared binary source"));
+            }
+            if sha256(data.bytes()) != source.sha256 {
                 return Err(Error::bad(
                     "Shared context source digest or text is invalid",
                 ));
@@ -122,7 +138,7 @@ impl Bundle {
             if manifest
                 .insert(
                     &source.path,
-                    json!({"sha256":source.sha256,"bytes":source.content.len()}),
+                    json!({"sha256":source.sha256,"bytes":data.bytes().len()}),
                 )
                 .is_some()
             {
@@ -184,7 +200,7 @@ impl Bundle {
             ));
         }
         let repository = json!({"id":sha256(expected.repository.as_bytes()),"name":expected.repository,"snapshot":expected.source_snapshot});
-        let documents = self.sources.iter().map(|source| json!({
+        let documents = self.sources.iter().filter(|source| source.content_base64.is_none()).map(|source| json!({
             "id":format!("file:{}",source.path),"path":source.path,"title":source.path,
             "source_kind":"repository_file","sha256":source.sha256,"version":source.sha256,
             "snapshot":expected.source_snapshot,"content":source.content,"recorded_at":null,
@@ -239,8 +255,12 @@ pub fn export(
         if source_bytes < 0 || source_bytes as u64 > MAX_BYTES as u64 {
             return Err(Error::bad("Shared context source exceeds the 64 MiB artifact limit"));
         }
-        let rows = store::rows(db, "SELECT h.path,h.sha256,o.content FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 WHERE h.repository_id=? ORDER BY h.path", [project])?;
-        let sources = rows.iter().map(|row| Source { path:s(row,"path").into(), sha256:s(row,"sha256").into(), content:s(row,"content").into() }).collect();
+        let rows = store::rows(db, "SELECT h.path,h.sha256 FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 WHERE h.repository_id=? ORDER BY h.path", [project])?;
+        let sources = rows.iter().map(|row| -> Result<Source> {
+            let data = crate::source_object::load(db,project,s(row,"sha256"))?.ok_or_else(|| Error::conflict("Shared source unavailable"))?;
+            let wire = data.wire();
+            Ok(Source {path:s(row,"path").into(),sha256:s(row,"sha256").into(),content:s(&wire,"content").into(),content_base64:wire["content_base64"].as_str().map(str::to_string)})
+        }).collect::<Result<Vec<_>>>()?;
         let mut bundle = Bundle { format:FORMAT.into(), identity:identity.clone(), engine_sha256:engine.into(), expires_at,
             sources, graph:json!({}) };
         bundle.validate(identity, engine, Utc::now().timestamp())?;
@@ -567,7 +587,11 @@ fn import_sources(
     let chunks = bundle.sources.chunks(crate::limits::REQUEST_FILES);
     let count = chunks.len();
     for (i, chunk) in chunks.enumerate() {
-        let mut args = json!({"repository_id":project,"expected_snapshot":status["repository"]["snapshot"],"metadata":metadata,"manifest_complete":i+1==count,"manifest":chunk.iter().map(|s|json!({"path":s.path,"sha256":s.sha256,"bytes":s.content.len()})).collect::<Vec<_>>()});
+        let manifest = chunk
+            .iter()
+            .map(Source::manifest)
+            .collect::<Result<Vec<_>>>()?;
+        let mut args = json!({"repository_id":project,"expected_snapshot":status["repository"]["snapshot"],"metadata":metadata,"manifest_complete":i+1==count,"manifest":manifest});
         if i > 0 {
             args["sync_id"] = prepared["sync_id"].clone();
         }
@@ -576,7 +600,13 @@ fn import_sources(
     if !prepared["sync_id"].is_null() {
         // One source per upload also bounds aggregate request bytes.
         for source in &bundle.sources {
-            store.sync_upload(&session.workspace,&session.capability,&json!({"repository_id":project,"sync_id":prepared["sync_id"],"files":[{"path":source.path,"content":source.content}]}))?;
+            let mut file = source.data()?.wire();
+            file["path"] = json!(source.path);
+            store.sync_upload(
+                &session.workspace,
+                &session.capability,
+                &json!({"repository_id":project,"sync_id":prepared["sync_id"],"files":[file]}),
+            )?;
         }
         store.sync_commit(
             &session.workspace,
@@ -645,10 +675,116 @@ mod tests {
                 path: "billing.py".into(),
                 sha256: sha,
                 content: content.into(),
+                content_base64: None,
             }],
             graph: json!({"edges":[],"unresolved_calls":[{"name":"dynamic","reason":"unsupported"}]}),
         }
     }
+    #[test]
+    fn binary_sources_round_trip_without_becoming_excerpts() {
+        use base64::{Engine, engine::general_purpose::STANDARD};
+        let mut bundle = fixture();
+        let bytes = [0, 255, 13, 10];
+        bundle.sources.push(Source {
+            path: "defaults.binpb".into(),
+            sha256: sha256(&bytes),
+            content: String::new(),
+            content_base64: Some(STANDARD.encode(bytes)),
+        });
+        let manifest: BTreeMap<_, _> = bundle
+            .sources
+            .iter()
+            .map(|s| {
+                (
+                    &s.path,
+                    json!({"sha256":s.sha256,"bytes":s.data().unwrap().bytes().len()}),
+                )
+            })
+            .collect();
+        bundle.identity.source_snapshot = crate::digest(&json!(manifest));
+        let encoded = bundle.bytes().unwrap();
+        let restored = Bundle::decode(
+            &encoded,
+            &sha256(&encoded),
+            &bundle.identity,
+            &bundle.engine_sha256,
+            Utc::now().timestamp(),
+        )
+        .unwrap();
+        assert_eq!(restored.sources[1].data().unwrap().bytes(), bytes);
+        let packet = restored
+            .context(&bundle.identity, &bundle.engine_sha256, "billing", 4000)
+            .unwrap();
+        assert!(!packet.to_string().contains("content_base64"));
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let workspace = store.create_workspace("binary import").unwrap();
+        let session = local::Session {
+            workspace: s(&workspace, "id").into(),
+            capability: s(&workspace, "capability").into(),
+            project: None,
+        };
+        let repo = store
+            .register(
+                &session.workspace,
+                &session.capability,
+                &json!({"project_key":"binary","name":"binary"}),
+            )
+            .unwrap();
+        let id = s(&repo, "id");
+        import_sources(
+            &store,
+            &session,
+            id,
+            &restored,
+            &restored.engine_sha256,
+            true,
+        )
+        .unwrap();
+        store
+            .transaction(|db| {
+                assert_eq!(
+                    crate::source_object::load(db, id, &sha256(&bytes))?
+                        .unwrap()
+                        .bytes(),
+                    bytes
+                );
+                Ok(())
+            })
+            .unwrap();
+        let exported = export(
+            &store,
+            &session,
+            id,
+            &restored.identity,
+            &restored.engine_sha256,
+            restored.expires_at,
+        )
+        .unwrap();
+        assert_eq!(
+            exported
+                .sources
+                .iter()
+                .find(|s| s.path == "defaults.binpb")
+                .unwrap()
+                .data()
+                .unwrap()
+                .bytes(),
+            bytes
+        );
+        let mut corrupt = restored;
+        corrupt.sources[1].content_base64 = Some(STANDARD.encode([0, 254, 13, 10]));
+        assert!(
+            corrupt
+                .validate(
+                    &bundle.identity,
+                    &bundle.engine_sha256,
+                    Utc::now().timestamp()
+                )
+                .is_err()
+        );
+    }
+
     #[test]
     fn round_trip_preserves_sources_and_unsupported_diagnostics() {
         let bundle = fixture();
@@ -974,6 +1110,7 @@ mod tests {
                 .map(|(path, content)| Source {
                     path: (*path).into(),
                     content: (*content).into(),
+                    content_base64: None,
                     sha256: sha256(content.as_bytes()),
                 })
                 .collect();

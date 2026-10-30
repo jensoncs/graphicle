@@ -50,6 +50,8 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
             std::fs::write(&source, include_str!("go_types.go")).ok()?;
             let review = dir.path().join("review.go");
             std::fs::write(&review, include_str!("go_review.go")).ok()?;
+            let semantic = dir.path().join("semantic.go");
+            std::fs::write(&semantic, include_str!("go_semantic.go")).ok()?;
             let host = crate::process::capture(
                 offline_command("go")
                     .args(["env", "-json", "GOHOSTOS", "GOHOSTARCH"])
@@ -67,6 +69,7 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
                     .arg(&binary)
                     .arg(&source)
                     .arg(&review)
+                    .arg(&semantic)
                     .current_dir(dir.path())
                     .env("GO111MODULE", "off")
                     .env("GOOS", host["GOHOSTOS"].as_str()?)
@@ -92,10 +95,25 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
     Some((dir, binary))
 }
 
+/// Analyze supplied, admitted Go source bytes without executing source code.
+pub fn semantic(request: &Value) -> crate::Result<Value> {
+    let bytes=serde_json::to_vec(&json!({"semantic":request}))?;
+    if bytes.len()>3*1024*1024 {return Err("Semantic request limit exceeded".into());}
+    let (directory,binary)=helper().ok_or("Go compiler helper unavailable")?;
+    let output=crate::process::capture_bounded(offline_command(binary).current_dir(directory.path()).env_remove("GOOS").env_remove("GOARCH"),Duration::from_secs(30),Some(bytes),8*1024*1024)?;
+    if !output.success {return Err("Go semantic analysis failed".into());}
+    Ok(serde_json::from_slice(&output.stdout)?)
+}
+
 /// Compiler facts for an isolated, explicitly pinned Go snapshot set. The
 /// helper shares go/types resolution with extraction, but records build inputs,
 /// exact declarations and every call site instead of graph-name guesses.
 pub fn review(root: &Path, request: &Value) -> crate::Result<Value> {
+    decode_review_facts(&review_encoded(root, request)?)
+}
+
+/// Bounded compressed facts, also suitable for immutable cache storage.
+pub fn review_encoded(root: &Path, request: &Value) -> crate::Result<Value> {
     let (_helper_dir, binary) = helper().ok_or("Go compiler helper unavailable")?;
     let cache = tempfile::tempdir()?;
     let output = crate::process::capture_bounded(
@@ -113,8 +131,70 @@ pub fn review(root: &Path, request: &Value) -> crate::Result<Value> {
     Ok(serde_json::from_slice(&output.stdout)?)
 }
 
+/// Decode directly to typed facts without a second JSON object tree.
+/// Both transport and expanded bytes are bounded; corrupt streams fail closed.
+pub fn decode_review_facts<T: serde::de::DeserializeOwned>(value: &Value) -> crate::Result<T> {
+    decode_review_with_limit(value, 512 * 1024 * 1024)
+}
+
+fn decode_review_with_limit<T: serde::de::DeserializeOwned>(
+    value: &Value,
+    max: u64,
+) -> crate::Result<T> {
+    use base64::Engine;
+    use std::io::Read;
+    if value.get("encoding").is_none() {
+        return Ok(serde_json::from_value(value.clone())?);
+    }
+    if value["encoding"] != "gzip-base64-v1" {
+        return Err("Unsupported Go fact encoding".into());
+    }
+    let encoded = value["facts"].as_str().ok_or("Missing Go facts")?;
+    if encoded.len() > 64 * 1024 * 1024 {
+        return Err("Go fact transport bound exceeded".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(encoded)
+        .map_err(|_| crate::Error::invalid("Invalid Go fact base64"))?;
+    let mut decoder = flate2::bufread::GzDecoder::new(bytes.as_slice());
+    let mut bounded = (&mut decoder).take(max + 1);
+    let facts = serde_json::from_reader(std::io::BufReader::new(&mut bounded))?;
+    if bounded.limit() == 0 {
+        return Err("Go fact expansion bound exceeded".into());
+    }
+    if !decoder.get_ref().is_empty() {
+        return Err("Trailing Go fact data".into());
+    }
+    Ok(facts)
+}
+
+/// Identity for immutable compiler-fact reuse, queried outside the checkout.
+pub fn review_identity() -> crate::Result<Value> {
+    let directory = tempfile::tempdir()?;
+    let output = crate::process::capture(
+        offline_command("go").current_dir(directory.path()).args([
+            "env",
+            "-json",
+            "GOVERSION",
+            "GOROOT",
+            "GOHOSTOS",
+            "GOHOSTARCH",
+        ]),
+        Duration::from_secs(5),
+    )?;
+    if !output.success {
+        return Err("Go toolchain identity unavailable".into());
+    }
+    Ok(
+        json!({"toolchain":serde_json::from_slice::<Value>(&output.stdout)?,
+        "helper":include_str!("go_types.go"),"review":include_str!("go_review.go"),"semantic":include_str!("go_semantic.go"),"policy":"offline-cgo-disabled-v1"}),
+    )
+}
+
 #[derive(Deserialize)]
 struct Site {
+    #[serde(default)]
+    candidate: bool,
     file: String,
     line: usize,
     column: usize,
@@ -150,7 +230,7 @@ pub fn resolve(
         .collect();
     // Remove all legacy guesses, including same-file and receiver passes.
     edges.retain(|e| {
-        e["relation"] != "calls" || !files.contains(&source_key(s(e, "source_file"), root))
+        !matches!(s(e,"relation"),"calls"|"may_call") || !files.contains(&source_key(s(e, "source_file"), root))
     });
     let mut unresolved = BTreeMap::new();
     for path in &paths {
@@ -243,10 +323,10 @@ pub fn resolve(
         if site.reason.is_empty()
             && let (Some(from), Some(to)) = (from, to)
         {
-            if have.insert((from.clone(), to.clone())) {
-                edges.push(json!({"source":from,"target":to,"relation":"calls","confidence":"EXTRACTED","weight":1.0,"context":"call","source_file":site.file,"source_location":format!("L{}",site.line),"resolution":"go_types","evidence":"type"}));
+            if have.insert((from.clone(), to.clone(), site.candidate, site.line, site.column)) {
+                edges.push(json!({"source":from,"target":to,"relation":if site.candidate{"may_call"}else{"calls"},"confidence":if site.candidate{"INFERRED"}else{"EXTRACTED"},"weight":1.0,"context":"call","source_file":site.file,"source_location":format!("L{}",site.line),"resolution":"go_types","evidence":if site.candidate{"function_value_candidate"}else{"type"}}));
             }
-            unresolved.remove(&key);
+            if !site.candidate { unresolved.remove(&key); }
         } else if let Some(value) = unresolved.get_mut(&key) {
             value["reason"] = json!(if site.reason.is_empty() {
                 "target_not_in_graph"
@@ -256,4 +336,35 @@ pub fn resolve(
         }
     }
     unresolved.into_values().collect()
+}
+
+#[cfg(test)]
+mod fact_encoding_tests {
+    use super::*;
+    use base64::Engine;
+    use std::io::Write;
+    fn encoded(raw: &[u8]) -> Value {
+        let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        gzip.write_all(raw).unwrap();
+        json!({"encoding":"gzip-base64-v1","facts":base64::engine::general_purpose::STANDARD.encode(gzip.finish().unwrap())})
+    }
+    #[test]
+    fn fact_transport_checks_encoding_integrity_and_expansion() {
+        let data = json!({"worlds":[],"literal":"unicode π"});
+        let wire = encoded(data.to_string().as_bytes());
+        assert_eq!(decode_review_facts::<Value>(&wire).unwrap(), data);
+        assert_eq!(decode_review_facts::<Value>(&data).unwrap(), data);
+        assert!(decode_review_with_limit::<Value>(&wire, 8).is_err());
+        assert!(decode_review_facts::<Value>(&json!({"encoding":"other","facts":""})).is_err());
+        assert!(
+            decode_review_facts::<Value>(&json!({"encoding":"gzip-base64-v1","facts":"!"}))
+                .is_err()
+        );
+        let mut truncated = base64::engine::general_purpose::STANDARD
+            .decode(wire["facts"].as_str().unwrap())
+            .unwrap();
+        truncated.truncate(truncated.len() - 2);
+        assert!(decode_review_facts::<Value>(&json!({"encoding":"gzip-base64-v1","facts":base64::engine::general_purpose::STANDARD.encode(truncated)})).is_err());
+        assert!(decode_review_facts::<Value>(&encoded(b"{}{}")).is_err());
+    }
 }

@@ -8,6 +8,7 @@ pub mod model;
 pub mod protocol;
 pub use error::{Error, ErrorKind};
 pub mod affected;
+pub mod architecture;
 pub mod analyze;
 mod analyze_data;
 pub mod api;

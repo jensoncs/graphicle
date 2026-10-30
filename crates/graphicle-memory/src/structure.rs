@@ -101,6 +101,129 @@ pub fn declaration_spans_complete(analysis: &Value) -> bool {
             })
 }
 
+/// A bounded AST decision-count proxy, not a language-complete McCabe metric.
+/// Decisions belong to the narrowest supplied declaration; strings/comments
+/// cannot add decisions. Kept separate from persisted extraction revisions.
+pub struct DeclarationMetrics {
+    pub decision_complexity: u64,
+    pub syntax_sha256: String,
+}
+pub fn declaration_metrics(
+    path: &str,
+    content: &str,
+    spans: &[(u64, u64)],
+) -> Vec<Option<DeclarationMetrics>> {
+    let unknown = || spans.iter().map(|_| None).collect();
+    if content.len() > Limits::default().bytes || spans.len() > 2048 {
+        return unknown();
+    }
+    let extension = Path::new(path)
+        .extension()
+        .and_then(|s| s.to_str())
+        .unwrap_or("");
+    let language = match extension {
+        "py" => Some("python"),
+        "js" | "jsx" | "mjs" | "cjs" => Some("javascript"),
+        "ts" | "mts" | "cts" => Some("typescript"),
+        "tsx" => Some("tsx"),
+        "rs" => Some("rust"),
+        _ => expanded_language(path),
+    };
+    let Some(language) = language.and_then(|l| tree_sitter_language_pack::get_language(l).ok())
+    else {
+        return unknown();
+    };
+    let mut parser = Parser::new();
+    if parser.set_language(&language).is_err() {
+        return unknown();
+    }
+    let Some(tree) = parser.parse(content, None) else {
+        return unknown();
+    };
+    if tree.root_node().has_error() {
+        return unknown();
+    }
+    let mut result = vec![Some(1); spans.len()];
+    let mut pending = vec![tree.root_node()];
+    let mut visited = 0;
+    while let Some(node) = pending.pop() {
+        visited += 1;
+        if visited > Limits::default().nodes {
+            return unknown();
+        }
+        let branch = matches!(
+            node.kind(),
+            "if_statement"
+                | "if_expression"
+                | "elif_clause"
+                | "for_statement"
+                | "for_expression"
+                | "while_statement"
+                | "while_expression"
+                | "case_clause"
+                | "expression_case"
+                | "type_case"
+                | "match_arm"
+                | "conditional_expression"
+                | "ternary_expression"
+                | "catch_clause"
+                | "except_clause"
+        );
+        let boolean = node
+            .child_by_field_name("operator")
+            .is_some_and(|op| matches!(value(op, content.as_bytes()), "&&" | "||" | "and" | "or"));
+        if (branch || boolean)
+            && let Some(index) = innermost(spans, node.start_byte() as u64, node.end_byte() as u64)
+        {
+            *result[index].as_mut().unwrap() += 1;
+        }
+        let mut cursor = node.walk();
+        pending.extend(node.named_children(&mut cursor));
+    }
+    spans
+        .iter()
+        .enumerate()
+        .map(|(index, (start, end))| {
+            if start >= end || *end > content.len() as u64 {
+                return None;
+            }
+            let mut syntax = String::new();
+            let mut pending = vec![(tree.root_node(), false)];
+            while let Some((node, exit)) = pending.pop() {
+                if node.end_byte() as u64 <= *start
+                    || node.start_byte() as u64 >= *end
+                    || node.kind().contains("comment")
+                {
+                    continue;
+                }
+                if exit {
+                    syntax.push(')');
+                    continue;
+                }
+                syntax.push('(');
+                syntax.push_str(node.kind());
+                syntax.push(':');
+                if node.child_count() == 0 {
+                    let raw = value(node, content.as_bytes());
+                    syntax.push_str(&raw.len().to_string());
+                    syntax.push(':');
+                    syntax.push_str(raw);
+                    syntax.push(')');
+                } else {
+                    pending.push((node, true));
+                    let mut cursor = node.walk();
+                    let children: Vec<_> = node.children(&mut cursor).collect();
+                    pending.extend(children.into_iter().rev().map(|c| (c, false)));
+                }
+            }
+            Some(DeclarationMetrics {
+                decision_complexity: result[index]?,
+                syntax_sha256: crate::text::sha256(syntax.as_bytes()),
+            })
+        })
+        .collect()
+}
+
 /// `12345678` as `12,345,678`.
 fn grouped(number: usize) -> String {
     let digits = number.to_string();

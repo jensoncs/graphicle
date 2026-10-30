@@ -66,7 +66,7 @@ pub fn upload(store: &Store, workspace: &str, token: &str, args: &Value) -> Resu
             }
             if !files.contains_key(&range.path) {
                 let entry = &manifest[&range.path];
-                let source = store::one(db, "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=?", params![repository, s(entry, "sha256")])?
+                let source = store::one(db, "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=? AND typeof(content)='text'", params![repository, s(entry, "sha256")])?
                     .ok_or_else(|| Error::conflict("Coverage source is absent from the pinned snapshot"))?;
                 let content = s(&source, "content");
                 if text::sha256(content.as_bytes()) != s(entry, "sha256") || entry["bytes"].as_u64() != Some(content.len() as u64) {

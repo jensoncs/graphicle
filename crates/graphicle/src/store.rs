@@ -662,7 +662,7 @@ impl Store {
             if s(&repository,"snapshot")!=expected {return Err(Error::conflict("Repository changed during scanning"));}
             let files=json!(files);
             let snapshot=digest(&files);
-            let outdated:i64=db.query_row("SELECT count(*) FROM repo_heads h LEFT JOIN repo_parses p ON p.repository_id=h.repository_id AND p.path=h.path AND p.sha256=h.sha256 WHERE h.repository_id=? AND (p.revision IS NULL OR p.revision NOT IN (?,?))",params![identifier,graphicle_memory::structure::REVISION,limited],|r|r.get(0))?;
+            let outdated:i64=db.query_row("SELECT count(*) FROM repo_heads h LEFT JOIN repo_parses p ON p.repository_id=h.repository_id AND p.path=h.path AND p.sha256=h.sha256 WHERE h.repository_id=? AND EXISTS(SELECT 1 FROM repo_objects o WHERE o.repository_id=h.repository_id AND o.sha256=h.sha256 AND typeof(o.content)='text') AND (p.revision IS NULL OR p.revision NOT IN (?,?))",params![identifier,graphicle_memory::structure::REVISION,limited],|r|r.get(0))?;
             if s(&repository,"snapshot")==snapshot && outdated==0 {
                 if let Some(sync_id)=continued {db.execute("DELETE FROM repo_syncs WHERE id=?",[sync_id])?;}
                 // Identical tree, possibly a new commit identity: the existing
@@ -712,25 +712,22 @@ impl Store {
             let mut sent = 0usize;
             for file in files {
                 let name = path(string(file, "path", 1000)?)?;
-                let content = file["content"]
-                    .as_str()
-                    .filter(|v| v.len() <= limits.file_bytes && !v.contains('\0'))
-                    .ok_or_else(|| Error::bad("Invalid source text"))?;
-                sent += content.len();
+                let content = crate::source_object::Content::decode(file, limits.file_bytes)?;
+                sent += content.bytes().len();
                 if files.len() > 1 && sent > crate::limits::REQUEST_BYTES {
                     return Err(Error::bad(
                         "Upload at most 64 MiB of text per request, or a single file",
                     ));
                 }
-                let sha = graphicle_memory::text::sha256(content.as_bytes());
+                let sha = graphicle_memory::text::sha256(content.bytes());
                 if s(&manifest[name], "sha256") != sha
-                    || manifest[name]["bytes"].as_u64() != Some(content.len() as u64)
+                    || manifest[name]["bytes"].as_u64() != Some(content.bytes().len() as u64)
                 {
                     return Err(Error::conflict("Source does not match its manifest"));
                 }
                 db.execute(
                     "INSERT OR IGNORE INTO repo_objects VALUES(?,?,?,?)",
-                    params![identifier, sha, content, content.len()],
+                    params![identifier, sha, content.sql(), content.bytes().len()],
                 )?;
                 accepted.push(name.to_string());
             }
@@ -804,6 +801,7 @@ impl Store {
                 if !exists.query_row(params![identifier, sha], |r| r.get::<_, bool>(0))? {
                     return Err(Error::conflict("Upload missing sources before committing"));
                 }
+                let binary: bool = db.query_row("SELECT typeof(content)='blob' FROM repo_objects WHERE repository_id=? AND sha256=?",params![identifier,sha],|r|r.get(0))?;
                 let analyzed: bool = parsed.query_row(
                     params![identifier, path, sha, current[0], current[1]],
                     |r| r.get(0),
@@ -813,8 +811,8 @@ impl Store {
                 documents.push(SyncDocument {
                     path: path.clone(),
                     sha: sha.to_string(),
-                    analyze: !analyzed,
-                    chunk: !has_chunks,
+                    analyze: !binary && !analyzed,
+                    chunk: !binary && !has_chunks,
                 });
             }
             Ok((sync, documents))

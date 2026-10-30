@@ -87,11 +87,40 @@ delta = project.impact([base_pin], [next_head_pin], profile=profile,
                        max_tokens=16000, previous_packet_id=packet["packet_id"])
 ```
 
+For optional static business context, pass `business_context={}` or
+`business_context={"history": [base_history, head_history]}` using bundles from
+`graphicle review-history`. Context contains candidates and untrusted historical
+assertions, not confirmed business-criticality scores. See
+[business context](../../docs/business-context.md) for collection and evaluation.
+Add `--analyze` during collection for function history, co-change suggestions,
+hotspot/ownership evidence and explainable review priority. This remains local
+and makes no model calls; uncertainty and packet omissions remain explicit.
+
 Use `changes.count`, `entries`, `diffs`, and `coverage.complete` in the response.
 Apply `updated`/`added` objects and explicit `invalidated` IDs across both entries
 and diffs; retain only the listed `unchanged` IDs. Incomplete coverage never means
 no impact. Python and other unsupported review languages are reported as
 incomplete; ordinary retrieval still supports them. No model is called.
+
+For validated text reuse without requesting another full packet:
+
+```python
+from graphicle_sdk import apply_review_delta
+view = apply_review_delta(None, packet)
+delta = project.impact([base_pin], [next_head_pin], profile=profile,
+                       previous_packet_id=view["packet_id"], reuse_text=True)
+view = apply_review_delta(view, delta)
+```
+
+The helper checks the prior receipt, body hashes, invalidations, and exact
+`context_order`. Updated bindings remain current even when bytes are reused.
+Conflicts require explicit recovery with a full packet. Global `coverage.complete`
+and useful `coverage.current_head` are required for a complete dependency slice.
+For selective reuse, `reviewed_entries` requests per-file input-equivalence proof:
+all head views need complete `review_basis` and `review_reuse.eligible`, validated
+prior completion, and unchanged review instructions. Other required files need
+full review. Global uncertainty remains visible; eligibility is not a verdict.
+See the pinned review guide for the full reuse and cache contract.
 
 Migration from 0.1.8 to 0.2.0: `impact(base_episode, head_episode, budget_tokens=...)` is no longer
 the Core contract. Supply pinned arrays, `profile`, and `max_tokens`. Episode IDs

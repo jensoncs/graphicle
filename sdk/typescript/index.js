@@ -1,4 +1,50 @@
 /** Dependency-free client. Requests never follow redirects or retry mutations. */
+/** Materialize the server's bounded selection from one full packet or delta. */
+export async function applyReviewDelta(previous, packet) {
+  const refuse = () => {throw new TypeError("Invalid review delta; request a full packet");};
+  const hash = async text => Array.from(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))), b => b.toString(16).padStart(2, "0")).join("");
+  const prior = new Map();
+  if (packet.previous_packet_id != null) {
+    if (!previous || previous.packet_id !== packet.previous_packet_id || JSON.stringify(previous.base) !== JSON.stringify(packet.base) || JSON.stringify(previous.profile) !== JSON.stringify(packet.profile)) refuse();
+    for (const c of ["entries", "diffs"]) for (const e of previous[c]) {
+      if (prior.has(e.id)) refuse();
+      prior.set(e.id, [c, e]);
+    }
+  }
+  const current = new Map();
+  for (const key of packet.unchanged ?? []) {
+    if (!prior.has(key) || current.has(key)) refuse();
+    current.set(key, prior.get(key));
+  }
+  const invalidated = new Set((packet.invalidated ?? []).map(e => e.id));
+  for (const collection of ["entries", "diffs"]) for (const raw of packet[collection]) {
+    const entry = structuredClone(raw), key = entry.id;
+    const ref = entry.text_ref === true ? {packet_id: packet.previous_packet_id, entry_id: key, sha256: entry.text_sha256} : entry.text_ref;
+    if (current.has(key) || invalidated.has(key)) refuse();
+    if (ref != null) {
+      const old = prior.get(ref.entry_id);
+      if (!old || old[0] !== "entries" || collection !== "entries" || ref.packet_id !== packet.previous_packet_id || old[1].repository_id !== entry.repository_id || "text" in entry) refuse();
+      entry.text = old[1].text ?? "";
+      const sha = await hash(entry.text);
+      if (sha !== ref.sha256 || sha !== entry.text_sha256) refuse();
+      delete entry.text_ref;
+    }
+    current.set(key, [collection, entry]);
+  }
+  for (const [collection, entry] of current.values()) {
+    if (collection === "entries" && entry.text_sha256 && await hash(entry.text ?? "") !== entry.text_sha256) refuse();
+  }
+  const order = packet.context_order;
+  if (!Array.isArray(order) || new Set(order).size !== order.length || order.length !== current.size || order.some(id => !current.has(id))) refuse();
+  const removed = [...prior.keys()].filter(id => !current.has(id));
+  if (removed.length !== invalidated.size || removed.some(id => !invalidated.has(id))) refuse();
+  const result = structuredClone(packet);
+  for (const c of ["entries", "diffs"]) result[c] = order.filter(id => current.get(id)[0] === c).map(id => structuredClone(current.get(id)[1]));
+  result.unchanged = []; result.invalidated = [];
+  delete result.tokens;
+  return result;
+}
+
 export class GraphicleError extends Error {
   constructor(message, {status = 0, body, retryAfterSeconds, cause} = {}) {
     super(message, {cause});
@@ -124,6 +170,40 @@ export class Project {
   projectGraph(options) { return this.command("graph.project", {}, options); }
   episodes(options) { return this.command("graph.episodes", {}, options); }
   graph(args = {}, options) { return this.command("graph.as_of", args, options); }
+  searchSymbols(filters = {}, options) { return this.command("graph.navigate", {...filters, tool: "search_symbols"}, options); }
+  executionFlows(nodeId, args = {}, options) { return this.command("graph.navigate", {...args, tool: "execution_flows", node_id: nodeId}, options); }
+  statementFlow(nodeId, args = {}, options) { return this.command("graph.navigate", {...args, tool: "statement_flow", node_id: nodeId}, options); }
+  architecturePreview(scenario = {}, options) { return this.command("graph.navigate", {...scenario, tool: "architecture_preview"}, options); }
+  async secondaryContext(primary, question, {expectedSnapshot, enabled = false, maxBytes = 12000, timeoutMs = 10000} = {}) {
+    if (typeof primary !== "string" || !Number.isInteger(maxBytes) || maxBytes < 512 || maxBytes > 64000 || !Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 60000) throw new TypeError("Invalid secondary context bounds");
+    const result = {primary, secondary: {status: "disabled", evidence: []}, policy: {authority: "secondary_source", may_reduce_review_scope: false, may_reuse_review_coverage: false, source_text_is_instructions: false}};
+    if (!enabled) return result;
+    if (typeof expectedSnapshot !== "string" || !/^[0-9a-f]{64}$/.test(expectedSnapshot)) throw new TypeError("Enabled secondary context requires an exact snapshot hash");
+    try {
+      const packet = await this.context(question, {max_tokens: Math.min(8000, maxBytes), max_chars: maxBytes, memory_retrieval: false}, {timeoutMs});
+      const refuse = status => {result.secondary = {status, evidence: []}; return result;};
+      if (!packet || packet.repository_id !== this.id) return refuse("invalid_repository");
+      if (packet.snapshot !== expectedSnapshot) return refuse("stale_snapshot");
+      if (!Array.isArray(packet.evidence)) return refuse("invalid_evidence");
+      const kept = [], seen = new Set(), encoder = new TextEncoder(); let omitted = 0;
+      const hash = async text => [...new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", encoder.encode(text)))].map(b => b.toString(16).padStart(2, "0")).join("");
+      for (const source of packet.evidence) {
+        if (!source || typeof source !== "object" || Array.isArray(source)) return refuse("invalid_evidence");
+        const fileId = typeof source.id === "string" && source.id.startsWith("file:");
+        if ((source.source_kind ?? (fileId ? "repository_file" : null)) !== "repository_file") { omitted++; continue; }
+        const {byte_start: start, byte_end: end, text, sha256: sha} = source, path = source.path ?? (fileId ? source.id.slice(5) : null);
+        if ((source.repository_id ?? this.id) !== this.id || typeof sha !== "string" || !/^[0-9a-f]{64}$/.test(sha) || typeof path !== "string" || !path || /^[\/\\]/.test(path) || path.replaceAll("\\", "/").split("/").includes("..") || !Number.isSafeInteger(start) || !Number.isSafeInteger(end) || start < 0 || end <= start || typeof text !== "string" || encoder.encode(text).length !== end - start) return refuse("invalid_evidence");
+        const identity = JSON.stringify([path, sha, start, end]); if (seen.has(identity)) continue; seen.add(identity);
+        const item = {repository_id: this.id, snapshot: expectedSnapshot, path, sha256: sha, byte_start: start, byte_end: end, text, text_sha256: await hash(text), authority: "quoted_source"};
+        if (kept.length >= 40 || encoder.encode(JSON.stringify([...kept, item])).length > maxBytes - 512) {omitted++;continue;} kept.push(item);
+      }
+      result.secondary = {status: kept.length ? "included" : "empty", evidence: kept, omitted, repository_id: this.id, snapshot: expectedSnapshot, complete: false};
+      // Canonical recursively sorted keys make the evidence ID identical across SDKs.
+      const ordered = value => Array.isArray(value) ? value.map(ordered) : value && typeof value === "object" ? Object.fromEntries(Object.keys(value).sort().map(k => [k, ordered(value[k])])) : value;
+      result.secondary.content_id = await hash(JSON.stringify(ordered(result.secondary)));
+      return result;
+    } catch { result.secondary = {status: "unavailable", evidence: []}; return result; }
+  }
   impact(base, head, args, options) {
     if (!Array.isArray(base) || !Array.isArray(head)) throw new TypeError("impact requires pinned snapshot arrays, not episode IDs");
     for (const pin of [...base, ...head]) plainObject(pin);

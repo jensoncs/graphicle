@@ -54,6 +54,7 @@ Extending: subclass :class:`Project` or :class:`Memory`, or call ``Project.comma
 from .client import GraphicleError, GraphiclePermissionError, Client, Project
 from .memory import Memory, render_messages
 from .server import LocalServer
+from .review import apply_review_delta
 from .tools import Tools, resolve_tool_call, tool_schemas
 from .aio import AsyncClient, AsyncMemory, AsyncProject, AsyncTools
 
@@ -72,5 +73,6 @@ __all__ = [
     "render_messages",
     "resolve_tool_call",
     "tool_schemas",
+    "apply_review_delta",
 ]
 __version__ = "0.2.0"

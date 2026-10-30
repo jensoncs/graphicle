@@ -21,7 +21,7 @@ use std::{
 };
 
 // v12: Python import rebinding guards; Go uses the compiler build each run.
-const SCHEMA: &str = "resolution-files-v12";
+const SCHEMA: &str = "resolution-files-v13";
 const OWNER: &str = "__graphicle_private_resolution_owner";
 const SHARED: &str = "__graphicle_private_shared_resolution_node";
 const ARRAYS: [&str; 6] = [

@@ -9,6 +9,24 @@ use std::{fs, path::Path};
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
+fn extracted_callback_candidates_remain_inferred_and_keep_unresolved_dispatch() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    write(&root, "go.mod", "module example/fixture\ngo 1.23\n");
+    write(&root, "main.go", "package fixture\nfunc A() {}\nfunc B() {}\nfunc Invoke(callback func()) { callback() }\nfunc Use() { Invoke(A) }\n");
+    let graph = extract(&[root.join("main.go")], &ExtractOptions { root: Some(root.clone()), cache_root: Some(root), ..Default::default() }).unwrap();
+    let calls: Vec<_> = graph["edges"].as_array().unwrap().iter().filter(|e|e["relation"] == "may_call").collect();
+    assert_eq!(calls.len(), 1, "{graph}");
+    assert_eq!(calls[0]["evidence"], "function_value_candidate");
+    assert_eq!(calls[0]["confidence"], "INFERRED");
+    let nodes = graph["nodes"].as_array().unwrap();
+    let target = nodes.iter().find(|n|n["id"] == calls[0]["target"]).unwrap();
+    assert_eq!(target["source_location"], "L2");
+    assert!(graph["unresolved_calls"].as_array().unwrap().iter().any(|c|c["reason"] == "unresolved_type"), "{graph}");
+}
+
+#[test]
 fn go_internal_and_external_test_calls_resolve_without_same_name_guesses() {
     let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().unwrap();

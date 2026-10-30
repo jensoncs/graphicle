@@ -380,6 +380,48 @@ class Project:
     def graph(self, **options: Any) -> Dict[str, Any]:
         return self.command("graph.as_of", **options)
 
+    def search_symbols(self, **filters: Any) -> Dict[str, Any]:
+        """Exact parameter/decorator/annotation filters; returns language coverage and citations."""
+        return self.command("graph.navigate", **{**filters, "tool": "search_symbols"})
+
+    def execution_flows(self, node_id: str, **options: Any) -> Dict[str, Any]:
+        """Ordered potential static paths, never an observed runtime trace."""
+        return self.command("graph.navigate", **{**options, "tool": "execution_flows", "node_id": node_id})
+
+    def statement_flow(self, node_id: str, **options: Any) -> Dict[str, Any]:
+        return self.command("graph.navigate", **{**options, "tool": "statement_flow", "node_id": node_id})
+
+    def architecture_preview(self, **scenario: Any) -> Dict[str, Any]:
+        return self.command("graph.navigate", **{**scenario, "tool": "architecture_preview"})
+
+    def secondary_context(self, primary: str, question: str, *, expected_snapshot: Optional[str] = None,
+                          enabled: bool = False, max_bytes: int = 12000, timeout: float = 10) -> Dict[str, Any]:
+        """Opt-in supplementary evidence. Retrieval failures never replace the primary review.
+
+        Consume primary as before and secondary.evidence as quoted, untrusted source.
+        The result never authorizes skipping files or reusing prior review coverage.
+        """
+        from .secondary import compose
+        import re
+        if not isinstance(primary, str) or type(max_bytes) is not int or not 512 <= max_bytes <= 64000:
+            raise ValueError("primary must be text; max_bytes must be in 512..64000")
+        if not math.isfinite(timeout) or not 0 < timeout <= 60:
+            raise ValueError("timeout must be in (0, 60]")
+        result = compose(primary, {}, self.id, expected_snapshot, max_bytes)
+        result["secondary"]["status"] = "disabled"
+        if not enabled:
+            return result
+        if not isinstance(expected_snapshot, str) or not re.fullmatch(r"[0-9a-f]{64}", expected_snapshot):
+            raise ValueError("enabled secondary context requires an exact snapshot hash")
+        try:
+            packet = self.client.request("POST", f"{self.client._base}/repositories/command",
+                {"operation": "context", "arguments": {"repository_id": self.id, "question": question,
+                 "max_tokens": min(8000, max_bytes), "max_chars": max_bytes, "memory_retrieval": False}}, timeout=timeout)
+            return compose(primary, packet, self.id, expected_snapshot, max_bytes)
+        except (GraphicleError, OSError, TimeoutError, ValueError, TypeError, UnicodeError):
+            result["secondary"]["status"] = "unavailable"
+            return result
+
     def graph_source(self, episode: str, path: str, **options: Any) -> Dict[str, Any]:
         """Read the retained original at an episode; never substitutes the current file."""
         return self.command("graph.source", episode=episode, path=path, **options)
@@ -387,13 +429,18 @@ class Project:
     def impact(self, base: Sequence[Mapping[str, Any]], head: Sequence[Mapping[str, Any]], *,
                profile: Mapping[str, Any], max_depth: Optional[int] = None,
                max_tokens: Optional[int] = None,
-               previous_packet_id: Optional[str] = None) -> Dict[str, Any]:
+               previous_packet_id: Optional[str] = None,
+               business_context: Optional[Mapping[str, Any]] = None,
+               reuse_text: Optional[bool] = None,
+               reviewed_entries: Optional[Sequence[str]] = None) -> Dict[str, Any]:
         """Review pinned snapshot sets using an explicit Go build profile.
 
         Each pin names repository_id, directory, commit, snapshot and policy_sha256,
         with optional module roots. Sync must first admit that commit/snapshot/policy
         binding. Use max_tokens (not budget_tokens) and previous_packet_id for a delta.
         Episode-only extension contracts remain accessible through command().
+        business_context={} adds static domain candidates; its optional history
+        array carries pinned, caller-attested Git assertions from review-history.
         """
         for pins in (base, head):
             if (isinstance(pins, (str, bytes)) or not isinstance(pins, Sequence)
@@ -404,7 +451,9 @@ class Project:
         return self.command("impact.report", base=[dict(pin) for pin in base],
                             head=[dict(pin) for pin in head], profile=dict(profile),
                             **_present({"max_depth": max_depth, "max_tokens": max_tokens,
-                                        "previous_packet_id": previous_packet_id}))
+                                        "previous_packet_id": previous_packet_id,
+                                        "business_context": business_context, "reuse_text": reuse_text,
+                                        "reviewed_entries": reviewed_entries}))
 
     def export_memories(self) -> Dict[str, Any]:
         return self.command("memory.export")

@@ -57,6 +57,7 @@ pub mod receiver_bindings;
 pub mod receiver_resolution;
 mod registry;
 pub mod test_identities;
+pub mod symbol_metadata;
 pub use registry::{Extractor, LANGUAGE_EXTRACTORS, extract, registered_languages};
 pub mod resolution;
 pub mod resolution_facts;

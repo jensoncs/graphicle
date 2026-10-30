@@ -2621,7 +2621,7 @@ impl Store {
                 let saved=one(db,"SELECT manifest,created_at FROM repo_snapshots WHERE repository_id=? AND sha256=?",params![s(&repository,"id"),snapshot])?.ok_or_else(||Error::bad("Snapshot unavailable"))?;
                 let manifest:Value=serde_json::from_str(s(&saved,"manifest"))?;
                 let sha=manifest[path]["sha256"].as_str().ok_or_else(||Error::bad("File was absent from this snapshot"))?;
-                let original=one(db,"SELECT content FROM repo_objects WHERE repository_id=? AND sha256=?",params![s(&repository,"id"),sha])?.ok_or_else(||Error::bad("Historical source was removed"))?;
+                let original=one(db,"SELECT content FROM repo_objects WHERE repository_id=? AND sha256=? AND typeof(content)='text'",params![s(&repository,"id"),sha])?.ok_or_else(||Error::bad("Historical source was removed"))?;
                 if args["sha256"].as_str().is_some_and(|expected|expected!=sha) {return Err(Error::conflict("Hash does not match the requested snapshot"));}
                 if graphicle_memory::text::sha256(s(&original,"content").as_bytes())!=sha {return Err(Error::bad("Historical source integrity check failed"));}
                 let doc=json!({"id":identifier,"path":path,"title":path,"sha256":sha,"version":sha,"snapshot":snapshot,"source_kind":"repository_file","content":original["content"],"recorded_at":null,"observed_at":saved["created_at"],"authority":"historical_original_source"});

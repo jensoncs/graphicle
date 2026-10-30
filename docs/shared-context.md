@@ -141,3 +141,9 @@ Ubuntu acceptance, full dependency loading and the frozen semantic corpus remain
 separate deployment/integration checks.
 
 For importing verified source snapshots and comparing pinned Go base/head sets, see [pinned review](pinned-review.md).
+
+Binary compiler inputs in a pinned snapshot use `content_base64` in the source
+bundle. Hashes and manifest sizes cover decoded bytes. Import and compiler
+materialization preserve those bytes; text context excludes their payloads.
+The 64 MiB bundle limit includes base64 expansion. Local retention and deletion
+use the same object lifecycle as text sources.

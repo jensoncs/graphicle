@@ -65,7 +65,12 @@ use std::{
 /// The engine's navigation tools the unified server publishes, Graphify's
 /// names (installed rules name `query_graph`, `shortest_path` and
 /// `get_node`).
-pub const NAVIGATION: [&str; 7] = [
+#[path = "graph_navigation.rs"]
+mod structured;
+#[path = "statement_analysis.rs"]
+mod statement_analysis;
+
+pub const NAVIGATION: [&str; 11] = [
     "query_graph",
     "get_node",
     "get_neighbors",
@@ -73,6 +78,10 @@ pub const NAVIGATION: [&str; 7] = [
     "god_nodes",
     "graph_stats",
     "shortest_path",
+    "search_symbols",
+    "execution_flows",
+    "architecture_preview",
+    "statement_flow",
 ];
 /// The engine's pull-request dashboard tools: they run `gh` in the project's
 /// folder, so only `graphicle mcp --pull-requests` publishes them.
@@ -110,11 +119,10 @@ pub fn is_graph_tool(tool: &McpTool) -> bool {
 /// tools, and with `pull_requests` the pull-request tools, in the engine's
 /// order. Navigation tools take `repo` through `repo_arg`.
 pub fn tools(pull_requests: bool) -> Vec<McpTool> {
-    graphicle::serve::tools_list()
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(|spec| {
+    let mut specs = graphicle::serve::tools_list().as_array().cloned().unwrap_or_default();
+    let before = specs.iter().position(|s| PULL_REQUESTS.contains(&s["name"].as_str().unwrap_or(""))).unwrap_or(specs.len());
+    specs.splice(before..before, structured::specs());
+    specs.iter().filter_map(|spec| {
             let name = spec["name"].as_str()?;
             if NAVIGATION.contains(&name) {
                 Some(McpTool::new(published(spec, false), NAVIGATE, true))
@@ -397,6 +405,7 @@ pub fn call(store: &Store, workspace: &str, token: &str, args: &Value) -> Result
             NAVIGATION.join(", ")
         )));
     }
+    if tool == "statement_flow" { return statement_analysis::call(store, workspace, token, args); }
     let engine = engine_arguments(args);
     store.authorized_read(workspace, token, "read", |db, p| {
         let repository = repo(db, p, string(args, "repository_id", 100)?)?;
@@ -407,6 +416,38 @@ pub fn call(store: &Store, workspace: &str, token: &str, args: &Value) -> Result
         };
         let reading = reading(db, p, identifier, as_of)?;
         let resident = resident(db, identifier, &reading.episode)?;
+        if matches!(tool, "search_symbols" | "execution_flows" | "architecture_preview") {
+            let (mut result, indices) = structured::run(&resident.context.graph, tool, &engine)?;
+            let mut contents = HashMap::new();
+            let nodes = indices.iter().take(CITED_LIMIT).map(|i| citation(db, identifier, &resident, &reading, *i, &mut contents)).collect::<Result<Vec<_>>>()?;
+            result["tool"] = json!(tool);
+            result["repo"] = json!(identifier);
+            result["episode"] = json!(reading.episode);
+            result["current_episode"] = json!(reading.current);
+            result["episode_lag"] = reading.lag();
+            result["nodes_omitted"] = json!(indices.len().saturating_sub(CITED_LIMIT));
+            result["nodes"] = json!(nodes);
+            let mut unchecked = 0;
+            for flow in result["flows"].as_array_mut().into_iter().flatten() {
+                for step in flow["steps"].as_array_mut().into_iter().flatten() {
+                    let files = step["evidence"].as_object().map(code_graph_arm::edge_files).unwrap_or_default();
+                    let checked = files.iter().any(|file| reading.current_file(file));
+                    if !checked { unchecked += 1; }
+                    step["relation_checked"] = json!(checked);
+                    step["citations"] = json!(files.iter().map(|file| {
+                        let sha = if reading.episode == reading.current { reading.heads.get(file) } else { reading.recorded.as_ref().and_then(|r| r.get(file)) };
+                        json!({"repository_id":identifier,"episode":reading.episode,"file":file,"sha256":sha,"source_location":step["evidence"]["source_location"],"checked":reading.current_file(file)})
+                    }).collect::<Vec<_>>());
+                }
+            }
+            result["coverage"]["relations_unchecked"] = json!(unchecked);
+
+            if reading.episode != reading.current || indices.len() > CITED_LIMIT {
+                result["coverage"]["complete"] = json!(false);
+            }
+            result["text"] = json!(serde_json::to_string(&result)?);
+            return Ok(result);
+        }
         let text = graphicle::serve::call_graph_tool(&resident.context, tool, &engine, None)?;
         let named = named_nodes(&resident, tool, &engine, &text);
         let omitted = named.nodes.len().saturating_sub(CITED_LIMIT);
@@ -1164,7 +1205,7 @@ fn citation(
         None => {
             let content = one(
                 db,
-                "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=?",
+                "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=? AND typeof(content)='text'",
                 params![repository, sha],
             )?
             .map(|row| s(&row, "content").to_string())

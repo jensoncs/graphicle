@@ -1083,7 +1083,7 @@ pub fn pin_pending(db: &Connection, repository: &str) -> Result<usize> {
                 let content = match described {
                     Some(_) => rows(
                         db,
-                        "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=?",
+                        "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=? AND typeof(content)='text'",
                         params![repository, sha],
                     )?
                     .first()

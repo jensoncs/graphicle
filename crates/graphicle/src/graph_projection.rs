@@ -1636,7 +1636,7 @@ pub fn set_repo_access(
 fn blob(db: &Connection, repository: &str, sha: &str) -> Result<Option<String>> {
     Ok(one(
         db,
-        "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=?",
+        "SELECT content FROM repo_objects WHERE repository_id=? AND sha256=? AND typeof(content)='text'",
         params![repository, sha],
     )?
     .map(|row| s(&row, "content").to_string()))

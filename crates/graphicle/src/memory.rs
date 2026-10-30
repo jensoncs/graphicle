@@ -26,9 +26,9 @@ pub fn repository_documents(
     let identifier = s(repository, "id");
     let mut output = Vec::new();
     let sql = if content {
-        "SELECT h.path,h.sha256,o.content,b.original_sha,b.parser FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 LEFT JOIN am_binary_heads b ON b.repository_id=h.repository_id AND b.path=h.path AND b.source_sha=h.sha256 WHERE h.repository_id=? ORDER BY h.path"
+        "SELECT h.path,h.sha256,o.content,b.original_sha,b.parser FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 LEFT JOIN am_binary_heads b ON b.repository_id=h.repository_id AND b.path=h.path AND b.source_sha=h.sha256 WHERE h.repository_id=? AND typeof(o.content)='text' ORDER BY h.path"
     } else {
-        "SELECT h.path,h.sha256,'' AS content,b.original_sha,b.parser FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 LEFT JOIN am_binary_heads b ON b.repository_id=h.repository_id AND b.path=h.path AND b.source_sha=h.sha256 WHERE h.repository_id=? ORDER BY h.path"
+        "SELECT h.path,h.sha256,'' AS content,b.original_sha,b.parser FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 LEFT JOIN am_binary_heads b ON b.repository_id=h.repository_id AND b.path=h.path AND b.source_sha=h.sha256 WHERE h.repository_id=? AND typeof(o.content)='text' ORDER BY h.path"
     };
     for row in rows(db, sql, [identifier])? {
         let path = s(&row, "path");
@@ -50,7 +50,7 @@ pub fn load_contents(
     wanted: &BTreeSet<String>,
 ) -> Result<()> {
     let mut load =
-        db.prepare_cached("SELECT content FROM repo_objects WHERE repository_id=? AND sha256=?")?;
+        db.prepare_cached("SELECT content FROM repo_objects WHERE repository_id=? AND sha256=? AND typeof(content)='text'")?;
     for document in documents.iter_mut() {
         if document["source_kind"] != "repository_file" || !wanted.contains(s(document, "id")) {
             continue;

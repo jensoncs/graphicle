@@ -856,137 +856,149 @@ impl GoWalker<'_> {
             _ => Receiver::Other(read_text(obj, self.s)),
         }
     }
-    fn walk(&mut self, n: Node<'_>) {
-        match n.kind() {
-            "function_declaration" | "method_declaration" | "func_literal" => {
-                let mut scope = Scope {
-                    start: n.start_byte(),
-                    end: n.end_byte(),
-                    ..Scope::default()
-                };
-                if n.kind() == "method_declaration"
-                    && let Some(recv) = field(n, "receiver")
-                    && let Some(p) = named(recv)
-                        .into_iter()
-                        .find(|p| p.kind() == "parameter_declaration")
-                    && let Some(ty) = field(p, "type").and_then(|t| go_type(t, self.s))
-                {
-                    let class = match &ty {
-                        TypeRef::Name(t) => Some(t.clone()),
-                        TypeRef::Return(..) => None,
-                    };
-                    scope.class = class;
-                    if let Some(name) = field(p, "name") {
-                        let name = read_text(name, self.s);
-                        scope.self_names.push(name.clone());
-                        scope.bindings.push(Binding {
-                            name,
-                            ty: Some(ty),
-                            evidence: Evidence::SelfMethod,
-                            at: p.start_byte(),
-                            whole_scope: true,
-                        });
-                    }
-                }
-                self.facts.scopes.push(scope);
-                self.stack.push(self.facts.scopes.len() - 1);
-                if let Some(params) = field(n, "parameters") {
-                    self.params(params);
-                }
-                if let Some(body) = field(n, "body") {
-                    self.walk(body);
-                }
+    fn walk(&mut self, root: Node<'_>) {
+        // Generated protobuf descriptors contain very deep concatenation trees.
+        // Keep traversal and scope exits on the heap, not the worker's stack.
+        let mut pending = vec![Some(root)];
+        while let Some(next) = pending.pop() {
+            let Some(n) = next else {
                 self.stack.pop();
-                return;
-            }
-            "type_spec" => {
-                if let (Some(name), Some(ty)) = (field(n, "name"), field(n, "type")) {
-                    let name = read_text(name, self.s);
-                    if ty.kind() == "interface_type" {
-                        self.facts.interfaces.insert(name);
-                    } else if ty.kind() == "struct_type" {
-                        for f in named(ty)
+                continue;
+            };
+            match n.kind() {
+                "function_declaration" | "method_declaration" | "func_literal" => {
+                    let mut scope = Scope {
+                        start: n.start_byte(),
+                        end: n.end_byte(),
+                        ..Scope::default()
+                    };
+                    if n.kind() == "method_declaration"
+                        && let Some(recv) = field(n, "receiver")
+                        && let Some(p) = named(recv)
                             .into_iter()
-                            .filter(|c| c.kind() == "field_declaration_list")
-                            .flat_map(named)
-                            .filter(|c| c.kind() == "field_declaration")
-                        {
-                            let fty = field(f, "type").and_then(|t| go_type(t, self.s));
-                            let mut c = f.walk();
-                            let names: Vec<String> = f
-                                .children_by_field_name("name", &mut c)
-                                .map(|c| read_text(c, self.s))
-                                .collect();
-                            for fname in names {
-                                self.facts
-                                    .fields
-                                    .entry(name.clone())
-                                    .or_default()
-                                    .push(Binding {
-                                        name: fname,
-                                        ty: fty.clone(),
-                                        evidence: Evidence::Annotation,
-                                        at: f.start_byte(),
-                                        whole_scope: true,
-                                    });
+                            .find(|p| p.kind() == "parameter_declaration")
+                        && let Some(ty) = field(p, "type").and_then(|t| go_type(t, self.s))
+                    {
+                        let class = match &ty {
+                            TypeRef::Name(t) => Some(t.clone()),
+                            TypeRef::Return(..) => None,
+                        };
+                        scope.class = class;
+                        if let Some(name) = field(p, "name") {
+                            let name = read_text(name, self.s);
+                            scope.self_names.push(name.clone());
+                            scope.bindings.push(Binding {
+                                name,
+                                ty: Some(ty),
+                                evidence: Evidence::SelfMethod,
+                                at: p.start_byte(),
+                                whole_scope: true,
+                            });
+                        }
+                    }
+                    self.facts.scopes.push(scope);
+                    self.stack.push(self.facts.scopes.len() - 1);
+                    if let Some(params) = field(n, "parameters") {
+                        self.params(params);
+                    }
+                    pending.push(None);
+                    if let Some(body) = field(n, "body") {
+                        pending.push(Some(body));
+                    }
+                    continue;
+                }
+                "type_spec" => {
+                    if let (Some(name), Some(ty)) = (field(n, "name"), field(n, "type")) {
+                        let name = read_text(name, self.s);
+                        if ty.kind() == "interface_type" {
+                            self.facts.interfaces.insert(name);
+                        } else if ty.kind() == "struct_type" {
+                            for f in named(ty)
+                                .into_iter()
+                                .filter(|c| c.kind() == "field_declaration_list")
+                                .flat_map(named)
+                                .filter(|c| c.kind() == "field_declaration")
+                            {
+                                let fty = field(f, "type").and_then(|t| go_type(t, self.s));
+                                let mut c = f.walk();
+                                let names: Vec<String> = f
+                                    .children_by_field_name("name", &mut c)
+                                    .map(|c| read_text(c, self.s))
+                                    .collect();
+                                for fname in names {
+                                    self.facts.fields.entry(name.clone()).or_default().push(
+                                        Binding {
+                                            name: fname,
+                                            ty: fty.clone(),
+                                            evidence: Evidence::Annotation,
+                                            at: f.start_byte(),
+                                            whole_scope: true,
+                                        },
+                                    );
+                                }
                             }
                         }
                     }
+                    continue;
                 }
-                return;
-            }
-            "short_var_declaration" | "assignment_statement" => {
-                if let Some(left) = field(n, "left") {
-                    self.multi_assign(left, field(n, "right"), n.start_byte());
-                }
-            }
-            "var_spec" => {
-                let mut c = n.walk();
-                let names: Vec<String> = n
-                    .children_by_field_name("name", &mut c)
-                    .map(|c| read_text(c, self.s))
-                    .collect();
-                let ann = field(n, "type").and_then(|t| go_type(t, self.s));
-                let values: Vec<Node<'_>> = field(n, "value").map(named).unwrap_or_default();
-                for (i, name) in names.iter().enumerate() {
-                    let (ty, evidence) = if let Some(t) = &ann {
-                        (Some(t.clone()), Evidence::Annotation)
-                    } else if values.len() == names.len() {
-                        (go_value_type(values[i], self.s), Evidence::Constructor)
-                    } else {
-                        (None, Evidence::Constructor)
-                    };
-                    let at = n.start_byte();
-                    push_binding(self.scope(), name.clone(), ty, evidence, at, false);
-                }
-            }
-            "range_clause" => {
-                if let Some(left) = field(n, "left") {
-                    for c in named(left).into_iter().filter(|c| c.kind() == "identifier") {
-                        let name = read_text(c, self.s);
-                        let at = n.start_byte();
-                        push_binding(self.scope(), name, None, Evidence::Constructor, at, false);
+                "short_var_declaration" | "assignment_statement" => {
+                    if let Some(left) = field(n, "left") {
+                        self.multi_assign(left, field(n, "right"), n.start_byte());
                     }
                 }
-            }
-            "call_expression" => {
-                if let Some(f) = field(n, "function")
-                    && f.kind() == "selector_expression"
-                    && let (Some(obj), Some(fld)) = (field(f, "operand"), field(f, "field"))
-                {
-                    let receiver = self.receiver(obj);
-                    self.facts.calls.push(CallSite {
-                        byte: n.start_byte(),
-                        line: line(n),
-                        callee: read_text(fld, self.s),
-                        receiver,
-                    });
+                "var_spec" => {
+                    let mut c = n.walk();
+                    let names: Vec<String> = n
+                        .children_by_field_name("name", &mut c)
+                        .map(|c| read_text(c, self.s))
+                        .collect();
+                    let ann = field(n, "type").and_then(|t| go_type(t, self.s));
+                    let values: Vec<Node<'_>> = field(n, "value").map(named).unwrap_or_default();
+                    for (i, name) in names.iter().enumerate() {
+                        let (ty, evidence) = if let Some(t) = &ann {
+                            (Some(t.clone()), Evidence::Annotation)
+                        } else if values.len() == names.len() {
+                            (go_value_type(values[i], self.s), Evidence::Constructor)
+                        } else {
+                            (None, Evidence::Constructor)
+                        };
+                        let at = n.start_byte();
+                        push_binding(self.scope(), name.clone(), ty, evidence, at, false);
+                    }
                 }
+                "range_clause" => {
+                    if let Some(left) = field(n, "left") {
+                        for c in named(left).into_iter().filter(|c| c.kind() == "identifier") {
+                            let name = read_text(c, self.s);
+                            let at = n.start_byte();
+                            push_binding(
+                                self.scope(),
+                                name,
+                                None,
+                                Evidence::Constructor,
+                                at,
+                                false,
+                            );
+                        }
+                    }
+                }
+                "call_expression" => {
+                    if let Some(f) = field(n, "function")
+                        && f.kind() == "selector_expression"
+                        && let (Some(obj), Some(fld)) = (field(f, "operand"), field(f, "field"))
+                    {
+                        let receiver = self.receiver(obj);
+                        self.facts.calls.push(CallSite {
+                            byte: n.start_byte(),
+                            line: line(n),
+                            callee: read_text(fld, self.s),
+                            receiver,
+                        });
+                    }
+                }
+                _ => {}
             }
-            _ => {}
-        }
-        for c in children(n) {
-            self.walk(c);
+            pending.extend(children(n).into_iter().rev().map(Some));
         }
     }
 }
@@ -998,4 +1010,36 @@ pub fn go_facts(root: Node<'_>, source: &[u8]) -> FileFacts {
     };
     w.walk(root);
     w.facts
+}
+
+#[cfg(test)]
+mod go_depth_tests {
+    use super::*;
+    #[test]
+    fn generated_go_descriptors_do_not_consume_the_thread_stack() {
+        let source = format!(
+            "package p\nconst descriptor = {}\nfunc F(a *A) {{ a.Target(); func(b *B) {{ b.Target() }}(nil); a.Target() }}\n",
+            vec!["\"data\""; 12000].join(" + ")
+        );
+        std::thread::Builder::new()
+            .stack_size(512 * 1024)
+            .spawn(move || {
+                let mut parser = tree_sitter::Parser::new();
+                parser
+                    .set_language(&tree_sitter_go::LANGUAGE.into())
+                    .unwrap();
+                let tree = parser.parse(&source, None).unwrap();
+                assert!(!tree.root_node().has_error());
+                let facts = go_facts(tree.root_node(), source.as_bytes());
+                assert_eq!(facts.calls.len(), 3);
+                assert_eq!(facts.scopes.len(), 3);
+                assert_eq!(facts.scopes[1].bindings[0].name, "a");
+                assert_eq!(facts.scopes[2].bindings[0].name, "b");
+                assert!(facts.scopes[1].start < facts.scopes[2].start);
+                assert!(facts.scopes[2].end < facts.scopes[1].end);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
 }

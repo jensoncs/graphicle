@@ -15,7 +15,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 /// Bump when AST cache-key semantics change independently of the package
-/// version; 12 adds compiler-backed Go test-package resolution.
+/// version; 13 adds structured declaration metadata.
+/// 12 adds compiler-backed Go test-package resolution.
 /// 11 removes Go same-name guesses on top of the merged schema 10.
 /// 10 carries the extraction changes of Graphify 0.9.92-0.9.95
 /// (upstream schemas 17-25: pytest fixture markers, Python module-level class
@@ -40,7 +41,7 @@ use std::{
 /// resolved to; 7 invalidated records whose source paths leaked a walked
 /// directory alias when the extraction root was canonicalized (6 added
 /// receiver shadows).
-pub const AST_CACHE_SCHEMA: i64 = 12;
+pub const AST_CACHE_SCHEMA: i64 = 13;
 /// Where an AST entry lists the `target_file` stamps that named an existing
 /// file when it was written; a hit whose target is gone is a miss (#4185).
 pub const CACHED_TARGETS_KEY: &str = "_cached_target_files";
