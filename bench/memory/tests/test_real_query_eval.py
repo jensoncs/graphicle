@@ -87,6 +87,15 @@ def test_bad_citation_fails_instead_of_becoming_a_miss(field, value):
         score(packet, q, files)
 
 
+@pytest.mark.parametrize("field,value", [("tokens", True), ("tokens", 1.5),
+                                          ("tokens", float("nan")), ("markdown", "x" * 12001)])
+def test_invalid_accounting_cannot_be_reported_as_valid_evidence(field, value):
+    files, q, packet = fixture()
+    packet[field] = value
+    with pytest.raises(ValueError):
+        score(packet, q, files)
+
+
 @pytest.mark.parametrize("name", ["../x", "/x", ".env", "a/secrets/x", "a\\b"])
 def test_source_paths_are_confined(name):
     with pytest.raises(ValueError):

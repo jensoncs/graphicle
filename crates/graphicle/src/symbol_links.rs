@@ -141,6 +141,8 @@ struct Counts {
     changed: usize,
     unavailable: usize,
     over_limit: usize,
+    outside_scope: usize,
+    literal_value: usize,
 }
 
 /// One file's live symbols and line starts, when the table describes the
@@ -162,6 +164,7 @@ pub fn lift(
     db: &Connection,
     repository: &str,
     mode: Mode,
+    question: &str,
     memory_candidates: usize,
     snapshot: &Snapshot,
     rows: &[Value],
@@ -185,6 +188,10 @@ pub fn lift(
     let follow = mode.enabled();
     let documents: HashMap<&str, &Value> =
         snapshot.documents.iter().map(|d| (s(d, "id"), d)).collect();
+    let literal_value = follow && crate::code_question::asks_for_literal_call_value(question);
+    let scope = (follow && !literal_value)
+        .then(|| crate::identifier_arm::memory_symbol_scope(db, repository, question, &documents))
+        .flatten();
     // stable_id → the servable memories linking it, in recall order.
     let mut index: HashMap<&str, Vec<(&Value, &Value)>> = HashMap::new();
     for row in servable.iter().copied() {
@@ -244,6 +251,12 @@ pub fn lift(
             if !(range.start < b && a < range.end) {
                 continue;
             }
+            if scope.as_ref().is_some_and(|scope| {
+                !scope.contains(&(relpath.to_string(), live.identity.qualified_name.clone()))
+            }) {
+                counts.outside_scope += linked.len();
+                continue;
+            }
             for (row, link) in linked {
                 counts.considered += 1;
                 if s(link, "revision") != live.revision {
@@ -257,6 +270,10 @@ pub fn lift(
                 }
                 if !follow {
                     counts.withheld += 1;
+                    continue;
+                }
+                if literal_value {
+                    counts.literal_value += 1;
                     continue;
                 }
                 taken.insert(s(row, "identity").to_string());
@@ -352,10 +369,16 @@ pub fn lift(
             }
         }
     }
-    let report = json!({"status": if follow { "followed" } else { "counted" },
+    let mut report = json!({"status": if follow { "followed" } else { "counted" },
         "considered":counts.considered,"lifted_memories":memories.len(),"lifted_windows":windows.len(),
         "withheld":counts.withheld,"covered":counts.covered,"pending":counts.pending,
         "changed":counts.changed,"unavailable":counts.unavailable,"over_limit":counts.over_limit});
+    if follow {
+        report["query_symbol_scope"] = json!({"applied":scope.is_some(),
+            "symbols":scope.as_ref().map_or(0, BTreeSet::len),"excluded_links":counts.outside_scope});
+        report["literal_call_value"] =
+            json!({"applied":literal_value,"withheld_links":counts.literal_value});
+    }
     Ok(Lifted {
         windows,
         memories,

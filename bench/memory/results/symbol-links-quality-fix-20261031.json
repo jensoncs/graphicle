@@ -1,0 +1,1764 @@
+{
+  "status": "passed",
+  "date": "2026-10-31",
+  "scope": "Synthetic authored memory and source regressions, not independent user or answer quality.",
+  "source_head": "dbce83c4908d6fffde04ffa29ba3f5fb9c620170",
+  "runtime_source_sha256": {
+    "crates/graphicle/src/identifier_arm.rs": "0bf67811795da07eedd81e01a1ad953f3bde887051d606182025aa542188fb8c",
+    "crates/graphicle/src/code_question.rs": "a1b81984aa9c341e029e38c1a30853542bf44839bbd93302e2fe857f0e551883",
+    "crates/graphicle/src/symbol_links.rs": "0d8d2d5f520361c127177209e52819cccfe4a66750b31d901e942f6851a6cfc1",
+    "crates/graphicle/src/query.rs": "b1dc804184138c0cf84ef266e6c70bc0d0b82f4b3d51daa7c9eabcf82abd8842"
+  },
+  "changes": [
+    "Narrow automatic linked-memory expansion to unambiguously resolved named symbols and their bidirectional transitive code dependencies; fall back on ambiguity, stale/unavailable paths or traversal bounds.",
+    "Withhold automatic linked-decision expansion for literal-call output questions; preserve ordinary memory retrieval and mixed/rationale questions."
+  ],
+  "unchanged": [
+    "counted default",
+    "off/counted content",
+    "authorized/current memory eligibility",
+    "source evidence and freshness",
+    "four-note limit",
+    "fixture questions and labels",
+    "original frozen baseline"
+  ],
+  "model_free": {
+    "baseline_report_sha256": "39f5b3cd113213e3d62f29e2e18a68af7793911e2b41423f1e306adc1e1adfb4",
+    "candidate_report_sha256": "7bca2580347b481890bbaeee1b1a6388cf967c042b33810ece455490dcfc3e18",
+    "baseline_protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "links",
+            "kind": "memory",
+            "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+          },
+          {
+            "id": "exact",
+            "kind": "memory",
+            "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+          },
+          {
+            "id": "pressure",
+            "kind": "memory",
+            "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+          },
+          {
+            "id": "diversity",
+            "kind": "memory",
+            "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+          },
+          {
+            "id": "cutoff",
+            "kind": "memory",
+            "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+          },
+          {
+            "id": "negative",
+            "kind": "memory",
+            "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+          },
+          {
+            "id": "source",
+            "kind": "source",
+            "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+          }
+        ],
+        "case_ids": [
+          "cutoff/pagination-holdout/arithmetic/counted",
+          "cutoff/pagination-holdout/arithmetic/off",
+          "cutoff/pagination-holdout/arithmetic/on",
+          "cutoff/pagination-holdout/change/counted",
+          "cutoff/pagination-holdout/change/off",
+          "cutoff/pagination-holdout/change/on",
+          "cutoff/pagination-holdout/prose/counted",
+          "cutoff/pagination-holdout/prose/off",
+          "cutoff/pagination-holdout/prose/on",
+          "cutoff/pagination-holdout/reason/counted",
+          "cutoff/pagination-holdout/reason/off",
+          "cutoff/pagination-holdout/reason/on",
+          "cutoff/webhooks-holdout/arithmetic/counted",
+          "cutoff/webhooks-holdout/arithmetic/off",
+          "cutoff/webhooks-holdout/arithmetic/on",
+          "cutoff/webhooks-holdout/ceiling/counted",
+          "cutoff/webhooks-holdout/ceiling/off",
+          "cutoff/webhooks-holdout/ceiling/on",
+          "cutoff/webhooks-holdout/string/counted",
+          "cutoff/webhooks-holdout/string/off",
+          "cutoff/webhooks-holdout/string/on",
+          "cutoff/webhooks-holdout/timing/counted",
+          "cutoff/webhooks-holdout/timing/off",
+          "cutoff/webhooks-holdout/timing/on",
+          "diversity/cross-file/cross-file-callee/counted",
+          "diversity/cross-file/cross-file-callee/off",
+          "diversity/cross-file/cross-file-callee/on",
+          "diversity/direct-contracts/all-direct/counted",
+          "diversity/direct-contracts/all-direct/off",
+          "diversity/direct-contracts/all-direct/on",
+          "diversity/transitive/two-hop-callee/counted",
+          "diversity/transitive/two-hop-callee/off",
+          "diversity/transitive/two-hop-callee/on",
+          "exact/callee/callee-rationale/counted",
+          "exact/callee/callee-rationale/off",
+          "exact/callee/callee-rationale/on",
+          "exact/headers/multiple-names/counted",
+          "exact/headers/multiple-names/off",
+          "exact/headers/multiple-names/on",
+          "exact/headers/partly-unresolved/counted",
+          "exact/headers/partly-unresolved/off",
+          "exact/headers/partly-unresolved/on",
+          "exact/headers/prose-only/counted",
+          "exact/headers/prose-only/off",
+          "exact/headers/prose-only/on",
+          "exact/paths/duplicate-path/counted",
+          "exact/paths/duplicate-path/off",
+          "exact/paths/duplicate-path/on",
+          "exact/paths/path-qualified/counted",
+          "exact/paths/path-qualified/off",
+          "exact/paths/path-qualified/on",
+          "exact/qualified/ambiguous-name/counted",
+          "exact/qualified/ambiguous-name/off",
+          "exact/qualified/ambiguous-name/on",
+          "exact/qualified/qualified-name/counted",
+          "exact/qualified/qualified-name/off",
+          "exact/qualified/qualified-name/on",
+          "links/billing/direct-recall/counted",
+          "links/billing/direct-recall/off",
+          "links/billing/direct-recall/on",
+          "links/billing/linked-rationale/counted",
+          "links/billing/linked-rationale/off",
+          "links/billing/linked-rationale/on",
+          "links/billing/narrow-rationale/counted",
+          "links/billing/narrow-rationale/off",
+          "links/billing/narrow-rationale/on",
+          "links/billing/other-symbol/counted",
+          "links/billing/other-symbol/off",
+          "links/billing/other-symbol/on",
+          "links/billing/same-symbol-no-memory/counted",
+          "links/billing/same-symbol-no-memory/off",
+          "links/billing/same-symbol-no-memory/on",
+          "links/billing/unrelated/counted",
+          "links/billing/unrelated/off",
+          "links/billing/unrelated/on",
+          "links/cache/direct-recall/counted",
+          "links/cache/direct-recall/off",
+          "links/cache/direct-recall/on",
+          "links/cache/linked-rationale/counted",
+          "links/cache/linked-rationale/off",
+          "links/cache/linked-rationale/on",
+          "links/cache/narrow-rationale/counted",
+          "links/cache/narrow-rationale/off",
+          "links/cache/narrow-rationale/on",
+          "links/cache/same-symbol-no-memory/counted",
+          "links/cache/same-symbol-no-memory/off",
+          "links/cache/same-symbol-no-memory/on",
+          "links/cache/unrelated/counted",
+          "links/cache/unrelated/off",
+          "links/cache/unrelated/on",
+          "links/retry/direct-recall/counted",
+          "links/retry/direct-recall/off",
+          "links/retry/direct-recall/on",
+          "links/retry/linked-rationale/counted",
+          "links/retry/linked-rationale/off",
+          "links/retry/linked-rationale/on",
+          "links/retry/narrow-rationale/counted",
+          "links/retry/narrow-rationale/off",
+          "links/retry/narrow-rationale/on",
+          "links/retry/same-symbol-no-memory/counted",
+          "links/retry/same-symbol-no-memory/off",
+          "links/retry/same-symbol-no-memory/on",
+          "links/retry/unrelated/counted",
+          "links/retry/unrelated/off",
+          "links/retry/unrelated/on",
+          "links/stale/stale-direct/counted",
+          "links/stale/stale-direct/off",
+          "links/stale/stale-direct/on",
+          "links/stale/stale-symbol/counted",
+          "links/stale/stale-symbol/off",
+          "links/stale/stale-symbol/on",
+          "negative/cross-file/absent-0/counted",
+          "negative/cross-file/absent-0/off",
+          "negative/cross-file/absent-0/on",
+          "negative/cross-file/absent-1/counted",
+          "negative/cross-file/absent-1/off",
+          "negative/cross-file/absent-1/on",
+          "negative/cross-file/absent-2/counted",
+          "negative/cross-file/absent-2/off",
+          "negative/cross-file/absent-2/on",
+          "negative/direct-contracts/absent-0/counted",
+          "negative/direct-contracts/absent-0/off",
+          "negative/direct-contracts/absent-0/on",
+          "negative/direct-contracts/absent-1/counted",
+          "negative/direct-contracts/absent-1/off",
+          "negative/direct-contracts/absent-1/on",
+          "negative/direct-contracts/absent-2/counted",
+          "negative/direct-contracts/absent-2/off",
+          "negative/direct-contracts/absent-2/on",
+          "pressure/callee-pressure/lease-rationale/counted",
+          "pressure/callee-pressure/lease-rationale/off",
+          "pressure/callee-pressure/lease-rationale/on",
+          "pressure/caller-pressure/lease-rationale/counted",
+          "pressure/caller-pressure/lease-rationale/off",
+          "pressure/caller-pressure/lease-rationale/on",
+          "pressure/direct-pressure/direct-0/counted",
+          "pressure/direct-pressure/direct-0/off",
+          "pressure/direct-pressure/direct-0/on",
+          "pressure/direct-pressure/direct-1/counted",
+          "pressure/direct-pressure/direct-1/off",
+          "pressure/direct-pressure/direct-1/on",
+          "pressure/direct-pressure/direct-2/counted",
+          "pressure/direct-pressure/direct-2/off",
+          "pressure/direct-pressure/direct-2/on",
+          "pressure/direct-pressure/direct-3/counted",
+          "pressure/direct-pressure/direct-3/off",
+          "pressure/direct-pressure/direct-3/on",
+          "pressure/direct-pressure/direct-4/counted",
+          "pressure/direct-pressure/direct-4/off",
+          "pressure/direct-pressure/direct-4/on",
+          "pressure/direct-pressure/direct-5/counted",
+          "pressure/direct-pressure/direct-5/off",
+          "pressure/direct-pressure/direct-5/on",
+          "pressure/shared-pressure/prose/counted",
+          "pressure/shared-pressure/prose/off",
+          "pressure/shared-pressure/prose/on",
+          "pressure/shared-pressure/shared-target/counted",
+          "pressure/shared-pressure/shared-target/off",
+          "pressure/shared-pressure/shared-target/on",
+          "pressure/shared-pressure/unresolved/counted",
+          "pressure/shared-pressure/unresolved/off",
+          "pressure/shared-pressure/unresolved/on",
+          "source/payments/caller-callee/baseline",
+          "source/payments/caller-callee/routed",
+          "source/payments/failure-branch/baseline",
+          "source/payments/failure-branch/routed",
+          "source/payments/location/baseline",
+          "source/payments/location/routed",
+          "source/payments/rationale/baseline",
+          "source/payments/rationale/routed",
+          "source/payments/rounding/baseline",
+          "source/payments/rounding/routed",
+          "source/payments/unicode/baseline",
+          "source/payments/unicode/routed"
+        ]
+      },
+      "binary_sha256": "9b05aad556640bec02970c22cf34ea2f19b511bbc1fd7ff5b41779c10e4958e1",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "4f1c76c584ae357a53a447771ca68c77a57dc42a62dfb86d3ca8c7b843204e86",
+        "quality_diagnostics.py": "d08c6b357726f7cf7d81ea0e10cf7b743f272cfc9c06bd1f703c9f8e8926f566",
+        "symbol_link_precision.py": "f7f6476120ef560ecdac7c0b811aba0f46f4ec457a7dd969424eca679b7eccb9",
+        "real_query_eval.py": "8ad7f488fdc34ab38f2fa65b652f2ce8249b782defd87a32c53fcf48a4e0bec5",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    },
+    "candidate_protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "links",
+            "kind": "memory",
+            "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+          },
+          {
+            "id": "exact",
+            "kind": "memory",
+            "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+          },
+          {
+            "id": "pressure",
+            "kind": "memory",
+            "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+          },
+          {
+            "id": "diversity",
+            "kind": "memory",
+            "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+          },
+          {
+            "id": "cutoff",
+            "kind": "memory",
+            "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+          },
+          {
+            "id": "negative",
+            "kind": "memory",
+            "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+          },
+          {
+            "id": "source",
+            "kind": "source",
+            "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+          }
+        ],
+        "case_ids": [
+          "cutoff/pagination-holdout/arithmetic/counted",
+          "cutoff/pagination-holdout/arithmetic/off",
+          "cutoff/pagination-holdout/arithmetic/on",
+          "cutoff/pagination-holdout/change/counted",
+          "cutoff/pagination-holdout/change/off",
+          "cutoff/pagination-holdout/change/on",
+          "cutoff/pagination-holdout/prose/counted",
+          "cutoff/pagination-holdout/prose/off",
+          "cutoff/pagination-holdout/prose/on",
+          "cutoff/pagination-holdout/reason/counted",
+          "cutoff/pagination-holdout/reason/off",
+          "cutoff/pagination-holdout/reason/on",
+          "cutoff/webhooks-holdout/arithmetic/counted",
+          "cutoff/webhooks-holdout/arithmetic/off",
+          "cutoff/webhooks-holdout/arithmetic/on",
+          "cutoff/webhooks-holdout/ceiling/counted",
+          "cutoff/webhooks-holdout/ceiling/off",
+          "cutoff/webhooks-holdout/ceiling/on",
+          "cutoff/webhooks-holdout/string/counted",
+          "cutoff/webhooks-holdout/string/off",
+          "cutoff/webhooks-holdout/string/on",
+          "cutoff/webhooks-holdout/timing/counted",
+          "cutoff/webhooks-holdout/timing/off",
+          "cutoff/webhooks-holdout/timing/on",
+          "diversity/cross-file/cross-file-callee/counted",
+          "diversity/cross-file/cross-file-callee/off",
+          "diversity/cross-file/cross-file-callee/on",
+          "diversity/direct-contracts/all-direct/counted",
+          "diversity/direct-contracts/all-direct/off",
+          "diversity/direct-contracts/all-direct/on",
+          "diversity/transitive/two-hop-callee/counted",
+          "diversity/transitive/two-hop-callee/off",
+          "diversity/transitive/two-hop-callee/on",
+          "exact/callee/callee-rationale/counted",
+          "exact/callee/callee-rationale/off",
+          "exact/callee/callee-rationale/on",
+          "exact/headers/multiple-names/counted",
+          "exact/headers/multiple-names/off",
+          "exact/headers/multiple-names/on",
+          "exact/headers/partly-unresolved/counted",
+          "exact/headers/partly-unresolved/off",
+          "exact/headers/partly-unresolved/on",
+          "exact/headers/prose-only/counted",
+          "exact/headers/prose-only/off",
+          "exact/headers/prose-only/on",
+          "exact/paths/duplicate-path/counted",
+          "exact/paths/duplicate-path/off",
+          "exact/paths/duplicate-path/on",
+          "exact/paths/path-qualified/counted",
+          "exact/paths/path-qualified/off",
+          "exact/paths/path-qualified/on",
+          "exact/qualified/ambiguous-name/counted",
+          "exact/qualified/ambiguous-name/off",
+          "exact/qualified/ambiguous-name/on",
+          "exact/qualified/qualified-name/counted",
+          "exact/qualified/qualified-name/off",
+          "exact/qualified/qualified-name/on",
+          "links/billing/direct-recall/counted",
+          "links/billing/direct-recall/off",
+          "links/billing/direct-recall/on",
+          "links/billing/linked-rationale/counted",
+          "links/billing/linked-rationale/off",
+          "links/billing/linked-rationale/on",
+          "links/billing/narrow-rationale/counted",
+          "links/billing/narrow-rationale/off",
+          "links/billing/narrow-rationale/on",
+          "links/billing/other-symbol/counted",
+          "links/billing/other-symbol/off",
+          "links/billing/other-symbol/on",
+          "links/billing/same-symbol-no-memory/counted",
+          "links/billing/same-symbol-no-memory/off",
+          "links/billing/same-symbol-no-memory/on",
+          "links/billing/unrelated/counted",
+          "links/billing/unrelated/off",
+          "links/billing/unrelated/on",
+          "links/cache/direct-recall/counted",
+          "links/cache/direct-recall/off",
+          "links/cache/direct-recall/on",
+          "links/cache/linked-rationale/counted",
+          "links/cache/linked-rationale/off",
+          "links/cache/linked-rationale/on",
+          "links/cache/narrow-rationale/counted",
+          "links/cache/narrow-rationale/off",
+          "links/cache/narrow-rationale/on",
+          "links/cache/same-symbol-no-memory/counted",
+          "links/cache/same-symbol-no-memory/off",
+          "links/cache/same-symbol-no-memory/on",
+          "links/cache/unrelated/counted",
+          "links/cache/unrelated/off",
+          "links/cache/unrelated/on",
+          "links/retry/direct-recall/counted",
+          "links/retry/direct-recall/off",
+          "links/retry/direct-recall/on",
+          "links/retry/linked-rationale/counted",
+          "links/retry/linked-rationale/off",
+          "links/retry/linked-rationale/on",
+          "links/retry/narrow-rationale/counted",
+          "links/retry/narrow-rationale/off",
+          "links/retry/narrow-rationale/on",
+          "links/retry/same-symbol-no-memory/counted",
+          "links/retry/same-symbol-no-memory/off",
+          "links/retry/same-symbol-no-memory/on",
+          "links/retry/unrelated/counted",
+          "links/retry/unrelated/off",
+          "links/retry/unrelated/on",
+          "links/stale/stale-direct/counted",
+          "links/stale/stale-direct/off",
+          "links/stale/stale-direct/on",
+          "links/stale/stale-symbol/counted",
+          "links/stale/stale-symbol/off",
+          "links/stale/stale-symbol/on",
+          "negative/cross-file/absent-0/counted",
+          "negative/cross-file/absent-0/off",
+          "negative/cross-file/absent-0/on",
+          "negative/cross-file/absent-1/counted",
+          "negative/cross-file/absent-1/off",
+          "negative/cross-file/absent-1/on",
+          "negative/cross-file/absent-2/counted",
+          "negative/cross-file/absent-2/off",
+          "negative/cross-file/absent-2/on",
+          "negative/direct-contracts/absent-0/counted",
+          "negative/direct-contracts/absent-0/off",
+          "negative/direct-contracts/absent-0/on",
+          "negative/direct-contracts/absent-1/counted",
+          "negative/direct-contracts/absent-1/off",
+          "negative/direct-contracts/absent-1/on",
+          "negative/direct-contracts/absent-2/counted",
+          "negative/direct-contracts/absent-2/off",
+          "negative/direct-contracts/absent-2/on",
+          "pressure/callee-pressure/lease-rationale/counted",
+          "pressure/callee-pressure/lease-rationale/off",
+          "pressure/callee-pressure/lease-rationale/on",
+          "pressure/caller-pressure/lease-rationale/counted",
+          "pressure/caller-pressure/lease-rationale/off",
+          "pressure/caller-pressure/lease-rationale/on",
+          "pressure/direct-pressure/direct-0/counted",
+          "pressure/direct-pressure/direct-0/off",
+          "pressure/direct-pressure/direct-0/on",
+          "pressure/direct-pressure/direct-1/counted",
+          "pressure/direct-pressure/direct-1/off",
+          "pressure/direct-pressure/direct-1/on",
+          "pressure/direct-pressure/direct-2/counted",
+          "pressure/direct-pressure/direct-2/off",
+          "pressure/direct-pressure/direct-2/on",
+          "pressure/direct-pressure/direct-3/counted",
+          "pressure/direct-pressure/direct-3/off",
+          "pressure/direct-pressure/direct-3/on",
+          "pressure/direct-pressure/direct-4/counted",
+          "pressure/direct-pressure/direct-4/off",
+          "pressure/direct-pressure/direct-4/on",
+          "pressure/direct-pressure/direct-5/counted",
+          "pressure/direct-pressure/direct-5/off",
+          "pressure/direct-pressure/direct-5/on",
+          "pressure/shared-pressure/prose/counted",
+          "pressure/shared-pressure/prose/off",
+          "pressure/shared-pressure/prose/on",
+          "pressure/shared-pressure/shared-target/counted",
+          "pressure/shared-pressure/shared-target/off",
+          "pressure/shared-pressure/shared-target/on",
+          "pressure/shared-pressure/unresolved/counted",
+          "pressure/shared-pressure/unresolved/off",
+          "pressure/shared-pressure/unresolved/on",
+          "source/payments/caller-callee/baseline",
+          "source/payments/caller-callee/routed",
+          "source/payments/failure-branch/baseline",
+          "source/payments/failure-branch/routed",
+          "source/payments/location/baseline",
+          "source/payments/location/routed",
+          "source/payments/rationale/baseline",
+          "source/payments/rationale/routed",
+          "source/payments/rounding/baseline",
+          "source/payments/rounding/routed",
+          "source/payments/unicode/baseline",
+          "source/payments/unicode/routed"
+        ]
+      },
+      "binary_sha256": "87a1f567bf03037c39680ae46e64718f738cbfcaa2664e29c85ba3dae5ab9155",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "4f1c76c584ae357a53a447771ca68c77a57dc42a62dfb86d3ca8c7b843204e86",
+        "quality_diagnostics.py": "d08c6b357726f7cf7d81ea0e10cf7b743f272cfc9c06bd1f703c9f8e8926f566",
+        "symbol_link_precision.py": "f7f6476120ef560ecdac7c0b811aba0f46f4ec457a7dd969424eca679b7eccb9",
+        "real_query_eval.py": "8ad7f488fdc34ab38f2fa65b652f2ce8249b782defd87a32c53fcf48a4e0bec5",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    },
+    "baseline_summary": {
+      "memory/counted": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16777,
+        "mean_tokens_completed": 310.68518518518516,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 590.3000000000001,
+          "p95": 757.1999999999999,
+          "p99": 1001.9
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/off": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16777,
+        "mean_tokens_completed": 310.68518518518516,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 595.6,
+          "p95": 721.4000000000001,
+          "p99": 788.0
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/on": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 23215,
+        "mean_tokens_completed": 429.9074074074074,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 599.3000000000001,
+          "p95": 767.4,
+          "p99": 1170.0
+        },
+        "tp": 48,
+        "fp": 104,
+        "fn": 4,
+        "precision_completed": 0.3157894736842105,
+        "recall": 0.9230769230769231,
+        "macro_recall": 0.9369369369369369,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.29411764705882354
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 3438,
+        "mean_tokens_completed": 573,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 624.271666049026,
+          "p95": 635.7494999538176,
+          "p99": 635.7494999538176
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 2964,
+        "mean_tokens_completed": 494,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 617.392583983019,
+          "p95": 623.1203339993954,
+          "p99": 623.1203339993954
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "scope_only_summary": {
+      "memory/counted": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16779,
+        "mean_tokens_completed": 310.72222222222223,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 589.8,
+          "p95": 757.0,
+          "p99": 901.0
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/off": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16779,
+        "mean_tokens_completed": 310.72222222222223,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 578.5,
+          "p95": 898.0,
+          "p99": 981.3
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/on": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 21440,
+        "mean_tokens_completed": 397.037037037037,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 596.9,
+          "p95": 795.8,
+          "p99": 1087.0
+        },
+        "tp": 48,
+        "fp": 65,
+        "fn": 4,
+        "precision_completed": 0.4247787610619469,
+        "recall": 0.9230769230769231,
+        "macro_recall": 0.9369369369369369,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.29411764705882354
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 3438,
+        "mean_tokens_completed": 573,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 599.2688749684021,
+          "p95": 887.6043750206009,
+          "p99": 887.6043750206009
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 2964,
+        "mean_tokens_completed": 494,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 588.2699999492615,
+          "p95": 637.8834589850157,
+          "p99": 637.8834589850157
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "candidate_summary": {
+      "memory/counted": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16781,
+        "mean_tokens_completed": 310.75925925925924,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 589.1999999999999,
+          "p95": 782.1,
+          "p99": 1038.3
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/off": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16781,
+        "mean_tokens_completed": 310.75925925925924,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 583.0999999999999,
+          "p95": 1037.9,
+          "p99": 1218.8000000000002
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/on": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 21003,
+        "mean_tokens_completed": 388.94444444444446,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 607.8,
+          "p95": 1318.8999999999999,
+          "p99": 2947.4
+        },
+        "tp": 48,
+        "fp": 56,
+        "fn": 4,
+        "precision_completed": 0.46153846153846156,
+        "recall": 0.9230769230769231,
+        "macro_recall": 0.9369369369369369,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.5882352941176471
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 3438,
+        "mean_tokens_completed": 573,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 612.7055839751847,
+          "p95": 719.0613330458291,
+          "p99": 719.0613330458291
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 2964,
+        "mean_tokens_completed": 494,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 614.634792029392,
+          "p95": 638.298166973982,
+          "p99": 638.298166973982
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "gate": {
+      "status": "passed",
+      "findings": []
+    },
+    "per_case_changes": [
+      {
+        "id": "links/billing/linked-rationale/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "receipt"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "links/billing/same-symbol-no-memory/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "audit",
+              "receipt",
+              "settlement",
+              "shipping"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "links/billing/narrow-rationale/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "audit",
+              "receipt"
+            ],
+            "after": [
+              "audit"
+            ]
+          }
+        }
+      },
+      {
+        "id": "links/retry/same-symbol-no-memory/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "ceiling",
+              "jitter",
+              "log-policy"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "links/cache/linked-rationale/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "expiry"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "links/cache/same-symbol-no-memory/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "encoding",
+              "expiry",
+              "isolation"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "links/cache/narrow-rationale/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "encoding",
+              "expiry"
+            ],
+            "after": [
+              "encoding"
+            ]
+          }
+        }
+      },
+      {
+        "id": "exact/qualified/qualified-name/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "csv",
+              "monitor"
+            ],
+            "after": [
+              "monitor"
+            ]
+          }
+        }
+      },
+      {
+        "id": "exact/paths/path-qualified/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "ready",
+              "worker"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "exact/headers/multiple-names/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "hint"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "pressure/direct-pressure/direct-0/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "archive",
+              "probe",
+              "wire"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "pressure/direct-pressure/direct-1/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "ledger",
+              "probe",
+              "wire"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "pressure/direct-pressure/direct-2/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "archive",
+              "ledger",
+              "probe"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "pressure/direct-pressure/direct-3/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "archive",
+              "ledger",
+              "wire"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "pressure/direct-pressure/direct-4/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "archive",
+              "ledger",
+              "wire"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "pressure/direct-pressure/direct-5/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "archive",
+              "ledger",
+              "wire"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "pressure/shared-pressure/shared-target/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "archive",
+              "ledger",
+              "wire"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "cutoff/pagination-holdout/change/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "cursor"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "cutoff/pagination-holdout/reason/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "cursor"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "cutoff/pagination-holdout/arithmetic/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "ceiling",
+              "cursor"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "cutoff/webhooks-holdout/arithmetic/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "lifetime",
+              "schema",
+              "tracing"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "cutoff/webhooks-holdout/string/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "lifetime",
+              "schema",
+              "tracing"
+            ],
+            "after": [
+              "tracing"
+            ]
+          }
+        }
+      }
+    ],
+    "remaining_misses": [
+      {
+        "id": "pressure/callee-pressure/lease-rationale/on",
+        "missing": [
+          "lease"
+        ]
+      },
+      {
+        "id": "pressure/caller-pressure/lease-rationale/on",
+        "missing": [
+          "lease"
+        ]
+      },
+      {
+        "id": "pressure/shared-pressure/prose/on",
+        "missing": [
+          "lease",
+          "probe"
+        ]
+      }
+    ],
+    "reproduce": "python3 bench/memory/tools/quality.py run --binary /absolute/candidate/graphicle --baseline bench/memory/quality-baseline.json --out /new/output/directory"
+  },
+  "validation": {
+    "rust_unit_tests": {
+      "passed": 420
+    },
+    "rust_integration_tests": {
+      "symbol_links": 11,
+      "memory_symbols": 22,
+      "workspace_scope": 22,
+      "query_code_graph_arm": 13
+    },
+    "python_evaluator_tests": {
+      "passed": 134,
+      "skipped_optional_model_tests": 2
+    },
+    "explicit_local_model_shallow_source_test": {
+      "passed": 1
+    },
+    "clippy_library": "passed: --lib --no-deps -- -D warnings",
+    "clippy_tests": {
+      "status": "blocked_by_existing_lints",
+      "lint": "clippy::cloned_ref_to_slice_refs",
+      "occurrences": 4,
+      "locations": [
+        "src/evidence.rs:298 (two)",
+        "src/evidence.rs:316",
+        "src/query.rs:2789"
+      ],
+      "verified": "All four clone expressions exist in HEAD; no new-code lint failures were reported."
+    },
+    "rebuilt_default_binary": {
+      "sha256": "631a28e1cf9dc67c68a0499d8cd98dcd72784a69faecf268ba16a4507fc337d6",
+      "note": "Default-feature build restored after matched local-inference builds. Runtime sources unchanged from the measured candidate; scorecards pin their own immutable executable hashes.",
+      "symbol_links_integration_tests_passed": 11
+    }
+  },
+  "limits": [
+    "Same-symbol off-topic notes remain possible.",
+    "Model-free four-note capacity still misses caller/callee rationale in two queries and two of six relevant notes in one broad query.",
+    "Default counted recall remains 19.2%.",
+    "No production latency, generated-answer or real-user effectiveness claim."
+  ],
+  "local_reranker": {
+    "calls": 324,
+    "baseline_protocol": {
+      "inputs": {
+        "/private/tmp/graphicle-links-local-baseline": "372a5577718f2eb7f1dcaaf71801116a328e6a192876b21c4d8c90e3deec7cb0",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/symbol_link_precision.py": "f7f6476120ef560ecdac7c0b811aba0f46f4ec457a7dd969424eca679b7eccb9",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/quality_suite.json": "4572f692d6b6a0d784f3f716c85b09e3517152c340c9b58df3dc7d38700b4196",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_precision.json": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_exact_scope.json": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_priority.json": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_diversity.json": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_cutoff_holdout.json": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/note_no_answer_controls.json": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+      },
+      "local_reranker": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "request": {
+        "max_tokens": 3000,
+        "max_chars": 12000,
+        "limit": 8,
+        "graph_retrieval": true,
+        "memory_retrieval": true,
+        "doc_links": false,
+        "cross_repo": false,
+        "identifier_route": false,
+        "notes_first": false
+      },
+      "variants": {
+        "off": {
+          "symbol_links": false
+        },
+        "counted": {},
+        "on": {
+          "symbol_links": true
+        }
+      }
+    },
+    "candidate_protocol": {
+      "inputs": {
+        "/private/tmp/graphicle-links-local-candidate": "d6d7d5bfe0a7bfbf29cd0d03ae61bc0a1f26a90338cc4f65778afd98af5ab18e",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/symbol_link_precision.py": "f7f6476120ef560ecdac7c0b811aba0f46f4ec457a7dd969424eca679b7eccb9",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/quality_suite.json": "4572f692d6b6a0d784f3f716c85b09e3517152c340c9b58df3dc7d38700b4196",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_precision.json": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_exact_scope.json": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_priority.json": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_diversity.json": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_cutoff_holdout.json": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/note_no_answer_controls.json": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+      },
+      "local_reranker": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "request": {
+        "max_tokens": 3000,
+        "max_chars": 12000,
+        "limit": 8,
+        "graph_retrieval": true,
+        "memory_retrieval": true,
+        "doc_links": false,
+        "cross_repo": false,
+        "identifier_route": false,
+        "notes_first": false
+      },
+      "variants": {
+        "off": {
+          "symbol_links": false
+        },
+        "counted": {},
+        "on": {
+          "symbol_links": true
+        }
+      }
+    },
+    "baseline_summary": {
+      "variants": {
+        "off": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 310.94444444444446
+        },
+        "counted": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 310.94444444444446
+        },
+        "on": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.32894736842105265,
+          "macro_recall": 0.990990990990991,
+          "empty_memory_accuracy": 0.29411764705882354,
+          "false_positive_memories": 102,
+          "mean_tokens_completed": 432.5925925925926
+        }
+      },
+      "on_minus_off": {
+        "paired": 54,
+        "excluded": 0,
+        "mean_tp_delta": 0.7407407407407407,
+        "mean_fp_delta": 1.7962962962962963,
+        "mean_tokens_delta": 121.64814814814815
+      }
+    },
+    "candidate_summary": {
+      "variants": {
+        "off": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 311.01851851851853
+        },
+        "counted": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 311.01851851851853
+        },
+        "on": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.4807692307692308,
+          "macro_recall": 0.990990990990991,
+          "empty_memory_accuracy": 0.5882352941176471,
+          "false_positive_memories": 54,
+          "mean_tokens_completed": 388.037037037037
+        }
+      },
+      "on_minus_off": {
+        "paired": 54,
+        "excluded": 0,
+        "mean_tp_delta": 0.7407407407407407,
+        "mean_fp_delta": 0.9074074074074074,
+        "mean_tokens_delta": 77.01851851851852
+      }
+    },
+    "baseline_pooled": {
+      "off": {
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision": 0.6666666666666666,
+        "recall": 0.19230769230769232
+      },
+      "counted": {
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision": 0.6666666666666666,
+        "recall": 0.19230769230769232
+      },
+      "on": {
+        "tp": 50,
+        "fp": 102,
+        "fn": 2,
+        "precision": 0.32894736842105265,
+        "recall": 0.9615384615384616
+      }
+    },
+    "candidate_pooled": {
+      "off": {
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision": 0.6666666666666666,
+        "recall": 0.19230769230769232
+      },
+      "counted": {
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision": 0.6666666666666666,
+        "recall": 0.19230769230769232
+      },
+      "on": {
+        "tp": 50,
+        "fp": 54,
+        "fn": 2,
+        "precision": 0.4807692307692308,
+        "recall": 0.9615384615384616
+      }
+    },
+    "per_case_changes": [
+      {
+        "id": "links/billing/linked-rationale/on",
+        "before": [
+          "audit",
+          "receipt",
+          "settlement"
+        ],
+        "after": [
+          "audit",
+          "settlement"
+        ],
+        "relevant": [
+          "audit",
+          "settlement"
+        ]
+      },
+      {
+        "id": "links/billing/same-symbol-no-memory/on",
+        "before": [
+          "audit",
+          "receipt",
+          "settlement",
+          "shipping"
+        ],
+        "after": [],
+        "relevant": []
+      },
+      {
+        "id": "links/billing/narrow-rationale/on",
+        "before": [
+          "audit",
+          "receipt",
+          "settlement"
+        ],
+        "after": [
+          "audit",
+          "settlement"
+        ],
+        "relevant": [
+          "settlement"
+        ]
+      },
+      {
+        "id": "links/retry/same-symbol-no-memory/on",
+        "before": [
+          "ceiling",
+          "jitter",
+          "log-policy"
+        ],
+        "after": [],
+        "relevant": []
+      },
+      {
+        "id": "links/cache/linked-rationale/on",
+        "before": [
+          "encoding",
+          "expiry",
+          "isolation"
+        ],
+        "after": [
+          "encoding",
+          "isolation"
+        ],
+        "relevant": [
+          "encoding",
+          "isolation"
+        ]
+      },
+      {
+        "id": "links/cache/same-symbol-no-memory/on",
+        "before": [
+          "encoding",
+          "expiry",
+          "isolation"
+        ],
+        "after": [],
+        "relevant": []
+      },
+      {
+        "id": "links/cache/narrow-rationale/on",
+        "before": [
+          "encoding",
+          "expiry",
+          "isolation"
+        ],
+        "after": [
+          "encoding",
+          "isolation"
+        ],
+        "relevant": [
+          "isolation"
+        ]
+      },
+      {
+        "id": "exact/qualified/qualified-name/on",
+        "before": [
+          "csv",
+          "json",
+          "monitor"
+        ],
+        "after": [
+          "json",
+          "monitor"
+        ],
+        "relevant": [
+          "json"
+        ]
+      },
+      {
+        "id": "exact/paths/path-qualified/on",
+        "before": [
+          "api",
+          "ready",
+          "worker"
+        ],
+        "after": [
+          "api"
+        ],
+        "relevant": [
+          "api"
+        ]
+      },
+      {
+        "id": "exact/headers/multiple-names/on",
+        "before": [
+          "hint",
+          "read",
+          "write"
+        ],
+        "after": [
+          "read",
+          "write"
+        ],
+        "relevant": [
+          "read",
+          "write"
+        ]
+      },
+      {
+        "id": "pressure/direct-pressure/direct-0/on",
+        "before": [
+          "archive",
+          "ledger",
+          "order",
+          "probe"
+        ],
+        "after": [
+          "ledger"
+        ],
+        "relevant": [
+          "ledger"
+        ]
+      },
+      {
+        "id": "pressure/direct-pressure/direct-1/on",
+        "before": [
+          "archive",
+          "order",
+          "probe",
+          "wire"
+        ],
+        "after": [
+          "archive"
+        ],
+        "relevant": [
+          "archive"
+        ]
+      },
+      {
+        "id": "pressure/direct-pressure/direct-2/on",
+        "before": [
+          "archive",
+          "ledger",
+          "probe",
+          "wire"
+        ],
+        "after": [
+          "wire"
+        ],
+        "relevant": [
+          "wire"
+        ]
+      },
+      {
+        "id": "pressure/direct-pressure/direct-3/on",
+        "before": [
+          "archive",
+          "ledger",
+          "probe",
+          "wire"
+        ],
+        "after": [
+          "probe"
+        ],
+        "relevant": [
+          "probe"
+        ]
+      },
+      {
+        "id": "pressure/direct-pressure/direct-4/on",
+        "before": [
+          "archive",
+          "lease",
+          "order",
+          "probe"
+        ],
+        "after": [
+          "lease"
+        ],
+        "relevant": [
+          "lease"
+        ]
+      },
+      {
+        "id": "pressure/direct-pressure/direct-5/on",
+        "before": [
+          "archive",
+          "ledger",
+          "order",
+          "wire"
+        ],
+        "after": [
+          "order"
+        ],
+        "relevant": [
+          "order"
+        ]
+      },
+      {
+        "id": "pressure/shared-pressure/shared-target/on",
+        "before": [
+          "archive",
+          "ledger",
+          "probe",
+          "shared"
+        ],
+        "after": [
+          "shared"
+        ],
+        "relevant": [
+          "shared"
+        ]
+      },
+      {
+        "id": "cutoff/pagination-holdout/change/on",
+        "before": [
+          "ceiling",
+          "cursor"
+        ],
+        "after": [
+          "ceiling"
+        ],
+        "relevant": [
+          "ceiling"
+        ]
+      },
+      {
+        "id": "cutoff/pagination-holdout/reason/on",
+        "before": [
+          "ceiling",
+          "cursor"
+        ],
+        "after": [
+          "ceiling"
+        ],
+        "relevant": [
+          "ceiling"
+        ]
+      },
+      {
+        "id": "cutoff/pagination-holdout/arithmetic/on",
+        "before": [
+          "ceiling",
+          "cursor"
+        ],
+        "after": [],
+        "relevant": []
+      },
+      {
+        "id": "cutoff/webhooks-holdout/arithmetic/on",
+        "before": [
+          "lifetime",
+          "schema",
+          "tracing"
+        ],
+        "after": [],
+        "relevant": []
+      },
+      {
+        "id": "cutoff/webhooks-holdout/string/on",
+        "before": [
+          "lifetime",
+          "schema",
+          "tracing"
+        ],
+        "after": [
+          "tracing"
+        ],
+        "relevant": []
+      }
+    ],
+    "regressions": [],
+    "baseline_report_sha256": "26879affd7ba1869463572b2338c616b95e416f9ed1f6bb894d4bf6093f85837",
+    "candidate_report_sha256": "9196e39e902c6c261dc4779f964464eb66bf9fed26bde2e7270c89850f29ffe9",
+    "procedure": "All 54 memory queries in quality_suite.json, off/counted/on; same pinned local model and blend request via symbol_link_precision.evaluate_project. Both binaries built with local-inference; baseline exports HEAD runtime with unchanged graph and memory dependencies.",
+    "reproduce": "For each memory dataset in quality_suite.json, run bench/memory/tools/symbol_link_precision.py with --binary, --dataset, its declared --split, --reranker /pinned/model, --ort /pinned/runtime, --rerank-mode blend and a new --out, for baseline and candidate. Compare returned IDs per query against the frozen relevant_memories labels."
+  }
+}

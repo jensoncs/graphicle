@@ -48,7 +48,7 @@ def validate_questions(project, files):
         if q["id"] in seen or "/" in q["id"]:
             raise ValueError("Duplicate or nested query ID")
         seen.add(q["id"])
-        if q["origin"]["kind"] not in ("captured_tool_query", "authored_real_case"):
+        if q["origin"]["kind"] not in ("captured_tool_query", "authored_real_case", "authored_fixture"):
             raise ValueError("Explicit query provenance required")
         if q["intent"] not in ("location", "behavior", "rationale") or not q["required"]:
             raise ValueError("Intent and nonempty evidence labels required")
@@ -68,8 +68,12 @@ def validate_questions(project, files):
 def score(packet, query, files, max_tokens=3000):
     if packet.get("remote_model_calls", 0) != 0:
         raise ValueError("Remote inference forbidden")
-    if not isinstance(packet.get("evidence"), list) or not 0 <= packet["tokens"] <= max_tokens:
+    if (not isinstance(packet.get("evidence"), list) or type(packet.get("tokens")) is not int
+            or not 0 <= packet["tokens"] <= max_tokens):
         raise ValueError("Invalid or over-budget packet")
+    if "markdown" in packet and (not isinstance(packet["markdown"], str)
+                                 or len(packet["markdown"]) > REQUEST["max_chars"]):
+        raise ValueError("Invalid or over-budget packet text")
     excerpts = []
     for e in packet["evidence"]:
         name = e["id"].removeprefix("file:")
@@ -115,7 +119,7 @@ def score(packet, query, files, max_tokens=3000):
             "model_calls": packet.get("model_calls", 0), "source_verified": True}
 
 
-def run_project(project, binary, output, local):
+def run_project(project, binary, output, local, diagnose=False):
     files = load_sources(project)
     validate_questions(project, files)
     results = []
@@ -129,15 +133,22 @@ def run_project(project, binary, output, local):
             path.write_bytes(raw)
         config = tmp / "models.json"
         save(config, {"models": {"reranker": local["profile"]} if local else {}})
-        env = {k: v for k, v in os.environ.items() if k in ("PATH", "TMPDIR", "TEMP", "TMP")}
+        env = {k: v for k, v in os.environ.items() if k in
+               ("PATH", "SystemRoot", "ComSpec", "PATHEXT", "TMPDIR", "TEMP", "TMP")}
         env["GRAPHICLE_NO_UPDATE_NOTIFIER"] = "1"
+        if diagnose:
+            env["GRAPHICLE_PHASE_TIMINGS"] = "1"
         if local:
             env["ORT_DYLIB_PATH"] = local["ort"]
 
+        last_stderr = ""
+
         def call(*args):
+            nonlocal last_stderr
             proc = subprocess.run([str(binary), "--data-dir", str(tmp / "store"),
                                    "--config", str(config), *map(str, args)], cwd=source,
                                   env=env, capture_output=True, text=True, timeout=240)
+            last_stderr = proc.stderr
             if proc.returncode:
                 raise RuntimeError(proc.stderr[-1500:] or proc.stdout[-1500:])
             return json.loads(proc.stdout)
@@ -153,18 +164,33 @@ def run_project(project, binary, output, local):
                 variant = "routed" if routed else "baseline"
                 args = {**REQUEST, "symbol_links": True, "identifier_route": routed,
                         "question": query["question"], **(local["request"] if local else {})}
+                if diagnose:
+                    args["debug_candidates"] = 400
                 path = output / project["id"] / query["id"] / variant
                 save(path.with_suffix(".request.json"), args)
                 request = tmp / "arguments.json"
                 save(request, args)
+                start = time.monotonic()
                 try:
-                    start = time.monotonic()
                     packet = call("call", "context", "--project", source, "--arguments", request)
                     elapsed = time.monotonic() - start
                     save(path.with_suffix(".packet.json"), packet)
+                    if not local and packet.get("model_calls", 0) != 0:
+                        raise ValueError("Model calls forbidden without explicit local configuration")
                     row["variants"][variant] = {**score(packet, query, files), "seconds": elapsed}
+                    if diagnose:
+                        from quality_diagnostics import diagnostics
+                        detail = diagnostics(packet, last_stderr, query["required"])
+                        for span, delivered in zip(detail["required_spans"], row["variants"][variant]["required_delivered"]):
+                            span["delivered"] = delivered
+                            span["loss"] = (None if delivered else
+                                            "selection_or_packing" if span["contained_in_observed_candidate"] else
+                                            "not_contained_in_observed_candidate" if span["contained_in_observed_candidate"] is False else
+                                            "candidate_visibility_unavailable")
+                        save(path.with_suffix(".diagnostics.json"), detail)
                 except Exception as error:
-                    row["variants"][variant] = {"error": str(error), "complete": False}
+                    row["variants"][variant] = {"error": str(error), "complete": False,
+                                                "seconds": time.monotonic() - start}
             results.append(row)
     return results
 

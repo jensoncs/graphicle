@@ -1,0 +1,23 @@
+{
+  "format": "graphicle.quality-sources.v1",
+  "provenance": "Authored synthetic regression fixtures. Labels fixed before the first quality-suite run. Not captured user questions or an independent holdout.",
+  "projects": [
+    {
+      "id": "payments",
+      "split": "regression",
+      "files": {
+        "billing.py": "from policy import retry_delay\n\n\ndef invoice_total(lines):\n    # Keep cents: the processor rejects fractional minor units.\n    return round(sum(lines), 2)\n\n\ndef send_invoice(client, invoice):\n    response = client.send(invoice)\n    if response.status == 429:\n        return {\"retry_after\": retry_delay(response.attempt)}\n    if response.status >= 500:\n        raise RuntimeError(\"Invoice delivery failed\")\n    return response.identifier\n\n\ndef receipt_label(number):\n    return f\"Reçu nº {number}\"\n",
+        "policy.py": "def retry_delay(attempt):\n    # The upstream lease expires after sixty seconds.\n    return min(2 ** attempt, 60)\n\n\ndef storage_deadline(days):\n    return days * 86400\n",
+        "archive.py": "def archive_invoice(invoice):\n    return {\"archive\": invoice, \"retention_years\": 7}\n"
+      },
+      "queries": [
+        {"id": "location", "intent": "location", "question": "Where is invoice_total defined?", "required": [{"file": "billing.py", "quote": "def invoice_total(lines):"}]},
+        {"id": "rounding", "intent": "behavior", "question": "How does invoice_total round the sum of invoice lines?", "required": [{"file": "billing.py", "quote": "return round(sum(lines), 2)"}]},
+        {"id": "rationale", "intent": "rationale", "question": "Why does retry_delay cap the retry delay at sixty seconds?", "required": [{"file": "policy.py", "quote": "# The upstream lease expires after sixty seconds."}, {"file": "policy.py", "quote": "return min(2 ** attempt, 60)"}]},
+        {"id": "failure-branch", "intent": "behavior", "question": "What does send_invoice do when response.status is at least 500?", "required": [{"file": "billing.py", "quote": "if response.status >= 500:\n        raise RuntimeError(\"Invoice delivery failed\")"}]},
+        {"id": "caller-callee", "intent": "behavior", "question": "How does send_invoice use retry_delay for status 429 and what bounds that delay?", "required": [{"file": "billing.py", "quote": "if response.status == 429:\n        return {\"retry_after\": retry_delay(response.attempt)}"}, {"file": "policy.py", "quote": "return min(2 ** attempt, 60)"}]},
+        {"id": "unicode", "intent": "behavior", "question": "What exact receipt_label text is returned for a receipt number?", "required": [{"file": "billing.py", "quote": "return f\"Reçu nº {number}\""}]}
+      ]
+    }
+  ]
+}

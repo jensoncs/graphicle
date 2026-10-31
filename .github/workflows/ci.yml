@@ -93,6 +93,42 @@ jobs:
       - name: Tests
         working-directory: ${{ matrix.dir }}
         run: cargo test --locked --all-targets ${{ matrix.features }}
+      - name: Python for quality evaluation
+        if: matrix.crate == 'graphicle' && runner.os == 'Linux'
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.13'
+      - name: Build quality evaluation binary
+        if: matrix.crate == 'graphicle' && runner.os == 'Linux'
+        working-directory: crates/graphicle
+        run: cargo build --locked --bin graphicle
+      - name: Test quality evaluators
+        if: matrix.crate == 'graphicle' && runner.os == 'Linux'
+        env:
+          GRAPHICLE_BIN: ${{ github.workspace }}/crates/graphicle/target/debug/graphicle
+        run: |
+          python -m pip install -r bench/memory/requirements-test.txt
+          python -m pytest bench/memory/tests -q
+      - name: Quality regression gate
+        if: matrix.crate == 'graphicle' && runner.os == 'Linux'
+        run: >-
+          python bench/memory/tools/quality.py run
+          --binary crates/graphicle/target/debug/graphicle
+          --baseline bench/memory/quality-baseline.json
+          --out bench/memory/runs/ci-quality
+      - name: Quality summary
+        if: always() && matrix.crate == 'graphicle' && runner.os == 'Linux'
+        run: |
+          if [ -f bench/memory/runs/ci-quality/SCORECARD.md ]; then
+            cat bench/memory/runs/ci-quality/SCORECARD.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Quality evidence
+        if: always() && matrix.crate == 'graphicle' && runner.os == 'Linux'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: quality-evidence
+          path: bench/memory/runs/ci-quality/
+          retention-days: 14
 
   windows:
     # Windows (preview): each crate in its own job, so each has its own target

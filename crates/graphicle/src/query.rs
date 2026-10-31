@@ -1826,6 +1826,7 @@ fn context_impl(
             lookup.db(),
             lookup.repository(),
             symbol_links,
+            query,
             if rescoring {
                 // A shallow source rerank must not shrink the existing linked
                 // memory allowance before its own final four-item cap.

@@ -40,6 +40,7 @@ def test_precision_recall_and_empty_results_are_distinct(evaluation):
 @pytest.mark.parametrize("bad", [
     {}, {"memories": [], "evidence": []},
     {**packet(), "model_calls": 1}, {**packet(), "tokens": 3001}, packet("a", "a"),
+    {**packet(), "tokens": True}, {**packet(), "markdown": "x" * 12001},
 ])
 def test_invalid_packets_never_become_successful_empty_recall(evaluation, bad):
     with pytest.raises(ValueError):
@@ -89,7 +90,12 @@ def test_shallow_source_rerank_keeps_the_four_linked_memory_slots(tmp_path, eval
                                      Path(os.environ["ORT_DYLIB_PATH"]), "blend")
     local["request"].update({"rerank_depth": 1, "limit": 1})
     project = json.loads((ROOT / "fixtures/symbol_link_priority.json").read_text())["projects"][0]
-    project["queries"] = project["queries"][:1]
+    # A whole-pipeline question keeps all six links eligible. An explicit stage
+    # now correctly narrows expansion and would no longer exercise the cap.
+    project["queries"] = [{"id": "all-stages", "category": "prose_capacity",
+                           "question": "What decisions govern this pipeline?",
+                           "relevant_memories": [m["id"] for m in project["memories"]],
+                           "rationale": "All stage contracts apply to the whole pipeline."}]
     case = evaluation.evaluate_project(project, BINARY, tmp_path, local)[0]
     assert case["counted_preserves_content"]
     assert all("error" not in variant for variant in case["variants"].values())

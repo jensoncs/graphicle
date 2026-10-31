@@ -428,6 +428,54 @@ fn code_graph(db: &Connection, repository: &str, saved: bool) -> Option<CodeGrap
 }
 
 impl CodeGraph {
+    fn node_index(&self, symbol: usize) -> Option<usize> {
+        match &self.symbols {
+            Symbols::Resident { list, .. } => Some(list.get(symbol)?.0),
+            Symbols::Saved(file) => Some(file.symbol(symbol).ok()?.0),
+        }
+    }
+
+    fn attributes(&self, node: usize) -> Option<serde_json::Map<String, Value>> {
+        match &self.symbols {
+            Symbols::Resident { handle, .. } => Some(handle.nodes().get(node)?.attributes.to_map()),
+            Symbols::Saved(file) => file.attributes(node).ok(),
+        }
+    }
+
+    /// Code dependencies in either direction. Containment is not a dependency:
+    /// sharing a module/class must not connect all its unrelated declarations.
+    fn dependencies(&self, node: usize, remaining: &mut usize) -> Option<BTreeSet<usize>> {
+        let mut found = BTreeSet::new();
+        let dependency =
+            |relation: Option<&str>| !matches!(relation, Some("contains" | "defines" | "imports"));
+        match &self.symbols {
+            Symbols::Resident { handle, .. } => {
+                let edges = handle.out_edges(node);
+                let incoming = handle.in_edges(node);
+                *remaining = remaining.checked_sub(edges.len() + incoming.len())?;
+                for (a, b, edge) in edges.into_iter().chain(incoming) {
+                    if dependency(edge.attributes.get("relation").and_then(Value::as_str)) {
+                        found.insert(if a == node { b } else { a });
+                    }
+                }
+            }
+            Symbols::Saved(file) => {
+                let ids: Vec<u32> = file.adjacency(node).ok()?.all().into_iter().collect();
+                *remaining = remaining.checked_sub(ids.len())?;
+                for edge in file.edges(&ids).ok()? {
+                    if dependency(edge.relation.as_ref().and_then(Value::as_str)) {
+                        found.insert(if edge.source == node {
+                            edge.target
+                        } else {
+                            edge.source
+                        });
+                    }
+                }
+            }
+        }
+        Some(found)
+    }
+
     /// Whether a read of the query file failed: the arm then ranks again
     /// with the resident graph.
     fn corrupt(&self) -> bool {
@@ -515,6 +563,72 @@ impl CodeGraph {
         }
         Vec::new()
     }
+}
+
+/// Resolve explicit names and their connected code dependencies before narrowing
+/// code-to-memory expansion. A neighbouring declaration alone is not relevance.
+/// Keep callers, callees and transitive dependencies; no new source or memory is
+/// retrieved here. Ambiguity, unavailable/stale code, corruption or a traversal
+/// bound leaves the original authorized window-based expansion in place.
+pub(crate) fn memory_symbol_scope(
+    db: &Connection,
+    repository: &str,
+    question: &str,
+    documents: &HashMap<&str, &Value>,
+) -> Option<BTreeSet<(String, String)>> {
+    let named = explicit_names(question);
+    if named.names.is_empty() || named.names.len() > MAX_NAMES {
+        return None;
+    }
+    let graph = code_graph(db, repository, true)?;
+    let mut pending = BTreeSet::new();
+    for name in &named.names {
+        let found: Vec<usize> = graph
+            .definitions(name)
+            .into_iter()
+            .filter(|&i| {
+                let (_, path) = graph.symbol(i);
+                named.paths.is_empty()
+                    || named
+                        .paths
+                        .iter()
+                        .any(|p| path == p || path.ends_with(&format!("/{p}")))
+            })
+            .collect();
+        let [symbol] = found.as_slice() else {
+            return None;
+        };
+        pending.insert(graph.node_index(*symbol)?);
+    }
+    let mut visited = BTreeSet::new();
+    let mut scope = BTreeSet::new();
+    // Bounds protect large dependency components; exceeding either disables
+    // narrowing instead of treating a partial traversal as a complete scope.
+    let mut remaining_edges = 1024usize;
+    while let Some(node) = pending.pop_first() {
+        if !visited.insert(node) {
+            continue;
+        }
+        if visited.len() > 128 {
+            return None;
+        }
+        let fields = graph.attributes(node)?;
+        if !code_graph_arm::code_symbol(&fields) {
+            continue;
+        }
+        let path = code_graph_arm::relpath(&fields)?;
+        if !documents.contains_key(format!("file:{path}").as_str())
+            || graph
+                .unchanged
+                .as_ref()
+                .is_some_and(|paths| !paths.contains(&path))
+        {
+            return None;
+        }
+        scope.insert((path, crate::identifier_route::symbol_name(&fields)?));
+        pending.extend(graph.dependencies(node, &mut remaining_edges)?);
+    }
+    (!graph.corrupt() && !scope.is_empty()).then_some(scope)
 }
 
 /// What [`rank`] found.

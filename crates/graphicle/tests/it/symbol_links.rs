@@ -139,6 +139,189 @@ fn includes(packet: &Value, memory: &Value) -> bool {
 }
 
 #[test]
+fn literal_call_values_do_not_expand_linked_decisions() {
+    let f = Fixture::new(&[(
+        "codec.py",
+        "def encode_payload(value):\n    return str(value)\n",
+    )]);
+    let note = f.note(
+        "Quokka ledger",
+        "Keep the quokka ledger frozen.",
+        json!([{"path":"codec.py","qualified_name":"encode_payload"}]),
+    );
+    let value = f.context(
+        "What does encode_payload(17) return?",
+        json!({"symbol_links":true}),
+    );
+    assert!(!includes(&value, &note), "{value:#}");
+    assert_eq!(value["symbol_links"]["literal_call_value"]["applied"], true);
+    assert!(
+        value["symbol_links"]["literal_call_value"]["withheld_links"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+    assert!(!value["evidence"].as_array().unwrap().is_empty());
+    let rationale = f.context(
+        "What does encode_payload(17) return and why?",
+        json!({"symbol_links":true}),
+    );
+    assert!(includes(&rationale, &note), "{rationale:#}");
+    assert_eq!(
+        rationale["symbol_links"]["literal_call_value"]["applied"],
+        false
+    );
+}
+
+#[test]
+fn explicit_symbols_do_not_lift_unrelated_neighbour_notes() {
+    let f = Fixture::new(&[("a.py", A)]);
+    let alpha = f.note(
+        "Quokka ledger",
+        "Keep the quokka ledger frozen.",
+        json!([{"path":"a.py","qualified_name":"alpha"}]),
+    );
+    let beta = f.note(
+        "Wombat archive",
+        "Preserve the wombat archive.",
+        json!([{"path":"a.py","qualified_name":"beta"}]),
+    );
+    let one = f.context(
+        "Which constraints apply to `alpha`?",
+        json!({"symbol_links":true}),
+    );
+    assert!(includes(&one, &alpha), "{one:#}");
+    assert!(!includes(&one, &beta), "{one:#}");
+    assert_eq!(one["symbol_links"]["query_symbol_scope"]["applied"], true);
+    let both = f.context(
+        "Which constraints apply to `alpha` and `beta`?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&both, &alpha) && includes(&both, &beta),
+        "{both:#}"
+    );
+    let unresolved = f.context(
+        "Which constraints apply to `alpha` and `unknown`?",
+        json!({"symbol_links":true}),
+    );
+    assert_eq!(
+        unresolved["symbol_links"]["query_symbol_scope"]["applied"],
+        false
+    );
+    assert!(
+        includes(&unresolved, &alpha) && includes(&unresolved, &beta),
+        "{unresolved:#}"
+    );
+}
+
+#[test]
+fn symbol_scope_keeps_callers_and_transitive_callees_across_files() {
+    let f = Fixture::new(&[
+        (
+            "client.py",
+            "from codec import encode_item\n\ndef publish_item(value):\n    return encode_item(value)\n",
+        ),
+        (
+            "codec.py",
+            "def encode_item(value):\n    return normalize_item(value)\n\ndef normalize_item(value):\n    return str(value)\n\ndef health_probe():\n    return True\n",
+        ),
+    ]);
+    let caller = f.note(
+        "Quokka ledger",
+        "Keep the quokka ledger frozen.",
+        json!([{"path":"client.py","qualified_name":"publish_item"}]),
+    );
+    let callee = f.note(
+        "Wombat archive",
+        "Preserve the wombat archive.",
+        json!([{"path":"codec.py","qualified_name":"normalize_item"}]),
+    );
+    let unrelated = f.note(
+        "Cedar orchard",
+        "Keep the cedar orchard fenced.",
+        json!([{"path":"codec.py","qualified_name":"health_probe"}]),
+    );
+    for name in ["publish_item", "normalize_item"] {
+        let packet = f.context(
+            &format!("Which constraints govern {name}?"),
+            json!({"symbol_links":true}),
+        );
+        assert!(
+            includes(&packet, &caller) && includes(&packet, &callee),
+            "{packet:#}"
+        );
+        assert!(!includes(&packet, &unrelated), "{packet:#}");
+        assert_eq!(
+            packet["symbol_links"]["query_symbol_scope"]["applied"],
+            true
+        );
+    }
+}
+
+#[test]
+fn symbol_scope_does_not_guess_ambiguous_names() {
+    let f = Fixture::new(&[
+        ("left/a.py", A),
+        ("right/a.py", &A.replace("return 1", "return 10")),
+    ]);
+    let left = f.note(
+        "Quokka ledger",
+        "Keep the quokka ledger frozen.",
+        json!([{"path":"left/a.py","qualified_name":"alpha"}]),
+    );
+    let right = f.note(
+        "Wombat archive",
+        "Preserve the wombat archive.",
+        json!([{"path":"right/a.py","qualified_name":"alpha"}]),
+    );
+    let ambiguous = f.context(
+        "Which constraints apply to `alpha`?",
+        json!({"symbol_links":true}),
+    );
+    assert_eq!(
+        ambiguous["symbol_links"]["query_symbol_scope"]["applied"],
+        false
+    );
+    assert!(
+        includes(&ambiguous, &left) && includes(&ambiguous, &right),
+        "{ambiguous:#}"
+    );
+    let exact = f.context(
+        "Which constraints apply to `alpha` in left/a.py?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&exact, &left) && !includes(&exact, &right),
+        "{exact:#}"
+    );
+}
+
+#[test]
+fn an_oversized_dependency_component_keeps_window_expansion() {
+    let mut code = String::new();
+    for i in 0..130 {
+        code.push_str(&format!("def step_{i}():\n    return step_{}()\n\n", i + 1));
+    }
+    code.push_str("def step_130():\n    return 1\n");
+    let f = Fixture::new(&[("chain.py", &code)]);
+    let note = f.note(
+        "Quokka ledger",
+        "Keep the quokka ledger frozen.",
+        json!([{"path":"chain.py","qualified_name":"step_0"}]),
+    );
+    let packet = f.context(
+        "Which constraints govern step_0?",
+        json!({"symbol_links":true}),
+    );
+    assert_eq!(
+        packet["symbol_links"]["query_symbol_scope"]["applied"],
+        false
+    );
+    assert!(includes(&packet, &note), "{packet:#}");
+}
+
+#[test]
 fn a_code_window_lifts_its_linked_memory_only_when_asked() {
     let f = Fixture::new(&[("a.py", A), ("b.py", B)]);
     let memory = f.note(

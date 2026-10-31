@@ -1,0 +1,3154 @@
+{
+  "format": "graphicle.quality.v1",
+  "contract": {
+    "scoring_version": 1,
+    "request": {
+      "max_tokens": 3000,
+      "max_chars": 12000,
+      "limit": 8,
+      "graph_retrieval": true,
+      "memory_retrieval": true,
+      "doc_links": false,
+      "cross_repo": false,
+      "identifier_route": false,
+      "notes_first": false
+    },
+    "memory_variants": {
+      "off": {
+        "symbol_links": false
+      },
+      "counted": {},
+      "on": {
+        "symbol_links": true
+      }
+    },
+    "source_variants": {
+      "baseline": false,
+      "routed": true
+    },
+    "source_debug_candidates": 400,
+    "datasets": [
+      {
+        "id": "links",
+        "kind": "memory",
+        "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+      },
+      {
+        "id": "exact",
+        "kind": "memory",
+        "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+      },
+      {
+        "id": "pressure",
+        "kind": "memory",
+        "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+      },
+      {
+        "id": "diversity",
+        "kind": "memory",
+        "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+      },
+      {
+        "id": "cutoff",
+        "kind": "memory",
+        "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+      },
+      {
+        "id": "negative",
+        "kind": "memory",
+        "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+      },
+      {
+        "id": "source",
+        "kind": "source",
+        "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+      }
+    ],
+    "case_ids": [
+      "cutoff/pagination-holdout/arithmetic/counted",
+      "cutoff/pagination-holdout/arithmetic/off",
+      "cutoff/pagination-holdout/arithmetic/on",
+      "cutoff/pagination-holdout/change/counted",
+      "cutoff/pagination-holdout/change/off",
+      "cutoff/pagination-holdout/change/on",
+      "cutoff/pagination-holdout/prose/counted",
+      "cutoff/pagination-holdout/prose/off",
+      "cutoff/pagination-holdout/prose/on",
+      "cutoff/pagination-holdout/reason/counted",
+      "cutoff/pagination-holdout/reason/off",
+      "cutoff/pagination-holdout/reason/on",
+      "cutoff/webhooks-holdout/arithmetic/counted",
+      "cutoff/webhooks-holdout/arithmetic/off",
+      "cutoff/webhooks-holdout/arithmetic/on",
+      "cutoff/webhooks-holdout/ceiling/counted",
+      "cutoff/webhooks-holdout/ceiling/off",
+      "cutoff/webhooks-holdout/ceiling/on",
+      "cutoff/webhooks-holdout/string/counted",
+      "cutoff/webhooks-holdout/string/off",
+      "cutoff/webhooks-holdout/string/on",
+      "cutoff/webhooks-holdout/timing/counted",
+      "cutoff/webhooks-holdout/timing/off",
+      "cutoff/webhooks-holdout/timing/on",
+      "diversity/cross-file/cross-file-callee/counted",
+      "diversity/cross-file/cross-file-callee/off",
+      "diversity/cross-file/cross-file-callee/on",
+      "diversity/direct-contracts/all-direct/counted",
+      "diversity/direct-contracts/all-direct/off",
+      "diversity/direct-contracts/all-direct/on",
+      "diversity/transitive/two-hop-callee/counted",
+      "diversity/transitive/two-hop-callee/off",
+      "diversity/transitive/two-hop-callee/on",
+      "exact/callee/callee-rationale/counted",
+      "exact/callee/callee-rationale/off",
+      "exact/callee/callee-rationale/on",
+      "exact/headers/multiple-names/counted",
+      "exact/headers/multiple-names/off",
+      "exact/headers/multiple-names/on",
+      "exact/headers/partly-unresolved/counted",
+      "exact/headers/partly-unresolved/off",
+      "exact/headers/partly-unresolved/on",
+      "exact/headers/prose-only/counted",
+      "exact/headers/prose-only/off",
+      "exact/headers/prose-only/on",
+      "exact/paths/duplicate-path/counted",
+      "exact/paths/duplicate-path/off",
+      "exact/paths/duplicate-path/on",
+      "exact/paths/path-qualified/counted",
+      "exact/paths/path-qualified/off",
+      "exact/paths/path-qualified/on",
+      "exact/qualified/ambiguous-name/counted",
+      "exact/qualified/ambiguous-name/off",
+      "exact/qualified/ambiguous-name/on",
+      "exact/qualified/qualified-name/counted",
+      "exact/qualified/qualified-name/off",
+      "exact/qualified/qualified-name/on",
+      "links/billing/direct-recall/counted",
+      "links/billing/direct-recall/off",
+      "links/billing/direct-recall/on",
+      "links/billing/linked-rationale/counted",
+      "links/billing/linked-rationale/off",
+      "links/billing/linked-rationale/on",
+      "links/billing/narrow-rationale/counted",
+      "links/billing/narrow-rationale/off",
+      "links/billing/narrow-rationale/on",
+      "links/billing/other-symbol/counted",
+      "links/billing/other-symbol/off",
+      "links/billing/other-symbol/on",
+      "links/billing/same-symbol-no-memory/counted",
+      "links/billing/same-symbol-no-memory/off",
+      "links/billing/same-symbol-no-memory/on",
+      "links/billing/unrelated/counted",
+      "links/billing/unrelated/off",
+      "links/billing/unrelated/on",
+      "links/cache/direct-recall/counted",
+      "links/cache/direct-recall/off",
+      "links/cache/direct-recall/on",
+      "links/cache/linked-rationale/counted",
+      "links/cache/linked-rationale/off",
+      "links/cache/linked-rationale/on",
+      "links/cache/narrow-rationale/counted",
+      "links/cache/narrow-rationale/off",
+      "links/cache/narrow-rationale/on",
+      "links/cache/same-symbol-no-memory/counted",
+      "links/cache/same-symbol-no-memory/off",
+      "links/cache/same-symbol-no-memory/on",
+      "links/cache/unrelated/counted",
+      "links/cache/unrelated/off",
+      "links/cache/unrelated/on",
+      "links/retry/direct-recall/counted",
+      "links/retry/direct-recall/off",
+      "links/retry/direct-recall/on",
+      "links/retry/linked-rationale/counted",
+      "links/retry/linked-rationale/off",
+      "links/retry/linked-rationale/on",
+      "links/retry/narrow-rationale/counted",
+      "links/retry/narrow-rationale/off",
+      "links/retry/narrow-rationale/on",
+      "links/retry/same-symbol-no-memory/counted",
+      "links/retry/same-symbol-no-memory/off",
+      "links/retry/same-symbol-no-memory/on",
+      "links/retry/unrelated/counted",
+      "links/retry/unrelated/off",
+      "links/retry/unrelated/on",
+      "links/stale/stale-direct/counted",
+      "links/stale/stale-direct/off",
+      "links/stale/stale-direct/on",
+      "links/stale/stale-symbol/counted",
+      "links/stale/stale-symbol/off",
+      "links/stale/stale-symbol/on",
+      "negative/cross-file/absent-0/counted",
+      "negative/cross-file/absent-0/off",
+      "negative/cross-file/absent-0/on",
+      "negative/cross-file/absent-1/counted",
+      "negative/cross-file/absent-1/off",
+      "negative/cross-file/absent-1/on",
+      "negative/cross-file/absent-2/counted",
+      "negative/cross-file/absent-2/off",
+      "negative/cross-file/absent-2/on",
+      "negative/direct-contracts/absent-0/counted",
+      "negative/direct-contracts/absent-0/off",
+      "negative/direct-contracts/absent-0/on",
+      "negative/direct-contracts/absent-1/counted",
+      "negative/direct-contracts/absent-1/off",
+      "negative/direct-contracts/absent-1/on",
+      "negative/direct-contracts/absent-2/counted",
+      "negative/direct-contracts/absent-2/off",
+      "negative/direct-contracts/absent-2/on",
+      "pressure/callee-pressure/lease-rationale/counted",
+      "pressure/callee-pressure/lease-rationale/off",
+      "pressure/callee-pressure/lease-rationale/on",
+      "pressure/caller-pressure/lease-rationale/counted",
+      "pressure/caller-pressure/lease-rationale/off",
+      "pressure/caller-pressure/lease-rationale/on",
+      "pressure/direct-pressure/direct-0/counted",
+      "pressure/direct-pressure/direct-0/off",
+      "pressure/direct-pressure/direct-0/on",
+      "pressure/direct-pressure/direct-1/counted",
+      "pressure/direct-pressure/direct-1/off",
+      "pressure/direct-pressure/direct-1/on",
+      "pressure/direct-pressure/direct-2/counted",
+      "pressure/direct-pressure/direct-2/off",
+      "pressure/direct-pressure/direct-2/on",
+      "pressure/direct-pressure/direct-3/counted",
+      "pressure/direct-pressure/direct-3/off",
+      "pressure/direct-pressure/direct-3/on",
+      "pressure/direct-pressure/direct-4/counted",
+      "pressure/direct-pressure/direct-4/off",
+      "pressure/direct-pressure/direct-4/on",
+      "pressure/direct-pressure/direct-5/counted",
+      "pressure/direct-pressure/direct-5/off",
+      "pressure/direct-pressure/direct-5/on",
+      "pressure/shared-pressure/prose/counted",
+      "pressure/shared-pressure/prose/off",
+      "pressure/shared-pressure/prose/on",
+      "pressure/shared-pressure/shared-target/counted",
+      "pressure/shared-pressure/shared-target/off",
+      "pressure/shared-pressure/shared-target/on",
+      "pressure/shared-pressure/unresolved/counted",
+      "pressure/shared-pressure/unresolved/off",
+      "pressure/shared-pressure/unresolved/on",
+      "source/payments/caller-callee/baseline",
+      "source/payments/caller-callee/routed",
+      "source/payments/failure-branch/baseline",
+      "source/payments/failure-branch/routed",
+      "source/payments/location/baseline",
+      "source/payments/location/routed",
+      "source/payments/rationale/baseline",
+      "source/payments/rationale/routed",
+      "source/payments/rounding/baseline",
+      "source/payments/rounding/routed",
+      "source/payments/unicode/baseline",
+      "source/payments/unicode/routed"
+    ]
+  },
+  "provenance": {
+    "report_sha256": "39f5b3cd113213e3d62f29e2e18a68af7793911e2b41423f1e306adc1e1adfb4",
+    "protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "links",
+            "kind": "memory",
+            "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+          },
+          {
+            "id": "exact",
+            "kind": "memory",
+            "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+          },
+          {
+            "id": "pressure",
+            "kind": "memory",
+            "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+          },
+          {
+            "id": "diversity",
+            "kind": "memory",
+            "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+          },
+          {
+            "id": "cutoff",
+            "kind": "memory",
+            "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+          },
+          {
+            "id": "negative",
+            "kind": "memory",
+            "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+          },
+          {
+            "id": "source",
+            "kind": "source",
+            "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+          }
+        ],
+        "case_ids": [
+          "cutoff/pagination-holdout/arithmetic/counted",
+          "cutoff/pagination-holdout/arithmetic/off",
+          "cutoff/pagination-holdout/arithmetic/on",
+          "cutoff/pagination-holdout/change/counted",
+          "cutoff/pagination-holdout/change/off",
+          "cutoff/pagination-holdout/change/on",
+          "cutoff/pagination-holdout/prose/counted",
+          "cutoff/pagination-holdout/prose/off",
+          "cutoff/pagination-holdout/prose/on",
+          "cutoff/pagination-holdout/reason/counted",
+          "cutoff/pagination-holdout/reason/off",
+          "cutoff/pagination-holdout/reason/on",
+          "cutoff/webhooks-holdout/arithmetic/counted",
+          "cutoff/webhooks-holdout/arithmetic/off",
+          "cutoff/webhooks-holdout/arithmetic/on",
+          "cutoff/webhooks-holdout/ceiling/counted",
+          "cutoff/webhooks-holdout/ceiling/off",
+          "cutoff/webhooks-holdout/ceiling/on",
+          "cutoff/webhooks-holdout/string/counted",
+          "cutoff/webhooks-holdout/string/off",
+          "cutoff/webhooks-holdout/string/on",
+          "cutoff/webhooks-holdout/timing/counted",
+          "cutoff/webhooks-holdout/timing/off",
+          "cutoff/webhooks-holdout/timing/on",
+          "diversity/cross-file/cross-file-callee/counted",
+          "diversity/cross-file/cross-file-callee/off",
+          "diversity/cross-file/cross-file-callee/on",
+          "diversity/direct-contracts/all-direct/counted",
+          "diversity/direct-contracts/all-direct/off",
+          "diversity/direct-contracts/all-direct/on",
+          "diversity/transitive/two-hop-callee/counted",
+          "diversity/transitive/two-hop-callee/off",
+          "diversity/transitive/two-hop-callee/on",
+          "exact/callee/callee-rationale/counted",
+          "exact/callee/callee-rationale/off",
+          "exact/callee/callee-rationale/on",
+          "exact/headers/multiple-names/counted",
+          "exact/headers/multiple-names/off",
+          "exact/headers/multiple-names/on",
+          "exact/headers/partly-unresolved/counted",
+          "exact/headers/partly-unresolved/off",
+          "exact/headers/partly-unresolved/on",
+          "exact/headers/prose-only/counted",
+          "exact/headers/prose-only/off",
+          "exact/headers/prose-only/on",
+          "exact/paths/duplicate-path/counted",
+          "exact/paths/duplicate-path/off",
+          "exact/paths/duplicate-path/on",
+          "exact/paths/path-qualified/counted",
+          "exact/paths/path-qualified/off",
+          "exact/paths/path-qualified/on",
+          "exact/qualified/ambiguous-name/counted",
+          "exact/qualified/ambiguous-name/off",
+          "exact/qualified/ambiguous-name/on",
+          "exact/qualified/qualified-name/counted",
+          "exact/qualified/qualified-name/off",
+          "exact/qualified/qualified-name/on",
+          "links/billing/direct-recall/counted",
+          "links/billing/direct-recall/off",
+          "links/billing/direct-recall/on",
+          "links/billing/linked-rationale/counted",
+          "links/billing/linked-rationale/off",
+          "links/billing/linked-rationale/on",
+          "links/billing/narrow-rationale/counted",
+          "links/billing/narrow-rationale/off",
+          "links/billing/narrow-rationale/on",
+          "links/billing/other-symbol/counted",
+          "links/billing/other-symbol/off",
+          "links/billing/other-symbol/on",
+          "links/billing/same-symbol-no-memory/counted",
+          "links/billing/same-symbol-no-memory/off",
+          "links/billing/same-symbol-no-memory/on",
+          "links/billing/unrelated/counted",
+          "links/billing/unrelated/off",
+          "links/billing/unrelated/on",
+          "links/cache/direct-recall/counted",
+          "links/cache/direct-recall/off",
+          "links/cache/direct-recall/on",
+          "links/cache/linked-rationale/counted",
+          "links/cache/linked-rationale/off",
+          "links/cache/linked-rationale/on",
+          "links/cache/narrow-rationale/counted",
+          "links/cache/narrow-rationale/off",
+          "links/cache/narrow-rationale/on",
+          "links/cache/same-symbol-no-memory/counted",
+          "links/cache/same-symbol-no-memory/off",
+          "links/cache/same-symbol-no-memory/on",
+          "links/cache/unrelated/counted",
+          "links/cache/unrelated/off",
+          "links/cache/unrelated/on",
+          "links/retry/direct-recall/counted",
+          "links/retry/direct-recall/off",
+          "links/retry/direct-recall/on",
+          "links/retry/linked-rationale/counted",
+          "links/retry/linked-rationale/off",
+          "links/retry/linked-rationale/on",
+          "links/retry/narrow-rationale/counted",
+          "links/retry/narrow-rationale/off",
+          "links/retry/narrow-rationale/on",
+          "links/retry/same-symbol-no-memory/counted",
+          "links/retry/same-symbol-no-memory/off",
+          "links/retry/same-symbol-no-memory/on",
+          "links/retry/unrelated/counted",
+          "links/retry/unrelated/off",
+          "links/retry/unrelated/on",
+          "links/stale/stale-direct/counted",
+          "links/stale/stale-direct/off",
+          "links/stale/stale-direct/on",
+          "links/stale/stale-symbol/counted",
+          "links/stale/stale-symbol/off",
+          "links/stale/stale-symbol/on",
+          "negative/cross-file/absent-0/counted",
+          "negative/cross-file/absent-0/off",
+          "negative/cross-file/absent-0/on",
+          "negative/cross-file/absent-1/counted",
+          "negative/cross-file/absent-1/off",
+          "negative/cross-file/absent-1/on",
+          "negative/cross-file/absent-2/counted",
+          "negative/cross-file/absent-2/off",
+          "negative/cross-file/absent-2/on",
+          "negative/direct-contracts/absent-0/counted",
+          "negative/direct-contracts/absent-0/off",
+          "negative/direct-contracts/absent-0/on",
+          "negative/direct-contracts/absent-1/counted",
+          "negative/direct-contracts/absent-1/off",
+          "negative/direct-contracts/absent-1/on",
+          "negative/direct-contracts/absent-2/counted",
+          "negative/direct-contracts/absent-2/off",
+          "negative/direct-contracts/absent-2/on",
+          "pressure/callee-pressure/lease-rationale/counted",
+          "pressure/callee-pressure/lease-rationale/off",
+          "pressure/callee-pressure/lease-rationale/on",
+          "pressure/caller-pressure/lease-rationale/counted",
+          "pressure/caller-pressure/lease-rationale/off",
+          "pressure/caller-pressure/lease-rationale/on",
+          "pressure/direct-pressure/direct-0/counted",
+          "pressure/direct-pressure/direct-0/off",
+          "pressure/direct-pressure/direct-0/on",
+          "pressure/direct-pressure/direct-1/counted",
+          "pressure/direct-pressure/direct-1/off",
+          "pressure/direct-pressure/direct-1/on",
+          "pressure/direct-pressure/direct-2/counted",
+          "pressure/direct-pressure/direct-2/off",
+          "pressure/direct-pressure/direct-2/on",
+          "pressure/direct-pressure/direct-3/counted",
+          "pressure/direct-pressure/direct-3/off",
+          "pressure/direct-pressure/direct-3/on",
+          "pressure/direct-pressure/direct-4/counted",
+          "pressure/direct-pressure/direct-4/off",
+          "pressure/direct-pressure/direct-4/on",
+          "pressure/direct-pressure/direct-5/counted",
+          "pressure/direct-pressure/direct-5/off",
+          "pressure/direct-pressure/direct-5/on",
+          "pressure/shared-pressure/prose/counted",
+          "pressure/shared-pressure/prose/off",
+          "pressure/shared-pressure/prose/on",
+          "pressure/shared-pressure/shared-target/counted",
+          "pressure/shared-pressure/shared-target/off",
+          "pressure/shared-pressure/shared-target/on",
+          "pressure/shared-pressure/unresolved/counted",
+          "pressure/shared-pressure/unresolved/off",
+          "pressure/shared-pressure/unresolved/on",
+          "source/payments/caller-callee/baseline",
+          "source/payments/caller-callee/routed",
+          "source/payments/failure-branch/baseline",
+          "source/payments/failure-branch/routed",
+          "source/payments/location/baseline",
+          "source/payments/location/routed",
+          "source/payments/rationale/baseline",
+          "source/payments/rationale/routed",
+          "source/payments/rounding/baseline",
+          "source/payments/rounding/routed",
+          "source/payments/unicode/baseline",
+          "source/payments/unicode/routed"
+        ]
+      },
+      "binary_sha256": "9b05aad556640bec02970c22cf34ea2f19b511bbc1fd7ff5b41779c10e4958e1",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "4f1c76c584ae357a53a447771ca68c77a57dc42a62dfb86d3ca8c7b843204e86",
+        "quality_diagnostics.py": "d08c6b357726f7cf7d81ea0e10cf7b743f272cfc9c06bd1f703c9f8e8926f566",
+        "symbol_link_precision.py": "f7f6476120ef560ecdac7c0b811aba0f46f4ec457a7dd969424eca679b7eccb9",
+        "real_query_eval.py": "8ad7f488fdc34ab38f2fa65b652f2ce8249b782defd87a32c53fcf48a4e0bec5",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    }
+  },
+  "cases": [
+    {
+      "id": "links/billing/linked-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "linked_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "audit",
+        "settlement"
+      ],
+      "retrieved_relevant": [
+        "settlement"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/linked-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "linked_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "audit",
+        "settlement"
+      ],
+      "retrieved_relevant": [
+        "settlement"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/linked-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "linked_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "audit",
+        "settlement"
+      ],
+      "retrieved_relevant": [
+        "audit",
+        "settlement"
+      ],
+      "irrelevant": [
+        "receipt"
+      ]
+    },
+    {
+      "id": "links/billing/direct-recall/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "settlement"
+      ],
+      "retrieved_relevant": [
+        "settlement"
+      ],
+      "irrelevant": [
+        "shipping"
+      ]
+    },
+    {
+      "id": "links/billing/direct-recall/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "settlement"
+      ],
+      "retrieved_relevant": [
+        "settlement"
+      ],
+      "irrelevant": [
+        "audit",
+        "receipt",
+        "shipping"
+      ]
+    },
+    {
+      "id": "links/billing/direct-recall/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "settlement"
+      ],
+      "retrieved_relevant": [
+        "settlement"
+      ],
+      "irrelevant": [
+        "shipping"
+      ]
+    },
+    {
+      "id": "links/billing/same-symbol-no-memory/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "audit",
+        "receipt",
+        "settlement",
+        "shipping"
+      ]
+    },
+    {
+      "id": "links/billing/same-symbol-no-memory/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/same-symbol-no-memory/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/narrow-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "same_symbol_distractor",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "settlement"
+      ],
+      "retrieved_relevant": [
+        "settlement"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/narrow-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "same_symbol_distractor",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "settlement"
+      ],
+      "retrieved_relevant": [
+        "settlement"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/narrow-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "same_symbol_distractor",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "settlement"
+      ],
+      "retrieved_relevant": [
+        "settlement"
+      ],
+      "irrelevant": [
+        "audit",
+        "receipt"
+      ]
+    },
+    {
+      "id": "links/billing/unrelated/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/unrelated/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/unrelated/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/other-symbol/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "receipt"
+      ],
+      "retrieved_relevant": [
+        "receipt"
+      ],
+      "irrelevant": [
+        "audit",
+        "settlement"
+      ]
+    },
+    {
+      "id": "links/billing/other-symbol/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "receipt"
+      ],
+      "retrieved_relevant": [
+        "receipt"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/billing/other-symbol/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "receipt"
+      ],
+      "retrieved_relevant": [
+        "receipt"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/linked-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "linked_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling",
+        "jitter"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/linked-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "linked_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling",
+        "jitter"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/linked-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "linked_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling",
+        "jitter"
+      ],
+      "retrieved_relevant": [
+        "ceiling",
+        "jitter"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/direct-recall/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/direct-recall/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": [
+        "jitter"
+      ]
+    },
+    {
+      "id": "links/retry/direct-recall/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/same-symbol-no-memory/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "ceiling",
+        "jitter",
+        "log-policy"
+      ]
+    },
+    {
+      "id": "links/retry/same-symbol-no-memory/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/same-symbol-no-memory/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/narrow-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "same_symbol_distractor",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/narrow-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "same_symbol_distractor",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/narrow-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "same_symbol_distractor",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": [
+        "jitter"
+      ]
+    },
+    {
+      "id": "links/retry/unrelated/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/unrelated/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/retry/unrelated/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/linked-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "linked_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "encoding",
+        "isolation"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/linked-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "linked_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "encoding",
+        "isolation"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/linked-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "linked_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "encoding",
+        "isolation"
+      ],
+      "retrieved_relevant": [
+        "encoding",
+        "isolation"
+      ],
+      "irrelevant": [
+        "expiry"
+      ]
+    },
+    {
+      "id": "links/cache/direct-recall/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "expiry"
+      ],
+      "retrieved_relevant": [
+        "expiry"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/direct-recall/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "expiry"
+      ],
+      "retrieved_relevant": [
+        "expiry"
+      ],
+      "irrelevant": [
+        "encoding",
+        "isolation"
+      ]
+    },
+    {
+      "id": "links/cache/direct-recall/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "lexical_relevant",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "expiry"
+      ],
+      "retrieved_relevant": [
+        "expiry"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/same-symbol-no-memory/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "encoding",
+        "expiry",
+        "isolation"
+      ]
+    },
+    {
+      "id": "links/cache/same-symbol-no-memory/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/same-symbol-no-memory/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/narrow-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "same_symbol_distractor",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "isolation"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/narrow-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "same_symbol_distractor",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "isolation"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/narrow-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "same_symbol_distractor",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "isolation"
+      ],
+      "retrieved_relevant": [
+        "isolation"
+      ],
+      "irrelevant": [
+        "encoding",
+        "expiry"
+      ]
+    },
+    {
+      "id": "links/cache/unrelated/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/unrelated/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/cache/unrelated/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/stale/stale-direct/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "stale",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/stale/stale-direct/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "stale",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/stale/stale-direct/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "stale",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/stale/stale-symbol/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "stale",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/stale/stale-symbol/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "stale",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "links/stale/stale-symbol/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "stale",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/qualified/qualified-name/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "qualified_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "json"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/qualified/qualified-name/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "qualified_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "json"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/qualified/qualified-name/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "qualified_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "json"
+      ],
+      "retrieved_relevant": [
+        "json"
+      ],
+      "irrelevant": [
+        "csv",
+        "monitor"
+      ]
+    },
+    {
+      "id": "exact/qualified/ambiguous-name/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "csv",
+        "json"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/qualified/ambiguous-name/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "csv",
+        "json"
+      ],
+      "retrieved_relevant": [
+        "csv",
+        "json"
+      ],
+      "irrelevant": [
+        "monitor"
+      ]
+    },
+    {
+      "id": "exact/qualified/ambiguous-name/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "csv",
+        "json"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/paths/path-qualified/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "path_qualified",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "api"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/paths/path-qualified/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "path_qualified",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "api"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/paths/path-qualified/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "path_qualified",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "api"
+      ],
+      "retrieved_relevant": [
+        "api"
+      ],
+      "irrelevant": [
+        "ready",
+        "worker"
+      ]
+    },
+    {
+      "id": "exact/paths/duplicate-path/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "api",
+        "worker"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/paths/duplicate-path/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "api",
+        "worker"
+      ],
+      "retrieved_relevant": [
+        "api",
+        "worker"
+      ],
+      "irrelevant": [
+        "ready"
+      ]
+    },
+    {
+      "id": "exact/paths/duplicate-path/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "api",
+        "worker"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/headers/multiple-names/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "multiple_symbols",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "read",
+        "write"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/headers/multiple-names/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "multiple_symbols",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "read",
+        "write"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/headers/multiple-names/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "multiple_symbols",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "read",
+        "write"
+      ],
+      "retrieved_relevant": [
+        "read",
+        "write"
+      ],
+      "irrelevant": [
+        "hint"
+      ]
+    },
+    {
+      "id": "exact/headers/partly-unresolved/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "unresolved_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "read"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/headers/partly-unresolved/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "unresolved_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "read"
+      ],
+      "retrieved_relevant": [
+        "read"
+      ],
+      "irrelevant": [
+        "hint",
+        "write"
+      ]
+    },
+    {
+      "id": "exact/headers/partly-unresolved/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "unresolved_symbol",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "read"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/headers/prose-only/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "read",
+        "write"
+      ],
+      "retrieved_relevant": [
+        "read",
+        "write"
+      ],
+      "irrelevant": [
+        "hint"
+      ]
+    },
+    {
+      "id": "exact/headers/prose-only/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "read",
+        "write"
+      ],
+      "retrieved_relevant": [
+        "read",
+        "write"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/headers/prose-only/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "read",
+        "write"
+      ],
+      "retrieved_relevant": [
+        "read",
+        "write"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/callee/callee-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "callee_memory",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/callee/callee-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "callee_memory",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "exact/callee/callee-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "callee_memory",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-0/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ledger"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-0/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ledger"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-0/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ledger"
+      ],
+      "retrieved_relevant": [
+        "ledger"
+      ],
+      "irrelevant": [
+        "archive",
+        "probe",
+        "wire"
+      ]
+    },
+    {
+      "id": "pressure/direct-pressure/direct-1/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "archive"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-1/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "archive"
+      ],
+      "retrieved_relevant": [
+        "archive"
+      ],
+      "irrelevant": [
+        "ledger",
+        "probe",
+        "wire"
+      ]
+    },
+    {
+      "id": "pressure/direct-pressure/direct-1/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "archive"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-2/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": [
+        "archive",
+        "ledger",
+        "probe"
+      ]
+    },
+    {
+      "id": "pressure/direct-pressure/direct-2/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-2/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-3/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "probe"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-3/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "probe"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-3/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "probe"
+      ],
+      "retrieved_relevant": [
+        "probe"
+      ],
+      "irrelevant": [
+        "archive",
+        "ledger",
+        "wire"
+      ]
+    },
+    {
+      "id": "pressure/direct-pressure/direct-4/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-4/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "archive",
+        "ledger",
+        "wire"
+      ]
+    },
+    {
+      "id": "pressure/direct-pressure/direct-4/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-5/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "order"
+      ],
+      "retrieved_relevant": [
+        "order"
+      ],
+      "irrelevant": [
+        "archive",
+        "ledger",
+        "wire"
+      ]
+    },
+    {
+      "id": "pressure/direct-pressure/direct-5/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "order"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/direct-pressure/direct-5/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "order"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/callee-pressure/lease-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "callee_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/callee-pressure/lease-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "callee_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/callee-pressure/lease-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "callee_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "archive",
+        "ledger",
+        "probe",
+        "wire"
+      ]
+    },
+    {
+      "id": "pressure/caller-pressure/lease-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "caller_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/caller-pressure/lease-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "caller_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/caller-pressure/lease-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "caller_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "archive",
+        "ledger",
+        "probe",
+        "wire"
+      ]
+    },
+    {
+      "id": "pressure/shared-pressure/shared-target/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "multiple_links",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "shared"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/shared-pressure/shared-target/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "multiple_links",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "shared"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/shared-pressure/shared-target/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "multiple_links",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "shared"
+      ],
+      "retrieved_relevant": [
+        "shared"
+      ],
+      "irrelevant": [
+        "archive",
+        "ledger",
+        "wire"
+      ]
+    },
+    {
+      "id": "pressure/shared-pressure/unresolved/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "unresolved_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "shared"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/shared-pressure/unresolved/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "unresolved_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "shared"
+      ],
+      "retrieved_relevant": [
+        "shared"
+      ],
+      "irrelevant": [
+        "archive",
+        "ledger",
+        "wire"
+      ]
+    },
+    {
+      "id": "pressure/shared-pressure/unresolved/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "unresolved_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "shared"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/shared-pressure/prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "archive",
+        "lease",
+        "ledger",
+        "probe",
+        "shared",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "archive",
+        "ledger",
+        "shared",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/shared-pressure/prose/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "archive",
+        "lease",
+        "ledger",
+        "probe",
+        "shared",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "pressure/shared-pressure/prose/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose_capacity",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "archive",
+        "lease",
+        "ledger",
+        "probe",
+        "shared",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "diversity/direct-contracts/all-direct/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "relevant_direct_competes_with_irrelevant_callee",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "delimiter",
+        "escaping",
+        "null",
+        "ordering"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "diversity/direct-contracts/all-direct/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "relevant_direct_competes_with_irrelevant_callee",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "delimiter",
+        "escaping",
+        "null",
+        "ordering"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "diversity/direct-contracts/all-direct/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "relevant_direct_competes_with_irrelevant_callee",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "delimiter",
+        "escaping",
+        "null",
+        "ordering"
+      ],
+      "retrieved_relevant": [
+        "delimiter",
+        "escaping",
+        "null",
+        "ordering"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "diversity/cross-file/cross-file-callee/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "diversity/cross-file/cross-file-callee/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "diversity/cross-file/cross-file-callee/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "audit"
+      ]
+    },
+    {
+      "id": "diversity/transitive/two-hop-callee/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "transitive_dependency",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "diversity/transitive/two-hop-callee/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "transitive_dependency",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "diversity/transitive/two-hop-callee/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "transitive_dependency",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "order",
+        "wire"
+      ]
+    },
+    {
+      "id": "cutoff/pagination-holdout/change/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "linked_relevant",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/pagination-holdout/change/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "linked_relevant",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/pagination-holdout/change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "linked_relevant",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": [
+        "cursor"
+      ]
+    },
+    {
+      "id": "cutoff/pagination-holdout/reason/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "linked_relevant",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/pagination-holdout/reason/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "linked_relevant",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": [
+        "cursor"
+      ]
+    },
+    {
+      "id": "cutoff/pagination-holdout/reason/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "linked_relevant",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/pagination-holdout/arithmetic/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "ceiling",
+        "cursor"
+      ]
+    },
+    {
+      "id": "cutoff/pagination-holdout/arithmetic/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/pagination-holdout/arithmetic/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/pagination-holdout/prose/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "lexical_relevant",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/pagination-holdout/prose/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "lexical_relevant",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/pagination-holdout/prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "lexical_relevant",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": [
+        "cursor"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/timing/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "callee_rationale",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lifetime"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "tracing"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/timing/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "callee_rationale",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lifetime"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "tracing"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/timing/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "callee_rationale",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lifetime"
+      ],
+      "retrieved_relevant": [
+        "lifetime"
+      ],
+      "irrelevant": [
+        "schema",
+        "tracing"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/ceiling/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "callee_rationale",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lifetime"
+      ],
+      "retrieved_relevant": [
+        "lifetime"
+      ],
+      "irrelevant": [
+        "tracing"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/ceiling/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "callee_rationale",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lifetime"
+      ],
+      "retrieved_relevant": [
+        "lifetime"
+      ],
+      "irrelevant": [
+        "schema",
+        "tracing"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/ceiling/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "callee_rationale",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lifetime"
+      ],
+      "retrieved_relevant": [
+        "lifetime"
+      ],
+      "irrelevant": [
+        "tracing"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/arithmetic/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "lifetime",
+        "schema",
+        "tracing"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/arithmetic/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/webhooks-holdout/arithmetic/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "cutoff/webhooks-holdout/string/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "tracing"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/string/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "tracing"
+      ]
+    },
+    {
+      "id": "cutoff/webhooks-holdout/string/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "held_out",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "lifetime",
+        "schema",
+        "tracing"
+      ]
+    },
+    {
+      "id": "negative/direct-contracts/absent-0/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "delimiter"
+      ]
+    },
+    {
+      "id": "negative/direct-contracts/absent-0/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "delimiter"
+      ]
+    },
+    {
+      "id": "negative/direct-contracts/absent-0/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "delimiter",
+        "escaping",
+        "null",
+        "ordering",
+        "sampling"
+      ]
+    },
+    {
+      "id": "negative/direct-contracts/absent-1/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "negative/direct-contracts/absent-1/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "delimiter",
+        "escaping",
+        "null",
+        "ordering"
+      ]
+    },
+    {
+      "id": "negative/direct-contracts/absent-1/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "negative/direct-contracts/absent-2/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "delimiter",
+        "escaping",
+        "null",
+        "ordering"
+      ]
+    },
+    {
+      "id": "negative/direct-contracts/absent-2/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "negative/direct-contracts/absent-2/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "negative/cross-file/absent-0/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "negative/cross-file/absent-0/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "negative/cross-file/absent-0/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "audit",
+        "lease"
+      ]
+    },
+    {
+      "id": "negative/cross-file/absent-1/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "negative/cross-file/absent-1/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "audit",
+        "lease"
+      ]
+    },
+    {
+      "id": "negative/cross-file/absent-1/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "negative/cross-file/absent-2/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "audit",
+        "lease"
+      ]
+    },
+    {
+      "id": "negative/cross-file/absent-2/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "negative/cross-file/absent-2/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "source/payments/location/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "location",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "source/payments/location/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "location",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "source/payments/rounding/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "source/payments/rounding/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "source/payments/rationale/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "rationale",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "source/payments/rationale/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "rationale",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "source/payments/failure-branch/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "source/payments/failure-branch/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "source/payments/caller-callee/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "source/payments/caller-callee/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "source/payments/unicode/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "source/payments/unicode/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    }
+  ]
+}

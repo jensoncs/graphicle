@@ -79,8 +79,11 @@ def score(packet, known, relevant, allow_local=False):
     if not isinstance(packet.get("memories"), list) or not isinstance(packet.get("evidence"), list):
         raise ValueError("Not a context packet: memories and evidence are required")
     tokens = packet.get("tokens")
-    if not isinstance(tokens, int) or tokens < 0 or tokens > REQUEST["max_tokens"]:
+    if type(tokens) is not int or tokens < 0 or tokens > REQUEST["max_tokens"]:
         raise ValueError("Missing or invalid packet token count")
+    if "markdown" in packet and (not isinstance(packet["markdown"], str)
+                                 or len(packet["markdown"]) > REQUEST["max_chars"]):
+        raise ValueError("Invalid or over-budget packet text")
     calls = packet.get("model_calls", 0)
     if not isinstance(calls, int) or isinstance(calls, bool) or calls < 0:
         raise ValueError("Invalid model call count")
@@ -141,7 +144,7 @@ def packet_content(packet):
     return {key: packet[key] for key in ("memories", "evidence", "markdown", "tokens")}
 
 
-def evaluate_project(project, binary, output, local=None, variants=None):
+def evaluate_project(project, binary, output, local=None, variants=None, diagnose=False):
     variants = VARIANTS if variants is None else variants
     cases = [{"project": project["id"], **q, "variants": {}} for q in project["queries"]]
     with tempfile.TemporaryDirectory(prefix="graphicle-links-") as tmp:
@@ -154,13 +157,19 @@ def evaluate_project(project, binary, output, local=None, variants=None):
         env = {k: v for k, v in os.environ.items() if k in
                ("PATH", "SystemRoot", "ComSpec", "PATHEXT", "TMPDIR", "TEMP", "TMP")}
         env["GRAPHICLE_NO_UPDATE_NOTIFIER"] = "1"
+        if diagnose:
+            env["GRAPHICLE_PHASE_TIMINGS"] = "1"
         if local:
             env["ORT_DYLIB_PATH"] = local["ort"]
 
+        last_stderr = ""
+
         def run(*args):
+            nonlocal last_stderr
             proc = subprocess.run([str(binary), "--data-dir", str(work / "store"),
                                    "--config", str(config), *map(str, args)], cwd=folder,
                                   env=env, text=True, capture_output=True, timeout=120)
+            last_stderr = proc.stderr
             if proc.returncode:
                 raise RuntimeError(proc.stderr[-1500:] or proc.stdout[-1500:])
             return json.loads(proc.stdout)
@@ -202,16 +211,20 @@ def evaluate_project(project, binary, output, local=None, variants=None):
                     request.update(local["request"])
                 destination = output / project["id"] / case["id"]
                 save(destination / f"{variant}.request.json", request)
+                started = time.monotonic()
                 try:
-                    started = time.monotonic()
                     packet = call("context", request)
                     elapsed = time.monotonic() - started
                     save(destination / f"{variant}.packet.json", packet)
                     case["variants"][variant] = {**score(packet, known, case["relevant_memories"], bool(local)),
                                                   "seconds": round(elapsed, 4)}
                     packets[variant] = packet
+                    if diagnose:
+                        from quality_diagnostics import diagnostics
+                        save(destination / f"{variant}.diagnostics.json", diagnostics(packet, last_stderr))
                 except Exception as error:
-                    case["variants"][variant] = {"error": str(error)}
+                    case["variants"][variant] = {"error": str(error),
+                                                  "seconds": time.monotonic() - started}
             if "off" in packets and "counted" in packets:
                 case["counted_preserves_content"] = packet_content(packets["off"]) == packet_content(packets["counted"])
     return cases

@@ -1,5 +1,11 @@
 # Graphicle memory benchmark kit
 
+For the repeatable local scorecard and CI regression gate, start with
+[Measuring Graphicle quality](../../docs/quality.md). It combines the memory
+fixtures and exact-source checks, preserves per-case diagnostics, and compares
+against an explicitly frozen baseline without treating synthetic cases as
+real-user accuracy.
+
 Retrieval and answer benchmarks for Graphicle's memory, run through the real
 `graphicle` program. This folder is the first part of the public benchmark
 kit: the tools that measure the retrieval options of the runtime README (its

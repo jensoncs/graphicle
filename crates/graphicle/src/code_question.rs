@@ -257,6 +257,48 @@ pub fn is_code_question(question: &str) -> bool {
         || asks_where_code_is(question)
 }
 
+/// A question asking only for the value of a call with literal inputs. This
+/// narrow shape needs code, not automatic expansion into linked decisions.
+/// Symbolic inputs, nested calls, rationale and additional requests stay on the
+/// ordinary path. This does not suppress memories found by ordinary retrieval.
+pub fn asks_for_literal_call_value(question: &str) -> bool {
+    static CALL: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+            r"(?i)^\s*what(?:\s+(?:value|string|number|result))?\s+does\s+`?",
+            r"[a-z_][a-z0-9_.:]*\(([^()\n]+)\)`?\s+(?:return|produce)\s*\??\s*$"
+        ))
+        .expect("the literal call value rule")
+    });
+    static INPUT: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+            r"(?i)^\s*what\s+(?:value|string|number|result)\s+does\s+`?",
+            r"[a-z_][a-z0-9_.:]*`?\s+(?:return|produce)\s+for\s+([^?\n]+?)\s*\??\s*$"
+        ))
+        .expect("the literal input value rule")
+    });
+    // Permit simple Python-style string literals as well as JSON literals.
+    // Escaped single-quoted strings are deliberately left to normal retrieval.
+    static SINGLE_QUOTED: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r"'([^'\\\n]*)'").expect("the simple quoted literal rule")
+    });
+    let (value, arguments) = if let Some(found) = CALL.captures(question) {
+        (found[1].to_string(), true)
+    } else if let Some(found) = INPUT.captures(question) {
+        (found[1].to_string(), false)
+    } else {
+        return false;
+    };
+    let value = SINGLE_QUOTED.replace_all(&value, |captures: &regex::Captures<'_>| {
+        serde_json::to_string(&captures[1]).expect("a string is JSON")
+    });
+    let value = if arguments {
+        format!("[{value}]")
+    } else {
+        value.into_owned()
+    };
+    serde_json::from_str::<Value>(&value).is_ok()
+}
+
 /// Whether `text` asks where something is in the code, in plain words: a
 /// file and a function to give ("Give the file and function", "Which file
 /// and functions compute..."), which function, method, class, struct or
@@ -1179,6 +1221,30 @@ mod tests {
             &short[short.len() - 80..]
         );
         assert_eq!(short.matches("parse_config").count(), 1);
+    }
+
+    #[test]
+    fn literal_call_values_do_not_capture_rationale_or_symbolic_inputs() {
+        for question in [
+            "What does retry_delay(3) return?",
+            "What string does cache_key('acme', '42') produce?",
+            "What value does invoice_total return for [10, 20]?",
+            "What does `encode_payload({\"x\": 2})` return?",
+        ] {
+            assert!(asks_for_literal_call_value(question), "{question}");
+        }
+        for question in [
+            "Why does retry_delay(3) return 8?",
+            "What does retry_delay(3) return and why?",
+            "What constraints should retry_delay(3) preserve?",
+            "What does retry_delay(attempt) return?",
+            "What does retry_delay(read_config()) return?",
+            "What does retry_delay() return?",
+            "What value does invoice_total return for customer invoices?",
+            "What value does invoice_total return for [10, 20]; explain the decision?",
+        ] {
+            assert!(!asks_for_literal_call_value(question), "{question}");
+        }
     }
 
     fn focus_text(question: &str) -> String {
