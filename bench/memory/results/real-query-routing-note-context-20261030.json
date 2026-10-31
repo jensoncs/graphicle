@@ -1,0 +1,605 @@
+{
+  "state": "completed",
+  "plan": {
+    "dataset_sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9",
+    "baseline_sources": {
+      "crates/graphicle/src/query.rs": "644936e267c50067fdc43aaca48bcaffeae842f1602b94df4555e56f0ceddcf3",
+      "crates/graphicle/src/symbol_links.rs": "3e2df5eb84bfa0a53d39c59304a4f9d616bb352a84538a806661a4e13b924c37",
+      "crates/graphicle/src/review.rs": "ca3364a396f18438efad575040037fb99fdac4c46b0a390ee88352bdf60002f3",
+      "crates/graphicle/src/business_context.rs": "8652eb8f9a38e4699c46952c307b26d17e1906063d0a1a706b1395dec36f8814",
+      "crates/graphicle-graph/src/extractors/go_review.go": "16f0dbf54774932ade3c2b84690f8f5bf3095a07a3fafa2e9d5eae3f7024df9d"
+    },
+    "experiments": [
+      "Reuse existing completeness fixes; independently verify final packet source bytes and required causal spans.",
+      "Existing identifier_route false vs true on same queries and source budget.",
+      "Linked-note source context: intersect source window with linked live-symbol byte range. Keep model, blend, candidate depth and four-note cap fixed."
+    ],
+    "acceptance": "Retain candidate only with strict precision improvement and no per-query recall regression; all callee and four-formatting-note safeguards must retain their IDs. Report location citation success separately from source-body completeness. No tuning on the held-out PR or prior synthetic countercases.",
+    "model": "Existing pinned local MiniLM only; no remote calls",
+    "scope": "Source slices for retrieval; full admitted historical snapshots for existing impact packet audit. Saved real packets have no reviewed notes, so tighter-note quality remains synthetic."
+  },
+  "builds": [
+    {
+      "variant": "baseline",
+      "exit_code": 0,
+      "seconds": 81.06641529197805,
+      "sha256": "eb4e83cc2f4a32d342eece3e1bdeb4312b2c3e4d605b3e0fcd2b3f9d00e8670b"
+    },
+    {
+      "variant": "candidate",
+      "exit_code": 0,
+      "seconds": 17.853886666009203,
+      "sha256": "aa844c2ed411b44026dcca16b978246b92269f9c445b4901f2c275bd5463a425"
+    }
+  ],
+  "completeness": {
+    "kind": "independent audit of saved full-snapshot replay packets; no new impact calls",
+    "source_proof": "/private/tmp/graphicle-rbac-readiness-20261030/source-proof.json",
+    "source_matches": {
+      "crates/graphicle/src/business_context.rs": true,
+      "crates/graphicle/src/review.rs": true,
+      "crates/graphicle/tests/it/pinned_review.rs": true,
+      "docs/business-context.md": true,
+      "docs/pinned-review.md": true
+    },
+    "model_calls": 0,
+    "rows": [
+      {
+        "case": "nexus",
+        "revision": "h1",
+        "packet": "/private/tmp/graphicle-rbac-readiness-20261030/nexus-replay/h1-packet.json",
+        "packet_sha256": "606776d09309944919c778e6d0dd934f99e0059ffe5d3295913bf77eaaa62906",
+        "entries_source_verified": 23,
+        "current_head": {
+          "required": 21,
+          "selected": 21,
+          "complete": true,
+          "minimum_tokens_with_hunk_reserve": 51627,
+          "usable": true
+        },
+        "causal": {
+          "caller_read": true,
+          "caller_publish": true,
+          "callee_failure_return": true
+        },
+        "tokens": 62960,
+        "global_complete": false,
+        "call_contracts": {
+          "required": 2,
+          "selected": 2,
+          "complete": true,
+          "scope": "immediate pinned targets of discarded-error calls; may_call targets are candidates"
+        }
+      },
+      {
+        "case": "nexus",
+        "revision": "h2",
+        "packet": "/private/tmp/graphicle-rbac-readiness-20261030/nexus-replay/h2-packet.json",
+        "packet_sha256": "83f69fda7638c0717e95fa3141b9bfca8e7c2e23097d0820a249cd19c83371c7",
+        "entries_source_verified": 25,
+        "current_head": {
+          "required": 23,
+          "selected": 23,
+          "complete": true,
+          "minimum_tokens_with_hunk_reserve": 54439,
+          "usable": true
+        },
+        "causal": {
+          "caller_read": true,
+          "caller_publish": true,
+          "callee_failure_return": true
+        },
+        "tokens": 37954,
+        "global_complete": false,
+        "call_contracts": {
+          "required": 2,
+          "selected": 2,
+          "complete": true,
+          "scope": "immediate pinned targets of discarded-error calls; may_call targets are candidates"
+        }
+      },
+      {
+        "case": "rbac",
+        "revision": "h1",
+        "packet": "/private/tmp/graphicle-rbac-readiness-20261030/rbac/h1-packet.json",
+        "packet_sha256": "7b9348ac21100b4f32b42eb810877953b60b10ef824677b1ccac03417ab0a536",
+        "entries_source_verified": 55,
+        "current_head": {
+          "required": 55,
+          "selected": 55,
+          "complete": true,
+          "minimum_tokens_with_hunk_reserve": 62868,
+          "usable": true
+        },
+        "causal": null,
+        "tokens": 62504,
+        "global_complete": false,
+        "call_contracts": {
+          "required": 0,
+          "selected": 0,
+          "complete": true,
+          "scope": "immediate pinned targets of discarded-error calls; may_call targets are candidates"
+        }
+      },
+      {
+        "case": "rbac",
+        "revision": "h2",
+        "packet": "/private/tmp/graphicle-rbac-readiness-20261030/rbac/h2-packet.json",
+        "packet_sha256": "0d2755b6bf91dba217a8851ae5e40cc0b7868037676542d52fdd797186fa827b",
+        "entries_source_verified": 55,
+        "current_head": {
+          "required": 55,
+          "selected": 55,
+          "complete": true,
+          "minimum_tokens_with_hunk_reserve": 63020,
+          "usable": true
+        },
+        "causal": null,
+        "tokens": 39765,
+        "global_complete": false,
+        "call_contracts": {
+          "required": 0,
+          "selected": 0,
+          "complete": true,
+          "scope": "immediate pinned targets of discarded-error calls; may_call targets are candidates"
+        }
+      }
+    ],
+    "old_causal": [
+      {
+        "revision": "h1",
+        "packet_sha256": "6483e610361bcbbf136252b553059e2c9392f7b8e17b60c620ede7debd90a775",
+        "components": {
+          "caller_read": true,
+          "caller_publish": true,
+          "callee_failure_return": false
+        }
+      },
+      {
+        "revision": "h2",
+        "packet_sha256": "9038edc3900b64e53dd84efe86a33d4b6ad45c24e60b28e214bea4e1aa079f1a",
+        "components": {
+          "caller_read": true,
+          "caller_publish": true,
+          "callee_failure_return": false
+        }
+      }
+    ]
+  },
+  "real_query_summary": {
+    "all": {
+      "baseline": {
+        "queries": 11,
+        "complete": 11,
+        "tokens": 24586,
+        "model_calls": 11
+      },
+      "routed": {
+        "queries": 11,
+        "complete": 11,
+        "tokens": 15527,
+        "model_calls": 7
+      }
+    },
+    "location": {
+      "baseline": {
+        "queries": 4,
+        "complete": 4,
+        "tokens": 9471,
+        "model_calls": 4
+      },
+      "routed": {
+        "queries": 4,
+        "complete": 4,
+        "tokens": 412,
+        "model_calls": 0
+      }
+    },
+    "behavior": {
+      "baseline": {
+        "queries": 5,
+        "complete": 5,
+        "tokens": 11008,
+        "model_calls": 5
+      },
+      "routed": {
+        "queries": 5,
+        "complete": 5,
+        "tokens": 11008,
+        "model_calls": 5
+      }
+    },
+    "rationale": {
+      "baseline": {
+        "queries": 2,
+        "complete": 2,
+        "tokens": 4107,
+        "model_calls": 2
+      },
+      "routed": {
+        "queries": 2,
+        "complete": 2,
+        "tokens": 4107,
+        "model_calls": 2
+      }
+    }
+  },
+  "real_tight_complete": {
+    "queries": 11,
+    "variants": 2,
+    "complete": 22
+  },
+  "memory_summary": {
+    "baseline": {
+      "planned": 48,
+      "completed": 48,
+      "failed": 0,
+      "tp": 50,
+      "fp": 83,
+      "precision": 0.37593984962406013,
+      "macro_recall": 0.990990990990991,
+      "mean_tokens": 344.0625
+    },
+    "routed": {
+      "planned": 48,
+      "completed": 48,
+      "failed": 0,
+      "tp": 50,
+      "fp": 83,
+      "precision": 0.37593984962406013,
+      "macro_recall": 0.990990990990991,
+      "mean_tokens": 344.0625
+    },
+    "tight": {
+      "planned": 48,
+      "completed": 48,
+      "failed": 0,
+      "tp": 48,
+      "fp": 85,
+      "precision": 0.3609022556390977,
+      "macro_recall": 0.9369369369369369,
+      "mean_tokens": 343.3333333333333
+    }
+  },
+  "tight_recall_regressions": [
+    "callee-pressure/lease-rationale",
+    "caller-pressure/lease-rationale"
+  ],
+  "tight_membership_changes": [
+    {
+      "case": "direct-pressure/direct-5",
+      "before": [
+        "order",
+        "archive",
+        "ledger",
+        "wire"
+      ],
+      "after": [
+        "order",
+        "ledger",
+        "archive",
+        "lease"
+      ],
+      "precision_before": 0.25,
+      "precision_after": 0.25,
+      "recall_before": 1.0,
+      "recall_after": 1.0,
+      "lost_relevant": [],
+      "gained_relevant": []
+    },
+    {
+      "case": "callee-pressure/lease-rationale",
+      "before": [
+        "lease",
+        "probe",
+        "wire",
+        "archive"
+      ],
+      "after": [
+        "wire",
+        "probe",
+        "ledger",
+        "archive"
+      ],
+      "precision_before": 0.25,
+      "precision_after": 0.0,
+      "recall_before": 1.0,
+      "recall_after": 0.0,
+      "lost_relevant": [
+        "lease"
+      ],
+      "gained_relevant": []
+    },
+    {
+      "case": "caller-pressure/lease-rationale",
+      "before": [
+        "ledger",
+        "probe",
+        "lease",
+        "wire"
+      ],
+      "after": [
+        "wire",
+        "probe",
+        "archive",
+        "ledger"
+      ],
+      "precision_before": 0.25,
+      "precision_after": 0.0,
+      "recall_before": 1.0,
+      "recall_after": 0.0,
+      "lost_relevant": [
+        "lease"
+      ],
+      "gained_relevant": []
+    },
+    {
+      "case": "shared-pressure/shared-target",
+      "before": [
+        "shared",
+        "probe",
+        "archive",
+        "wire"
+      ],
+      "after": [
+        "shared",
+        "lease",
+        "ledger",
+        "archive"
+      ],
+      "precision_before": 0.25,
+      "precision_after": 0.25,
+      "recall_before": 1.0,
+      "recall_after": 1.0,
+      "lost_relevant": [],
+      "gained_relevant": []
+    },
+    {
+      "case": "shared-pressure/unresolved",
+      "before": [
+        "shared",
+        "archive",
+        "probe",
+        "wire"
+      ],
+      "after": [
+        "lease",
+        "shared",
+        "ledger",
+        "archive"
+      ],
+      "precision_before": 0.25,
+      "precision_after": 0.25,
+      "recall_before": 1.0,
+      "recall_after": 1.0,
+      "lost_relevant": [],
+      "gained_relevant": []
+    }
+  ],
+  "safeguards": [
+    {
+      "case": "callee/callee-rationale",
+      "required": [
+        "lease"
+      ],
+      "baseline_pass": true,
+      "tight_pass": true
+    },
+    {
+      "case": "callee-pressure/lease-rationale",
+      "required": [
+        "lease"
+      ],
+      "baseline_pass": true,
+      "tight_pass": false
+    },
+    {
+      "case": "caller-pressure/lease-rationale",
+      "required": [
+        "lease"
+      ],
+      "baseline_pass": true,
+      "tight_pass": false
+    },
+    {
+      "case": "direct-contracts/all-direct",
+      "required": [
+        "delimiter",
+        "escaping",
+        "null",
+        "ordering"
+      ],
+      "baseline_pass": true,
+      "tight_pass": true
+    }
+  ],
+  "routing_memory_changes": [],
+  "production_tight_candidate_accepted": false,
+  "new_remote_model_calls": 0,
+  "scored_context_calls": 188,
+  "tests": {
+    "python_passed": 42,
+    "python_skipped": 2,
+    "candidate_unit_passed": 3,
+    "symbol_integration_passed": 6
+  },
+  "limitations": [
+    "Two captured diagnostic queries and nine authored real-case questions; no independent human-query log.",
+    "Retrieval uses hash-pinned source slices, not full repositories. Nexus #944 is separate PR data, not an untouched production holdout.",
+    "No reviewed notes in real snapshots. Note precision/recall is synthetic, not real answer quality.",
+    "Existing impact completeness fixes reused and saved packets independently audited; no new impact requests or reviewer comparisons. Global coverage remains incomplete.",
+    "Runs overlapped local builds/inference; no controlled latency claim.",
+    "Initial build omitted bundled Python parsers; failed setup trials excluded. All scored final trials use bundled parsers.",
+    "One development label corrected to the proper function after detecting identical text in another function. Queries, requests and policies unchanged; corrected full suite rerun."
+  ],
+  "artifacts": "/private/tmp/graphicle-query-eval-20261030",
+  "retained": "Existing evidence-completeness fixes and full authorized-window note scoring. Existing identifier_route is useful for location queries; no default changed.",
+  "baseline_sources_still_match": {
+    "crates/graphicle/src/query.rs": true,
+    "crates/graphicle/src/symbol_links.rs": true,
+    "crates/graphicle/src/review.rs": true,
+    "crates/graphicle/src/business_context.rs": true,
+    "crates/graphicle-graph/src/extractors/go_review.go": true
+  },
+  "provenance": {
+    "fixture": "bench/memory/fixtures/real_query_seed.json",
+    "fixture_sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9",
+    "protocols": {
+      "real-baseline-bundled": {
+        "dataset_sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9",
+        "binary_sha256": "eb4e83cc2f4a32d342eece3e1bdeb4312b2c3e4d605b3e0fcd2b3f9d00e8670b",
+        "runner_sha256": "51fbdd9c25465b4156e0a0b931ac28fd1a52441eb80254eba5beb6f03f5578f3",
+        "local": {
+          "profile": {
+            "protocol": "local_onnx",
+            "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+            "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+            "input_limit": 1000
+          },
+          "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+          "assets": {
+            "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+            "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+            "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+            "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+          },
+          "request": {
+            "local_reranker_profile": "reranker",
+            "rerank_mode": "blend"
+          }
+        },
+        "scope": "Pinned source slices; not full-repository retrieval or answer quality"
+      },
+      "real-tight-bundled": {
+        "dataset_sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9",
+        "binary_sha256": "aa844c2ed411b44026dcca16b978246b92269f9c445b4901f2c275bd5463a425",
+        "runner_sha256": "17c5939e7eab3339e3b1b2493bd83c1492685298efc1b07ec5fd6037e05fe6e8",
+        "local": {
+          "profile": {
+            "protocol": "local_onnx",
+            "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+            "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+            "input_limit": 1000
+          },
+          "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+          "assets": {
+            "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+            "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+            "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+            "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+          },
+          "request": {
+            "local_reranker_profile": "reranker",
+            "rerank_mode": "blend"
+          }
+        },
+        "source_roots": {
+          "nexus-963-h1": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h1-prepared",
+          "nexus-963-h2": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h2-prepared",
+          "nexus-944-h2": "/private/tmp/graphicle-investigation-rca-cohort-20261030/cohort-v2/nexus-944/h2-source"
+        },
+        "scope": "Pinned source slices; not full-repository retrieval or answer quality"
+      },
+      "memory-baseline-bundled": {
+        "binary_sha256": "eb4e83cc2f4a32d342eece3e1bdeb4312b2c3e4d605b3e0fcd2b3f9d00e8670b",
+        "variants": {
+          "baseline": {
+            "symbol_links": true,
+            "identifier_route": false
+          },
+          "routed": {
+            "symbol_links": true,
+            "identifier_route": true
+          }
+        },
+        "local": {
+          "profile": {
+            "protocol": "local_onnx",
+            "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+            "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+            "input_limit": 1000
+          },
+          "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+          "assets": {
+            "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+            "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+            "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+            "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+          },
+          "request": {
+            "local_reranker_profile": "reranker",
+            "rerank_mode": "blend"
+          }
+        },
+        "datasets": {
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_precision.json": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_exact_scope.json": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79",
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_priority.json": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab",
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_diversity.json": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d",
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_cutoff_holdout.json": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+        },
+        "runner_sha256": "ad8853cef0a4865fe9e1b7e3b1f06808c93f0d48672306e84fd9abc54c5ca93e",
+        "helper_sha256": "216c4744618d89ffe039c6eadb670cbc195b2dda9d354f64f51d1a0d066c7885",
+        "scope": "Synthetic regression data, including prior heldouts; labels never enter requests"
+      },
+      "memory-tight-bundled": {
+        "binary_sha256": "aa844c2ed411b44026dcca16b978246b92269f9c445b4901f2c275bd5463a425",
+        "variants": {
+          "tight": {
+            "symbol_links": true,
+            "identifier_route": false
+          }
+        },
+        "local": {
+          "profile": {
+            "protocol": "local_onnx",
+            "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+            "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+            "input_limit": 1000
+          },
+          "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+          "assets": {
+            "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+            "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+            "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+            "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+          },
+          "request": {
+            "local_reranker_profile": "reranker",
+            "rerank_mode": "blend"
+          }
+        },
+        "datasets": {
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_precision.json": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_exact_scope.json": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79",
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_priority.json": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab",
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_diversity.json": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d",
+          "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_cutoff_holdout.json": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+        },
+        "runner_sha256": "ad8853cef0a4865fe9e1b7e3b1f06808c93f0d48672306e84fd9abc54c5ca93e",
+        "helper_sha256": "216c4744618d89ffe039c6eadb670cbc195b2dda9d354f64f51d1a0d066c7885",
+        "scope": "Synthetic regression data, including prior heldouts; labels never enter requests"
+      }
+    },
+    "label_correction": {
+      "reason": "Development causal publication span initially matched the same text in another function. Corrected to detectAndUpdateDnsOverlaps; no source, question, request, policy, or packet changed.",
+      "initial_dataset_sha256": "38f0dec09ddd54cc5c348f60300118554c54f3bba0b905c6221a64e37ed973a0",
+      "corrected_dataset_sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9"
+    }
+  },
+  "final_checks": {
+    "git_diff_check": "passed",
+    "runtime_sources_match_start": true,
+    "baseline_executable_restored": true,
+    "python_tests": "42 passed, 2 skipped",
+    "rust_candidate_unit_tests": "3 passed",
+    "symbol_link_integrations": "6 passed"
+  },
+  "reproduction_sha256": {
+    "bench/memory/tools/real_query_eval.py": "17c5939e7eab3339e3b1b2493bd83c1492685298efc1b07ec5fd6037e05fe6e8",
+    "bench/memory/tools/query_ablations.py": "ad8853cef0a4865fe9e1b7e3b1f06808c93f0d48672306e84fd9abc54c5ca93e",
+    "bench/memory/tools/symbol_link_precision.py": "216c4744618d89ffe039c6eadb670cbc195b2dda9d354f64f51d1a0d066c7885",
+    "bench/memory/tests/test_real_query_eval.py": "0c29a3083a7a649a1ffddfec95c4ccf91cbeff58d41d52fd7eba7fb27636c72e",
+    "bench/memory/results/symbol-link-tight-context-rejected-20261030.patch": "54c743149e8426da9061bae4c689e5350ac3d83c33d7bfc51858a3ab3dd273b5"
+  }
+}

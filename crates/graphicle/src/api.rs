@@ -1776,7 +1776,7 @@ pub fn core_mcp_tools(learning: bool, work_state: bool) -> Vec<McpTool> {
         ), "work_state.read", false));
     }
     tools.extend(crate::graph_tools::tools(false));
-    tools.push(McpTool::new(tool("review_changes", "Compare pinned Go snapshot sets and return diffs, affected callers, dependencies, exact revisions and explicit coverage limitations. A previous packet ID requests revision-safe updates and invalidations.",crate::review::properties(), &["base","head","profile"], false),"graph.impact",true).workspace_only());
+    tools.push(McpTool::new(tool("review_changes", "Compare pinned snapshot sets: Go compiler impact plus basic file/module/chart impact for Terraform, Helm, Bash, Python and Rust. Return diffs, potential consumers, dependencies, exact revisions and explicit coverage limitations. Basic dependencies are not resolved calls. A previous packet ID requests revision-safe updates and invalidations.",crate::review::properties(), &["base","head","profile"], false),"graph.impact",true).workspace_only());
     tools
 }
 /// `identifier_route` when a call to `recall_project` leaves it out: on in

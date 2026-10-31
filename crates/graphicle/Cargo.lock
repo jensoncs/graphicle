@@ -1435,6 +1435,7 @@ dependencies = [
  "toml",
  "tree-sitter",
  "tree-sitter-language-pack",
+ "url",
 ]
 
 [[package]]

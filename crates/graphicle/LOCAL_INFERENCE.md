@@ -107,6 +107,36 @@ rank. `replace` sorts by the cross-encoder alone. `rrf` fuses the two orders
 0.7/0.3, after SmartSearch (arXiv 2603.15599). The cross-encoder reads each
 passage up to the model's input limit, so evidence past it is not scored.
 
+When a candidate contains one complete, explicitly queried declaration already
+authorized by the code graph, the scorer reads that declaration without the
+surrounding unrelated text. Ambiguous matches and mismatched source bytes keep
+the original passage. This changes neither citation ranges nor model limits,
+and adds no inference calls.
+
+`local_reranker` reports focused and truncated candidate counts. With
+`debug_candidates`, `reranker_inputs_debug` records passage hashes, source byte
+ranges, scores, and the token byte ranges actually sent to the model. Token
+ranges are relative to the scorer passage, exclude query/special/padding tokens,
+and may omit whitespace. Workspace results keep these diagnostics under each
+authorized project's report. These are scoring diagnostics, not delivered
+evidence or proof that the model understood a span. The multi-repository
+evaluation's `--diagnose-reranker` validates them against pinned source bytes;
+its required-span labels never enter the request.
+
+With both `symbol_links: true` and a local reranker profile, linked reviewed
+memories get a second scoring pass before their four-memory cap. This pass reads
+up to `max(4, rerank_depth)` eligible linked memories, bounded by the existing
+rerank-depth and recall limits. It scores each note's title and body with its
+linked symbol and the selected code window that supplied the link. The note
+comes first so code context does not displace it at the model's token limit.
+The existing `rerank_mode` applies; no score threshold excludes notes. The
+packet's `symbol_links.reranker` reports this pass's candidates, input tokens,
+model key and time, and `model_calls` includes the additional scoring phase.
+Without a local profile, the original linked-memory order is retained. Counted
+and off do not run the additional pass. Models are still explicitly configured;
+this changes no retrieval default. See the
+[synthetic comparison and limitations](../../bench/memory/README.md#semantic-scoring-before-the-memory-cap).
+
 Responses report model calls, input tokens, candidates and elapsed time; unavailable or
 stale vector sets remain explicit. Revocation removes documents from both model
 paths, and an empty authorized candidate set makes no model call.

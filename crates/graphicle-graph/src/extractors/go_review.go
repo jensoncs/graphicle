@@ -53,18 +53,20 @@ type reviewSymbol struct {
 	Correspondence string `json:"correspondence"`
 }
 type reviewCall struct {
-	Caller        string `json:"caller"`
-	Target        string `json:"target,omitempty"`
-	TargetFile    string `json:"target_file,omitempty"`
-	TargetOffset  int    `json:"target_offset"`
-	TargetPackage string `json:"target_package,omitempty"`
-	Spelling      string `json:"spelling"`
-	File          string `json:"file"`
-	Start         int    `json:"start"`
-	End           int    `json:"end"`
-	Line          int    `json:"line"`
-	Relation      string `json:"relation"`
-	Reason        string `json:"reason,omitempty"`
+	Caller         string `json:"caller"`
+	Target         string `json:"target,omitempty"`
+	TargetFile     string `json:"target_file,omitempty"`
+	TargetOffset   int    `json:"target_offset"`
+	TargetPackage  string `json:"target_package,omitempty"`
+	Spelling       string `json:"spelling"`
+	File           string `json:"file"`
+	Start          int    `json:"start"`
+	End            int    `json:"end"`
+	Line           int    `json:"line"`
+	Relation       string `json:"relation"`
+	Reason         string `json:"reason,omitempty"`
+	Evidence       string `json:"evidence,omitempty"`
+	DiscardedError bool   `json:"discarded_error,omitempty"`
 }
 type reviewPackage struct {
 	Dependencies []string          `json:"dependencies"`
@@ -90,9 +92,185 @@ type reviewInput struct {
 	Role    string `json:"role"`
 }
 type reviewCollector struct {
-	root         string
-	allowedRoots []string
-	world        *reviewWorld
+	root           string
+	allowedRoots   []string
+	world          *reviewWorld
+	concreteTypes  []*types.Named
+	interfaceCalls []interfaceCall
+}
+
+type interfaceCall struct {
+	index    int
+	contract *types.Interface
+	method   *types.Func
+}
+
+// Only compiler-typed error results discarded by this call site get priority.
+// This is source evidence, not a claim that the call fails at runtime.
+func discardedErrors(file *ast.File, info *types.Info) map[*ast.CallExpr]bool {
+	out := map[*ast.CallExpr]bool{}
+	check := func(expr ast.Expr, lhs []ast.Expr) {
+		call, ok := unparen(expr).(*ast.CallExpr)
+		if !ok {
+			return
+		}
+		sig, ok := info.TypeOf(call.Fun).(*types.Signature)
+		if !ok || (lhs != nil && len(lhs) != sig.Results().Len()) {
+			return
+		}
+		for i := 0; i < sig.Results().Len(); i++ {
+			if !types.Identical(sig.Results().At(i).Type(), types.Universe.Lookup("error").Type()) {
+				continue
+			}
+			if lhs == nil {
+				out[call] = true
+				continue
+			}
+			if id, ok := lhs[i].(*ast.Ident); ok && id.Name == "_" {
+				out[call] = true
+			}
+		}
+	}
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.AssignStmt:
+			if len(n.Rhs) == 1 {
+				check(n.Rhs[0], n.Lhs)
+			}
+		case *ast.ValueSpec:
+			if len(n.Values) == 1 {
+				lhs := make([]ast.Expr, len(n.Names))
+				for i, name := range n.Names {
+					lhs[i] = name
+				}
+				check(n.Values[0], lhs)
+			}
+		case *ast.ExprStmt:
+			check(n.X, nil)
+		case *ast.GoStmt:
+			check(n.Call, nil)
+		case *ast.DeferStmt:
+			check(n.Call, nil)
+		}
+		return true
+	})
+	return out
+}
+
+// A method set proves that a type can implement the entire interface, not that
+// it is the runtime receiver. Keep the unresolved call as well as may_call
+// candidates, confined to this consumer build and admitted source roots.
+func (r *reviewCollector) expandInterfaces(l *loader) {
+	type implementation struct {
+		receiver types.Type
+		method   *types.Func
+	}
+	wanted := map[string]bool{}
+	for _, call := range r.interfaceCalls {
+		wanted[call.method.Id()] = true
+	}
+	if len(wanted) == 0 {
+		return
+	}
+	sort.Slice(r.concreteTypes, func(i, j int) bool {
+		return r.concreteTypes[i].Obj().Pkg().Path()+"."+r.concreteTypes[i].Obj().Name() < r.concreteTypes[j].Obj().Pkg().Path()+"."+r.concreteTypes[j].Obj().Name()
+	})
+	index := map[string][]implementation{}
+	for _, named := range r.concreteTypes {
+		if named.TypeParams().Len() != 0 {
+			continue
+		}
+		for _, receiver := range []types.Type{named, types.NewPointer(named)} {
+			set := types.NewMethodSet(receiver)
+			for i := 0; i < set.Len(); i++ {
+				method := set.At(i).Obj().(*types.Func)
+				if !wanted[method.Id()] {
+					continue
+				}
+				sig := method.Type().(*types.Signature)
+				if recv := sig.Recv(); recv != nil {
+					if _, dynamic := recv.Type().Underlying().(*types.Interface); dynamic {
+						continue
+					}
+				}
+				p := l.fset.PositionFor(method.Origin().Pos(), false)
+				if p.IsValid() && r.allowed(p.Filename) {
+					index[method.Id()] = append(index[method.Id()], implementation{receiver, method})
+				}
+			}
+		}
+	}
+	// Allocate the bounded implementation search to application call sites before
+	// vendored internals, and discarded error contracts before other calls.
+	// Within either priority group, order is stable source order.
+	sort.Slice(r.interfaceCalls, func(i, j int) bool {
+		a, b := r.world.Calls[r.interfaceCalls[i].index], r.world.Calls[r.interfaceCalls[j].index]
+		av, bv := strings.Contains(a.File, "/vendor/"), strings.Contains(b.File, "/vendor/")
+		if av != bv {
+			return !av
+		}
+		if a.DiscardedError != b.DiscardedError {
+			return a.DiscardedError
+		}
+		if a.File != b.File {
+			return a.File < b.File
+		}
+		return a.Start < b.Start
+	})
+	type lookup struct {
+		contract *types.Interface
+		method   string
+	}
+	type resolution struct {
+		targets []*types.Func
+		limited bool
+	}
+	cache := map[lookup]resolution{}
+	checks, emitted := 0, 0
+	for _, call := range r.interfaceCalls {
+		key := lookup{call.contract, call.method.Id()}
+		found, ok := cache[key]
+		if !ok {
+			seen := map[token.Pos]bool{}
+			for _, candidate := range index[key.method] {
+				if checks >= 200_000 {
+					found.limited = true
+					break
+				}
+				checks++
+				if !types.Implements(candidate.receiver, call.contract) {
+					continue
+				}
+				pos := candidate.method.Origin().Pos()
+				if seen[pos] {
+					continue
+				}
+				seen[pos] = true
+				if len(found.targets) >= 128 {
+					found.limited = true
+					break
+				}
+				found.targets = append(found.targets, candidate.method)
+			}
+			cache[key] = found
+		}
+		if found.limited {
+			r.world.Calls[call.index].Reason = "interface_candidate_budget"
+		}
+		for _, method := range found.targets {
+			if emitted >= 20_000 {
+				r.world.Calls[call.index].Reason = "interface_candidate_budget"
+				break
+			}
+			candidate := r.world.Calls[call.index]
+			p := l.fset.PositionFor(method.Origin().Pos(), false)
+			candidate.TargetFile, candidate.TargetOffset = r.relative(p.Filename), p.Offset
+			candidate.TargetPackage = method.Pkg().Path()
+			candidate.Relation, candidate.Reason, candidate.Evidence = "may_call", "", "interface_implementation"
+			r.world.Calls = append(r.world.Calls, candidate)
+			emitted++
+		}
+	}
 }
 
 func digestBytes(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
@@ -224,6 +402,20 @@ func boundExpression(expr ast.Expr, bindings map[types.Object]ast.Expr, info *ty
 }
 
 func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, info *types.Info, valid bool) {
+	if valid {
+		for _, obj := range info.Defs {
+			if obj == nil || obj.Pkg() == nil || obj.Parent() != obj.Pkg().Scope() {
+				continue
+			}
+			if name, ok := obj.(*types.TypeName); ok && !name.IsAlias() {
+				if named, ok := name.Type().(*types.Named); ok {
+					if _, dynamic := named.Underlying().(*types.Interface); !dynamic {
+						r.concreteTypes = append(r.concreteTypes, named)
+					}
+				}
+			}
+		}
+	}
 	if !valid {
 		r.world.Issues = append(r.world.Issues, "incomplete_package:"+m.ImportPath)
 	}
@@ -376,6 +568,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 			return key
 		}
 		directReferences := map[token.Pos]bool{}
+		discarded := discardedErrors(f, info)
 		ast.Inspect(f, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
@@ -396,6 +589,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 			}
 			position := l.fset.PositionFor(call.Pos(), false)
 			site := reviewCall{Caller: owner(call.Pos()), File: relative, Start: position.Offset, End: l.fset.PositionFor(call.End(), false).Offset, Line: position.Line, Relation: "calls", Reason: "unresolved_dynamic_target"}
+			site.DiscardedError = valid && discarded[call]
 			fun := boundExpression(call.Fun, bindings, info)
 			if index, ok := fun.(*ast.IndexExpr); ok {
 				fun = unparen(index.X)
@@ -406,6 +600,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 			site.Spelling = string(formatted(l.fset, call.Fun))
 			var obj types.Object
 			dynamic := false
+			var contract *types.Interface
 			switch f := fun.(type) {
 			case *ast.Ident:
 				obj = info.Uses[f]
@@ -416,7 +611,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 					if ptr, ok := recv.(*types.Pointer); ok {
 						recv = ptr.Elem()
 					}
-					_, dynamic = recv.Underlying().(*types.Interface)
+					contract, dynamic = recv.Underlying().(*types.Interface)
 					if dynamic {
 						actual := info.TypeOf(boundExpression(f.X, bindings, info))
 						if actual != nil {
@@ -424,6 +619,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 								resolved, _, _ := types.LookupFieldOrMethod(actual, true, obj.Pkg(), f.Sel.Name)
 								if resolved != nil {
 									obj, dynamic = resolved, false
+									contract = nil
 								}
 							}
 						}
@@ -441,7 +637,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 			if target, ok := obj.(*types.Func); ok && valid && !dynamic {
 				signature := target.Type().(*types.Signature)
 				if recv := signature.Recv(); recv != nil {
-					_, dynamic = recv.Type().Underlying().(*types.Interface)
+					contract, dynamic = recv.Type().Underlying().(*types.Interface)
 				}
 				if !dynamic {
 					p := l.fset.PositionFor(target.Origin().Pos(), false)
@@ -468,7 +664,12 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 			if site.Caller == "" {
 				site.Reason = "package_initialization"
 			}
-			if valid && site.Caller != "" && site.TargetFile == "" {
+			if valid && site.Caller != "" && dynamic && contract != nil {
+				if method, ok := obj.(*types.Func); ok {
+					site.Reason = "interface_dispatch"
+					r.interfaceCalls = append(r.interfaceCalls, interfaceCall{len(r.world.Calls), contract, method})
+				}
+			} else if valid && site.Caller != "" && site.TargetFile == "" {
 				candidates, limited := flow.candidates(call.Fun)
 				if limited {
 					site.Reason = "function_value_budget"
@@ -651,7 +852,7 @@ func runReview(req reviewRequest) {
 		Version   string        `json:"analyzer"`
 		Toolchain string        `json:"toolchain"`
 		Worlds    []reviewWorld `json:"worlds"`
-	}{Version: "graphicle-go-review-v5"}
+	}{Version: "graphicle-go-review-v6"}
 	version, _ := exec.Command("go", "version").Output()
 	result.Toolchain = strings.TrimSpace(string(version))
 	var allowed []string
@@ -744,6 +945,7 @@ func runReview(req reviewRequest) {
 				}
 			}
 		}
+		collector.expandInterfaces(l)
 		// Index declaration intervals per compiler package/file. Looking through
 		// every symbol for every call is quadratic on generated dependencies.
 		declarations := map[string][]reviewSymbol{}

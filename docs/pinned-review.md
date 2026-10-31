@@ -1,4 +1,4 @@
-# Pinned Go change review
+# Pinned change review
 
 Core supports `graph.impact`, `impact.report`, the MCP tool `review_changes`,
 and `graphicle review --request review.json`. All use the same request and
@@ -7,14 +7,57 @@ permission checks. For multi-repository MCP reviews, use a workspace connection
 on both sides. Installed extensions retain ownership of operations they
 explicitly override. Core also accepts revision-bound execution observations through `coverage.upload`.
 
-This first implementation analyzes **Go package calls in supplied immutable
-snapshot sets**. It does not prove behavioral propagation, discover every
+The compiler-backed implementation analyzes **Go package calls in supplied immutable
+snapshot sets**. It does not prove behavioral propagation or discover every
 consumer in an organization. Explicit pinned HTTP/gRPC/event wiring is supported
 through [service-boundary manifests](service-boundaries.md); it is not automatic
-runtime service discovery. Python and other
-languages remain available to ordinary graph retrieval, but their presence in
-a review scope is reported as unsupported. An incomplete result must never be
+runtime service discovery. **Terraform, Helm, Bash, Python and Rust also have
+basic file/module/chart-level impact** as described below. Other languages
+remain available to ordinary graph retrieval, but their presence in a review
+scope is reported as unsupported. An incomplete result must never be
 interpreted as “no impact.”
+
+## Basic language support
+
+Basic analysis is selected automatically for admitted sources in the existing
+`graph.impact`, `impact.report`, `review_changes`, CLI and SDK review paths. No new
+request flag is required. The existing `profile` object is still required by the
+request contract; its Go settings apply only to Go analysis. Repositories with
+only basic sources do not require a Go toolchain.
+
+| Language | Basic impact scope | Explicit limitations |
+| --- | --- | --- |
+| Terraform | Changed `.tf`, `.tfvars`, JSON variants and lockfiles; conservative same-directory module scope; literal local module source dependencies | No plan/state, provider schemas, expression evaluation or remote modules |
+| Helm | Changed chart files, values, templates and helpers; conservative nearest-chart scope and vendored subchart candidates | No rendering, release values, dependency-condition evaluation, cluster capabilities or remote charts |
+| Bash | Changed scripts, declaration metadata, literal `source`, `.`, `bash` and `sh` path candidates | Working directory and PATH are not established; expansions, dynamic commands and runtime function binding remain unresolved |
+| Python | Changed files, declaration metadata, local import candidates and nearest project-manifest scope | No environment/package resolution, runtime dispatch, dynamic imports or rebinding resolution |
+| Rust | Changed files, declaration metadata, local module/import candidates and nearest Cargo manifest scope | No Cargo dependency resolution, feature/cfg evaluation, macros, build scripts or trait dispatch |
+
+Entries carry `analysis_level: "basic_file"`, `language`, complete file bytes and
+their existing hashes, ranges and snapshot provenance. Python/Rust/Bash entries
+also carry at most 128 declaration records with byte spans; omitted metadata is
+counted. Impact selection remains file-granular, including top-level code.
+Signature/implementation change classifications and test classification are
+unknown for this tier (`null`), rather than being reported as unchanged or false.
+Unchanged consumers may be selected through `potential_import` or
+`configuration_scope` edges. These relationships never become execution-flow
+claims. Missing or ambiguous targets and parse/analysis limits are reported.
+Basic analysis always reports `basic_analysis_limitations` and leaves
+`coverage.complete=false`; it cannot certify no impact or permit skipped-review
+coverage reuse. No scripts, project builds, Terraform plans or Helm rendering run.
+
+Imports are matched only within an authorized pinned repository. Cross-repository
+package resolution is not provided by this tier. Existing source admission,
+permissions, packet budgets and delta invalidation continue to apply. Large files
+may exceed a packet budget; an omission remains a coverage limitation, not a
+successful complete review. Use `previous_packet_id` as usual for subsequent pushes.
+The existing permission-safe receipt behavior is unchanged: if a previous packet
+references an inaccessible repository, a delta returns a conflict requesting a
+full packet; it never relaxes repository access to reconstruct the receipt.
+
+`build.info.basic_change_impact` advertises this tier separately from the existing
+Go compiler impact capability. These source changes require rebuilding the
+executable before a running server can expose the new behavior.
 
 ## Admit source snapshots
 
@@ -186,7 +229,13 @@ Local function aliases, closures and interface receivers resolve when one
 initializing write proves the target and the variable's address does not escape.
 Reassignment (including captured writes), parameters, fields and mutable global
 callbacks retain explicit uncertainty. Arbitrary runtime dispatch cannot be
-proven from syntax alone.
+proven from syntax alone. For interface dispatch, compiler-checked concrete
+implementations in the same admitted consumer build may supply `may_call`
+candidates with `interface_implementation` evidence. Each must satisfy the entire
+interface; none is asserted to be the runtime target. The original unresolved
+call remains visible. Candidate search is bounded, prioritizes application calls
+with discarded error results, and reports `interface_candidate_budget` when
+truncated.
 
 Deleted symbols seed the base graph; additions seed the head graph. Modified
 symbols seed both. Configuration and dependency-binding changes conservatively
@@ -224,11 +273,22 @@ retain broader scope and explicit limitations. `file_changes` reports classifica
 examples, a total count and a digest; examples are not the complete inventory.
 
 Diffs use separate exact-byte hunks with three context lines. Packing gives
-current-head changed declarations priority, reserving up to a quarter of the
-budget for diff hunks. Deleted/base symbols and compiler-linked consumers and
+current-head changed declarations priority. Next come complete immediate callee
+bodies when a changed caller discards a compiler-typed `error` result, including
+potential interface implementations. This reserves failure-contract evidence
+before optional history, flows and diff text; it does not infer that an error
+occurs. `coverage.call_contracts` reports selected/required callee entries within
+the discovered pinned targets, not completeness of dynamic target resolution.
+Diff hunks receive up to a quarter of the total budget from the capacity left
+after those source reservations. Deleted/base symbols and compiler-linked consumers and
 dependencies follow; uncertain fallback text comes last. Unused reservations
 are reclaimed without re-tokenizing candidates. `context_order` defines the
-selected view. Full and delta packets select the same bounded context at the same
+selected view. Under budget pressure, diagnostic change/file examples and
+additional dependency-path examples on changed declarations yield to source and
+requested history. Counts/digests and uncertainty flags remain, as does the
+changed-declaration inclusion reason. Non-seed dependency citations are retained.
+Scarce optional capacity is shared between whole history blocks and diff hunks.
+Full and delta packets select the same bounded context at the same
 budget, independent of previously supplied text. `coverage.current_head` reports
 required/selected changed head declarations, `complete`, and whether any useful
 head context survived. `minimum_tokens_with_hunk_reserve` estimates the budget
@@ -314,10 +374,18 @@ gzip/base64) per anchor repository. Keys include exact snapshot sets, source has
 identity, profile, toolchain, analyzer and helper implementation. Commits do not
 change byte-identical compiler inputs; current binding envelopes are always
 recomputed. Every read rechecks authorization, retained source and exact spans.
+Deterministic type-check failures can also be cached when discovery succeeded and
+every selected file has a collected package record. Such cache hits retain all
+compiler diagnostics and unresolved calls; they never imply complete coverage or
+eligible review reuse. Discovery, parsing, missing-inventory and helper failures
+remain uncached. Changing the admitted source set invalidates the fact key.
 Deleting any input snapshot invalidates dependent cache records. Native transport
 remains bounded to 64 MiB; decoding directly to typed facts caps expansion at
 512 MiB. Corrupt or truncated encodings fail. The graph is bounded to 200,000
-symbols (including package values) and 500,000 call/dependency records. Native
+symbols (including package values) and 500,000 distinct traversal links
+(including service links). Repeated call sites with the same caller, target and
+relation share a link; all native call-site records remain available for evidence
+and unresolved-call accounting within the transport bounds. Native
 binding uses a per-package/file declaration index. Traversal reuses declaration
 identities and materializes call-site evidence only for selected paths. `GRAPHICLE_PHASE_TIMINGS=1` reports loading,
 native analysis, decoding, comparison and packing times to local stderr.

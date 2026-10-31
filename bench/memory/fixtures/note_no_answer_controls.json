@@ -1,0 +1,149 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance_kind": "authored_control",
+  "provenance": "Six authored negative controls over existing synthetic reviewed-note inventories. Frozen before this trial; not independent production queries.",
+  "projects": [
+    {
+      "id": "direct-contracts",
+      "split": "regression",
+      "files": {
+        "codec.py": "def encode_payload(value):\n    return format_fields(value)\n\n\ndef format_fields(value):\n    return str(value)\n"
+      },
+      "memories": [
+        {
+          "id": "delimiter",
+          "title": "Record boundary",
+          "body": "External consumers require a trailing newline.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "ordering",
+          "title": "Legacy ordering",
+          "body": "Older clients expect the original field sequence.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "escaping",
+          "title": "Embedded delimiters",
+          "body": "Quotation marks must be doubled inside strings.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "null",
+          "title": "Absent values",
+          "body": "Missing entries use the literal null token.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "sampling",
+          "title": "Diagnostic sampling",
+          "body": "Emit tracing events for one percent of invocations.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "format_fields"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "absent-0",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation period is required by encode_payload()?",
+          "relevant_memories": [],
+          "rationale": "No note specifies encryption or key rotation."
+        },
+        {
+          "id": "absent-1",
+          "category": "no_answer_control",
+          "question": "What is the approved per-customer monthly price for encode_payload()?",
+          "relevant_memories": [],
+          "rationale": "No note specifies pricing or billing."
+        },
+        {
+          "id": "absent-2",
+          "category": "no_answer_control",
+          "question": "Which data residency region is mandatory for encode_payload()?",
+          "relevant_memories": [],
+          "rationale": "No note specifies residency or regions."
+        }
+      ]
+    },
+    {
+      "id": "cross-file",
+      "split": "regression",
+      "files": {
+        "client.py": "from delay import backoff_delay\n\n\ndef send_packet(attempt):\n    return backoff_delay(attempt)\n",
+        "delay.py": "def backoff_delay(attempt):\n    return min(2 ** attempt, 60)\n"
+      },
+      "memories": [
+        {
+          "id": "lease",
+          "title": "Peer lifetime",
+          "body": "The remote session expires after one minute. Longer pauses abandon the connection.",
+          "symbols": [
+            {
+              "path": "delay.py",
+              "qualified_name": "backoff_delay"
+            }
+          ]
+        },
+        {
+          "id": "audit",
+          "title": "Ledger retention",
+          "body": "Keep the fiscal archive immutable.",
+          "symbols": [
+            {
+              "path": "client.py",
+              "qualified_name": "send_packet"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "absent-0",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation period is required by send_packet()?",
+          "relevant_memories": [],
+          "rationale": "No note specifies encryption or key rotation."
+        },
+        {
+          "id": "absent-1",
+          "category": "no_answer_control",
+          "question": "What is the approved per-customer monthly price for send_packet()?",
+          "relevant_memories": [],
+          "rationale": "No note specifies pricing or billing."
+        },
+        {
+          "id": "absent-2",
+          "category": "no_answer_control",
+          "question": "Which data residency region is mandatory for send_packet()?",
+          "relevant_memories": [],
+          "rationale": "No note specifies residency or regions."
+        }
+      ]
+    }
+  ]
+}

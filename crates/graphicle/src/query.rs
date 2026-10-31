@@ -846,6 +846,27 @@ pub fn context_with(
     context_scored(snapshot, args, extra_rankings, code_graph, None)
 }
 
+/// Focus a passage on a uniquely named, authorized declaration it contains.
+/// Keep the candidate and citation unchanged; only remove unrelated text from
+/// the scorer input. Ambiguous, partial and stale/misaligned windows stay whole.
+fn scoring_passage<'a>(row: &'a Value, named: &[Value]) -> (&'a str, usize) {
+    let body = s(row, "text");
+    let source = &row["source"];
+    let Some(start) = source["byte_start"].as_u64() else { return (body, 0); };
+    let Some(end) = source["byte_end"].as_u64() else { return (body, 0); };
+    if end.checked_sub(start) != Some(body.len() as u64) { return (body, 0); }
+    let matches: Vec<_> = named.iter().filter_map(|window| {
+        let anchor = &window["source"];
+        let a = anchor["byte_start"].as_u64()?;
+        let b = anchor["byte_end"].as_u64()?;
+        if source["id"] != anchor["id"] || a < start || b > end || a >= b { return None; }
+        let offset = (a - start) as usize;
+        let text = body.get(offset..(b - start) as usize)?;
+        (text == s(window, "text")).then_some((text, offset))
+    }).collect();
+    if matches.len() == 1 { matches[0] } else { (body, 0) }
+}
+
 /// Candidate order after cross-encoder scoring of the fused prefix (index =
 /// fused rank). `blend` counts the min-max cross-encoder score and the fused
 /// rank (mapped to 1.0..0.1, as Hindsight's `reranking.py` maps RRF order)
@@ -874,6 +895,27 @@ pub fn rerank_order(scores: &[f64], blend: bool) -> Vec<usize> {
     let mut order: Vec<usize> = (0..n).collect();
     order.sort_by(|&a, &b| value(b).total_cmp(&value(a)).then(a.cmp(&b)));
     order
+}
+
+/// The linked decision is the item being scored. Keep its text before the
+/// code context so model truncation does not replace the decision with code.
+/// Only the selected, authorized window that supplied this link is included.
+fn linked_memory_text(row: &Value, sources: &[Value]) -> String {
+    let link = &row["memory"]["link"];
+    let code = sources
+        .iter()
+        .find(|source| source["identity"] == link["from"])
+        .map_or("", |source| s(source, "text"));
+    format!(
+        "Reviewed decision: {}\n{}\nLinked code symbol: {}\nCode window:\n{}",
+        s(row, "title").chars().take(256).collect::<String>(),
+        s(row, "text").chars().take(3000).collect::<String>(),
+        s(link, "qualified_name")
+            .chars()
+            .take(256)
+            .collect::<String>(),
+        code.chars().take(2000).collect::<String>()
+    )
 }
 
 /// Candidate order fusing the cross-encoder's order with the fused order,
@@ -1505,7 +1547,11 @@ fn context_impl(
         strength["limit"] = json!(limit);
     }
     let by_id: BTreeMap<&str, &Value> = rows.iter().map(|r| (s(r, "identity"), r)).collect();
+    let named_windows = if graph_enabled {
+        code_graph.map(|arm| crate::code_graph_arm::named_windows(arm, query, &snapshot.documents)).unwrap_or_default()
+    } else { vec![] };
     let mut reranker_usage = Value::Null;
+    let mut reranker_inputs = Vec::new();
     if let Some(reranker) = reranker {
         if reranker.protocol != "local_onnx" {
             return Err(Error::bad("Local reranking requires a local_onnx profile"));
@@ -1548,20 +1594,37 @@ fn context_impl(
             *count += 1;
             ids.push(id.to_string());
         }
-        let texts = ids
+        let passages = ids
             .iter()
-            .map(|id| s(by_id[id.as_str()], "text").to_string())
+            .map(|id| scoring_passage(by_id[id.as_str()], &named_windows))
             .collect::<Vec<_>>();
+        let texts: Vec<_> = passages.iter().map(|(text, _)| (*text).to_owned()).collect();
         let started = std::time::Instant::now();
         // The local models score at most 32 passages per call; passages are
         // scored independently, so a deeper prefix is scored in chunks. The
         // model reads a passage's first `max_length` tokens.
         let mut scores = Vec::with_capacity(texts.len());
         let mut tokens = 0;
-        for chunk in texts.chunks(32) {
-            let (part, used) = crate::local_inference::rerank_counted(reranker, query, chunk)?;
-            scores.extend(part);
-            tokens += used;
+        let mut truncated = 0;
+        for (batch, chunk) in texts.chunks(32).enumerate() {
+            let result = crate::local_inference::rerank_visible(reranker, query, chunk)?;
+            for (offset, ranges) in result.passage_ranges.iter().enumerate() {
+                let index = batch * 32 + offset;
+                let end = ranges.iter().map(|r| r.1).max().unwrap_or(0);
+                let cut = end < texts[index].trim_end().len();
+                truncated += usize::from(cut);
+                if debug_candidates > 0 && reranker_inputs.len() < debug_candidates {
+                    let row = by_id[ids[index].as_str()];
+                    let start = row["source"]["byte_start"].as_u64();
+                    reranker_inputs.push(json!({"identity":ids[index],"id":row["source"]["id"],
+                        "passage_sha256":graphicle_memory::text::sha256(texts[index].as_bytes()),
+                        "byte_start":start.map(|s| s + passages[index].1 as u64),
+                        "byte_end":start.map(|s| s + passages[index].1 as u64 + texts[index].len() as u64),
+                        "visible_token_byte_ranges":ranges,"truncated":cut,"score":result.scores[offset]}));
+                }
+            }
+            scores.extend(result.scores);
+            tokens += result.tokens;
         }
         let scores = &scores;
         // `blend` (default) bounds the cross-encoder: its min-max score and the
@@ -1574,7 +1637,7 @@ fn context_impl(
             return Err(Error::bad("rerank_mode must be blend, replace or rrf"));
         }
         if !texts.is_empty() {
-            reranker_usage = json!({"model_key":crate::model::key(reranker),"input_tokens":tokens,"candidates":texts.len(),"elapsed_ms":started.elapsed().as_secs_f64()*1000.0,"mode":mode});
+            reranker_usage = json!({"model_key":crate::model::key(reranker),"input_tokens":tokens,"candidates":texts.len(),"truncated_candidates":truncated,"focused_candidates":passages.iter().enumerate().filter(|(i, (body, _))| body.len() != s(by_id[ids[*i].as_str()], "text").len()).count(),"elapsed_ms":started.elapsed().as_secs_f64()*1000.0,"mode":mode});
         }
         let order = match mode {
             "rrf" => rerank_rrf_order(scores),
@@ -1633,6 +1696,23 @@ fn context_impl(
             .collect::<Vec<_>>()
     };
     let mut sources = selected("sources");
+    if graph_enabled && code_graph.is_some() {
+        let mut named = named_windows;
+        code_graph_report["named_windows"] = json!(named.len());
+        // A partial chunk must not stand in for the queried declaration.
+        // Keep non-covered windows for surrounding callers and other context.
+        sources.retain(|row| {
+            !named.iter().any(|whole| {
+                let source = &row["source"];
+                let anchor = &whole["source"];
+                source["id"] == anchor["id"]
+                    && source["byte_start"].as_u64() >= anchor["byte_start"].as_u64()
+                    && source["byte_end"].as_u64() <= anchor["byte_end"].as_u64()
+            })
+        });
+        named.extend(sources);
+        sources = named;
+    }
     // One window per file and one copy of identical files, then the call's
     // limit (`rank` offered EXTRA_SOURCES more).
     let (mut repeated, mut copies) = if as_ranked {
@@ -1738,6 +1818,7 @@ fn context_impl(
         _ => "unavailable",
     }});
     let mut linked_memories = Vec::new();
+    let mut linked_reranker_usage = Value::Null;
     if symbol_links != crate::symbol_links::Mode::Off
         && let Some(lookup) = doc_links
     {
@@ -1745,6 +1826,13 @@ fn context_impl(
             lookup.db(),
             lookup.repository(),
             symbol_links,
+            if rescoring {
+                // A shallow source rerank must not shrink the existing linked
+                // memory allowance before its own final four-item cap.
+                rerank_depth.max(crate::symbol_links::MEMORY_LIMIT)
+            } else {
+                crate::symbol_links::MEMORY_LIMIT
+            },
             snapshot,
             &rows,
             &sources,
@@ -1755,6 +1843,44 @@ fn context_impl(
                 candidates.extend(lifted.windows);
                 linked_memories = lifted.memories;
                 symbol_links_report = lifted.report;
+                if let Some(reranker) = reranker.filter(|_| !linked_memories.is_empty()) {
+                    let texts: Vec<String> = linked_memories
+                        .iter()
+                        .map(|row| linked_memory_text(row, &sources))
+                        .collect();
+                    let started = std::time::Instant::now();
+                    let mut scores = Vec::with_capacity(texts.len());
+                    let mut tokens = 0;
+                    for chunk in texts.chunks(32) {
+                        let (part, used) =
+                            crate::local_inference::rerank_counted(reranker, query, chunk)?;
+                        scores.extend(part);
+                        tokens += used;
+                    }
+                    let mode = args["rerank_mode"].as_str().unwrap_or("blend");
+                    let order = match mode {
+                        "rrf" => rerank_rrf_order(&scores),
+                        _ => rerank_order(&scores, mode == "blend"),
+                    };
+                    linked_reranker_usage = json!({"model_key":crate::model::key(reranker),
+                        "input_tokens":tokens,"candidates":texts.len(),"mode":mode,
+                        "elapsed_ms":started.elapsed().as_secs_f64()*1000.0});
+                    linked_memories = order
+                        .into_iter()
+                        .map(|i| linked_memories[i].clone())
+                        .collect();
+                    symbol_links_report["reranker"] = linked_reranker_usage.clone();
+                }
+                let omitted = linked_memories
+                    .len()
+                    .saturating_sub(crate::symbol_links::MEMORY_LIMIT);
+                if omitted > 0 {
+                    linked_memories.truncate(crate::symbol_links::MEMORY_LIMIT);
+                    symbol_links_report["over_limit"] = json!(
+                        symbol_links_report["over_limit"].as_u64().unwrap_or(0) + omitted as u64
+                    );
+                    symbol_links_report["lifted_memories"] = json!(linked_memories.len());
+                }
             }
             Err(error) => symbol_links_report = json!({"status":"error","error":error.message}),
         }
@@ -2058,6 +2184,7 @@ fn context_impl(
     // Diagnostics for recall harnesses: fused candidate passages before
     // selection and packing. Not served evidence and never cited.
     if debug_candidates > 0 {
+        packet["reranker_inputs_debug"] = json!(reranker_inputs);
         packet["candidates_debug"] = json!(
             ranked["fused"]
                 .as_array()
@@ -2071,7 +2198,9 @@ fn context_impl(
                 .collect::<Vec<_>>()
         );
     }
-    packet["model_calls"] = json!(usize::from(!reranker_usage.is_null()));
+    packet["model_calls"] = json!(
+        usize::from(!reranker_usage.is_null()) + usize::from(!linked_reranker_usage.is_null())
+    );
     if !reranker_usage.is_null() {
         packet["local_reranker"] = reranker_usage;
     }
@@ -2649,6 +2778,24 @@ mod tests {
     use super::{rerank_order, rerank_rrf_order};
 
     #[test]
+    fn scoring_focus_requires_unique_exact_authorized_source_bytes() {
+        use serde_json::json;
+        let row = json!({"text":"// π\nfn target() {}\n// tail", "source":{"id":"file:a.rs", "byte_start":10,"byte_end":37}});
+        // Offsets are bytes, including the two-byte pi character.
+        let mut row = row;
+        row["source"]["byte_end"] = json!(10 + row["text"].as_str().unwrap().len());
+        let named = json!({"text":"fn target() {}", "source":{"id":"file:a.rs","byte_start":16,"byte_end":30}});
+        assert_eq!(super::scoring_passage(&row, &[named.clone()]), ("fn target() {}", 6));
+        assert_eq!(super::scoring_passage(&row, &[named.clone(), named.clone()]).1, 0);
+        let mut wrong = named.clone();
+        wrong["source"]["id"] = json!("file:other.rs");
+        assert_eq!(super::scoring_passage(&row, &[wrong]).1, 0);
+        let mut stale = named;
+        stale["text"] = json!("fn target() {x}");
+        assert_eq!(super::scoring_passage(&row, &[stale]).1, 0);
+    }
+
+    #[test]
     fn a_question_names_tests_by_a_test_file_or_identifier() {
         use super::question_names_tests as names;
         for yes in [
@@ -3203,5 +3350,35 @@ mod tests {
         assert_eq!(mechanisms["static_edges_aggregated"], true);
         assert_eq!(mechanisms["static_edges_capped"], false);
         assert!(packet["evidence"].as_array().is_some_and(|e| !e.is_empty()));
+    }
+}
+
+#[cfg(test)]
+mod linked_memory_tests {
+    use super::*;
+
+    #[test]
+    fn note_precedes_only_its_authorized_link_window() {
+        let row = json!({"title":"Peer lifetime", "text":"Expires after one minute.",
+            "memory":{"link":{"from":"file:allowed.py:0","qualified_name":"backoff_delay"}}});
+        let sources = vec![
+            json!({"identity":"file:other.py:0","text":"unrelated source"}),
+            json!({"identity":"file:allowed.py:0","text":"return min(delay, 60)"}),
+        ];
+        let text = linked_memory_text(&row, &sources);
+        assert!(text.starts_with("Reviewed decision: Peer lifetime\nExpires after one minute."));
+        assert!(text.contains("backoff_delay\nCode window:\nreturn min(delay, 60)"));
+        assert!(!text.contains("unrelated source"));
+        assert!(!linked_memory_text(&row, &[]).contains("return min"));
+    }
+
+    #[test]
+    fn model_input_bounds_preserve_unicode() {
+        let row = json!({"title":"界".repeat(1000),"text":"界".repeat(10000),
+            "memory":{"link":{"from":"file:code:0","qualified_name":"界".repeat(1000)}}});
+        let sources = vec![json!({"identity":"file:code:0","text":"界".repeat(10000)})];
+        let text = linked_memory_text(&row, &sources);
+        assert!(text.len() < 32000);
+        assert_eq!(text.matches('界').count(), 256 + 3000 + 256 + 2000);
     }
 }

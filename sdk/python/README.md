@@ -65,6 +65,12 @@ their own notices; this SDK does not bundle them.
 `pinned-go-snapshot-sets-v1`; the `change_impact` boolean alone does not describe
 an extension's request format.
 
+The same request also supports basic Terraform, Helm, Bash, Python and Rust
+file/module/chart impact when `build.info.basic_change_impact` advertises it.
+This tier retains source evidence and potential dependencies, reports incomplete
+coverage, and does not claim Go-level call resolution. See
+[basic language support](../../docs/pinned-review.md#basic-language-support).
+
 Admit each side with `sync.prepare`, `sync.upload`, and `sync.commit` first.
 The prepare metadata must contain the full Git `commit`, `policy_sha256`, and
 an accurate `scope_complete` attestation. Use the returned source-manifest

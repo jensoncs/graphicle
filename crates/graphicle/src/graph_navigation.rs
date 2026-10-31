@@ -3,6 +3,9 @@
 use super::*;
 use serde::Deserialize;
 
+#[path = "graph_entry_points.rs"]
+mod entry_points;
+
 pub(super) fn specs() -> Vec<Value> {
     let mut specs = vec![
         json!({"name":"architecture_preview","description":"Preview dependency removal or module regrouping on an isolated copy of this authorized episode; compare coupling and cyclic module groups. Never applies changes or proves dependencies complete.","inputSchema":{"type":"object","properties":{"remove_nodes":{"type":"array","items":{"type":"string"}},"remove_edges":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string"},"target":{"type":"string"},"relation":{"type":"string"}},"required":["source","target","relation"],"additionalProperties":false}},"modules":{"type":"object","additionalProperties":{"type":"string"}}},"additionalProperties":false}}),
@@ -10,6 +13,7 @@ pub(super) fn specs() -> Vec<Value> {
         json!({"name":"search_symbols","description":"Find callable declarations by exact parameter name/type, decorator or annotation spelling. Filters are ANDed; name and type must match the same parameter. Reports syntax/language coverage and stale episodes.","inputSchema":{"type":"object","properties":{"parameter_name":{"type":"string"},"parameter_type":{"type":"string"},"decorator":{"type":"string"},"annotation":{"type":"string"},"language":{"type":"string"},"limit":{"type":"integer","minimum":1,"maximum":100}},"required":[],"additionalProperties":false}}),
         json!({"name":"execution_flows","description":"Return ordered, cited potential static invocation paths from an exact node ID. These are possible graph paths, not observed execution or a guarantee of runtime order. Reports cycles and traversal limits.","inputSchema":{"type":"object","properties":{"node_id":{"type":"string"},"max_depth":{"type":"integer","minimum":1,"maximum":16},"limit":{"type":"integer","minimum":1,"maximum":32}},"required":["node_id"],"additionalProperties":false}}),
     ];
+    specs.push(json!({"name":"entry_points","description":"Page detected entry boundaries and separately labelled call-root candidates across an entire authorized graph episode. Not a complete endpoint inventory; unresolved calls, dynamic registration and unsupported frameworks can hide entry points.","inputSchema":{"type":"object","properties":{"query":{"type":"string","maxLength":256},"category":{"type":"string","enum":["all","declared","candidate"]},"kind":{"type":"string","enum":["all","http_route","bash_script","program_entry_name","no_recorded_incoming_calls"]},"offset":{"type":"integer","minimum":0,"maximum":1000000},"limit":{"type":"integer","minimum":1,"maximum":100}},"additionalProperties":false}}));
     specs.rotate_left(2);
     specs
 }
@@ -257,6 +261,7 @@ pub(super) fn run(g: &Graph, tool: &str, args: &Value) -> Result<(Value, Vec<usi
                     .collect(),
             ))
         }
+        "entry_points" => entry_points::run(g, args),
         "search_symbols" => search(g, args),
         "execution_flows" => flows(g, args),
         _ => Err(Error::bad("Unknown structured navigation tool")),

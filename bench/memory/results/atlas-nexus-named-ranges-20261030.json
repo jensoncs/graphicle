@@ -1,0 +1,199 @@
+{
+  "state": "candidate_v2_trial_completed_product_unchanged",
+  "artifact_root": "/private/tmp/graphicle-atlas-nexus-20261030",
+  "objective_status": "Active: promote only after follow-up validation; cross-repository HTTP linkage remains unimplemented and unmeasured.",
+  "dataset": {
+    "path": "bench/memory/fixtures/atlas_nexus_queries.json",
+    "sha256": "b64274c3461e425bdb53799b46ff59c4d61f71e7badafd66c8ae013a6ce1ae67",
+    "provenance": "14 authored questions, not independent human queries. Required source-span delivery, not generated-answer quality."
+  },
+  "baseline": {
+    "single": {
+      "single": {
+        "queries": 10,
+        "complete": 6,
+        "errors": 0,
+        "required_delivered": 6,
+        "required_total": 10,
+        "tokens": 29054,
+        "supporting_excerpts": 6,
+        "excerpts": 64
+      }
+    },
+    "workspace": {
+      "cross_off": {
+        "queries": 4,
+        "complete": 0,
+        "errors": 0,
+        "required_delivered": 1,
+        "required_total": 11,
+        "tokens": 11404,
+        "supporting_excerpts": 1,
+        "excerpts": 29
+      },
+      "cross_on": {
+        "queries": 4,
+        "complete": 0,
+        "errors": 0,
+        "required_delivered": 1,
+        "required_total": 11,
+        "tokens": 11404,
+        "supporting_excerpts": 1,
+        "excerpts": 29
+      }
+    }
+  },
+  "candidate_v2": {
+    "single": {
+      "single": {
+        "queries": 10,
+        "complete": 10,
+        "errors": 0,
+        "required_delivered": 10,
+        "required_total": 10,
+        "tokens": 28899,
+        "supporting_excerpts": 15,
+        "excerpts": 61
+      }
+    },
+    "workspace": {
+      "cross_off": {
+        "queries": 4,
+        "complete": 3,
+        "errors": 0,
+        "required_delivered": 8,
+        "required_total": 11,
+        "tokens": 11347,
+        "supporting_excerpts": 10,
+        "excerpts": 18
+      },
+      "cross_on": {
+        "queries": 4,
+        "complete": 3,
+        "errors": 0,
+        "required_delivered": 8,
+        "required_total": 11,
+        "tokens": 11347,
+        "supporting_excerpts": 10,
+        "excerpts": 18
+      }
+    }
+  },
+  "historical_nexus": {
+    "queries": 11,
+    "baseline_complete": 6,
+    "candidate_complete": 10,
+    "regressions": [],
+    "remaining": [
+      "uncertain-link: body delivered, immediately preceding rationale comment missing"
+    ]
+  },
+  "new_corpus_regressions": [],
+  "memory": {
+    "baseline_results": "/private/tmp/graphicle-query-eval-20261030/memory-baseline-bundled/RESULTS.json",
+    "baseline_sha256": "bc99a16de3fc2abae49b7016844d324f47a1cf5185006a1be99e5a0978f17e6f",
+    "candidate": {
+      "named": {
+        "planned": 48,
+        "completed": 48,
+        "failed": 0,
+        "tp": 50,
+        "fp": 83,
+        "precision": 0.37593984962406013,
+        "macro_recall": 0.990990990990991,
+        "mean_tokens": 429.0
+      }
+    },
+    "lost_relevant_cases": [],
+    "safeguards": {
+      "callee/callee-rationale": {
+        "gold": [
+          "lease"
+        ],
+        "returned": [
+          "lease"
+        ],
+        "passed": true
+      },
+      "callee-pressure/lease-rationale": {
+        "gold": [
+          "lease"
+        ],
+        "returned": [
+          "lease",
+          "probe",
+          "wire",
+          "ledger"
+        ],
+        "passed": true
+      },
+      "caller-pressure/lease-rationale": {
+        "gold": [
+          "lease"
+        ],
+        "returned": [
+          "wire",
+          "archive",
+          "lease",
+          "probe"
+        ],
+        "passed": true
+      },
+      "direct-contracts/all-direct": {
+        "gold": [
+          "delimiter",
+          "escaping",
+          "null",
+          "ordering"
+        ],
+        "returned": [
+          "null",
+          "escaping",
+          "delimiter",
+          "ordering"
+        ],
+        "passed": true
+      }
+    }
+  },
+  "cross_repository_graph": {
+    "recorded_import_edges": 0,
+    "cross_on_off_same_quality": true,
+    "interpretation": "Workspace improvement comes from source reservation/packing; no HTTP edge traversal is claimed. cross-delete-local still misses three server-side spans."
+  },
+  "candidate_patch": {
+    "path": "bench/memory/results/named-range-preservation-v2-experimental-20261030.patch",
+    "sha256": "2d602672270b672b5740427b23c1f76aa1da3c633e3fd159e8823539fa5019cc"
+  },
+  "receipts": {
+    "baseline-v2/PROTOCOL.json": "1ff8179e6b2bf1984802194c1c1e8aaf8f393a08ca4530af862e1b41274d31c3",
+    "baseline-v2/RESULTS.json": "6de0994d97331f52ed9c09ac8b2d208c879ac0576aaa62e53bd6c45b2efcae5e",
+    "candidate-v2-full/PROTOCOL.json": "692707af12fa3a74a6f1bba6c3fef4e516dfa21550123aa3f203ca9e3f3fc8f3",
+    "candidate-v2-full/RESULTS.json": "300a459fd47cc2ac3422395569367810d2a10c66cf27fc25c87aaa7debbb3b6f",
+    "candidate-v2-historical/RESULTS.json": "eae56b28256e66fccdac07d9bfbebc1011cddefb4b8af36b2772e79713ec062e",
+    "candidate-v2-memory/RESULTS.json": "e1788693f642e9ea8269462589bff3e9a83f3a47dc4f97dcc88e5ef7cedeca83"
+  },
+  "validation": {
+    "python_checks_passed": 37,
+    "isolated_rust_checks_passed": 2,
+    "remote_model_calls": 0,
+    "product_source_changes": false,
+    "primary_context_calls": 154,
+    "excluded_initial_launch": "baseline/: ten scope-option validation errors and eight cross-scope diagnostic calls; fixed runner replayed all cases in baseline-v2/."
+  },
+  "remaining_work": [
+    "Validate bounded attached-comment preservation against the complete matrix.",
+    "Run graph permissions/freshness and workspace integration tests before promoting product changes.",
+    "Test default context settings as well as this frozen explicit protocol.",
+    "Reuse/extend existing route extractor for Go/Gin and cross-repository HTTP linkage, with ambiguity and freshness controls.",
+    "Measure reranker truncation independently; no ablation result yet."
+  ],
+  "comment_followup": {
+    "state": "diagnostic_passed_full_regression_pending",
+    "binary": "/private/tmp/graphicle-atlas-nexus-20261030/candidate-v3-graphicle",
+    "result": "/private/tmp/graphicle-atlas-nexus-20261030/candidate-v3-diagnostic/RESULTS.json",
+    "uncertain_link_complete": true,
+    "isolated_rust_unit_checks_passed": 2,
+    "scope": "One post-hoc historical diagnostic, not an 11/11 acceptance result."
+  }
+}

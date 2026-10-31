@@ -283,7 +283,7 @@ pub fn context(
         for lift in step.lifts.get(&(index, rank)).into_iter().flatten() {
             let identity = s(lift, "identity").to_string();
             if identities.insert(identity.clone()) {
-                reasons.insert(identity, json!([graph_projection::VIA_CROSS_REPO_IMPORT]));
+                reasons.insert(identity, json!([lift["source"][FACTS]["via"]]));
                 hits.push(lift.clone());
             }
         }
@@ -405,8 +405,14 @@ pub fn context(
     // the error that stopped its read.
     let mut projects: Vec<(usize, Value)> = reads
         .iter()
-        .map(|read| read.position)
+        .map(|read| (read.position, &read.packet))
         .zip(searched)
+        .map(|((position, packet), mut report)| {
+            for key in ["local_reranker", "reranker_inputs_debug"] {
+                if let Some(value) = packet.get(key) { report[key] = value.clone(); }
+            }
+            (position, report)
+        })
         .collect();
     projects.extend(failed.iter().map(|(position, repository, error)| {
         (
@@ -728,10 +734,20 @@ fn arms(reads: &[Read], packet: &Value, step: &Step) -> Value {
             *candidates.entry(name.clone()).or_default() += arm["candidates"].as_u64().unwrap_or(0);
         }
     }
-    let via = graph_projection::VIA_CROSS_REPO_IMPORT.to_string();
-    if step.lifted > 0 {
-        names.push(via.clone());
-        candidates.insert(via, step.lifted as u64);
+    for via in [
+        graph_projection::VIA_CROSS_REPO_IMPORT,
+        graph_projection::VIA_CROSS_REPO_HTTP,
+    ] {
+        let count = step
+            .lifts
+            .values()
+            .flatten()
+            .filter(|hit| hit["source"][FACTS]["via"] == via)
+            .count();
+        if count > 0 {
+            names.push(via.to_string());
+            candidates.insert(via.to_string(), count as u64);
+        }
     }
     let sources = packet["sources"]
         .as_array()
@@ -1258,9 +1274,10 @@ fn facts(
     let mut cited = node.facts.clone();
     cited["repository_id"] = json!(to.id());
     cited["episode"] = json!(episode);
-    json!({"via":graph_projection::VIA_CROSS_REPO_IMPORT,
-        // The cited node is imported by the window it came from, or imports it.
-        "direction":if outgoing { "imported_by" } else { "imports" },
+    let http = edge["relation"] == "http_calls";
+    json!({"via":if http { graph_projection::VIA_CROSS_REPO_HTTP } else { graph_projection::VIA_CROSS_REPO_IMPORT },
+        "direction":if http { if outgoing { "requested_by" } else { "requests" } }
+            else if outgoing { "imported_by" } else { "imports" },
         "from":{"repository_id":from.id(),"project":from.name(),"evidence_id":evidence_id,
             "node_id":from_end.facts["node_id"],"stable_id":from_end.facts["stable_id"]},
         "node":cited,

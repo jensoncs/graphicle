@@ -1,0 +1,3326 @@
+{
+  "format": "graphicle.evaluation-followup.v1",
+  "date": "2026-10-31",
+  "baseline": "atlas-nexus named ranges v4",
+  "raw_root": "/private/tmp/graphicle-loops-20261031",
+  "remote_model_calls": 0,
+  "independent_queries": {
+    "status": "awaiting externally supplied captured queries and independent labels",
+    "authored_negative_controls": 6,
+    "captured_cases_added": 0
+  },
+  "decisions": {
+    "exact_symbol_before_cap": "reject and roll back new cap/range-order experiments; explicit workspace or single-case regressions fail acceptance; retain earlier accepted v4 symbol preference",
+    "fixed_note_caps": "reject; formatting safeguard fails at cap 3 and caller-pressure callee safeguard fails at cap 2",
+    "short_reranker_windows": "reject as production policy; complete-span visibility remains 6/21 and inference calls rise 99 to 286",
+    "http_routes": "retain opt-in GRAPHICLE_ROUTES=1; matched full-tree workspace completeness improves 3/4 to 4/4 and span delivery 8/11 to 11/11 without a case regression",
+    "identity_digest_cache": "retain; hash each immutable source once, preserving identity/revision/citation metadata"
+  },
+  "notes": {
+    "named": {
+      "planned": 48,
+      "completed": 48,
+      "failed": 0,
+      "tp": 50,
+      "fp": 83,
+      "precision": 0.37593984962406013,
+      "macro_recall": 0.990990990990991,
+      "mean_tokens": 426.0
+    }
+  },
+  "note_comparison": {
+    "cases": 48,
+    "lost_relevant_ids": [],
+    "safeguards": {
+      "callee/callee-rationale": [
+        "lease"
+      ],
+      "callee-pressure/lease-rationale": [
+        "lease"
+      ],
+      "caller-pressure/lease-rationale": [
+        "lease"
+      ],
+      "direct-contracts/all-direct": [
+        "delimiter",
+        "escaping",
+        "null",
+        "ordering"
+      ]
+    }
+  },
+  "no_answer": {
+    "scope": "Measure note over-returning and the recall cost of fixed output caps.\n\nCaps are post-hoc diagnostics, not production filters or latency measurements.\nCaptured evaluation data must identify its capture and independent label owner;\nauthored negative controls must not be presented as independent real queries.\n",
+    "provenance_kind": "authored_control",
+    "dataset_sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0",
+    "binary_sha256": "f98797c5a51fc875935246613c91c885f331f82f33fac4432a9d62ea0c3815fd",
+    "guard_results_sha256": "b2ee1800b25381027307161a318ee25fc7f12bba3a47e317ca6c6aa58780d5ca",
+    "local": {
+      "profile": {
+        "protocol": "local_onnx",
+        "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+        "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+        "input_limit": 1000
+      },
+      "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+      "assets": {
+        "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+        "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+        "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+        "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+      },
+      "request": {
+        "local_reranker_profile": "reranker",
+        "rerank_mode": "blend"
+      }
+    },
+    "new_queries": 6,
+    "combined_queries": 54,
+    "curve": {
+      "0": {
+        "tp": 0,
+        "fp": 0,
+        "fn": 52,
+        "precision": null,
+        "recall": 0.0,
+        "no_answer_cases": 17,
+        "empty_correct": 17,
+        "lost_relevant_cases": [
+          "billing/linked-rationale",
+          "billing/direct-recall",
+          "billing/narrow-rationale",
+          "billing/other-symbol",
+          "retry/linked-rationale",
+          "retry/direct-recall",
+          "retry/narrow-rationale",
+          "cache/linked-rationale",
+          "cache/direct-recall",
+          "cache/narrow-rationale",
+          "qualified/qualified-name",
+          "qualified/ambiguous-name",
+          "paths/path-qualified",
+          "paths/duplicate-path",
+          "headers/multiple-names",
+          "headers/partly-unresolved",
+          "headers/prose-only",
+          "callee/callee-rationale",
+          "direct-pressure/direct-0",
+          "direct-pressure/direct-1",
+          "direct-pressure/direct-2",
+          "direct-pressure/direct-3",
+          "direct-pressure/direct-4",
+          "direct-pressure/direct-5",
+          "callee-pressure/lease-rationale",
+          "caller-pressure/lease-rationale",
+          "shared-pressure/shared-target",
+          "shared-pressure/unresolved",
+          "shared-pressure/prose",
+          "direct-contracts/all-direct",
+          "cross-file/cross-file-callee",
+          "transitive/two-hop-callee",
+          "pagination-holdout/change",
+          "pagination-holdout/reason",
+          "pagination-holdout/prose",
+          "webhooks-holdout/timing",
+          "webhooks-holdout/ceiling"
+        ],
+        "safeguards": {
+          "callee/callee-rationale": false,
+          "callee-pressure/lease-rationale": false,
+          "caller-pressure/lease-rationale": false,
+          "direct-contracts/all-direct": false
+        }
+      },
+      "1": {
+        "tp": 28,
+        "fp": 21,
+        "fn": 24,
+        "precision": 0.5714285714285714,
+        "recall": 0.5384615384615384,
+        "no_answer_cases": 17,
+        "empty_correct": 5,
+        "lost_relevant_cases": [
+          "billing/linked-rationale",
+          "retry/linked-rationale",
+          "retry/narrow-rationale",
+          "cache/linked-rationale",
+          "cache/narrow-rationale",
+          "qualified/ambiguous-name",
+          "paths/duplicate-path",
+          "headers/multiple-names",
+          "headers/prose-only",
+          "direct-pressure/direct-0",
+          "caller-pressure/lease-rationale",
+          "shared-pressure/prose",
+          "direct-contracts/all-direct",
+          "cross-file/cross-file-callee",
+          "pagination-holdout/change",
+          "pagination-holdout/reason",
+          "webhooks-holdout/timing"
+        ],
+        "safeguards": {
+          "callee/callee-rationale": true,
+          "callee-pressure/lease-rationale": true,
+          "caller-pressure/lease-rationale": false,
+          "direct-contracts/all-direct": false
+        }
+      },
+      "2": {
+        "tp": 43,
+        "fp": 54,
+        "fn": 9,
+        "precision": 0.44329896907216493,
+        "recall": 0.8269230769230769,
+        "no_answer_cases": 17,
+        "empty_correct": 5,
+        "lost_relevant_cases": [
+          "headers/multiple-names",
+          "caller-pressure/lease-rationale",
+          "shared-pressure/prose",
+          "direct-contracts/all-direct",
+          "webhooks-holdout/timing"
+        ],
+        "safeguards": {
+          "callee/callee-rationale": true,
+          "callee-pressure/lease-rationale": true,
+          "caller-pressure/lease-rationale": false,
+          "direct-contracts/all-direct": false
+        }
+      },
+      "3": {
+        "tp": 48,
+        "fp": 86,
+        "fn": 4,
+        "precision": 0.3582089552238806,
+        "recall": 0.9230769230769231,
+        "no_answer_cases": 17,
+        "empty_correct": 5,
+        "lost_relevant_cases": [
+          "shared-pressure/prose",
+          "direct-contracts/all-direct"
+        ],
+        "safeguards": {
+          "callee/callee-rationale": true,
+          "callee-pressure/lease-rationale": true,
+          "caller-pressure/lease-rationale": true,
+          "direct-contracts/all-direct": false
+        }
+      },
+      "4": {
+        "tp": 50,
+        "fp": 101,
+        "fn": 2,
+        "precision": 0.33112582781456956,
+        "recall": 0.9615384615384616,
+        "no_answer_cases": 17,
+        "empty_correct": 5,
+        "lost_relevant_cases": [],
+        "safeguards": {
+          "callee/callee-rationale": true,
+          "callee-pressure/lease-rationale": true,
+          "caller-pressure/lease-rationale": true,
+          "direct-contracts/all-direct": true
+        }
+      }
+    },
+    "remote_calls": 0,
+    "production_filter_changed": false
+  },
+  "truncation": {
+    "scope": "Controlled local reranker ablation on frozen, already-delivered passages.\n\nThis measures model input visibility and conditional ranking, not retrieval or\nanswer quality. Labels never enter the Rust scorer's input. No remote calls.\n",
+    "scorer_sha256": "157d239c4c24e71ace9d5bfa11dd00f6ac8a2604d61c05b2496e8b38f096c88b",
+    "dataset_sha256": "b64274c3461e425bdb53799b46ff59c4d61f71e7badafd66c8ae013a6ce1ae67",
+    "runner_sha256": "f7deb71548347f34f3e23694110fc68d54acfa6ff77f69cedeb4a05a44271616",
+    "model_sha256": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+    "ort_sha256": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+    "packet_hashes": {
+      "atlas-empty-list": "f54dc0831d06648f1ea67b6c39b54b92e6867c87b7e4a451754dcb9d67fc98b9",
+      "atlas-partial-list": "95ffefd9bf96c9cee89d3ef1024d65ee0121322f446d362d9c475f42264bc3d5",
+      "atlas-update-identity": "a0ca32b35ea119270fbaa097725702b55a8d1b2ff0a5f181c0df63ea4ee2f90c",
+      "atlas-mapping-error": "616fd4a2e3735cd90e93cae5bbbabaef7a3acd4b1028c1b3b868a0cd5fb01394",
+      "atlas-apply-proof": "3e57badea7b0b32e693f693a0f48833e077ffa0205c64ee3c508750039a9bdf1",
+      "nexus-update-identity": "ef4e67a3512f8cdef008688f1854cdae683285c41e61bfa06157201aea551c26",
+      "nexus-delete-local": "a90ec52682cdac4cfd5d254c15ab8674bffc587776ee0dc88871ecc3f67fac4a",
+      "nexus-forward-missing": "7c2eda00dcbb8064afd3a7da5a5099f37e9b0898c6d4d0f94f2c656268064ed6",
+      "nexus-forward-loop": "976d50717bf1ded457cdcb4fd452a17e48cc24dff15c1d161d4a39701a16fd69",
+      "nexus-list-results": "cfa06a397ab8caf5f799f4661dcfdc99a054a88fcf853db888fda483d332f132",
+      "cross-update-identity": "1fd8a6f8666ad9f2e46eac044c97321160a5f84d61569a2d5317615cc9be29d3",
+      "cross-delete-local": "58f652413a8a867a82b50d28ffee10cb491c5ee0958f15ad46cddd25141188f4",
+      "cross-partial-list": "52e3101b7fe0f06657c41834bfef2403b9668660ca2429ac50fa1f857a25e54c",
+      "cross-forward-error": "ba39a2dcb8d3a0dfe94d0a11d2b8df99cf332373ec25da76ae4668e62615f332"
+    },
+    "remote_calls": 0,
+    "summary": {
+      "full": {
+        "queries": 14,
+        "required_visible": 6,
+        "required_total": 21,
+        "inferences": 99,
+        "tokens": 18169,
+        "seconds": 3.381223087,
+        "supporting_at_3": 16,
+        "returned_at_3": 42
+      },
+      "window": {
+        "queries": 14,
+        "required_visible": 6,
+        "required_total": 21,
+        "inferences": 286,
+        "tokens": 43512,
+        "seconds": 5.548842339,
+        "supporting_at_3": 17,
+        "returned_at_3": 42
+      }
+    },
+    "cases": [
+      {
+        "query": "atlas-empty-list",
+        "arms": {
+          "full": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 0,
+            "returned_at_3": 3,
+            "order": [
+              2,
+              4,
+              3
+            ],
+            "inferences": 6,
+            "tokens": 1359,
+            "seconds": 0.9088495839999999
+          },
+          "window": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 0,
+            "returned_at_3": 3,
+            "order": [
+              2,
+              4,
+              3
+            ],
+            "inferences": 20,
+            "tokens": 2788,
+            "seconds": 0.375882709
+          }
+        }
+      },
+      {
+        "query": "atlas-partial-list",
+        "arms": {
+          "full": {
+            "required_visible": 1,
+            "required_total": 1,
+            "delivered": [
+              true
+            ],
+            "supporting_at_3": 2,
+            "returned_at_3": 3,
+            "order": [
+              5,
+              0,
+              3
+            ],
+            "inferences": 7,
+            "tokens": 1442,
+            "seconds": 0.19156704
+          },
+          "window": {
+            "required_visible": 1,
+            "required_total": 1,
+            "delivered": [
+              true
+            ],
+            "supporting_at_3": 2,
+            "returned_at_3": 3,
+            "order": [
+              5,
+              0,
+              3
+            ],
+            "inferences": 19,
+            "tokens": 2676,
+            "seconds": 0.34875246
+          }
+        }
+      },
+      {
+        "query": "atlas-update-identity",
+        "arms": {
+          "full": {
+            "required_visible": 1,
+            "required_total": 1,
+            "delivered": [
+              true
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              0,
+              1,
+              4
+            ],
+            "inferences": 6,
+            "tokens": 1334,
+            "seconds": 0.167380168
+          },
+          "window": {
+            "required_visible": 1,
+            "required_total": 1,
+            "delivered": [
+              true
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              0,
+              1,
+              4
+            ],
+            "inferences": 22,
+            "tokens": 3275,
+            "seconds": 0.398055667
+          }
+        }
+      },
+      {
+        "query": "atlas-mapping-error",
+        "arms": {
+          "full": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 2,
+            "returned_at_3": 3,
+            "order": [
+              1,
+              2,
+              0
+            ],
+            "inferences": 7,
+            "tokens": 1332,
+            "seconds": 0.176418458
+          },
+          "window": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 2,
+            "returned_at_3": 3,
+            "order": [
+              1,
+              0,
+              3
+            ],
+            "inferences": 21,
+            "tokens": 2976,
+            "seconds": 0.376530585
+          }
+        }
+      },
+      {
+        "query": "atlas-apply-proof",
+        "arms": {
+          "full": {
+            "required_visible": 1,
+            "required_total": 1,
+            "delivered": [
+              true
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              1,
+              2,
+              0
+            ],
+            "inferences": 7,
+            "tokens": 1655,
+            "seconds": 0.210125544
+          },
+          "window": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              1,
+              2,
+              0
+            ],
+            "inferences": 20,
+            "tokens": 2956,
+            "seconds": 0.369603165
+          }
+        }
+      },
+      {
+        "query": "nexus-update-identity",
+        "arms": {
+          "full": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              2,
+              3,
+              0
+            ],
+            "inferences": 7,
+            "tokens": 1547,
+            "seconds": 0.201602125
+          },
+          "window": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              3,
+              2,
+              1
+            ],
+            "inferences": 26,
+            "tokens": 4020,
+            "seconds": 0.503191418
+          }
+        }
+      },
+      {
+        "query": "nexus-delete-local",
+        "arms": {
+          "full": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              2,
+              1,
+              0
+            ],
+            "inferences": 6,
+            "tokens": 968,
+            "seconds": 0.357022543
+          },
+          "window": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              0,
+              2,
+              1
+            ],
+            "inferences": 18,
+            "tokens": 2675,
+            "seconds": 0.344358458
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-missing",
+        "arms": {
+          "full": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              0,
+              1,
+              2
+            ],
+            "inferences": 7,
+            "tokens": 1036,
+            "seconds": 0.136610625
+          },
+          "window": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              0,
+              1,
+              2
+            ],
+            "inferences": 18,
+            "tokens": 2707,
+            "seconds": 0.32943316500000003
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-loop",
+        "arms": {
+          "full": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              0,
+              1,
+              2
+            ],
+            "inferences": 7,
+            "tokens": 994,
+            "seconds": 0.14368445999999999
+          },
+          "window": {
+            "required_visible": 1,
+            "required_total": 1,
+            "delivered": [
+              true
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              0,
+              2,
+              3
+            ],
+            "inferences": 18,
+            "tokens": 2548,
+            "seconds": 0.345765793
+          }
+        }
+      },
+      {
+        "query": "nexus-list-results",
+        "arms": {
+          "full": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              6,
+              1,
+              5
+            ],
+            "inferences": 8,
+            "tokens": 1257,
+            "seconds": 0.17028404
+          },
+          "window": {
+            "required_visible": 0,
+            "required_total": 1,
+            "delivered": [
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              1,
+              5,
+              6
+            ],
+            "inferences": 24,
+            "tokens": 3651,
+            "seconds": 0.462524622
+          }
+        }
+      },
+      {
+        "query": "cross-update-identity",
+        "arms": {
+          "full": {
+            "required_visible": 1,
+            "required_total": 2,
+            "delivered": [
+              true,
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              2,
+              0,
+              4
+            ],
+            "inferences": 9,
+            "tokens": 1638,
+            "seconds": 0.216951499
+          },
+          "window": {
+            "required_visible": 1,
+            "required_total": 2,
+            "delivered": [
+              true,
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              4,
+              2,
+              0
+            ],
+            "inferences": 20,
+            "tokens": 3312,
+            "seconds": 0.410105709
+          }
+        }
+      },
+      {
+        "query": "cross-delete-local",
+        "arms": {
+          "full": {
+            "required_visible": 1,
+            "required_total": 4,
+            "delivered": [
+              true,
+              false,
+              false,
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              0,
+              2,
+              4
+            ],
+            "inferences": 9,
+            "tokens": 1442,
+            "seconds": 0.192864041
+          },
+          "window": {
+            "required_visible": 1,
+            "required_total": 4,
+            "delivered": [
+              true,
+              false,
+              false,
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              2,
+              0,
+              1
+            ],
+            "inferences": 19,
+            "tokens": 3183,
+            "seconds": 0.412896254
+          }
+        }
+      },
+      {
+        "query": "cross-partial-list",
+        "arms": {
+          "full": {
+            "required_visible": 1,
+            "required_total": 3,
+            "delivered": [
+              false,
+              false,
+              true
+            ],
+            "supporting_at_3": 2,
+            "returned_at_3": 3,
+            "order": [
+              2,
+              0,
+              3
+            ],
+            "inferences": 8,
+            "tokens": 1375,
+            "seconds": 0.194720584
+          },
+          "window": {
+            "required_visible": 1,
+            "required_total": 3,
+            "delivered": [
+              false,
+              false,
+              true
+            ],
+            "supporting_at_3": 2,
+            "returned_at_3": 3,
+            "order": [
+              2,
+              0,
+              3
+            ],
+            "inferences": 24,
+            "tokens": 3741,
+            "seconds": 0.493968958
+          }
+        }
+      },
+      {
+        "query": "cross-forward-error",
+        "arms": {
+          "full": {
+            "required_visible": 0,
+            "required_total": 2,
+            "delivered": [
+              false,
+              false
+            ],
+            "supporting_at_3": 1,
+            "returned_at_3": 3,
+            "order": [
+              1,
+              3,
+              4
+            ],
+            "inferences": 5,
+            "tokens": 790,
+            "seconds": 0.113142376
+          },
+          "window": {
+            "required_visible": 0,
+            "required_total": 2,
+            "delivered": [
+              false,
+              false
+            ],
+            "supporting_at_3": 2,
+            "returned_at_3": 3,
+            "order": [
+              0,
+              1,
+              3
+            ],
+            "inferences": 17,
+            "tokens": 3004,
+            "seconds": 0.377773376
+          }
+        }
+      }
+    ]
+  },
+  "truncation_diagnosis": {
+    "scope": "Post-hoc diagnosis only; any-window is an oracle upper bound, tail is the last 32 non-trailing-whitespace bytes, not a new gold label. No new model calls.",
+    "required_total": 21,
+    "summary": {
+      "delivered": 18,
+      "full_visible": 6,
+      "best_window_visible": 6,
+      "any_window_visible": 11,
+      "full_tail_visible": 6,
+      "best_window_tail_visible": 9
+    },
+    "spans": [
+      {
+        "query": "atlas-empty-list",
+        "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+        "required_bytes": 109,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": true,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "atlas-partial-list",
+        "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+        "required_bytes": 61,
+        "delivered": true,
+        "full_visible": true,
+        "best_window_visible": true,
+        "any_window_visible": true,
+        "full_tail_visible": true,
+        "best_window_tail_visible": true
+      },
+      {
+        "query": "atlas-update-identity",
+        "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+        "required_bytes": 145,
+        "delivered": true,
+        "full_visible": true,
+        "best_window_visible": true,
+        "any_window_visible": true,
+        "full_tail_visible": true,
+        "best_window_tail_visible": true
+      },
+      {
+        "query": "atlas-mapping-error",
+        "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+        "required_bytes": 134,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": true,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "atlas-apply-proof",
+        "file": "packages/backend/src/plugins/load-balancers/graviton.ts",
+        "required_bytes": 423,
+        "delivered": true,
+        "full_visible": true,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": true,
+        "best_window_tail_visible": true
+      },
+      {
+        "query": "nexus-update-identity",
+        "file": "graviton/pkg/application/httpserver/routes_handler.go",
+        "required_bytes": 743,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "nexus-delete-local",
+        "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+        "required_bytes": 68,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "nexus-forward-missing",
+        "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+        "required_bytes": 282,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "nexus-forward-loop",
+        "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+        "required_bytes": 68,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": true,
+        "any_window_visible": true,
+        "full_tail_visible": false,
+        "best_window_tail_visible": true
+      },
+      {
+        "query": "nexus-list-results",
+        "file": "graviton/pkg/application/httpserver/routes_handler.go",
+        "required_bytes": 322,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": true,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "cross-update-identity",
+        "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+        "required_bytes": 145,
+        "delivered": true,
+        "full_visible": true,
+        "best_window_visible": true,
+        "any_window_visible": true,
+        "full_tail_visible": true,
+        "best_window_tail_visible": true
+      },
+      {
+        "query": "cross-update-identity",
+        "file": "graviton/pkg/application/httpserver/routes_handler.go",
+        "required_bytes": 743,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "cross-delete-local",
+        "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+        "required_bytes": 150,
+        "delivered": true,
+        "full_visible": true,
+        "best_window_visible": true,
+        "any_window_visible": true,
+        "full_tail_visible": true,
+        "best_window_tail_visible": true
+      },
+      {
+        "query": "cross-delete-local",
+        "file": "graviton/pkg/application/httpserver/router.go",
+        "required_bytes": 59,
+        "delivered": false,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "cross-delete-local",
+        "file": "graviton/pkg/application/httpserver/routes_handler.go",
+        "required_bytes": 279,
+        "delivered": false,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "cross-delete-local",
+        "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+        "required_bytes": 68,
+        "delivered": false,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "cross-partial-list",
+        "file": "graviton/pkg/application/httpserver/routes_handler.go",
+        "required_bytes": 322,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": true,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "cross-partial-list",
+        "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+        "required_bytes": 109,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": true,
+        "full_tail_visible": false,
+        "best_window_tail_visible": false
+      },
+      {
+        "query": "cross-partial-list",
+        "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+        "required_bytes": 61,
+        "delivered": true,
+        "full_visible": true,
+        "best_window_visible": true,
+        "any_window_visible": true,
+        "full_tail_visible": true,
+        "best_window_tail_visible": true
+      },
+      {
+        "query": "cross-forward-error",
+        "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+        "required_bytes": 282,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": false,
+        "best_window_tail_visible": true
+      },
+      {
+        "query": "cross-forward-error",
+        "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+        "required_bytes": 215,
+        "delivered": true,
+        "full_visible": false,
+        "best_window_visible": false,
+        "any_window_visible": false,
+        "full_tail_visible": false,
+        "best_window_tail_visible": true
+      }
+    ]
+  },
+  "http": {
+    "protocol": {
+      "dataset_sha256": "b64274c3461e425bdb53799b46ff59c4d61f71e7badafd66c8ae013a6ce1ae67",
+      "binary_sha256": "f98797c5a51fc875935246613c91c885f331f82f33fac4432a9d62ea0c3815fd",
+      "runner_sha256": "e14d9c5a3014a36587b612df1019437a5a918d218bb29dd221c94e3b2db9bed6",
+      "scorer_sha256": "3fbe7f9a0209148b13418a64782ce4f96f4ec4439d4d14038b8c8874f2035dc6",
+      "local": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "inventory": {
+        "atlas": {
+          "commit": "aa5c6103d2b04db966ffab779a404f2c549fbad7",
+          "indexed_files": 1574,
+          "manifest_sha256": "7924a94795b23bc94e9407aa5069c190d24e85ef94eba09ed8799d87867bfcba",
+          "sync_sha256": "9a529ed060c45bff6170dea76bf3c13fd73db5bd77367e5b3ef78be792c4b682",
+          "index_sha256": "7728ceaa421a1e4b4c9a17def1d5e7fe9a6f0418a206cbab92b87ed361a00ef7"
+        },
+        "nexus": {
+          "commit": "0225ca2f30694b7ea1a6d6f063e602f24a0fd05a",
+          "indexed_files": 2429,
+          "manifest_sha256": "2aece8a438aa1e6c7fe0a845709f97617137948e08d7d94ba7ea17ab596cf5b0",
+          "sync_sha256": "a5b1e76a1497e206ba1d81476726f7fe34be24e3efa52fbd30788313d0dab96f",
+          "index_sha256": "4d85333459799ac7763273c0420e3019cfc3929cab3903be9fc1077164f9859d"
+        }
+      },
+      "repositories": {
+        "atlas": "dec2ab0f052043fb824fc408e6a92257",
+        "nexus": "62694f24a6d941e6a7b201391f7274f2"
+      },
+      "link_sha256": "90217b2965e4aabf88753721fdbb9aa0a89062df0e34db276709d1589ee0c3e1",
+      "retrieval_defaults": false,
+      "routes_enabled": true,
+      "worker_stack_bytes": "16777216",
+      "phase_timings": "1",
+      "scope": "Full pinned trees; source delivery only. No independent production queries or answer-quality labels."
+    },
+    "summary": {
+      "single": {
+        "single": {
+          "queries": 10,
+          "complete": 10,
+          "errors": 0,
+          "required_delivered": 10,
+          "required_total": 10,
+          "tokens": 28592,
+          "supporting_excerpts": 12,
+          "excerpts": 68
+        }
+      },
+      "workspace": {
+        "cross_off": {
+          "queries": 4,
+          "complete": 3,
+          "errors": 0,
+          "required_delivered": 8,
+          "required_total": 11,
+          "tokens": 11527,
+          "supporting_excerpts": 7,
+          "excerpts": 31
+        },
+        "cross_on": {
+          "queries": 4,
+          "complete": 4,
+          "errors": 0,
+          "required_delivered": 11,
+          "required_total": 11,
+          "tokens": 11484,
+          "supporting_excerpts": 10,
+          "excerpts": 36
+        }
+      }
+    },
+    "cases": [
+      {
+        "query": "atlas-empty-list",
+        "scope": "single",
+        "split": "development",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 6,
+                "supporting_excerpt_precision": 0.16666666666666666,
+                "tokens": 2687,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2687,
+            "excerpts": 6,
+            "supporting_excerpts": 1,
+            "workspace": null,
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 9.65136416698806
+          }
+        }
+      },
+      {
+        "query": "atlas-partial-list",
+        "scope": "single",
+        "split": "development",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 2,
+                "excerpts": 7,
+                "supporting_excerpt_precision": 0.2857142857142857,
+                "tokens": 2718,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2718,
+            "excerpts": 7,
+            "supporting_excerpts": 2,
+            "workspace": null,
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 9.427425583009608
+          }
+        }
+      },
+      {
+        "query": "atlas-update-identity",
+        "scope": "single",
+        "split": "development",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 6,
+                "supporting_excerpt_precision": 0.16666666666666666,
+                "tokens": 2872,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2872,
+            "excerpts": 6,
+            "supporting_excerpts": 1,
+            "workspace": null,
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 10.163486165984068
+          }
+        }
+      },
+      {
+        "query": "atlas-mapping-error",
+        "scope": "single",
+        "split": "validation",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 2,
+                "excerpts": 7,
+                "supporting_excerpt_precision": 0.2857142857142857,
+                "tokens": 2928,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2928,
+            "excerpts": 7,
+            "supporting_excerpts": 2,
+            "workspace": null,
+            "omitted": {
+              "sources": 1,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 10.594408124976326
+          }
+        }
+      },
+      {
+        "query": "atlas-apply-proof",
+        "scope": "single",
+        "split": "validation",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 7,
+                "supporting_excerpt_precision": 0.14285714285714285,
+                "tokens": 2932,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2932,
+            "excerpts": 7,
+            "supporting_excerpts": 1,
+            "workspace": null,
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 9.635978292033542
+          }
+        }
+      },
+      {
+        "query": "nexus-update-identity",
+        "scope": "single",
+        "split": "development",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 7,
+                "supporting_excerpt_precision": 0.14285714285714285,
+                "tokens": 2913,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2913,
+            "excerpts": 7,
+            "supporting_excerpts": 1,
+            "workspace": null,
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 18.28154745802749
+          }
+        }
+      },
+      {
+        "query": "nexus-delete-local",
+        "scope": "single",
+        "split": "development",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 6,
+                "supporting_excerpt_precision": 0.16666666666666666,
+                "tokens": 2775,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2775,
+            "excerpts": 6,
+            "supporting_excerpts": 1,
+            "workspace": null,
+            "omitted": {
+              "sources": 1,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 18.32274149998557
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-missing",
+        "scope": "single",
+        "split": "development",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 7,
+                "supporting_excerpt_precision": 0.14285714285714285,
+                "tokens": 2918,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2918,
+            "excerpts": 7,
+            "supporting_excerpts": 1,
+            "workspace": null,
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 18.395062958996277
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-loop",
+        "scope": "single",
+        "split": "validation",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 7,
+                "supporting_excerpt_precision": 0.14285714285714285,
+                "tokens": 2917,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2917,
+            "excerpts": 7,
+            "supporting_excerpts": 1,
+            "workspace": null,
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 18.37047145899851
+          }
+        }
+      },
+      {
+        "query": "nexus-list-results",
+        "scope": "single",
+        "split": "validation",
+        "required_total": 1,
+        "variants": {
+          "single": {
+            "complete": true,
+            "per_project": {
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 8,
+                "supporting_excerpt_precision": 0.125,
+                "tokens": 2932,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "off",
+                  "identifier_route": false,
+                  "defaulted": false,
+                  "names": []
+                },
+                "model_calls": 1,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 1,
+            "tokens": 2932,
+            "excerpts": 8,
+            "supporting_excerpts": 1,
+            "workspace": null,
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "model_calls": 1,
+            "seconds": 16.832741874968633
+          }
+        }
+      },
+      {
+        "query": "cross-update-identity",
+        "scope": "workspace",
+        "split": "development",
+        "required_total": 2,
+        "variants": {
+          "cross_off": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 4,
+                "supporting_excerpt_precision": 0.25,
+                "tokens": 2930,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              },
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 5,
+                "supporting_excerpt_precision": 0.2,
+                "tokens": 2930,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 2,
+            "required_total": 2,
+            "tokens": 2930,
+            "excerpts": 9,
+            "supporting_excerpts": 2,
+            "workspace": {
+              "workspace_id": "05fc2d7d0bac4a50980157b502d48408",
+              "projects_searched": 2,
+              "projects_failed": 0,
+              "projects_left_out": 0,
+              "max_projects": 2,
+              "cross_repo": {
+                "enabled": false
+              }
+            },
+            "omitted": {
+              "sources": 2,
+              "memories": 0
+            },
+            "model_calls": 2,
+            "seconds": 26.753674583975226
+          },
+          "cross_on": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 1,
+                "supporting_excerpt_precision": 1.0,
+                "tokens": 2912,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              },
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 9,
+                "supporting_excerpt_precision": 0.1111111111111111,
+                "tokens": 2912,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 2,
+            "required_total": 2,
+            "tokens": 2912,
+            "excerpts": 10,
+            "supporting_excerpts": 2,
+            "workspace": {
+              "workspace_id": "05fc2d7d0bac4a50980157b502d48408",
+              "projects_searched": 2,
+              "projects_failed": 0,
+              "projects_left_out": 0,
+              "max_projects": 2,
+              "cross_repo": {
+                "enabled": true,
+                "edges_read": 44,
+                "followed": 6,
+                "lifted": 6,
+                "annotated": 0,
+                "withheld_changed": 0,
+                "limit": 6
+              }
+            },
+            "omitted": {
+              "sources": 6,
+              "memories": 0
+            },
+            "model_calls": 2,
+            "seconds": 27.762925291026477
+          }
+        }
+      },
+      {
+        "query": "cross-delete-local",
+        "scope": "workspace",
+        "split": "development",
+        "required_total": 4,
+        "variants": {
+          "cross_on": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 1,
+                "supporting_excerpt_precision": 1.0,
+                "tokens": 2928,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              },
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true,
+                  true,
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 3,
+                "excerpts": 10,
+                "supporting_excerpt_precision": 0.3,
+                "tokens": 2928,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 4,
+            "required_total": 4,
+            "tokens": 2928,
+            "excerpts": 11,
+            "supporting_excerpts": 4,
+            "workspace": {
+              "workspace_id": "05fc2d7d0bac4a50980157b502d48408",
+              "projects_searched": 2,
+              "projects_failed": 0,
+              "projects_left_out": 0,
+              "max_projects": 2,
+              "cross_repo": {
+                "enabled": true,
+                "edges_read": 44,
+                "followed": 6,
+                "lifted": 6,
+                "annotated": 0,
+                "withheld_changed": 0,
+                "limit": 6
+              }
+            },
+            "omitted": {
+              "sources": 9,
+              "memories": 0
+            },
+            "model_calls": 2,
+            "seconds": 28.828245749988127
+          },
+          "cross_off": {
+            "complete": false,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 4,
+                "supporting_excerpt_precision": 0.25,
+                "tokens": 2930,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              },
+              "nexus": {
+                "complete": false,
+                "required_delivered": [
+                  false,
+                  false,
+                  false
+                ],
+                "evidence_recall": 0.0,
+                "supporting_excerpts": 0,
+                "excerpts": 5,
+                "supporting_excerpt_precision": 0.0,
+                "tokens": 2930,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 1,
+            "required_total": 4,
+            "tokens": 2930,
+            "excerpts": 9,
+            "supporting_excerpts": 1,
+            "workspace": {
+              "workspace_id": "05fc2d7d0bac4a50980157b502d48408",
+              "projects_searched": 2,
+              "projects_failed": 0,
+              "projects_left_out": 0,
+              "max_projects": 2,
+              "cross_repo": {
+                "enabled": false
+              }
+            },
+            "omitted": {
+              "sources": 6,
+              "memories": 0
+            },
+            "model_calls": 2,
+            "seconds": 27.995778583048377
+          }
+        }
+      },
+      {
+        "query": "cross-partial-list",
+        "scope": "workspace",
+        "split": "validation",
+        "required_total": 3,
+        "variants": {
+          "cross_off": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true,
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 3,
+                "supporting_excerpt_precision": 0.3333333333333333,
+                "tokens": 2908,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              },
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 5,
+                "supporting_excerpt_precision": 0.2,
+                "tokens": 2908,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 3,
+            "required_total": 3,
+            "tokens": 2908,
+            "excerpts": 8,
+            "supporting_excerpts": 2,
+            "workspace": {
+              "workspace_id": "05fc2d7d0bac4a50980157b502d48408",
+              "projects_searched": 2,
+              "projects_failed": 0,
+              "projects_left_out": 0,
+              "max_projects": 2,
+              "cross_repo": {
+                "enabled": false
+              }
+            },
+            "omitted": {
+              "sources": 6,
+              "memories": 0
+            },
+            "model_calls": 2,
+            "seconds": 26.45390258304542
+          },
+          "cross_on": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true,
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 2,
+                "supporting_excerpt_precision": 0.5,
+                "tokens": 2914,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              },
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 8,
+                "supporting_excerpt_precision": 0.125,
+                "tokens": 2914,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 3,
+            "required_total": 3,
+            "tokens": 2914,
+            "excerpts": 10,
+            "supporting_excerpts": 2,
+            "workspace": {
+              "workspace_id": "05fc2d7d0bac4a50980157b502d48408",
+              "projects_searched": 2,
+              "projects_failed": 0,
+              "projects_left_out": 0,
+              "max_projects": 2,
+              "cross_repo": {
+                "enabled": true,
+                "edges_read": 44,
+                "followed": 5,
+                "lifted": 5,
+                "annotated": 0,
+                "withheld_changed": 0,
+                "limit": 6
+              }
+            },
+            "omitted": {
+              "sources": 8,
+              "memories": 0
+            },
+            "model_calls": 2,
+            "seconds": 27.909878250036854
+          }
+        }
+      },
+      {
+        "query": "cross-forward-error",
+        "scope": "workspace",
+        "split": "validation",
+        "required_total": 2,
+        "variants": {
+          "cross_on": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 3,
+                "supporting_excerpt_precision": 0.3333333333333333,
+                "tokens": 2730,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              },
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 2,
+                "supporting_excerpt_precision": 0.5,
+                "tokens": 2730,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 2,
+            "required_total": 2,
+            "tokens": 2730,
+            "excerpts": 5,
+            "supporting_excerpts": 2,
+            "workspace": {
+              "workspace_id": "05fc2d7d0bac4a50980157b502d48408",
+              "projects_searched": 2,
+              "projects_failed": 0,
+              "projects_left_out": 0,
+              "max_projects": 2,
+              "cross_repo": {
+                "enabled": true,
+                "edges_read": 44,
+                "followed": 6,
+                "lifted": 6,
+                "annotated": 0,
+                "withheld_changed": 0,
+                "limit": 6
+              }
+            },
+            "omitted": {
+              "sources": 15,
+              "memories": 0
+            },
+            "model_calls": 2,
+            "seconds": 25.906036541971844
+          },
+          "cross_off": {
+            "complete": true,
+            "per_project": {
+              "atlas": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 2,
+                "supporting_excerpt_precision": 0.5,
+                "tokens": 2759,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              },
+              "nexus": {
+                "complete": true,
+                "required_delivered": [
+                  true
+                ],
+                "evidence_recall": 1.0,
+                "supporting_excerpts": 1,
+                "excerpts": 3,
+                "supporting_excerpt_precision": 0.3333333333333333,
+                "tokens": 2759,
+                "route": {
+                  "path": "retrieval",
+                  "reason": "workspace",
+                  "defaulted": false,
+                  "identifier_route": false
+                },
+                "model_calls": 2,
+                "source_verified": true
+              }
+            },
+            "required_delivered": 2,
+            "required_total": 2,
+            "tokens": 2759,
+            "excerpts": 5,
+            "supporting_excerpts": 2,
+            "workspace": {
+              "workspace_id": "05fc2d7d0bac4a50980157b502d48408",
+              "projects_searched": 2,
+              "projects_failed": 0,
+              "projects_left_out": 0,
+              "max_projects": 2,
+              "cross_repo": {
+                "enabled": false
+              }
+            },
+            "omitted": {
+              "sources": 9,
+              "memories": 0
+            },
+            "model_calls": 2,
+            "seconds": 26.296662499953527
+          }
+        }
+      }
+    ]
+  },
+  "http_link": {
+    "repositories": [
+      {
+        "id": "dec2ab0f052043fb824fc408e6a92257",
+        "name": "checkout",
+        "episode": "cb54a00e79c3fce88dc10934f67cf815a4868db6bcd8a7530f32d9912765a94e",
+        "current": true,
+        "packages": [
+          {
+            "ecosystem": "node",
+            "name": "root",
+            "version": "1.0.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "app",
+            "version": "1.2.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "backend",
+            "version": "1.1.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/plugin-reports-frontend",
+            "version": "0.1.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/plugin-application-frontend",
+            "version": "1.1.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/backstage-plugin-atlas-deployments",
+            "version": "0.1.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/backstage-plugin-atlas-hierarchy",
+            "version": "0.1.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/atlas-mcp-backend",
+            "version": "0.1.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/plugin-common-frontend",
+            "version": "1.2.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/backstage-plugin-data-platform",
+            "version": "0.1.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/backstage-plugin-dora-helpdesk",
+            "version": "0.1.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/plugin-iam-frontend",
+            "version": "1.4.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/plugin-nexus-frontend",
+            "version": "1.2.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/plugin-services-frontend",
+            "version": "1.2.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/backstage-plugin-siren-frontend",
+            "version": "0.1.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/plugin-synapse-frontend",
+            "version": "1.0.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/plugin-ui-core",
+            "version": "1.3.0"
+          },
+          {
+            "ecosystem": "node",
+            "name": "@internal/plugin-utility-common",
+            "version": "1.2.0"
+          }
+        ],
+        "exported_modules": 4364,
+        "exported_http_routes": 23
+      },
+      {
+        "id": "62694f24a6d941e6a7b201391f7274f2",
+        "name": "checkout",
+        "episode": "851a1263a04c8e0ffdbfa87148daf922022354efb4442b1fa369049577c1538f",
+        "current": true,
+        "packages": [
+          {
+            "ecosystem": "go",
+            "name": "athena",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "nbpf",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "galactus",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "gate-checker-service",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "graviton",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "bootstrap",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "kollector",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "main.go",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "github.com/golangbot/webassembly",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "github.com/golangbot/webassembly",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "github.com/golangbot/webassembly",
+            "version": null
+          },
+          {
+            "ecosystem": "node",
+            "name": "nexusmesh",
+            "version": "1.0.0"
+          },
+          {
+            "ecosystem": "go",
+            "name": "monitoring-service",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "github.com/ShareChat/nexus/protobuf",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "proton",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "clean_nodes",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "github.com/sharechat/nexus/scripts/k8s-list-deployments",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "github.com/sharechat/nexus/scripts/lrc-generator",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "github.com/ShareChat/simple-grpc-service",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "github.com/ShareChat/simple-grpc-service",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "github.com/ShareChat/simple-grpc-service",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "caller-service",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "response-service",
+            "version": null
+          },
+          {
+            "ecosystem": "go",
+            "name": "xlr8",
+            "version": null
+          },
+          {
+            "ecosystem": "node",
+            "name": "xlr8",
+            "version": "1.0.0"
+          }
+        ],
+        "exported_modules": 303,
+        "exported_http_routes": 69
+      }
+    ],
+    "pairs": [
+      {
+        "source": "dec2ab0f052043fb824fc408e6a92257",
+        "target": "62694f24a6d941e6a7b201391f7274f2",
+        "source_episode": "cb54a00e79c3fce88dc10934f67cf815a4868db6bcd8a7530f32d9912765a94e",
+        "target_episode": "851a1263a04c8e0ffdbfa87148daf922022354efb4442b1fa369049577c1538f",
+        "edges": 44,
+        "inserted": 0,
+        "closed": 0,
+        "unchanged": true
+      },
+      {
+        "source": "62694f24a6d941e6a7b201391f7274f2",
+        "target": "dec2ab0f052043fb824fc408e6a92257",
+        "source_episode": "851a1263a04c8e0ffdbfa87148daf922022354efb4442b1fa369049577c1538f",
+        "target_episode": "cb54a00e79c3fce88dc10934f67cf815a4868db6bcd8a7530f32d9912765a94e",
+        "edges": 0,
+        "inserted": 0,
+        "closed": 0,
+        "unchanged": true
+      }
+    ],
+    "edges": 44,
+    "unresolved": 8780,
+    "hidden_repositories": 0,
+    "persisted": true,
+    "unprojected_repositories": [],
+    "incremental": true,
+    "relinked": [],
+    "reused": [
+      "dec2ab0f052043fb824fc408e6a92257",
+      "62694f24a6d941e6a7b201391f7274f2"
+    ],
+    "documents": {
+      "rules": "doc-links/2",
+      "relinked": 0,
+      "mentions": 0,
+      "removed": 0,
+      "changed_during_run": 0,
+      "failed": 0,
+      "unavailable_projects": [],
+      "requeued": false
+    }
+  },
+  "http_edge_audit": {
+    "edges": 44,
+    "all_http": true,
+    "all_host_unknown": true,
+    "unique_requests": 8,
+    "rows": [
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_post_nexus_v1_serviceconfig",
+        "module_path": "POST /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_createconfig",
+        "target_node_id": "route_graviton_pkg_application_httpserver_router_go_post_nexus_v1_serviceconfig"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_post_nexus_v1_serviceconfig",
+        "module_path": "POST /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_createconfig",
+        "target_node_id": "httpserver_handlers_createserviceconfig"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_post_nexus_v1_serviceconfig",
+        "module_path": "POST /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_createconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_env_forwarding_envforwardingmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_post_nexus_v1_serviceconfig",
+        "module_path": "POST /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_createconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_nexusauthmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_post_nexus_v1_serviceconfig",
+        "module_path": "POST /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_createconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestbodycache"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_post_nexus_v1_serviceconfig",
+        "module_path": "POST /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_createconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestidmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_delete_nexus_v1_serviceconfig",
+        "module_path": "DELETE /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_deleteconfig",
+        "target_node_id": "route_graviton_pkg_application_httpserver_router_go_delete_nexus_v1_serviceconfig"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_delete_nexus_v1_serviceconfig",
+        "module_path": "DELETE /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_deleteconfig",
+        "target_node_id": "httpserver_handlers_deleteserviceconfig"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_delete_nexus_v1_serviceconfig",
+        "module_path": "DELETE /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_deleteconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_env_forwarding_envforwardingmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_delete_nexus_v1_serviceconfig",
+        "module_path": "DELETE /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_deleteconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_nexusauthmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_delete_nexus_v1_serviceconfig",
+        "module_path": "DELETE /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_deleteconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestbodycache"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_delete_nexus_v1_serviceconfig",
+        "module_path": "DELETE /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_deleteconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestidmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig",
+        "module_path": "GET /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getconfig",
+        "target_node_id": "route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig",
+        "module_path": "GET /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getconfig",
+        "target_node_id": "httpserver_handlers_getserviceconfig"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig",
+        "module_path": "GET /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_env_forwarding_envforwardingmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig",
+        "module_path": "GET /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestbodycache"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig",
+        "module_path": "GET /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestidmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_history",
+        "module_path": "GET /nexus/v1/serviceconfig/history",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getserviceconfighistory",
+        "target_node_id": "route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_history"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_history",
+        "module_path": "GET /nexus/v1/serviceconfig/history",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getserviceconfighistory",
+        "target_node_id": "httpserver_handlers_getserviceconfighistory"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_history",
+        "module_path": "GET /nexus/v1/serviceconfig/history",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getserviceconfighistory",
+        "target_node_id": "graviton_pkg_application_httpserver_env_forwarding_envforwardingmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_history",
+        "module_path": "GET /nexus/v1/serviceconfig/history",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getserviceconfighistory",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestbodycache"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_history",
+        "module_path": "GET /nexus/v1/serviceconfig/history",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_getserviceconfighistory",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestidmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_is_unique_by_dns",
+        "module_path": "GET /nexus/v1/serviceconfig/is-unique-by-dns",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_isuniquebydns",
+        "target_node_id": "route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_is_unique_by_dns"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_is_unique_by_dns",
+        "module_path": "GET /nexus/v1/serviceconfig/is-unique-by-dns",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_isuniquebydns",
+        "target_node_id": "httpserver_handlers_isuniquebydns"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_is_unique_by_dns",
+        "module_path": "GET /nexus/v1/serviceconfig/is-unique-by-dns",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_isuniquebydns",
+        "target_node_id": "graviton_pkg_application_httpserver_env_forwarding_envforwardingmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_is_unique_by_dns",
+        "module_path": "GET /nexus/v1/serviceconfig/is-unique-by-dns",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_isuniquebydns",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestbodycache"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_is_unique_by_dns",
+        "module_path": "GET /nexus/v1/serviceconfig/is-unique-by-dns",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_isuniquebydns",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestidmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_list",
+        "module_path": "GET /nexus/v1/serviceconfig/list",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_listconfigs",
+        "target_node_id": "route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_list"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_list",
+        "module_path": "GET /nexus/v1/serviceconfig/list",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_listconfigs",
+        "target_node_id": "httpserver_handlers_listserviceconfigsbyappid"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_list",
+        "module_path": "GET /nexus/v1/serviceconfig/list",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_listconfigs",
+        "target_node_id": "graviton_pkg_application_httpserver_env_forwarding_envforwardingmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_list",
+        "module_path": "GET /nexus/v1/serviceconfig/list",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_listconfigs",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestbodycache"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_get_nexus_v1_serviceconfig_list",
+        "module_path": "GET /nexus/v1/serviceconfig/list",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_listconfigs",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestidmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_patch_nexus_v1_serviceconfig_phased",
+        "module_path": "PATCH /nexus/v1/serviceconfig/phased",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_patchphased",
+        "target_node_id": "route_graviton_pkg_application_httpserver_router_go_patch_nexus_v1_serviceconfig_phased"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_patch_nexus_v1_serviceconfig_phased",
+        "module_path": "PATCH /nexus/v1/serviceconfig/phased",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_patchphased",
+        "target_node_id": "httpserver_handlers_patchserviceconfigphased"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_patch_nexus_v1_serviceconfig_phased",
+        "module_path": "PATCH /nexus/v1/serviceconfig/phased",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_patchphased",
+        "target_node_id": "graviton_pkg_application_httpserver_env_forwarding_envforwardingmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_patch_nexus_v1_serviceconfig_phased",
+        "module_path": "PATCH /nexus/v1/serviceconfig/phased",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_patchphased",
+        "target_node_id": "graviton_pkg_application_httpserver_router_nexusauthmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_patch_nexus_v1_serviceconfig_phased",
+        "module_path": "PATCH /nexus/v1/serviceconfig/phased",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_patchphased",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestbodycache"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_patch_nexus_v1_serviceconfig_phased",
+        "module_path": "PATCH /nexus/v1/serviceconfig/phased",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_patchphased",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestidmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_put_nexus_v1_serviceconfig",
+        "module_path": "PUT /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_updateconfig",
+        "target_node_id": "route_graviton_pkg_application_httpserver_router_go_put_nexus_v1_serviceconfig"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_put_nexus_v1_serviceconfig",
+        "module_path": "PUT /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_updateconfig",
+        "target_node_id": "httpserver_handlers_updateserviceconfig"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_put_nexus_v1_serviceconfig",
+        "module_path": "PUT /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_updateconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_env_forwarding_envforwardingmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_put_nexus_v1_serviceconfig",
+        "module_path": "PUT /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_updateconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_nexusauthmiddleware"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_put_nexus_v1_serviceconfig",
+        "module_path": "PUT /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_updateconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestbodycache"
+      },
+      {
+        "relation": "http_calls",
+        "confidence": "INFERRED",
+        "derivation": "http_route:host_unknown:route_graviton_pkg_application_httpserver_router_go_put_nexus_v1_serviceconfig",
+        "module_path": "PUT /nexus/v1/serviceconfig",
+        "source_node_id": "plugins_nexus_frontend_src_services_nexusctl_nexusctlapi_updateconfig",
+        "target_node_id": "graviton_pkg_application_httpserver_router_requestidmiddleware"
+      }
+    ]
+  },
+  "identity_cache": {
+    "scope": "Compare persisted real header nodes across the accepted baseline and fresh cached-identity full index; independently validate each repo-scoped stable ID.",
+    "baseline_db": "/private/tmp/graphicle-atlas-nexus-20261030/store/reviews.sqlite3",
+    "candidate_db": "/private/tmp/graphicle-loops-20261031/http-cached-index/store/reviews.sqlite3",
+    "nodes": 71666,
+    "same_node_ids": true,
+    "compared_fields": [
+      "qualified_name",
+      "kind",
+      "revision",
+      "legacy_revision",
+      "revision_basis",
+      "legacy_revision_compatible",
+      "byte_start",
+      "byte_end",
+      "end_line",
+      "source_location"
+    ],
+    "changed_nodes": 0,
+    "examples": [],
+    "stable_id_failures": 0,
+    "all_revisions_equal_file_digest": true,
+    "source_sha256": "0e1cf1069df08742fa9bb2c847aec64404ab0980d97915b7d94837fbdcea1fbd",
+    "source_bytes": 2616664,
+    "previous_fallback_bytes_hashed": 187525842224,
+    "cached_fallback_bytes_hashed": 2616664
+  },
+  "validation": {
+    "identity-cache-tests": {
+      "step": "identity-cache-tests",
+      "crate": "graphicle-memory",
+      "args": [
+        "test",
+        "--offline",
+        "--lib",
+        "graph::identity",
+        "--config",
+        "profile.dev.package.graphicle.opt-level=2",
+        "--config",
+        "profile.dev.package.graphicle-memory.opt-level=2"
+      ],
+      "exit_code": 0,
+      "seconds": 261.01940537500195,
+      "log": "/private/tmp/graphicle-loops-20261031/identity-cache-tests.log"
+    },
+    "identity-final-integration": {
+      "step": "identity-final-integration",
+      "crate": "graphicle",
+      "args": [
+        "test",
+        "--offline",
+        "--features",
+        "local-inference",
+        "--test",
+        "it",
+        "--config",
+        "profile.dev.package.graphicle.opt-level=2",
+        "--config",
+        "profile.dev.package.graphicle-memory.opt-level=2",
+        "--config",
+        "profile.dev.package.graphicle-runtime.opt-level=2",
+        "--",
+        "workspace_scope::",
+        "query_code_graph_arm::",
+        "symbol_links::",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 192.59555454197107,
+      "log": "/private/tmp/graphicle-loops-20261031/identity-final-integration.log"
+    },
+    "bounded-import-routes": {
+      "step": "bounded-import-routes",
+      "crate": "graphicle-graph",
+      "args": [
+        "test",
+        "--offline",
+        "--lib",
+        "extractors::routes",
+        "--config",
+        "profile.dev.package.graphicle.opt-level=2"
+      ],
+      "exit_code": 0,
+      "seconds": 212.7152074589976,
+      "log": "/private/tmp/graphicle-loops-20261031/bounded-import-routes.log"
+    },
+    "final-http-memory": {
+      "step": "final-http-memory",
+      "crate": "graphicle-memory",
+      "args": [
+        "test",
+        "--offline",
+        "--lib",
+        "graph::cross_repo_http"
+      ],
+      "exit_code": 0,
+      "seconds": 150.6984736250015,
+      "log": "/private/tmp/graphicle-loops-20261031/final-http-memory.log"
+    },
+    "product-final-units": {
+      "step": "product-final-units",
+      "crate": "graphicle",
+      "args": [
+        "test",
+        "--offline",
+        "--features",
+        "local-inference",
+        "--lib",
+        "--",
+        "--test-threads=2"
+      ],
+      "exit_code": 0,
+      "seconds": 303.8151575829834,
+      "log": "/private/tmp/graphicle-loops-20261031/product-final-units.log"
+    },
+    "cached-identity-product": {
+      "step": "cached-identity-product",
+      "crate": "graphicle",
+      "args": [
+        "build",
+        "--offline",
+        "--features",
+        "local-inference",
+        "--bin",
+        "graphicle",
+        "--config",
+        "profile.dev.package.graphicle.opt-level=2",
+        "--config",
+        "profile.dev.package.graphicle-memory.opt-level=2",
+        "--config",
+        "profile.dev.package.graphicle-runtime.opt-level=2"
+      ],
+      "exit_code": 0,
+      "seconds": 306.6423397079925,
+      "log": "/private/tmp/graphicle-loops-20261031/cached-identity-product.log"
+    },
+    "accepted-http-build-v2": {
+      "step": "accepted-http-build-v2",
+      "crate": "graphicle",
+      "args": [
+        "build",
+        "--offline",
+        "--features",
+        "local-inference",
+        "--bin",
+        "graphicle",
+        "--config",
+        "profile.dev.package.graphicle.opt-level=2"
+      ],
+      "exit_code": 0,
+      "seconds": 44.96570941596292,
+      "log": "/private/tmp/graphicle-loops-20261031/accepted-http-build-v2.log"
+    },
+    "python_evaluators": {
+      "passed": 72,
+      "skipped": 2,
+      "runner": "pytest",
+      "scope": "full_repository_eval, multi_repository_eval, note_abstention_eval, real_query_eval, symbol_link_cutoff, symbol_link_precision, truncation_eval",
+      "multi_repository_after_logging_change_passed": 12
+    }
+  },
+  "restored_baseline_smoke": {
+    "binary_sha256": "d181617b285d4066543b6b9014a17cff160b9ff926be5fb3c53f6f9d14475625",
+    "cases": [
+      {
+        "query": "cross-partial-list",
+        "variant": "cross_on",
+        "complete": true,
+        "per_project": {
+          "atlas": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 3,
+            "supporting_excerpt_precision": 0.3333333333333333,
+            "tokens": 2920,
+            "route": {
+              "path": "retrieval",
+              "reason": "workspace",
+              "defaulted": false,
+              "identifier_route": false
+            },
+            "model_calls": 2,
+            "source_verified": true
+          },
+          "nexus": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 5,
+            "supporting_excerpt_precision": 0.2,
+            "tokens": 2920,
+            "route": {
+              "path": "retrieval",
+              "reason": "workspace",
+              "defaulted": false,
+              "identifier_route": false
+            },
+            "model_calls": 2,
+            "source_verified": true
+          }
+        },
+        "required_delivered": 3,
+        "required_total": 3,
+        "tokens": 2920,
+        "excerpts": 8,
+        "supporting_excerpts": 2,
+        "workspace": {
+          "workspace_id": "3f61027cead240c3a5236ba26b75e97c",
+          "projects_searched": 2,
+          "projects_failed": 0,
+          "projects_left_out": 0,
+          "max_projects": 2,
+          "cross_repo": {
+            "enabled": true,
+            "edges_read": 0,
+            "followed": 0,
+            "lifted": 0,
+            "annotated": 0,
+            "withheld_changed": 0,
+            "limit": 6
+          }
+        },
+        "omitted": {
+          "sources": 6,
+          "memories": 0
+        },
+        "model_calls": 2
+      },
+      {
+        "query": "nexus-update-identity",
+        "variant": "defaults",
+        "complete": false,
+        "per_project": {
+          "nexus": {
+            "complete": false,
+            "required_delivered": [
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 1,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.14285714285714285,
+            "tokens": 2929,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": true,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true
+          }
+        },
+        "required_delivered": 0,
+        "required_total": 1,
+        "tokens": 2929,
+        "excerpts": 7,
+        "supporting_excerpts": 1,
+        "workspace": null,
+        "omitted": {
+          "sources": 0,
+          "memories": 0
+        },
+        "model_calls": 1
+      },
+      {
+        "query": "nexus-update-identity",
+        "variant": "single",
+        "complete": true,
+        "per_project": {
+          "nexus": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.14285714285714285,
+            "tokens": 2913,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true
+          }
+        },
+        "required_delivered": 1,
+        "required_total": 1,
+        "tokens": 2913,
+        "excerpts": 7,
+        "supporting_excerpts": 1,
+        "workspace": null,
+        "omitted": {
+          "sources": 0,
+          "memories": 0
+        },
+        "model_calls": 1
+      }
+    ]
+  },
+  "artifacts": {
+    "accepted-notes/RESULTS.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/accepted-notes/RESULTS.json",
+      "sha256": "b2ee1800b25381027307161a318ee25fc7f12bba3a47e317ca6c6aa58780d5ca"
+    },
+    "accepted-no-answer/RESULTS.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/accepted-no-answer/RESULTS.json",
+      "sha256": "48705e80e490b1cbb4f31c71a27cedd2e31d84b82db648a9e88db2c99a9410de"
+    },
+    "accepted-no-answer/RAW.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/accepted-no-answer/RAW.json",
+      "sha256": "0a6b1b5ceaa7c3645b46b6d1bfc613949adfea9e8c4676b8864c07e93c981c33"
+    },
+    "http-cached-full/RESULTS.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/http-cached-full/RESULTS.json",
+      "sha256": "6751fdb2a95d5fc80f81e926363cac9e3a03e5f470a03fdb817760efc5ceb9e3"
+    },
+    "http-cached-full/LINK.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/http-cached-full/LINK.json",
+      "sha256": "90217b2965e4aabf88753721fdbb9aa0a89062df0e34db276709d1589ee0c3e1"
+    },
+    "http-cached-full/PROTOCOL.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/http-cached-full/PROTOCOL.json",
+      "sha256": "ea7a234ff4cd40a94d36ce147af6fb9c776153305e24fde552e35b39b2d20332"
+    },
+    "http-cached-full/EDGE-AUDIT.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/http-cached-full/EDGE-AUDIT.json",
+      "sha256": "624a8b3e59b4f1e146abd55eefd8780f619974ab596226cf4b56430dc2d4a52a"
+    },
+    "http-cached-index/atlas/SOURCE-MANIFEST.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/http-cached-index/atlas/SOURCE-MANIFEST.json",
+      "sha256": "7924a94795b23bc94e9407aa5069c190d24e85ef94eba09ed8799d87867bfcba"
+    },
+    "http-cached-index/nexus/SOURCE-MANIFEST.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/http-cached-index/nexus/SOURCE-MANIFEST.json",
+      "sha256": "2aece8a438aa1e6c7fe0a845709f97617137948e08d7d94ba7ea17ab596cf5b0"
+    },
+    "identity-cache-probe/RESULTS.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/identity-cache-probe/RESULTS.json",
+      "sha256": "00c7d8d887459559f849d17ea2f41b91cb0f4779ac1cf6de82217fefd622edd0"
+    },
+    "truncation-v2/RESULTS.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/truncation-v2/RESULTS.json",
+      "sha256": "7c9795f8567c1e9c4f648d275cefdb38b610deb81911182e76b8d86146984008"
+    },
+    "truncation-v2/SCORES.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/truncation-v2/SCORES.json",
+      "sha256": "9090efc452f1203e0f6cf2f441ece7e17141e0f895be0520bac2c9a7cfcd50e5"
+    },
+    "truncation-v2/INPUT.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/truncation-v2/INPUT.json",
+      "sha256": "5790c3ebf462a3483aaeeef8344196e65be0d067b6f16bda9e07b36b64159fdf"
+    },
+    "NOTE-COMPARISON.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/NOTE-COMPARISON.json",
+      "sha256": "5726cebbd16f34537a2ce03e1cf065f3d69cc9fea87fce5cdff227d617cdb6e7"
+    },
+    "TRUNCATION-DIAGNOSIS.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/TRUNCATION-DIAGNOSIS.json",
+      "sha256": "96796832e94ac6b5d203f22da01c10e99862a77bc9cd07432ab3a227db8c5694"
+    },
+    "restored-baseline-smoke/RESULTS.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/restored-baseline-smoke/RESULTS.json",
+      "sha256": "41928999cc1ff4caaa892ad1a50908e8fe249cc68f5d883953cc37eb062ba187"
+    },
+    "identity-cache-tests.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/identity-cache-tests.json",
+      "sha256": "81ae21e967439be9669f4d4832a6eeb2d9ee1ff508d5e8f2fb59279c4e662c62"
+    },
+    "identity-final-integration.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/identity-final-integration.json",
+      "sha256": "81c76c6520f4ee0d04e7500f6826acdf8ea811b4ae2097670483a4efd759e9a4"
+    },
+    "bounded-import-routes.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/bounded-import-routes.json",
+      "sha256": "e789fb857286614df64d544409dddba669196c8ad9831c792bb12c5d1fc60d08"
+    },
+    "final-http-memory.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/final-http-memory.json",
+      "sha256": "3f2452b05a91caa91fd6866809a5c327345285cb6e3c9f843565a509a0eb20c6"
+    },
+    "product-final-units.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/product-final-units.json",
+      "sha256": "5a706d4e3c4e5f09e607a91db0b78cdf84a04b90ac182579ea28da6b9e3d2c2e"
+    },
+    "cached-identity-product.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/cached-identity-product.json",
+      "sha256": "e8aecd55c407d45d3523c0b7f7812379ab35a76d47a33bf4a5c8aeb247bee709"
+    },
+    "accepted-http-build-v2.json": {
+      "path": "/private/tmp/graphicle-loops-20261031/accepted-http-build-v2.json",
+      "sha256": "9889d23826f1cf1cd0900b56fbc5f1c0e33836198d91904cd0eb89fd9cbcef24"
+    }
+  },
+  "source_sha256": {
+    "crates/graphicle/src/code_graph_arm.rs": "8c23cd2fe49adc4c418d083c0284ea03c3a8e5d886023108572a20d59da63ec5",
+    "crates/graphicle/src/query.rs": "6b996fc8c07397d80d302e0bfee6b4ae7d2779f5288147435a9ebca726945dfc",
+    "crates/graphicle/src/graph_projection.rs": "36ee60ecad99d93e6631ce4511479ccb245506ffaa3b936dc93abb4632cca267",
+    "crates/graphicle/src/workspace.rs": "c7b7ba4efa6cffffa0b3ac85eb253fc51acaacba42a8304409516eaa1dd488bf",
+    "crates/graphicle-graph/src/extractors/routes.rs": "8384157a490d3723b52270e3340429a0f2a21a334c07248a9e502c44b7d87516",
+    "crates/graphicle-graph/src/extractors/routes/go.rs": "13cac082b1b1fae32faf09647137224504f03a43061b4febfbfc9fd883b75134",
+    "crates/graphicle-memory/src/graph/mod.rs": "1650aaf34f65247ecc76c88c8f8f68383f4037542dfc6695d4d20719a58aa2cd",
+    "crates/graphicle-memory/src/graph/cross_repo_imports.rs": "f4a242d66989611d0e11a6ad587697f30e56e0a413d7ab2b564b38530199100f",
+    "crates/graphicle-memory/src/graph/cross_repo_http.rs": "0d7fbe18977bf76a966747bcb641ceaad04cbf1e254258bbbe271359a6781272",
+    "crates/graphicle-memory/Cargo.toml": "984b3e5575f5ab4ac20cca730ee35e85b87761c382944dee9cc7513cbdde5308",
+    "crates/graphicle-memory/Cargo.lock": "c0f136cedfb7263caa236918439d23d5a7739039ba576223ac1efabd91072e4e",
+    "crates/graphicle/Cargo.lock": "c989e2ea8b7be88fa41f42894499a280bfea2a0ad886276d399428e04d673dbe",
+    "crates/graphicle/examples/rerank_windows.rs": "ef9cf6a66908e2ddf7341b6ccf57d7339dde3a18e8ab9949199ce6f3853b3374",
+    "crates/graphicle/tests/it/query_code_graph_arm.rs": "9b34c11e4a964bc7fecbe041d9303cb1d20a89e6a3b9356fe874ad0123aa15e5",
+    "crates/graphicle/tests/it/workspace_scope.rs": "5727b90e44feff01330f1ff699524ac0fdba2fff57cdcc7e1b4379c3d43ebdc3",
+    "crates/graphicle-memory/src/graph/identity.rs": "6e69941536087b90d874cb1a63ed736ec4f616a6cbb8a4b74eb2f92630234acf",
+    "bench/memory/tools/multi_repository_eval.py": "e14d9c5a3014a36587b612df1019437a5a918d218bb29dd221c94e3b2db9bed6",
+    "bench/memory/tools/note_abstention_eval.py": "ce5a0e1265b36afc2205d2362e42d93c2634fff388589986fd24b076dc637311",
+    "bench/memory/tools/truncation_eval.py": "f7deb71548347f34f3e23694110fc68d54acfa6ff77f69cedeb4a05a44271616",
+    "bench/memory/fixtures/note_no_answer_controls.json": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0",
+    "bench/memory/tests/test_note_abstention_eval.py": "4b86786622a9582b4dc66e559bf2ba21893b4f34764fe769dff6377e78c37888",
+    "bench/memory/tests/test_truncation_eval.py": "f064dcfca983a5a11fdfe2a7289cf944947f3754a4c3e33cbcb49dfbd6d08eac",
+    "bench/memory/tests/test_multi_repository_eval.py": "c276d47bc621dcb8e7e0524acc778a72c4fdfa6f5bdcea512d1c7e05efed689f"
+  },
+  "build_profile": "Local debug profile with per-package opt-level=2 for graphicle, graphicle-memory and graphicle-runtime; 16 MiB worker stack; no controlled latency comparison.",
+  "excluded_attempts": [
+    {
+      "attempt": "exact-defaults / exact-explicit / exact-v2 / cap-final-smoke / cap-minimal-smoke",
+      "reason": "No candidate-cap/range-order variant passes complete acceptance; all new changes rolled back."
+    },
+    {
+      "attempt": "http-full",
+      "reason": "Debug worker stack overflow; excluded from quality."
+    },
+    {
+      "attempt": "http-full-16m / http-final-full / http-accepted-full",
+      "reason": "Superseded uncached full-index attempts; use only http-cached-full for final quality."
+    },
+    {
+      "attempt": "identity-cache CLI probes",
+      "reason": "Diagnostic helper failures: ABI/operation setup, then 64 MiB response bound; replaced by persisted SQLite comparison without changing transport limits."
+    },
+    {
+      "attempt": "identity_probe Rust example",
+      "reason": "Temporary diagnostic failed with duplicate crate identities; removed from workspace; persisted SQLite comparison is authoritative."
+    },
+    {
+      "attempt": "accepted-http-build",
+      "reason": "Restored timestamps prevented Cargo invalidation; build-v2 explicitly rebuilt restored sources."
+    },
+    {
+      "attempt": "truncation",
+      "reason": "macOS native ONNX shutdown abort; successful v2 uses existing runtime shutdown helper."
+    },
+    {
+      "attempt": "budget-index-tests / scorer-build",
+      "reason": "Concurrent unrelated Tree-sitter compile failure; isolated and later product checks supersede these."
+    },
+    {
+      "attempt": "final-runtime-unit",
+      "reason": "Elapsed-time assertion failed under load; product-final-units passes 416 with two threads."
+    },
+    {
+      "attempt": "unittest discovery",
+      "reason": "Wrong runner and missing unrelated httpx; targeted pytest is authoritative."
+    }
+  ],
+  "limits": [
+    "Authored controls and source-derived questions are not independent production queries.",
+    "No generated-answer quality evaluation or controlled latency comparison.",
+    "Source-delivery completeness and note relevance precision are separate metrics.",
+    "Relative HTTP route links are host-unknown inferences, not deployed-host proof; absolute URLs require matching known origins.",
+    "Route extraction remains opt-in; existing immutable graph episodes require rebuilding or a new episode to acquire route facts.",
+    "Small packet budgets enforce bounds but cannot promise all requested evidence fits.",
+    "Default single-repository nexus-update-identity remains a known baseline miss; the full HTTP trial uses explicit retrieval settings.",
+    "The final note replay precedes the identity-only digest cache; all six negatives were rerun with the cached-identity binary and the final accepted note guards."
+  ]
+}

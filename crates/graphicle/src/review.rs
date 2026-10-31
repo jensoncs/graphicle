@@ -21,6 +21,8 @@ mod reuse;
 mod services;
 #[path = "review_flows.rs"]
 mod flows;
+#[path = "review_basic.rs"]
+mod basic;
 
 const FORMAT: &str = "graphicle.review.v1";
 const MAX_SOURCE_BYTES: usize = 64 * 1024 * 1024;
@@ -135,6 +137,10 @@ struct Call {
     relation: String,
     #[serde(default)]
     reason: String,
+    #[serde(default)]
+    evidence: String,
+    #[serde(default)]
+    discarded_error: bool,
 }
 #[derive(Deserialize)]
 struct World {
@@ -152,6 +158,25 @@ struct Facts {
     toolchain: String,
     worlds: Vec<World>,
 }
+// Deterministic type-check failures can be reused for the exact admitted tree.
+// They remain failures. Never retain incomplete discovery, parse/read failures,
+// missing input inventories, or helper failures as compiler facts.
+fn cacheable_facts(facts: &Facts) -> bool {
+    !facts.worlds.is_empty() && facts.worlds.iter().all(|world| {
+        if world.issues.is_empty() { return true; }
+        let packages: BTreeMap<_, _> = world.packages.iter().map(|p| (s(p,"path"), p)).collect();
+        !packages.is_empty() && world.inputs.iter().any(|i| i["role"] == "selected") && world.issues.iter().all(|reason| {
+            if let Some(package) = reason.strip_prefix("incomplete_package:") {
+                packages.contains_key(package)
+            } else if let Some(package) = reason.strip_prefix("type_check_failed:") {
+                world.issues.iter().any(|r| r == &format!("incomplete_package:{package}"))
+            } else { false }
+        }) && world.inputs.iter().filter(|i| i["role"] == "selected").all(|i| {
+            packages.get(s(i,"package")).is_some_and(|p| p["files"].as_array().is_some_and(|files| files.iter().any(|file| file == &i["file"])))
+        })
+    })
+}
+
 struct Analysis {
     symbols: BTreeMap<String, (String, Symbol)>,
     calls: Vec<(String, Call)>,
@@ -324,12 +349,27 @@ fn load(
     })
 }
 fn analyze(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<Analysis> {
+    let mut out = analyze_go(input, profile, cached)?;
+    basic::extend(input, &mut out)?;
+    if out.symbols.len() > 200_000 {
+        return Err(Error::bad("Review graph bound exceeded (200000 symbols)"));
+    }
+    Ok(out)
+}
+
+fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<Analysis> {
     let roots: Vec<_> = input
         .pins
         .iter()
         .flat_map(|p| {
             p.modules
                 .iter()
+                .filter(move |m| {
+                    let root = if *m == "." { format!("{}/",p.directory) } else { format!("{}/{m}/",p.directory) };
+                    input.sources.keys().any(|path| path.starts_with(&root)
+                        && (path.ends_with(".go") || path.ends_with("/go.mod"))
+                        && basic::language(input,path)!=Some("helm"))
+                })
                 .map(move |m| json!({"directory":p.directory,"module":m}))
         })
         .collect();
@@ -345,6 +385,11 @@ fn analyze(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<An
         raw: None,
         services: services::Links::default(),
     };
+    if !basic::has_go(input) {
+        out.analyzer = "source-only".into();
+        out.toolchain = "none".into();
+        return Ok(out);
+    }
     let raw = if let Some(facts) = cached {
         Ok(facts)
     } else {
@@ -373,7 +418,7 @@ fn analyze(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<An
         graphicle::extractors::go_types::decode_review_facts(&raw)
     })
     .map_err(|_| Error::bad("Invalid bounded compiler facts"))?;
-    if facts.worlds.iter().all(|w| w.issues.is_empty()) {
+    if cacheable_facts(&facts) {
         out.raw = Some(raw);
     }
     out.analyzer = facts.analyzer;
@@ -447,8 +492,10 @@ fn analyze(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<An
     }
     // Package value declarations are now first-class alongside functions and
     // types. Keep a hard cardinality cap as well as the bounded fact transport.
-    if out.symbols.len() > 200_000 || out.calls.len() > 500_000 {
-        return Err(Error::bad("Review graph bound exceeded"));
+    if out.symbols.len() > 200_000 {
+        return Err(Error::bad(format!(
+            "Review graph bound exceeded: {} symbols (limit 200000)", out.symbols.len()
+        )));
     }
     // A byte-reuse hash is not semantic validity. This separate fingerprint
     // covers compiler-owned transitive package dependencies and native inputs.
@@ -516,8 +563,13 @@ fn outside_declarations(analysis: &Analysis, file: &str, source: &str) -> String
     outside.push_str(&source[cursor..]);
     outside.trim().to_string()
 }
-fn graph(analysis: &Analysis, reverse: bool) -> Result<Graph> {
-    let mut graph = Graph::new(true, true);
+// Repeated call sites share a traversal link, but remain in native facts for
+// exact citations. Bound the structure we actually allocate, not raw references
+// (including unresolved calls) that never become graph edges.
+fn call_links(analysis: &Analysis, limit: usize) -> Result<Vec<(&str, &str, usize)>> {
+    if analysis.services.edges.len() > limit {
+        return Err(Error::bad(format!("Review graph bound exceeded: {} service links (limit {limit})", analysis.services.edges.len())));
+    }
     // Declaration identities already exist. Re-hashing them for every endpoint
     // (and again for evidence) costs millions of digests on dependency graphs.
     let identities: BTreeMap<_, _> = analysis
@@ -525,12 +577,7 @@ fn graph(analysis: &Analysis, reverse: bool) -> Result<Graph> {
         .iter()
         .map(|(id, (world, symbol))| ((world.as_str(), symbol.key.as_str()), id.as_str()))
         .collect();
-    for (id, (_, symbol)) in &analysis.symbols {
-        graph.add_node(
-            json!(id),
-            json!({"label":symbol.name}).as_object().unwrap().clone(),
-        )?;
-    }
+    let mut links = BTreeMap::new();
     for (call_index, (world, call)) in analysis.calls.iter().enumerate() {
         if !call.reason.is_empty() {
             continue;
@@ -541,6 +588,34 @@ fn graph(analysis: &Analysis, reverse: bool) -> Result<Graph> {
         ) else {
             continue;
         };
+        let old = links.entry((caller, callee, call.relation.as_str())).or_insert(call_index);
+        // Prefer a discarded-error call as the representative when the same
+        // caller invokes a supplier more than once. No target is discarded.
+        if call.discarded_error && !analysis.calls[*old].1.discarded_error {
+            *old = call_index;
+        }
+        if links.len() + analysis.services.edges.len() > limit {
+            return Err(Error::bad(format!(
+                "Review graph bound exceeded: {} distinct links (limit {limit}); {} call sites",
+                links.len() + analysis.services.edges.len(), analysis.calls.len()
+            )));
+        }
+    }
+    Ok(links.into_iter().map(|((from, to, _), index)| (from, to, index)).collect())
+}
+
+fn call_evidence(world: &str, call: &Call) -> Value {
+    json!({"relation":call.relation,"source_file":call.file,"source_location":format!("L{}",call.line),"byte_start":call.start,"byte_end":call.end,"spelling":call.spelling,"caller":key(world,&call.caller),"callee":key(world,&call.target),"discarded_error":call.discarded_error,"evidence":if !call.evidence.is_empty(){call.evidence.as_str()}else if call.relation=="may_call"{"function_value_candidate"}else{"go/types"}})
+}
+
+fn graph(analysis: &Analysis, reverse: bool) -> Result<Graph> {
+    let links = call_links(analysis, 500_000)?;
+    let mut graph = Graph::with_capacity(true, true, analysis.symbols.len(), links.len() + analysis.services.edges.len());
+    for (id, (_, symbol)) in &analysis.symbols {
+        graph.add_node(json!(id), json!({"label":symbol.name}).as_object().unwrap().clone())?;
+    }
+    for (caller, callee, call_index) in links {
+        let call = &analysis.calls[call_index].1;
         let (mut from, mut to) = (caller, callee);
         if reverse {
             std::mem::swap(&mut from, &mut to)
@@ -583,8 +658,10 @@ fn add_reason(reasons: &mut Vec<Value>, reason: Value) {
     }
     if let Some(old) = reasons.iter_mut().find(|r| r["reason"] == reason["reason"]) {
         let length = |r: &Value| r["path"].as_array().map_or(0, Vec::len);
+        let discarded = |r: &Value| r["steps"].as_array().is_some_and(|steps| steps.iter().any(|s| s["discarded_error"] == true));
         if length(&reason) < length(old)
-            || (length(&reason) == length(old) && reason.to_string().cmp(&old.to_string()).is_lt())
+            || (length(&reason) == length(old) && (discarded(&reason) && !discarded(old)
+                || discarded(&reason) == discarded(old) && reason.to_string().cmp(&old.to_string()).is_lt()))
         {
             *old = reason;
         }
@@ -601,6 +678,23 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
     if seeds.is_empty() {
         return Ok(out);
     }
+    // Seed immediate failure-contract context before transitive traversal can
+    // exhaust its budget. Interface implementations remain potential targets.
+    if depth > 0 {
+        let seed_set: BTreeSet<_> = seeds.iter().map(String::as_str).collect();
+        let mut direct = 0;
+        for (caller, callee, index) in call_links(analysis, 500_000)? {
+            let (world, call) = &analysis.calls[index];
+            if !seed_set.contains(caller) || !call.discarded_error
+                || !matches!(call.relation.as_str(), "calls" | "may_call") { continue; }
+            if direct == 20_000 {
+                out.issues.push(issue("call_contract_budget", json!({"limit":20_000})));
+                break;
+            }
+            add_reason(out.reasons.entry(callee.to_owned()).or_default(), json!({"reason":"dependency","path":[caller,callee],"steps":[call_evidence(world,call)]}));
+            direct += 1;
+        }
+    }
     let relations = vec![
         "calls".into(),
         "may_call".into(),
@@ -612,6 +706,8 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
         "http_calls".into(),
         "grpc_calls".into(),
         "event_delivers".into(),
+        "potential_import".into(),
+        "configuration_scope".into(),
     ];
     let mut paths_emitted = 0usize;
     for reverse in [false, true] {
@@ -668,7 +764,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
                     json!({"relation":edge.relation,"caller":edge.from,"callee":edge.to,"evidence":"configured_static","provenance":edge.evidence})
                 } else {
                     let (world, call) = &analysis.calls[reference["call_index"].as_u64().unwrap() as usize];
-                    json!({"relation":call.relation,"source_file":call.file,"source_location":format!("L{}",call.line),"byte_start":call.start,"byte_end":call.end,"spelling":call.spelling,"caller":key(world,&call.caller),"callee":key(world,&call.target),"evidence":if call.relation=="may_call"{"function_value_candidate"}else{"go/types"}})
+                    call_evidence(world, call)
                 };
                 let mut path = paths[&predecessor].clone();
                 path.push(hit.node_id.clone());
@@ -753,7 +849,11 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     for (id, (_, old)) in &a.symbols {
         if let Some((_, new)) = b.symbols.get(id) {
             if old.revision != new.revision {
-                changes.push(json!({"kind":"modified","base":id,"head":id,"signature_changed":old.signature!=new.signature,"implementation_changed":old.implementation!=new.implementation}));
+                if old.kind == "basic_file" || new.kind == "basic_file" {
+                    changes.push(json!({"kind":"modified","base":id,"head":id,"granularity":"file","signature_changed":null,"implementation_changed":null}));
+                } else {
+                    changes.push(json!({"kind":"modified","base":id,"head":id,"signature_changed":old.signature!=new.signature,"implementation_changed":old.implementation!=new.implementation}));
+                }
                 seeds_a.insert(id.clone());
                 seeds_b.insert(id.clone());
             }
@@ -799,7 +899,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             if reverse == 1 {
                 unmatched_a.remove(&id);
                 unmatched_b.remove(next);
-                changes.push(json!({"kind":"moved_or_renamed","base":id,"head":next,"evidence":"unique_implementation_and_signature"}));
+                changes.push(json!({"kind":"moved_or_renamed","base":id,"head":next,"evidence":if old.kind=="basic_file"{"unique_file_content"}else{"unique_implementation_and_signature"}}));
                 seeds_a.insert(id);
                 seeds_b.insert(next.clone());
                 continue;
@@ -1042,6 +1142,9 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                     .get(&(world.as_str(), symbol.package.as_str()))
                     .unwrap_or(&Value::Null),
             );
+            if symbol.kind == "basic_file" {
+                basic::annotate(&mut value, analysis, &symbol.file);
+            }
             if let Some(boundary) = analysis.services.nodes.get(&id) {
                 value["service_boundary"] = boundary.clone();
                 value["revision"] = json!(crate::digest(&value));
@@ -1075,7 +1178,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                     json!({"side":side,"file":path}),
                 ));
             }
-            if unsupported_source(path, source.content.text().unwrap_or("")) {
+            if basic::language(input, path).is_none() && unsupported_source(path, source.content.text().unwrap_or("")) {
                 issues.push(issue(
                     "unsupported_source_language_or_contract",
                     json!({"side":side,"file":path}),
@@ -1086,7 +1189,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     let complete = issues.is_empty();
     Ok(
         json!({"format":FORMAT,"base":base.pins,"head":head.pins,"profile":r.profile,"analyzer":a.analyzer,"toolchain":{"base":a.toolchain,"head":b.toolchain},"changes":changes,"correspondence":correspondence,"dependency_binding_changed":dependency_changed,
-        "diffs":diffs,"entries":entries,"file_changes":file_changes,"package_instances":{"base":a.packages,"head":b.packages},"service_graph":{"base":a.services.summary(),"head":b.services.summary()},"coverage":{"complete":complete,"scope":"supplied Go snapshot set; static calls, type uses and declared service boundaries","behavioral_propagation_proven":false,"path_selection":"shortest_example_per_direction","issues":issues,"max_depth":r.max_depth},
+        "diffs":diffs,"entries":entries,"file_changes":file_changes,"package_instances":{"base":a.packages,"head":b.packages},"service_graph":{"base":a.services.summary(),"head":b.services.summary()},"coverage":{"complete":complete,"scope":"supplied snapshot set; Go compiler facts and basic Terraform/Helm/Bash/Python/Rust source dependencies","behavioral_propagation_proven":false,"path_selection":"shortest_example_per_direction","issues":issues,"max_depth":r.max_depth},
         "impact":if !complete{"incomplete"}else if seeds_a.is_empty()&&seeds_b.is_empty()&&diffs.is_empty()&&!dependency_changed{"no_changes_in_scope"}else{"potential_impact"}}),
     )
 }
@@ -1104,13 +1207,63 @@ fn unsupported_source(path: &str, content: &str) -> bool {
             ))
 }
 
+/// Optional candidates are costed only against the remaining allowance. A
+/// failed bounded count is a lower bound, never an estimated exact cost.
+#[derive(Default)]
+struct PackingCost {
+    exact: Option<usize>,
+    exceeds: usize,
+}
+impl PackingCost {
+    fn measured(entry: &Value) -> Self {
+        Self { exact: Some(text::count(&entry.to_string()) + text::count(&entry["id"].to_string()) + 24), exceeds: 0 }
+    }
+    fn exact(&mut self, entry: &Value) -> usize {
+        *self.exact.get_or_insert_with(|| text::count(&entry.to_string()) + text::count(&entry["id"].to_string()) + 24)
+    }
+    fn within(&mut self, entry: &Value, limit: usize) -> Option<usize> {
+        if let Some(cost) = self.exact { return (cost <= limit).then_some(cost); }
+        if limit <= self.exceeds { return None; }
+        let overhead = text::count(&entry["id"].to_string()) + 24;
+        if let Some(remaining) = limit.checked_sub(overhead)
+            && let Some(cost) = text::count_within(&entry.to_string(), remaining)
+        {
+            self.exact = Some(cost + overhead);
+            return self.exact;
+        }
+        self.exceeds = limit;
+        None
+    }
+}
+
+// Changed declarations already explain their inclusion. Additional dependency
+// examples and report examples are optional evidence, not required source bytes.
+// Compact only under pressure; retain counts/digests and every uncertainty flag.
+fn compact_required_metadata(report: &mut Value, candidates: &mut [(&str, Value, PackingCost)]) {
+    for field in ["changes", "file_changes"] {
+        if let Some(examples) = report[field]["examples"].as_array_mut() {
+            examples.clear(); // count and digest cover the full original inventory
+        }
+    }
+    for (_, entry, cost) in candidates.iter_mut().filter(|(_, e, _)| is_head_change(e)) {
+        let Some(reasons) = entry["reasons"].as_array() else { continue };
+        let retained: Vec<_> = reasons.iter().filter(|r| r["reason"] == "change_seed" || r["uncertain_scope"] == true).cloned().collect();
+        if retained.len() == reasons.len() { continue; }
+        entry["reason_examples"] = json!({"count":reasons.len(),"omitted":reasons.len()-retained.len(),"digest":crate::digest(&json!(reasons))});
+        entry["reasons"] = json!(retained);
+        entry.as_object_mut().unwrap().remove("revision");
+        entry["revision"] = json!(crate::digest(entry));
+        *cost = PackingCost::measured(entry);
+    }
+}
+
 fn pack(
     mut report: Value,
     max_tokens: usize,
     previous: Option<&Value>,
     scopes: Option<&reuse::Scopes>,
 ) -> Result<(Value, Value)> {
-    let mut entries = report["entries"].as_array().unwrap().clone();
+    let mut entries = std::mem::take(report["entries"].as_array_mut().unwrap());
     // Optional annotations are upgrades to code, never part of the cost that
     // decides whether a required current declaration fits.
     let mut business = BTreeMap::new();
@@ -1136,8 +1289,8 @@ fn pack(
         report["business_context"]["packing"] = json!({"policy":"required_code_then_history_then_cited_flows_v2",
             "candidate_entries":business.len(),"retained_entries":0,"omitted_entries":business.len(),"allowance_tokens":0,"used_tokens":0});
     }
-    let mut diffs = report["diffs"].as_array().unwrap().clone();
-    let instances = report["package_instances"].clone();
+    let mut diffs = std::mem::take(report["diffs"].as_array_mut().unwrap());
+    let instances = report["package_instances"].take();
     report["package_instances"] = json!({"digest":crate::digest(&instances),"base_count":instances["base"].as_array().unwrap().len(),"head_count":instances["head"].as_array().unwrap().len()});
     for diff in &mut diffs {
         diff["id"] = json!(crate::digest(&json!(["diff", diff["file"], diff["hunk"]])));
@@ -1145,22 +1298,19 @@ fn pack(
     }
     let scope_requirements = scopes.map(|s| {
         s.counts(
-            &entries
-                .iter()
-                .cloned()
-                .map(|e| ("entries", e))
-                .chain(diffs.iter().cloned().map(|e| ("diffs", e)))
-                .collect::<Vec<_>>(),
+            entries.iter().map(|e| ("entries", e))
+                .chain(diffs.iter().map(|e| ("diffs", e))),
         )
     });
     let required_head = entries.iter().filter(|e| is_head_change(e)).count();
+    let required_contracts = entries.iter().filter(|e| is_call_contract(e)).count();
     report["coverage"]["required_entries"] = json!(entries.len());
     report["coverage"]["required_diffs"] = json!(diffs.len());
     let total = entries.len() + diffs.len();
-    let issues = report["coverage"]["issues"].as_array().unwrap().clone();
+    let issues = std::mem::take(report["coverage"]["issues"].as_array_mut().unwrap());
     report["coverage"]["issue_count"] = json!(issues.len());
     report["coverage"]["issues"] = json!(issues.iter().take(20).collect::<Vec<_>>());
-    let changes = report["changes"].clone();
+    let changes = report["changes"].take();
     let deleted: BTreeSet<_> = changes
         .as_array()
         .unwrap()
@@ -1179,13 +1329,19 @@ fn pack(
     report["coverage"]["budget_omitted"] = json!(0);
     report["coverage"]["current_head"] =
         json!({"required":required_head,"selected":0,"usable":required_head==0});
+    report["coverage"]["call_contracts"] = json!({"required":required_contracts,"selected":0,"complete":required_contracts==0,"scope":"immediate pinned targets of discarded-error calls; may_call targets are candidates"});
     // The canonical full selection is independent of the prior receipt. A delta
     // describes this same bounded view; it cannot accumulate an unbounded view
     // of cheap, previously shown entries. Round-robin gives base/deletions and
     // consumers a turn alongside current changed declarations.
     let mut buckets: [std::collections::VecDeque<Value>; 8] =
         std::array::from_fn(|_| std::collections::VecDeque::new());
+    let mut contracts = vec![];
     for entry in entries {
+        if is_call_contract(&entry) {
+            contracts.push(entry);
+            continue;
+        }
         let reasons = entry["reasons"].as_array();
         let seed = reasons.is_some_and(|rs| rs.iter().any(|r| r["reason"] == "change_seed"));
         let consumer = reasons.is_some_and(|rs| {
@@ -1216,6 +1372,7 @@ fn pack(
     // declaration must not consume their space merely because it got an early
     // round-robin turn. Reserve a soft hunk allowance before filling context.
     candidates.extend(buckets[0].drain(..).map(|e| ("entries", e)));
+    candidates.extend(contracts.into_iter().map(|e| ("entries", e)));
     candidates.extend(diffs.into_iter().map(|d| ("diffs", d)));
     while buckets[1..6].iter().any(|b| !b.is_empty()) {
         for bucket in &mut buckets[1..6] {
@@ -1234,35 +1391,39 @@ fn pack(
     let mut candidates: Vec<_> = candidates
         .into_iter()
         .map(|(collection, entry)| {
-            let cost = text::count(&entry.to_string()) + text::count(&entry["id"].to_string()) + 24;
+            let cost = if collection == "diffs" || is_head_change(&entry) || is_call_contract(&entry) {
+                PackingCost::measured(&entry)
+            } else { PackingCost::default() };
             (collection, entry, cost)
         })
         .collect();
     report["execution_flows"] = json!({"paths":[],"coverage":{"complete":false,"observed_execution_available":false,"selection":"selected_invocation_segments","omitted":0,"max_paths":16}});
+    let required_cost = |entries: &[(&str, Value, PackingCost)]| entries.iter().filter(|(_, e, _)| is_head_change(e) || is_call_contract(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
+    let metadata_cost = text::count(&report.to_string()) + 384;
+    // Reserve room for whole history blocks when requested, before spending
+    // tokens on repeated change/path examples. This never removes source text.
+    let history_reserve = if business.is_empty() { 0 } else { max_tokens / 8 };
+    if metadata_cost + required_cost(&candidates) + history_reserve > max_tokens {
+        compact_required_metadata(&mut report, &mut candidates);
+    }
     let mut used = text::count(&report.to_string()) + 384;
-    let requested_diff_reserve = candidates
-        .iter()
-        .filter(|(c, _, _)| *c == "diffs")
-        .map(|(_, _, cost)| cost)
-        .sum::<usize>()
-        .min(max_tokens / 4);
-    let head_cost = candidates
-        .iter()
-        .filter(|(c, e, _)| *c == "entries" && is_head_change(e))
-        .map(|(_, _, cost)| cost)
-        .sum::<usize>();
-    // The hunk allowance is soft. Reserve all current declarations first;
-    // deferred declarations must not compete with hunks that spent their space.
-    let diff_reserve = requested_diff_reserve
-        .min(max_tokens.saturating_sub(used).saturating_sub(head_cost));
-    let minimum_head_tokens = used + head_cost + diff_reserve;
-    // History requested by the reviewer gets first use of optional capacity;
-    // flow citations are optional too, never part of required code costs.
-    let business_allowance = max_tokens
-        .saturating_sub(minimum_head_tokens)
-        .min(max_tokens / 4);
-    let business_costs = fit_business_context(&mut candidates, &business, business_allowance);
+    let requested_diff_reserve = candidates.iter().filter(|(c, _, _)| *c == "diffs").map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>().min(max_tokens / 4);
+    let head_cost = candidates.iter().filter(|(_, e, _)| is_head_change(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
+    let contract_cost = candidates.iter().filter(|(_, e, _)| is_call_contract(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
+    let optional_capacity = max_tokens.saturating_sub(used).saturating_sub(head_cost).saturating_sub(contract_cost);
+    // Required declarations and call contracts are reserved first. Preserve an
+    // affordable complete hunk before spending optional capacity on history.
+    // A fixed half-budget split needlessly excludes whole history blocks; no
+    // reservation is useful when even the smallest hunk cannot fit.
+    let minimum_hunk = candidates.iter().filter(|(c, _, _)| *c == "diffs")
+        .map(|(_, _, cost)| cost.exact.unwrap())
+        .filter(|cost| *cost <= optional_capacity && *cost <= requested_diff_reserve)
+        .min().unwrap_or(0);
+    let business_allowance = optional_capacity.saturating_sub(minimum_hunk).min(max_tokens / 4);
+    let business_costs = fit_business_context(&mut candidates, &business, business_allowance, true);
     let business_used: usize = business_costs.values().sum();
+    let diff_reserve = requested_diff_reserve.min(optional_capacity.saturating_sub(business_used));
+    let minimum_head_tokens = used + head_cost + diff_reserve;
     let flow_reserve = if !flow_annotations.is_empty()
         || candidates.iter().any(|(_, entry, _)| {
             entry["reasons"].as_array().is_some_and(|reasons| {
@@ -1273,9 +1434,9 @@ fn pack(
         }) {
         max_tokens
             .saturating_sub(minimum_head_tokens)
+            .saturating_sub(contract_cost)
             .saturating_sub(business_used)
             .min(max_tokens / 16)
-            .min(2048)
     } else {
         0
     };
@@ -1287,18 +1448,20 @@ fn pack(
     let mut selected = vec![];
     let mut diff_used = 0;
     let mut deferred = vec![];
-    for (collection, entry, cost) in candidates {
+    for (collection, entry, mut cost) in candidates {
         let limit = if is_head_change(&entry) {
             max_tokens.saturating_sub(diff_reserve)
         } else {
             max_tokens.saturating_sub(flow_reserve)
         };
-        if (collection == "diffs" && diff_used + cost > diff_reserve)
-            || used.saturating_add(cost) > limit
-        {
+        let allowance = limit.saturating_sub(used).min(if collection == "diffs" {
+            diff_reserve.saturating_sub(diff_used)
+        } else { usize::MAX });
+        let Some(measured) = cost.within(&entry, allowance) else {
             deferred.push((collection, entry, cost));
             continue;
-        }
+        };
+        let cost = measured;
         used += cost;
         if collection == "diffs" {
             diff_used += cost;
@@ -1306,13 +1469,13 @@ fn pack(
         selected.push((collection, entry));
     }
     // Reclaim unused reservations in priority order, without re-tokenizing.
-    for (collection, entry, cost) in deferred {
+    for (collection, entry, mut cost) in deferred {
         let limit = if is_head_change(&entry) {
             max_tokens
         } else {
             max_tokens.saturating_sub(flow_reserve)
         };
-        if used.saturating_add(cost) <= limit {
+        if let Some(cost) = cost.within(&entry, limit.saturating_sub(used)) {
             used += cost;
             selected.push((collection, entry));
         }
@@ -1322,6 +1485,9 @@ fn pack(
         .filter(|(c, e)| *c == "entries" && is_head_change(e))
         .count();
     report["coverage"]["current_head"] = json!({"required":required_head,"selected":head_selected,"complete":required_head==head_selected,"minimum_tokens_with_hunk_reserve":minimum_head_tokens,"usable":required_head==0 || head_selected>0});
+    let contracts_selected = selected.iter().filter(|(_, e)| is_call_contract(e)).count();
+    report["coverage"]["call_contracts"]["selected"] = json!(contracts_selected);
+    report["coverage"]["call_contracts"]["complete"] = json!(contracts_selected == required_contracts);
     report["coverage"]["budget_omitted"] = json!(total - selected.len());
     if total != selected.len() {
         report["coverage"]["complete"] = json!(false);
@@ -1351,13 +1517,11 @@ fn pack(
             let mut upgrades: Vec<_> = selected
                 .into_iter()
                 .map(|(collection, entry)| {
-                    let cost = text::count(&entry.to_string())
-                        + text::count(&entry["id"].to_string())
-                        + 24;
+                    let cost = PackingCost::measured(&entry);
                     (collection, entry, cost)
                 })
                 .collect();
-            let refilled: usize = fit_business_context(&mut upgrades, &business, refill_allowance)
+            let refilled: usize = fit_business_context(&mut upgrades, &business, refill_allowance, false)
                 .values()
                 .sum();
             selected = upgrades
@@ -1440,6 +1604,14 @@ fn pack(
     Ok((report, receipt))
 }
 
+fn is_call_contract(entry: &Value) -> bool {
+    entry["side"] == "head" && !is_head_change(entry) && entry["reasons"].as_array().is_some_and(|reasons| {
+        reasons.iter().any(|r| r["reason"] == "dependency"
+            && r["path"].as_array().is_some_and(|p| p.len() == 2)
+            && r["steps"].as_array().is_some_and(|steps| steps.iter().any(|s| s["discarded_error"] == true && matches!(s["relation"].as_str(), Some("calls" | "may_call")))))
+    })
+}
+
 fn is_head_change(entry: &Value) -> bool {
     entry["side"] == "head"
         && entry["reasons"]
@@ -1448,9 +1620,10 @@ fn is_head_change(entry: &Value) -> bool {
 }
 
 fn fit_business_context(
-    candidates: &mut [(&str, Value, usize)],
+    candidates: &mut [(&str, Value, PackingCost)],
     contexts: &BTreeMap<String, Value>,
     allowance: usize,
+    required_only: bool,
 ) -> BTreeMap<String, usize> {
     let analyzed = |context: &Value| {
         ["function_history", "cochange", "similar_changes"]
@@ -1465,8 +1638,13 @@ fn fit_business_context(
         .filter(|i| {
             candidates[*i].1.get("business_context").is_none()
                 && contexts.contains_key(s(&candidates[*i].1, "id"))
+                && (!required_only || is_head_change(&candidates[*i].1) || is_call_contract(&candidates[*i].1))
         })
         .collect();
+    // Within the same evidence/side priority, prefer affordable complete
+    // blocks. This covers more changed declarations without clipping patches
+    // or dropping the history sample's continuity and omission metadata.
+    let costs: BTreeMap<_, _> = order.iter().map(|i| (*i, text::count(&contexts[s(&candidates[*i].1, "id")].to_string()))).collect();
     order.sort_by_key(|i| {
         let entry = &candidates[*i].1;
         let history = analyzed(&contexts[s(entry, "id")]);
@@ -1474,6 +1652,7 @@ fn fit_business_context(
             !history,
             !is_head_change(entry),
             entry["side"] != "head",
+            costs[i],
             *i,
         )
     });
@@ -1481,18 +1660,19 @@ fn fit_business_context(
     let mut allocations = BTreeMap::new();
     for index in order {
         let (_, entry, cost) = &mut candidates[index];
+        let base_cost = cost.exact(entry);
         let mut enriched = entry.clone();
         enriched["business_context"] = contexts[s(entry, "id")].clone();
         enriched.as_object_mut().unwrap().remove("revision");
         enriched["revision"] = json!(crate::digest(&enriched));
         let enriched_cost =
             text::count(&enriched.to_string()) + text::count(&enriched["id"].to_string()) + 24;
-        let extra = enriched_cost.saturating_sub(*cost);
+        let extra = enriched_cost.saturating_sub(base_cost);
         if used + extra <= allowance {
             used += extra;
             allocations.insert(s(entry, "id").to_owned(), extra);
             *entry = enriched;
-            *cost = enriched_cost;
+            *cost = PackingCost { exact: Some(enriched_cost), exceeds: 0 };
         }
     }
     allocations
@@ -1638,12 +1818,11 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
             })
         })?;
     }
-    let identity = graphicle::extractors::go_types::review_identity()
-        .ok()
+    let identity = (basic::has_go(&base) || basic::has_go(&head)).then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
         .map(|v| crate::digest(&v));
     let fact_key = |input: &Input| {
         identity.as_ref().map(|identity|crate::digest(&json!({
-        "identity":identity,"profile":r.profile,
+        "identity":identity,"profile":r.profile,"fact_policy":"pinned-type-diagnostics-basic-roots-v2",
         "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.snapshot,p.policy_sha256])).collect::<Vec<_>>(),
         "sources":input.sources.iter().map(|(path,s)|json!([path,s.repository,s.sha])).collect::<Vec<_>>() })))
     };
@@ -1732,15 +1911,21 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
                 ));
             }
         }
-        crate::business_context::annotate(&mut report, options, &r.base, &r.head, r.max_tokens);
+        crate::phase::phase("review_business_context", || {
+            crate::business_context::annotate(&mut report, options, &r.base, &r.head, r.max_tokens)
+        });
         report["business_context"]["omitted_peer_suggestions"] = json!(omitted);
     }
     let context_sha = crate::digest(
         &json!({"business_context":r.business_context,"execution_coverage":coverage_ids,
             "service_graph":{"base":a.services.summary(),"head":b.services.summary()}}),
     );
-    let scopes = reuse::annotate(&mut report, &a, &b);
-    let reusable = reusable_reviews(&r, &head, &b, &report, previous.as_ref(), &context_sha);
+    let scopes = crate::phase::phase("review_reuse_scopes", || {
+        reuse::annotate(&mut report, &a, &b)
+    });
+    let reusable = crate::phase::phase("review_reuse_decisions", || {
+        reusable_reviews(&r, &head, &b, &report, previous.as_ref(), &context_sha)
+    });
     report["review_reuse"] = json!({"eligible":reusable,"requested":r.reviewed_entries.len(),"context_sha256":context_sha,"not_a_review_verdict":true,"policy":"resolved_component_with_complete_context_v1"});
     report["text_reuse"] = json!(r.reuse_text);
     let (mut report, receipt) = crate::phase::phase("review_pack", || {
@@ -1838,6 +2023,169 @@ pub fn properties() -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn failed_bounded_cost_can_be_retried_with_a_larger_allowance() {
+        let entry = json!({"id":"one","text":"fn unicode() { /* 中文 */ }\n".repeat(200)});
+        let expected = PackingCost::measured(&entry).exact.unwrap();
+        let mut lazy = PackingCost::default();
+        assert_eq!(lazy.within(&entry, 32), None);
+        assert_eq!(lazy.exact, None);
+        assert_eq!(lazy.within(&entry, 20), None);
+        assert_eq!(lazy.within(&entry, expected), Some(expected));
+        assert_eq!(lazy.within(&entry, expected - 1), None);
+    }
+
+    #[test]
+    fn history_reservation_prefers_complete_affordable_required_blocks() {
+        let entry = |id: &str, required: bool| json!({"id":id,"side":"head","text":"fn f() {}","reasons":[{"reason":if required {"change_seed"} else {"dependency"}}]});
+        let context = |subject: String| json!({"evolution":{"function_history":[{"subject":subject,"patch_excerpt":"entire patch","patch_truncated":false}],"sample":{"complete":false,"omissions":{"unavailable_or_withheld_unit":1}}}});
+        let short = context("Earlier fix".into());
+        let contexts = BTreeMap::from([("large".into(),context("long history ".repeat(500))), ("first".into(),short.clone()), ("second".into(),short.clone()), ("optional".into(),short.clone())]);
+        let mut candidates: Vec<_> = [("large",true),("optional",false),("first",true),("second",true)].into_iter().map(|(id,required)| ("entries",entry(id,required),PackingCost::default())).collect();
+        let costs = fit_business_context(&mut candidates, &contexts, 500, true);
+        assert_eq!(costs.len(),2);
+        assert!(costs.contains_key("first") && costs.contains_key("second"));
+        for (_, entry, _) in &candidates[2..] { assert_eq!(entry["business_context"], short); }
+        assert!(candidates[1].1.get("business_context").is_none());
+        // Optional context is considered only after code selection.
+        assert_eq!(fit_business_context(&mut candidates[1..2], &contexts, 500, false).len(), 1);
+    }
+
+    #[test]
+    fn abundant_history_preserves_an_affordable_complete_hunk() {
+        let entries: Vec<_> = (0..8).map(|i| json!({"id":format!("head{i}"),"side":"head","revision":"r","text":"work(); ".repeat(180),"reasons":[{"reason":"change_seed"}]})).collect();
+        let plain = json!({"entries":entries,"diffs":[{"file":"f.go","before":"old(); ".repeat(60),"after":"new(); ".repeat(60)}],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]}});
+        let mut checked = 0;
+        for budget in [6000,6500,7000,7500] {
+            let (baseline, _) = pack(plain.clone(),budget,None,None).unwrap();
+            if baseline["coverage"]["current_head"]["complete"] != true || baseline["diffs"].as_array().unwrap().is_empty() { continue; }
+            checked += 1;
+            let mut enriched = plain.clone();
+            enriched["business_context"] = json!({"complete":false});
+            for entry in enriched["entries"].as_array_mut().unwrap() {
+                entry["business_context"] = json!({"evolution":{"function_history":[{"subject":"Earlier behavior ".repeat(100),"patch_excerpt":"complete patch","patch_truncated":false}]}});
+            }
+            let (packet, _) = pack(enriched,budget,None,None).unwrap();
+            assert_eq!(packet["coverage"]["current_head"]["complete"],true);
+            assert_eq!(packet["diffs"],baseline["diffs"]);
+        }
+        assert!(checked > 0);
+    }
+
+    #[test]
+    fn call_contract_source_precedes_optional_context_and_keeps_delta_identity() {
+        let caller = json!({"id":"caller","symbol_id":"caller","revision":"r","repository_id":"repo","side":"head","text":"items, _ := source.Load(); publish(items)","reasons":[{"reason":"change_seed"}]});
+        let supplier = json!({"id":"supplier","symbol_id":"supplier","revision":"r","repository_id":"repo","side":"head","text":"func Load() ([]string, error) { if unavailable { return nil, err }; return items, nil }","reasons":[{"reason":"dependency","path":["caller","supplier"],"steps":[{"relation":"may_call","evidence":"interface_implementation","discarded_error":true}]}]});
+        let mut entries = vec![caller, supplier];
+        entries.extend((0..30).map(|i| json!({"id":format!("optional{i}"),"revision":"r","repository_id":"repo","side":"head","text":"optional consumer context; ".repeat(200),"reasons":[{"reason":"potential_consumer"}]})));
+        let report = json!({"entries":entries,"diffs":[{"file":"main.go","before":"old(); ".repeat(500),"after":"new(); ".repeat(500)}],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]}});
+        for budget in [2048, 4096] {
+            let (full, receipt) = pack(report.clone(), budget, None, None).unwrap();
+            let (delta, next) = pack(report.clone(), budget, Some(&receipt), None).unwrap();
+            assert_eq!(full["coverage"]["current_head"]["complete"], true);
+            assert_eq!(full["coverage"]["call_contracts"]["selected"], 1);
+            assert!(full["entries"].as_array().unwrap().iter().any(|e| e["id"] == "supplier" && e["text"].as_str().unwrap().contains("return nil, err")));
+            assert_eq!(receipt["entries"], next["entries"]);
+            assert_eq!(full["context_order"], delta["context_order"]);
+            assert_eq!(full["coverage"]["complete"], false);
+            for packet in [&full, &delta] { assert!(text::count(&packet.to_string()) <= budget); }
+        }
+        let mut huge = report;
+        huge["entries"][1]["text"] = json!("a large supplier body; ".repeat(4000));
+        let (packet, _) = pack(huge, 2048, None, None).unwrap();
+        assert_eq!(packet["coverage"]["current_head"]["complete"], true);
+        assert_eq!(packet["coverage"]["call_contracts"]["complete"], false);
+    }
+
+    #[test]
+    fn graph_bound_counts_unique_links_and_preserves_call_site_evidence() {
+        let mut analysis = Analysis { symbols:BTreeMap::new(),calls:vec![],packages:vec![],issues:vec![],analyzer:String::new(),toolchain:String::new(),inputs:vec![],raw:None,services:services::Links::default() };
+        for name in ["caller", "supplier", "other"] {
+            let symbol: Symbol = serde_json::from_value(json!({"key":name,"file":"app/main.go","package":"app","name":name,"kind":"function","parent":"","start":0,"end":1,"body_start":0,"line":1,"end_line":1,"revision":"r","signature":"s","implementation":"i","correspondence":"c"})).unwrap();
+            analysis.symbols.insert(key("world", name), ("world".into(), symbol));
+        }
+        for n in 0..5 {
+            let call: Call = serde_json::from_value(json!({"caller":"caller","target":"supplier","target_offset":0,"spelling":"s.Load","file":"app/main.go","start":n,"end":n+1,"line":n+1,"relation":"calls","discarded_error":n==3})).unwrap();
+            analysis.calls.push(("world".into(), call));
+        }
+        let links = call_links(&analysis, 1).unwrap();
+        assert_eq!(links.len(), 1);
+        assert_eq!(links[0].2, 3);
+        assert_eq!(analysis.calls.len(), 5);
+        assert_eq!(call_evidence(&analysis.calls[3].0, &analysis.calls[3].1)["byte_start"], 3);
+        let mut distinct = analysis.calls[0].clone();
+        distinct.1.target = "other".into();
+        analysis.calls.push(distinct);
+        assert!(call_links(&analysis, 1).is_err());
+        assert_eq!(call_links(&analysis, 2).unwrap().len(), 2);
+        analysis.calls.clear();
+        analysis.services.edges.push(services::Edge { from: "caller".into(), to: "supplier".into(), relation: "http_calls", evidence: json!({}) });
+        assert!(call_links(&analysis, 0).is_err());
+    }
+
+    #[test]
+    fn only_inventory_backed_type_failures_are_cacheable() {
+        let sample = json!({"analyzer":"fixture","toolchain":"go","worlds":[{"root":"app","symbols":[],"calls":[],"packages":[{"path":"app","files":["app/main.go"]}],"inputs":[{"file":"app/main.go","package":"app","role":"selected"}],"issues":["incomplete_package:app","type_check_failed:app"]}]});
+        let check = |value| cacheable_facts(&serde_json::from_value(value).unwrap());
+        assert!(check(sample.clone()));
+        for reason in ["incomplete_discovery:app","invalid_package_metadata","type_check_failed:other","unreadable_source"] {
+            let mut bad = sample.clone(); bad["worlds"][0]["issues"][0] = json!(reason);
+            assert!(!check(bad));
+        }
+        let mut absent = sample.clone(); absent["worlds"][0]["inputs"] = json!([]); assert!(!check(absent));
+        let mut missing = sample; missing["worlds"][0]["packages"][0]["files"] = json!([]); assert!(!check(missing));
+    }
+
+    #[test]
+    fn affordable_complete_flow_uses_the_fractional_reservation() {
+        let nodes: Vec<_> = (0..25).map(|i| crate::digest(&json!(["node",i]))).collect();
+        let steps: Vec<_> = nodes.windows(2).map(|n| json!({"caller":n[0],"callee":n[1],"relation":"calls"})).collect();
+        let entry = json!({"id":crate::digest(&json!("entry")),"side":"head","revision":"r","text":"func Changed() {}","reasons":[{"reason":"change_seed"},{"reason":"dependency","path":nodes,"steps":steps,"execution_flow":{"kind":"potential_static"}}]});
+        let report = json!({"entries":[entry],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[],"max_depth":32}});
+        let (packet,_) = pack(report,64000,None,None).unwrap();
+        assert_eq!(packet["execution_flows"]["paths"][0]["steps"].as_array().unwrap().len(),24);
+        assert!(packet["execution_flows"]["coverage"]["used_tokens"].as_u64().unwrap()>2048);
+        assert!(text::count(&packet.to_string())<=64000);
+    }
+
+    #[test]
+    fn optional_examples_yield_to_required_code_and_whole_history() {
+        let history = json!({"evolution":{"function_history":[{"subject":"A complete earlier constraint ".repeat(70),"commit":"a".repeat(40)}]}});
+        let entries: Vec<_> = (0..8).map(|i| json!({"id":format!("head{i}"),"revision":"r","side":"head","text":"perform_work(); ".repeat(40),"reasons":[{"reason":"change_seed","path":[format!("head{i}")]},{"reason":"dependency","path":["caller","callee"],"steps":[{"spelling":"additional explanation ".repeat(100)}]},{"reason":"potential_consumer","uncertain_scope":true}],"business_context":history})).collect();
+        let report = json!({"entries":entries,"diffs":[],"changes":(0..20).map(|i|json!({"kind":"modified","head":i,"explanation":"optional detail ".repeat(300)})).collect::<Vec<_>>(),"file_changes":[{"file":"changed.go","classification":"declaration_change"}],"package_instances":{"base":[],"head":[]},"business_context":{"complete":false},"coverage":{"complete":false,"issues":[{"reason":"unresolved_call"}]}});
+        let (full, receipt) = pack(report.clone(),8000,None,None).unwrap();
+        assert_eq!(full["coverage"]["current_head"]["selected"],8);
+        assert_eq!(full["changes"]["count"],20);
+        assert_eq!(full["changes"]["examples"],json!([]));
+        assert!(full["entries"].as_array().unwrap().iter().any(|e| e.get("business_context")==Some(&history)));
+        for entry in full["entries"].as_array().unwrap() {
+            assert_eq!(entry["reason_examples"]["omitted"],1);
+            assert!(entry["reasons"].as_array().unwrap().iter().any(|r| r["uncertain_scope"]==true));
+        }
+        let (delta, next) = pack(report,8000,Some(&receipt),None).unwrap();
+        assert_eq!(receipt["entries"],next["entries"]);
+        assert_eq!(full["context_order"],delta["context_order"]);
+        for packet in [full,delta] { assert!(text::count(&packet.to_string())<=8000); assert_eq!(packet["coverage"]["complete"],false); }
+    }
+
+    #[test]
+    fn scarce_optional_capacity_retains_whole_history_and_affordable_hunks() {
+        let history = json!({"evolution":{"function_history":[{"subject":"prior behavioral constraint ".repeat(200),"commit":"b".repeat(40)}]}});
+        for budget in [8000, 9000, 10000] {
+            let diffs: Vec<_> = (0..8).map(|i| json!({"id":format!("diff-{i}"),"file":"f.go","before":"old text ".repeat(100),"after":"new text ".repeat(100)})).collect();
+            let report = json!({"entries":[{"id":"changed","revision":"r","side":"head","repository_id":"repo","text":"return quote(); ".repeat(1400),"reasons":[{"reason":"change_seed"}],"business_context":history}],"diffs":diffs,"changes":[],"package_instances":{"base":[],"head":[]},"business_context":{"complete":false},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
+            let (full, receipt) = pack(report.clone(), budget, None, None).unwrap();
+            assert_eq!(full["coverage"]["current_head"]["selected"], 1);
+            assert_eq!(full["entries"][0]["business_context"], history, "budget={budget}: {:?}", full["business_context"]);
+            assert!(!full["diffs"].as_array().unwrap().is_empty());
+            let (delta, delta_receipt) = pack(report, budget, Some(&receipt), None).unwrap();
+            assert_eq!(receipt["entries"], delta_receipt["entries"]);
+            assert_eq!(full["context_order"], delta["context_order"]);
+            assert!(text::count(&full.to_string()) <= budget);
+            assert!(text::count(&delta.to_string()) <= budget);
+        }
+    }
+
     #[test]
     fn diff_reserve_cannot_evict_required_current_declarations() {
         let entries: Vec<_> = (0..12).map(|i| json!({"id":format!("head{i}"),"revision":"r","repository_id":"repo","side":"head","text":"perform_work(); ".repeat(80),"reasons":[{"reason":"change_seed"}]})).collect();
@@ -1952,7 +2300,7 @@ mod tests {
     }
 
     #[test]
-    fn unused_flow_and_hunk_reservations_are_refilled_with_whole_history() {
+    fn unused_flow_and_hunk_reservations_keep_whole_history() {
         let reason = json!({"reason":"dependency","path":["f","g"],"steps":[{"caller":"f","callee":"g","relation":"calls"}]});
         let mut cited = reason.clone();
         cited["execution_flow"] = json!({"kind":"potential_static","observed":false});
@@ -1965,7 +2313,7 @@ mod tests {
         let (packet, _) = pack(report, 8000, None, None).unwrap();
         assert_eq!(packet["coverage"]["current_head"]["selected"], 1);
         assert_eq!(packet["entries"][0]["business_context"], history, "{packet}");
-        assert!(packet["business_context"]["packing"]["refill_tokens"].as_u64().unwrap() > 0, "{:?}", packet["business_context"]["packing"]);
+        assert!(packet["business_context"]["packing"]["used_tokens"].as_u64().unwrap() > 0, "{:?}", packet["business_context"]["packing"]);
         assert_eq!(packet["execution_flows"]["paths"], json!([]));
         assert_eq!(packet["execution_flows"]["coverage"]["used_tokens"], 0);
         assert_eq!(packet["execution_flows"]["coverage"]["omitted"], 1);

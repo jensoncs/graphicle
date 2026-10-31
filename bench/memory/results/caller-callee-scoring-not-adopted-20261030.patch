@@ -1,0 +1,184 @@
+--- a/crates/graphicle/src/query.rs
++++ b/crates/graphicle/src/query.rs
+@@ -879,7 +879,7 @@
+ /// The linked decision is the item being scored. Keep its text before the
+ /// code context so model truncation does not replace the decision with code.
+ /// Only the selected, authorized window that supplied this link is included.
+-fn linked_memory_text(row: &Value, sources: &[Value]) -> String {
++fn linked_memory_text(row: &Value, sources: &[Value], paired: Option<&str>) -> String {
+     let link = &row["memory"]["link"];
+     let code = sources
+         .iter()
+@@ -893,7 +893,7 @@
+             .chars()
+             .take(256)
+             .collect::<String>(),
+-        code.chars().take(2000).collect::<String>()
++        paired.unwrap_or(code).chars().take(2000).collect::<String>()
+     )
+ }
+ 
+@@ -1785,9 +1785,12 @@
+                 linked_memories = lifted.memories;
+                 symbol_links_report = lifted.report;
+                 if let Some(reranker) = reranker.filter(|_| !linked_memories.is_empty()) {
++                    let contexts = crate::symbol_links::paired_contexts(
++                        lookup.db(), lookup.repository(), snapshot, &linked_memories, query)?;
++                    symbol_links_report["paired_scoring_candidates"] = json!(contexts.len());
+                     let texts: Vec<String> = linked_memories
+                         .iter()
+-                        .map(|row| linked_memory_text(row, &sources))
++                        .map(|row| linked_memory_text(row, &sources, contexts.get(s(row, "identity")).map(String::as_str)))
+                         .collect();
+                     let started = std::time::Instant::now();
+                     let mut scores = Vec::with_capacity(texts.len());
+@@ -3287,11 +3290,11 @@
+             json!({"identity":"file:other.py:0","text":"unrelated source"}),
+             json!({"identity":"file:allowed.py:0","text":"return min(delay, 60)"}),
+         ];
+-        let text = linked_memory_text(&row, &sources);
++        let text = linked_memory_text(&row, &sources, None);
+         assert!(text.starts_with("Reviewed decision: Peer lifetime\nExpires after one minute."));
+         assert!(text.contains("backoff_delay\nCode window:\nreturn min(delay, 60)"));
+         assert!(!text.contains("unrelated source"));
+-        assert!(!linked_memory_text(&row, &[]).contains("return min"));
++        assert!(!linked_memory_text(&row, &[], None).contains("return min"));
+     }
+ 
+     #[test]
+@@ -3299,7 +3302,7 @@
+         let row = json!({"title":"界".repeat(1000),"text":"界".repeat(10000),
+             "memory":{"link":{"from":"file:code:0","qualified_name":"界".repeat(1000)}}});
+         let sources = vec![json!({"identity":"file:code:0","text":"界".repeat(10000)})];
+-        let text = linked_memory_text(&row, &sources);
++        let text = linked_memory_text(&row, &sources, None);
+         assert!(text.len() < 32000);
+         assert_eq!(text.matches('界').count(), 256 + 3000 + 256 + 2000);
+     }
+--- a/crates/graphicle/src/symbol_links.rs
++++ b/crates/graphicle/src/symbol_links.rs
+@@ -270,7 +270,7 @@
+                 lifted["memory"]["via"] = json!("link");
+                 lifted["memory"]["link"] = json!({"direction":"code_to_memory","from":hit["identity"],
+                     "stable_id":live.stable_id,"revision":live.revision,
+-                    "qualified_name":live.identity.qualified_name,"rung":link["rung"]});
++                    "qualified_name":live.identity.qualified_name,"relpath":live.identity.relpath,"rung":link["rung"]});
+                 memories.push(lifted);
+             }
+         }
+@@ -526,3 +526,115 @@
+         assert_eq!(found, ["s1"]);
+     }
+ }
++
++/// Evaluation candidate: one-hop static call context, only from current,
++/// authorized snapshot documents and uniquely identified live declarations.
++/// These snippets score notes; they are not additional answer evidence.
++pub(crate) fn paired_contexts(
++    db: &Connection,
++    repository: &str,
++    snapshot: &Snapshot,
++    memories: &[Value],
++    question: &str,
++) -> Result<HashMap<String, String>> {
++    use crate::identifier_route::Shape;
++    let names = match crate::identifier_route::classify(question) {
++        Shape::Lookup(names) | Shape::AsksMore(names) => names,
++        _ => Vec::new(),
++    };
++    let documents: HashMap<&str, &Value> = snapshot.documents.iter()
++        .map(|d| (s(d, "id"), d)).collect();
++    let mut live_files = HashMap::new();
++    let mut out = HashMap::new();
++    for row in memories {
++        let link = &row["memory"]["link"];
++        let path = s(link, "relpath");
++        let name = s(link, "qualified_name");
++        let mut edges: Vec<_> = snapshot.graph["symbol_calls"].as_array()
++            .into_iter().flatten().filter(|edge| {
++                (s(edge, "path") == path && s(edge, "caller") == name)
++                    || (s(edge, "callee_path") == path && s(edge, "callee") == name)
++            }).collect();
++        let named = |edge: &Value| names.iter().any(|n| {
++            [s(edge, "caller"), s(edge, "callee")].iter().any(|endpoint| {
++                *endpoint == n || endpoint.rsplit('.').next() == Some(n.as_str())
++            })
++        });
++        edges.sort_by_key(|edge| (!named(edge), edge.to_string()));
++        for edge in edges {
++            let mut bodies = Vec::new();
++            for (file, symbol) in [(s(edge, "path"), s(edge, "caller")),
++                                   (s(edge, "callee_path"), s(edge, "callee"))] {
++                let id = format!("file:{file}");
++                let Some(document) = documents.get(id.as_str()) else { break; };
++                if !live_files.contains_key(file) {
++                    live_files.insert(file.to_owned(), symbols::in_file(db, repository, file)?);
++                }
++                let declarations: Vec<_> = live_files[file].iter()
++                    .filter(|live| live.identity.qualified_name == symbol
++                        && live.sha256 == s(document, "sha256")).collect();
++                // No tail-name guessing or stale-source fallback.
++                let [live] = declarations.as_slice() else { break; };
++                if file == path && symbol == name
++                    && (live.stable_id != s(link, "stable_id") || live.revision != s(link, "revision")) {
++                    break;
++                }
++                let source = s(document, "content");
++                let range = live.range(&span::line_starts(source), source.len());
++                let Some(body) = source.get(range) else { break; };
++                bodies.push(body.to_owned());
++            }
++            if let [caller, callee] = bodies.as_slice() {
++                out.insert(s(row, "identity").to_owned(), pair_text(caller, callee));
++                break;
++            }
++        }
++    }
++    Ok(out)
++}
++
++fn pair_text(caller: &str, callee: &str) -> String {
++    fn bounded(text: &str) -> String {
++        const LIMIT: usize = 991;
++        let chars: Vec<_> = text.chars().collect();
++        if chars.len() <= LIMIT { return text.to_owned(); }
++        // Keep declaration and tail returns; make omitted middle explicit.
++        let half = (LIMIT - 5) / 2;
++        format!("{}\n...\n{}", chars[..half].iter().collect::<String>(),
++            chars[chars.len() - half..].iter().collect::<String>())
++    }
++    format!("Caller:\n{}\nCallee:\n{}", bounded(caller), bounded(callee))
++}
++
++#[cfg(test)]
++mod pair_context_tests {
++    use super::*;
++
++    #[test]
++    fn pair_budget_keeps_both_tail_returns_and_unicode() {
++        let caller = format!("func caller() {{ {} return callee() }}", "界".repeat(3000));
++        let callee = format!("func callee() {{ {} return nil, err }}", "界".repeat(3000));
++        let text = pair_text(&caller, &callee);
++        assert!(text.chars().count() <= 2000);
++        assert!(text.contains("return callee()"));
++        assert!(text.contains("return nil, err"));
++        assert_eq!(text.matches("\n...\n").count(), 2);
++    }
++
++    #[test]
++    fn short_pair_keeps_exact_bodies() {
++        assert_eq!(pair_text("def caller(): return callee()", "def callee(): return 60"),
++            "Caller:\ndef caller(): return callee()\nCallee:\ndef callee(): return 60");
++    }
++
++    #[test]
++    fn unauthorized_endpoint_cannot_supply_scoring_text() {
++        let dir = tempfile::TempDir::new().unwrap();
++        let store = crate::store::Store::open(dir.path()).unwrap();
++        let db = store.connect().unwrap();
++        let snapshot = Snapshot { repository: json!({}), documents: vec![], memories: vec![],
++            graph: json!({"symbol_calls":[{"path":"a.py","caller":"send","callee_path":"private.py","callee":"delay"}]}), state: String::new() };
++        let memories = vec![json!({"identity":"note", "memory":{"link":{"relpath":"a.py","qualified_name":"send"}}})];
++        assert!(paired_contexts(&db, "absent", &snapshot, &memories, "why send()?").unwrap().is_empty());
++    }
++}

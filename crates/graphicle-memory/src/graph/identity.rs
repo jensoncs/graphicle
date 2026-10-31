@@ -232,22 +232,27 @@ struct SourceText<'a> {
     text: std::borrow::Cow<'a, str>,
     starts: Vec<usize>,
     symbols: Vec<Value>,
+    file_revision: String,
 }
 
 impl<'a> SourceText<'a> {
     fn new(text: std::borrow::Cow<'a, str>) -> Self {
         let starts = span::line_starts(&text);
+        // Many nodes in generated files have no exact declaration span.
+        // Their conservative revision is the same immutable file digest.
+        let file_revision = sha256_hex(&[text.as_bytes()]);
         Self {
             text,
             starts,
             symbols: vec![],
+            file_revision,
         }
     }
 
     fn revision(&self, start: Option<usize>, next: Option<usize>, file: bool) -> String {
         let source = self.text.as_bytes();
         if file {
-            return sha256_hex(&[source]);
+            return self.file_revision.clone();
         }
         sha256_hex(&[&source[span::byte_range(&self.starts, source.len(), start, next)]])
     }
@@ -519,16 +524,18 @@ pub fn annotate(graph: &mut Graph, options: &IdentityOptions) -> Result<Identity
                             }
                         }
                     }
-                    let bytes = exact
-                        .as_ref()
-                        .and_then(|s| {
-                            source.text.get(
-                                s["byte_start"].as_u64()? as usize
-                                    ..s["byte_end"].as_u64()? as usize,
-                            )
-                        })
-                        .unwrap_or(&source.text);
-                    Some(sha256_hex(&[bytes.as_bytes()]))
+                    Some(
+                        exact
+                            .as_ref()
+                            .and_then(|s| {
+                                source.text.get(
+                                    s["byte_start"].as_u64()? as usize
+                                        ..s["byte_end"].as_u64()? as usize,
+                                )
+                            })
+                            .map(|bytes| sha256_hex(&[bytes.as_bytes()]))
+                            .unwrap_or_else(|| source.file_revision.clone()),
+                    )
                 }
                 None => {
                     missing.insert(relpaths[index].clone());
@@ -1315,6 +1322,42 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn conservative_revisions_share_a_digest_but_revalidate_each_snapshot() {
+        let mut graph = Graph::from_node_link(
+            &json!({"directed":true,"multigraph":false,"graph":{},"nodes":[
+                {"id":"a","label":"A","file_type":"code","source_file":"generated.opaque","source_location":"L1"},
+                {"id":"b","label":"B","file_type":"code","source_file":"generated.opaque","source_location":"L2"}
+            ],"links":[]}), "links").unwrap();
+        let mut options = IdentityOptions {
+            repo: "repo".into(),
+            sources: BTreeMap::from([("generated.opaque".into(), "first\nsecond\n".into())]),
+            ..Default::default()
+        };
+        annotate(&mut graph, &options).unwrap();
+        let stable = attr(&graph, "a", "stable_id");
+        let legacy = attr(&graph, "a", "legacy_revision");
+        for id in ["a", "b"] {
+            assert_eq!(attr(&graph, id, "revision_basis"), "conservative_file_v2");
+            assert_eq!(
+                attr(&graph, id, "revision"),
+                sha256_hex(&[b"first\nsecond\n"])
+            );
+        }
+        options
+            .sources
+            .insert("generated.opaque".into(), "first\nchanged\n".into());
+        annotate(&mut graph, &options).unwrap();
+        for id in ["a", "b"] {
+            assert_eq!(
+                attr(&graph, id, "revision"),
+                sha256_hex(&[b"first\nchanged\n"])
+            );
+        }
+        assert_eq!(attr(&graph, "a", "stable_id"), stable);
+        assert_eq!(attr(&graph, "a", "legacy_revision"), legacy);
     }
 
     #[test]

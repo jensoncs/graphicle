@@ -1,0 +1,976 @@
+{
+  "status": "rejected_and_reverted",
+  "reason": "Existing query ranking removes all additional relevant memories recovered by links on this corpus. Precision improves over unconditional links, but the results reproduce the current counted/off baseline.",
+  "plan": {
+    "candidate": "Rank symbol-linked memory candidates using the existing ranker and query arms before packing; no thresholds or default changes.",
+    "dataset": "bench/memory/fixtures/symbol_link_precision.json",
+    "dataset_sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+    "acceptance": [
+      "All measured calls complete; counted preserves off content; stale memories remain excluded.",
+      "Off and counted recall results remain unchanged.",
+      "On precision improves over the prior on variant.",
+      "Every positive query retains the relevant memories recovered by the prior on variant.",
+      "On recovers relevant memory beyond off; reproducing off does not justify the extra implementation."
+    ],
+    "scope": "Synthetic regression screen only. Reject candidate if it fails; no tuning of labels or thresholds."
+  },
+  "protocol": {
+    "format": "graphicle.symbol-link-eval.v1",
+    "split": "regression",
+    "provenance": "Hand-authored synthetic coding-memory regression fixtures, 2026-10-30. Labels written before the first run; not real session data or an independent held-out effectiveness benchmark.",
+    "dataset_sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+    "binary_sha256": "bdb43c3540a1564b5c4d403a3fee41419dde8724292d4f91e1bfe50cef7aa930",
+    "runner_sha256": "facfc720190391ac26f711572ed3c2131f768d0c0401ceea372863a45f088160",
+    "helpers_sha256": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd",
+    "request": {
+      "max_tokens": 3000,
+      "max_chars": 12000,
+      "limit": 8,
+      "graph_retrieval": true,
+      "memory_retrieval": true,
+      "doc_links": false,
+      "cross_repo": false,
+      "identifier_route": false,
+      "notes_first": false
+    },
+    "variants": {
+      "off": {
+        "symbol_links": false
+      },
+      "counted": {},
+      "on": {
+        "symbol_links": true
+      }
+    },
+    "projects": [
+      "billing",
+      "retry",
+      "cache",
+      "stale"
+    ],
+    "model_calls": 0,
+    "metric_scope": "Reviewed-memory IDs; empty memory is not empty code context or answer abstention"
+  },
+  "comparison": {
+    "checks": {
+      "all_calls_completed": true,
+      "counted_preserves_content": true,
+      "stale_excluded": true,
+      "default_memories_unchanged": true,
+      "precision_improved": true,
+      "retains_recovered_relevant_memories": false,
+      "recovers_beyond_off": false
+    },
+    "accepted": false,
+    "before": {
+      "variants": {
+        "off": {
+          "planned": 18,
+          "completed": 18,
+          "failed": 0,
+          "answerable_queries": 10,
+          "empty_memory_queries": 8,
+          "micro_precision_completed": 0.8571428571428571,
+          "macro_recall": 0.55,
+          "empty_memory_accuracy": 1.0,
+          "false_positive_memories": 1,
+          "mean_tokens_completed": 216.44444444444446
+        },
+        "counted": {
+          "planned": 18,
+          "completed": 18,
+          "failed": 0,
+          "answerable_queries": 10,
+          "empty_memory_queries": 8,
+          "micro_precision_completed": 0.8571428571428571,
+          "macro_recall": 0.55,
+          "empty_memory_accuracy": 1.0,
+          "false_positive_memories": 1,
+          "mean_tokens_completed": 216.44444444444446
+        },
+        "on": {
+          "planned": 18,
+          "completed": 18,
+          "failed": 0,
+          "answerable_queries": 10,
+          "empty_memory_queries": 8,
+          "micro_precision_completed": 0.34210526315789475,
+          "macro_recall": 1.0,
+          "empty_memory_accuracy": 0.625,
+          "false_positive_memories": 25,
+          "mean_tokens_completed": 309.3333333333333
+        }
+      },
+      "on_minus_off": {
+        "paired": 18,
+        "excluded": 0,
+        "mean_tp_delta": 0.3888888888888889,
+        "mean_fp_delta": 1.3333333333333333,
+        "mean_tokens_delta": 92.88888888888889
+      }
+    },
+    "after": {
+      "variants": {
+        "off": {
+          "planned": 18,
+          "completed": 18,
+          "failed": 0,
+          "answerable_queries": 10,
+          "empty_memory_queries": 8,
+          "micro_precision_completed": 0.8571428571428571,
+          "macro_recall": 0.55,
+          "empty_memory_accuracy": 1.0,
+          "false_positive_memories": 1,
+          "mean_tokens_completed": 216.16666666666666
+        },
+        "counted": {
+          "planned": 18,
+          "completed": 18,
+          "failed": 0,
+          "answerable_queries": 10,
+          "empty_memory_queries": 8,
+          "micro_precision_completed": 0.8571428571428571,
+          "macro_recall": 0.55,
+          "empty_memory_accuracy": 1.0,
+          "false_positive_memories": 1,
+          "mean_tokens_completed": 216.16666666666666
+        },
+        "on": {
+          "planned": 18,
+          "completed": 18,
+          "failed": 0,
+          "answerable_queries": 10,
+          "empty_memory_queries": 8,
+          "micro_precision_completed": 0.8571428571428571,
+          "macro_recall": 0.55,
+          "empty_memory_accuracy": 1.0,
+          "false_positive_memories": 1,
+          "mean_tokens_completed": 216.16666666666666
+        }
+      },
+      "on_minus_off": {
+        "paired": 18,
+        "excluded": 0,
+        "mean_tp_delta": 0,
+        "mean_fp_delta": 0,
+        "mean_tokens_delta": 0
+      }
+    },
+    "lost_relevant": [
+      {
+        "project": "billing",
+        "query": "linked-rationale",
+        "memories": [
+          "audit"
+        ]
+      },
+      {
+        "project": "retry",
+        "query": "linked-rationale",
+        "memories": [
+          "ceiling",
+          "jitter"
+        ]
+      },
+      {
+        "project": "retry",
+        "query": "narrow-rationale",
+        "memories": [
+          "ceiling"
+        ]
+      },
+      {
+        "project": "cache",
+        "query": "linked-rationale",
+        "memories": [
+          "encoding",
+          "isolation"
+        ]
+      },
+      {
+        "project": "cache",
+        "query": "narrow-rationale",
+        "memories": [
+          "isolation"
+        ]
+      }
+    ],
+    "gained_relevant": [],
+    "default_changes": [],
+    "extra_over_off": []
+  },
+  "validation": {
+    "candidate_unit_tests_passed": 2,
+    "baseline_evaluation_tests_passed": 19,
+    "measured_context_calls": 54,
+    "production_source_change_retained": false
+  },
+  "candidate_patch_sha256": "9083e569dfb7f7d737e30c948dd30fae2703c3ce07f5edaa4092740247896f35",
+  "candidate_patch_for_reproduction_only": "diff --git a/crates/graphicle/src/query.rs b/crates/graphicle/src/query.rs\nindex 1970f51..6adff8f 100644\n--- a/crates/graphicle/src/query.rs\n+++ b/crates/graphicle/src/query.rs\n@@ -876,6 +876,32 @@ pub fn rerank_order(scores: &[f64], blend: bool) -> Vec<usize> {\n     order\n }\n \n+/// A code link proposes a memory; the query's existing retrieval arms decide\n+/// whether to include it. Call only with the authorized, current rows returned\n+/// by symbol_links::lift. Keep the original records and link provenance.\n+fn rank_linked_memories(request: &Value, memories: Vec<Value>) -> Result<Vec<Value>> {\n+    if memories.is_empty() {\n+        return Ok(memories);\n+    }\n+    let mut selection = json!({\"rows\":memories,\"limit\":crate::symbol_links::MEMORY_LIMIT});\n+    for field in [\n+        \"scope\", \"question\", \"needs\", \"mode\", \"stem\", \"speaker\", \"query_variants\",\n+        \"arm_weights\", \"rrf_k\", \"key_expansion\", \"rankings\",\n+    ] {\n+        if let Some(value) = request.get(field) {\n+            selection[field] = value.clone();\n+        }\n+    }\n+    let selected = native(\"rank\", selection)?;\n+    let by_id: BTreeMap<&str, &Value> = memories.iter().map(|m| (s(m, \"identity\"), m)).collect();\n+    Ok(selected[\"memories\"]\n+        .as_array()\n+        .into_iter()\n+        .flatten()\n+        .filter_map(|id| by_id.get(id.as_str()?).map(|row| (*row).clone()))\n+        .collect())\n+}\n+\n /// Candidate order fusing the cross-encoder's order with the fused order,\n /// 0.7/(60 + CE rank) + 0.3/(60 + fused rank) (SmartSearch, arXiv\n /// 2603.15599 \u00a73.5; index = fused rank). Ties keep fused order.\n@@ -1753,8 +1779,14 @@ fn context_impl(\n         ) {\n             Ok(lifted) => {\n                 candidates.extend(lifted.windows);\n-                linked_memories = lifted.memories;\n+                let offered = lifted.memories.len();\n+                linked_memories = rank_linked_memories(&rank_request, lifted.memories)?;\n                 symbol_links_report = lifted.report;\n+                if offered > 0 {\n+                    symbol_links_report[\"candidate_memories\"] = json!(offered);\n+                    symbol_links_report[\"lifted_memories\"] = json!(linked_memories.len());\n+                    symbol_links_report[\"withheld_by_query\"] = json!(offered - linked_memories.len());\n+                }\n             }\n             Err(error) => symbol_links_report = json!({\"status\":\"error\",\"error\":error.message}),\n         }\n@@ -2648,6 +2680,32 @@ impl Store {\n mod tests {\n     use super::{rerank_order, rerank_rrf_order};\n \n+    #[test]\n+    fn linked_memory_selection_preserves_records_and_requires_query_evidence() {\n+        use serde_json::json;\n+        let relevant = json!({\"identity\":\"memory:a\",\"origin\":\"memory:a\",\"kind\":\"memory\",\n+            \"title\":\"Lease ceiling\",\"text\":\"The lease expires after one minute.\",\n+            \"memory\":{\"id\":\"a\",\"via\":\"link\",\"link\":{\"stable_id\":\"symbol-a\"}}});\n+        let unrelated = json!({\"identity\":\"memory:b\",\"origin\":\"memory:b\",\"kind\":\"memory\",\n+            \"title\":\"Audit archive\",\"text\":\"Retain receipts for seven years.\",\n+            \"memory\":{\"id\":\"b\",\"via\":\"link\",\"link\":{\"stable_id\":\"symbol-a\"}}});\n+        let request = json!({\"scope\":\"test-linked-memory\",\"question\":\"When does the lease expire?\"});\n+        let picked = super::rank_linked_memories(&request, vec![unrelated, relevant.clone()]).unwrap();\n+        assert_eq!(picked, vec![relevant]);\n+        assert!(super::rank_linked_memories(&request, vec![]).unwrap().is_empty());\n+    }\n+\n+    #[test]\n+    fn linked_memory_selection_keeps_an_existing_semantic_match() {\n+        use serde_json::json;\n+        let memory = json!({\"identity\":\"memory:a\",\"origin\":\"memory:a\",\"kind\":\"memory\",\n+            \"title\":\"Quokka ledger\",\"text\":\"Keep the quokka ledger frozen.\",\n+            \"memory\":{\"id\":\"a\",\"via\":\"link\"}});\n+        let request = json!({\"scope\":\"test-linked-semantic\",\"question\":\"Why does alpha return one?\",\n+            \"rankings\":{\"semantic\":[\"unknown-id\",\"memory:a\"]}});\n+        assert_eq!(super::rank_linked_memories(&request, vec![memory.clone()]).unwrap(), vec![memory]);\n+    }\n+\n     #[test]\n     fn a_question_names_tests_by_a_test_file_or_identifier() {\n         use super::question_names_tests as names;\n",
+  "cases": [
+    {
+      "project": "billing",
+      "id": "linked-rationale",
+      "category": "linked_relevant",
+      "relevant_memories": [
+        "settlement",
+        "audit"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "off": {
+          "returned": [
+            "settlement"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.5,
+          "empty_correct": null,
+          "tokens": 250
+        },
+        "counted": {
+          "returned": [
+            "settlement"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.5,
+          "empty_correct": null,
+          "tokens": 250
+        },
+        "on": {
+          "returned": [
+            "settlement"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 1,
+          "precision": 1.0,
+          "recall": 0.5,
+          "empty_correct": null,
+          "tokens": 250
+        }
+      }
+    },
+    {
+      "project": "billing",
+      "id": "direct-recall",
+      "category": "lexical_relevant",
+      "relevant_memories": [
+        "settlement"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "counted": {
+          "returned": [
+            "settlement",
+            "shipping"
+          ],
+          "tp": 1,
+          "fp": 1,
+          "fn": 0,
+          "precision": 0.5,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 378
+        },
+        "on": {
+          "returned": [
+            "settlement",
+            "shipping"
+          ],
+          "tp": 1,
+          "fp": 1,
+          "fn": 0,
+          "precision": 0.5,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 378
+        },
+        "off": {
+          "returned": [
+            "settlement",
+            "shipping"
+          ],
+          "tp": 1,
+          "fp": 1,
+          "fn": 0,
+          "precision": 0.5,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 378
+        }
+      }
+    },
+    {
+      "project": "billing",
+      "id": "same-symbol-no-memory",
+      "category": "code_only",
+      "relevant_memories": [],
+      "counted_preserves_content": true,
+      "variants": {
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 275
+        },
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 275
+        },
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 275
+        }
+      }
+    },
+    {
+      "project": "billing",
+      "id": "narrow-rationale",
+      "category": "same_symbol_distractor",
+      "relevant_memories": [
+        "settlement"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "off": {
+          "returned": [
+            "settlement"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 250
+        },
+        "counted": {
+          "returned": [
+            "settlement"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 250
+        },
+        "on": {
+          "returned": [
+            "settlement"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 250
+        }
+      }
+    },
+    {
+      "project": "billing",
+      "id": "unrelated",
+      "category": "no_answer",
+      "relevant_memories": [],
+      "counted_preserves_content": true,
+      "variants": {
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 111
+        },
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 111
+        },
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 111
+        }
+      }
+    },
+    {
+      "project": "billing",
+      "id": "other-symbol",
+      "category": "lexical_relevant",
+      "relevant_memories": [
+        "receipt"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "on": {
+          "returned": [
+            "receipt"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 246
+        },
+        "off": {
+          "returned": [
+            "receipt"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 246
+        },
+        "counted": {
+          "returned": [
+            "receipt"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 246
+        }
+      }
+    },
+    {
+      "project": "retry",
+      "id": "linked-rationale",
+      "category": "linked_relevant",
+      "relevant_memories": [
+        "ceiling",
+        "jitter"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        },
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        },
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        }
+      }
+    },
+    {
+      "project": "retry",
+      "id": "direct-recall",
+      "category": "lexical_relevant",
+      "relevant_memories": [
+        "ceiling"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "counted": {
+          "returned": [
+            "ceiling"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 259
+        },
+        "on": {
+          "returned": [
+            "ceiling"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 259
+        },
+        "off": {
+          "returned": [
+            "ceiling"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 259
+        }
+      }
+    },
+    {
+      "project": "retry",
+      "id": "same-symbol-no-memory",
+      "category": "code_only",
+      "relevant_memories": [],
+      "counted_preserves_content": true,
+      "variants": {
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 278
+        },
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 278
+        },
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 278
+        }
+      }
+    },
+    {
+      "project": "retry",
+      "id": "narrow-rationale",
+      "category": "same_symbol_distractor",
+      "relevant_memories": [
+        "ceiling"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        },
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        },
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        }
+      }
+    },
+    {
+      "project": "retry",
+      "id": "unrelated",
+      "category": "no_answer",
+      "relevant_memories": [],
+      "counted_preserves_content": true,
+      "variants": {
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 110
+        },
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 110
+        },
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 110
+        }
+      }
+    },
+    {
+      "project": "cache",
+      "id": "linked-rationale",
+      "category": "linked_relevant",
+      "relevant_memories": [
+        "isolation",
+        "encoding"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        },
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        },
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 2,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        }
+      }
+    },
+    {
+      "project": "cache",
+      "id": "direct-recall",
+      "category": "lexical_relevant",
+      "relevant_memories": [
+        "expiry"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "counted": {
+          "returned": [
+            "expiry"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 251
+        },
+        "on": {
+          "returned": [
+            "expiry"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 251
+        },
+        "off": {
+          "returned": [
+            "expiry"
+          ],
+          "tp": 1,
+          "fp": 0,
+          "fn": 0,
+          "precision": 1.0,
+          "recall": 1.0,
+          "empty_correct": null,
+          "tokens": 251
+        }
+      }
+    },
+    {
+      "project": "cache",
+      "id": "same-symbol-no-memory",
+      "category": "code_only",
+      "relevant_memories": [],
+      "counted_preserves_content": true,
+      "variants": {
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 203
+        },
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 203
+        },
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 203
+        }
+      }
+    },
+    {
+      "project": "cache",
+      "id": "narrow-rationale",
+      "category": "same_symbol_distractor",
+      "relevant_memories": [
+        "isolation"
+      ],
+      "counted_preserves_content": true,
+      "variants": {
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        },
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        },
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 1,
+          "precision": null,
+          "recall": 0.0,
+          "empty_correct": null,
+          "tokens": 203
+        }
+      }
+    },
+    {
+      "project": "cache",
+      "id": "unrelated",
+      "category": "no_answer",
+      "relevant_memories": [],
+      "counted_preserves_content": true,
+      "variants": {
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 112
+        },
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 112
+        },
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 112
+        }
+      }
+    },
+    {
+      "project": "stale",
+      "id": "stale-direct",
+      "category": "stale",
+      "relevant_memories": [],
+      "counted_preserves_content": true,
+      "variants": {
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 178
+        },
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 178
+        },
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 178
+        }
+      }
+    },
+    {
+      "project": "stale",
+      "id": "stale-symbol",
+      "category": "stale",
+      "relevant_memories": [],
+      "counted_preserves_content": true,
+      "variants": {
+        "counted": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 178
+        },
+        "on": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 178
+        },
+        "off": {
+          "returned": [],
+          "tp": 0,
+          "fp": 0,
+          "fn": 0,
+          "precision": null,
+          "recall": null,
+          "empty_correct": true,
+          "tokens": 178
+        }
+      }
+    }
+  ]
+}

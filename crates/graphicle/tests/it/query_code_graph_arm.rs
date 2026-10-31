@@ -473,3 +473,130 @@ fn a_recorded_episode_past_the_static_edge_bound_folds_its_edges() {
     );
     assert!(packet["evidence"].as_array().is_some_and(|e| !e.is_empty()));
 }
+
+#[test]
+fn named_ranges_keep_qualified_method_scope() {
+    let source = "class Store:\n    def load_config(self):\n        return 'requested configuration'\n\nclass Other:\n    def load_config(self):\n        return 'unrelated configuration'\n";
+    let f = Fixture::new(&[("store.py", source)]);
+    f.project();
+    let packet = f.context("How does `Store.load_config` handle configuration?");
+    let named: Vec<_> = packet["sources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|s| s["keep_whole"] == true)
+        .map(|s| s["code_graph"]["qualified_name"].as_str().unwrap_or(""))
+        .collect();
+    assert!(!named.is_empty(), "{packet}");
+    assert!(
+        named.iter().all(|n| n.ends_with("Store.load_config")),
+        "{named:?}"
+    );
+}
+
+#[test]
+fn named_ranges_keep_two_requested_functions_with_file_diversity() {
+    let source = format!(
+        "def alpha_beta():\n    return 'ALPHA_RESULT'\n\ndef unrelated_noise():\n{}    pass\n\ndef gamma_delta():\n    return 'GAMMA_RESULT'\n",
+        "    # irrelevant padding\n".repeat(200)
+    );
+    let f = Fixture::new(&[("functions.py", &source)]);
+    f.project();
+    for notes_first in [false, true] {
+        let packet = f
+            .store
+            .project_context(
+                &f.workspace,
+                &f.key,
+                &f.args(json!({
+                    "question":"How do `alpha_beta` and `gamma_delta` return their results?",
+                    "notes_first": notes_first
+                })),
+            )
+            .unwrap();
+        let text = packet["evidence"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|e| e["text"].as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            text.contains("return 'ALPHA_RESULT'"),
+            "notes_first={notes_first}"
+        );
+        assert!(
+            text.contains("return 'GAMMA_RESULT'"),
+            "notes_first={notes_first}"
+        );
+        assert!(packet["tokens"].as_u64().unwrap() <= 3000);
+    }
+}
+
+#[test]
+fn named_ranges_obey_small_budgets_with_many_functions_and_utf8() {
+    let source = (0..8)
+        .map(|i| {
+            format!(
+                "def process_{i}():\n{}    return 'résultat_{i}'\n\n",
+                "    # Unicode context: 日本語, café.\n".repeat(25)
+            )
+        })
+        .collect::<String>();
+    let f = Fixture::new(&[("functions.py", &source)]);
+    f.project();
+    let question = "Explain process_0(), process_1(), process_2(), process_3(), process_4(), process_5(), process_6(), process_7()";
+    for budget in [400, 800, 1500, 3000] {
+        for notes_first in [false, true] {
+            let packet = f.store.project_context(&f.workspace, &f.key, &f.args(json!({
+                "question":question,"max_tokens":budget,"max_chars":budget * 4,"notes_first":notes_first
+            }))).unwrap();
+            assert!(packet["tokens"].as_u64().unwrap() <= budget);
+            assert!(packet["markdown"].as_str().unwrap().chars().count() as u64 <= budget * 4);
+            assert_eq!(packet["complete_evidence_guaranteed"], false);
+            for evidence in packet["evidence"].as_array().unwrap() {
+                let a = evidence["byte_start"].as_u64().unwrap() as usize;
+                let b = evidence["byte_end"].as_u64().unwrap() as usize;
+                assert_eq!(evidence["text"], source.get(a..b).unwrap());
+                assert_eq!(
+                    evidence["sha256"],
+                    graphicle_memory::text::sha256(source.as_bytes())
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn named_ranges_do_not_survive_edits_renames_or_deletions_as_stale_evidence() {
+    let old = "def process_item():\n    return 'OLD_RESULT'\n";
+    let changed = "def process_item():\n    return 'NEW_RESULT'\n";
+    let f = Fixture::new(&[("old.py", old)]);
+    f.project();
+    for files in [vec![("old.py", changed)], vec![("renamed.py", changed)]] {
+        f.sync(&files);
+        for projected in [false, true] {
+            if projected {
+                f.project();
+            }
+            let packet = f.context("How does process_item() return its result?");
+            assert!(!packet["markdown"].as_str().unwrap().contains("OLD_RESULT"));
+            for e in packet["evidence"].as_array().unwrap() {
+                assert_eq!(e["id"], format!("file:{}", files[0].0));
+                assert_eq!(
+                    e["sha256"],
+                    graphicle_memory::text::sha256(changed.as_bytes())
+                );
+            }
+        }
+    }
+    f.sync(&[("other.py", "def unrelated():\n    return 0\n")]);
+    for projected in [false, true] {
+        if projected {
+            f.project();
+        }
+        let packet = f.context("How does process_item() return its result?");
+        assert!(!packet["markdown"].as_str().unwrap().contains("NEW_RESULT"));
+        assert!(!packet["evidence"].to_string().contains("renamed.py"));
+    }
+}

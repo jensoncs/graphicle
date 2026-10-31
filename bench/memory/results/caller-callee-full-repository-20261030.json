@@ -1,0 +1,4870 @@
+{
+  "state": "completed",
+  "plan": {
+    "baseline_sources": {
+      "crates/graphicle/src/query.rs": "644936e267c50067fdc43aaca48bcaffeae842f1602b94df4555e56f0ceddcf3",
+      "crates/graphicle/src/symbol_links.rs": "3e2df5eb84bfa0a53d39c59304a4f9d616bb352a84538a806661a4e13b924c37",
+      "crates/graphicle/src/review.rs": "ca3364a396f18438efad575040037fb99fdac4c46b0a390ee88352bdf60002f3",
+      "crates/graphicle/src/business_context.rs": "8652eb8f9a38e4699c46952c307b26d17e1906063d0a1a706b1395dec36f8814",
+      "crates/graphicle-graph/src/extractors/go_review.go": "16f0dbf54774932ade3c2b84690f8f5bf3095a07a3fafa2e9d5eae3f7024df9d"
+    },
+    "baseline_binary_sha256": "eb4e83cc2f4a32d342eece3e1bdeb4312b2c3e4d605b3e0fcd2b3f9d00e8670b",
+    "model": "existing pinned local MiniLM; same blend, depth, four-note cap, 2000 code characters",
+    "candidate": "For a linked note with a direct recorded call, score exact caller and callee declarations from current authorized snapshot, 1000 chars each (prefix and suffix when longer). Prefer pairs naming the query identifier, then deterministic edge order. Fall back to unchanged original source window if no usable pair. No candidate addition or filtering.",
+    "acceptance": "Strict pooled precision improvement, no per-query recall loss, all callee-rationale and four-formatting-note IDs retained. All 48 existing synthetic queries are regression, not new holdouts. No retuning after results.",
+    "full_repository": "Run same 11 frozen questions at all three exact historical Nexus commits, default source policy and same retrieval/token options. Audit indexed documents and every delivered source excerpt. Full-repository scope includes only policy-eligible sources; exclusions recorded. Compare to the prior 1-3-file slices.",
+    "datasets": {
+      "bench/memory/fixtures/symbol_link_precision.json": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+      "bench/memory/fixtures/real_query_seed.json": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9",
+      "bench/memory/fixtures/symbol_link_priority.json": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab",
+      "bench/memory/fixtures/symbol_link_diversity.json": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d",
+      "bench/memory/fixtures/symbol_link_exact_scope.json": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79",
+      "bench/memory/fixtures/symbol_link_cutoff_holdout.json": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+    },
+    "remote_calls": 0
+  },
+  "memory_comparison": {
+    "baseline": {
+      "planned": 48,
+      "completed": 48,
+      "failed": 0,
+      "tp": 50,
+      "fp": 83,
+      "precision": 0.37593984962406013,
+      "macro_recall": 0.990990990990991,
+      "mean_tokens": 344.0625
+    },
+    "paired": {
+      "planned": 48,
+      "completed": 48,
+      "failed": 0,
+      "tp": 50,
+      "fp": 83,
+      "precision": 0.37593984962406013,
+      "macro_recall": 0.990990990990991,
+      "mean_tokens": 342.7291666666667
+    },
+    "recall_regressions": [],
+    "membership_changes": [
+      {
+        "case": "callee-pressure/lease-rationale",
+        "baseline": [
+          "lease",
+          "probe",
+          "wire",
+          "archive"
+        ],
+        "paired": [
+          "lease",
+          "wire",
+          "probe",
+          "ledger"
+        ],
+        "lost_relevant": []
+      },
+      {
+        "case": "caller-pressure/lease-rationale",
+        "baseline": [
+          "ledger",
+          "probe",
+          "lease",
+          "wire"
+        ],
+        "paired": [
+          "archive",
+          "ledger",
+          "wire",
+          "lease"
+        ],
+        "lost_relevant": []
+      },
+      {
+        "case": "direct-contracts/all-direct",
+        "baseline": [
+          "null",
+          "delimiter",
+          "escaping",
+          "ordering"
+        ],
+        "paired": [
+          "null",
+          "ordering",
+          "escaping",
+          "delimiter"
+        ],
+        "lost_relevant": []
+      },
+      {
+        "case": "cross-file/cross-file-callee",
+        "baseline": [
+          "audit",
+          "lease"
+        ],
+        "paired": [
+          "lease",
+          "audit"
+        ],
+        "lost_relevant": []
+      },
+      {
+        "case": "transitive/two-hop-callee",
+        "baseline": [
+          "lease",
+          "order",
+          "wire"
+        ],
+        "paired": [
+          "order",
+          "wire",
+          "lease"
+        ],
+        "lost_relevant": []
+      }
+    ],
+    "pair_context_exercised": [
+      {
+        "case": "callee/callee-rationale",
+        "paired_candidates": 1
+      },
+      {
+        "case": "callee-pressure/lease-rationale",
+        "paired_candidates": 5
+      },
+      {
+        "case": "caller-pressure/lease-rationale",
+        "paired_candidates": 5
+      },
+      {
+        "case": "direct-contracts/all-direct",
+        "paired_candidates": 5
+      },
+      {
+        "case": "cross-file/cross-file-callee",
+        "paired_candidates": 2
+      },
+      {
+        "case": "transitive/two-hop-callee",
+        "paired_candidates": 3
+      },
+      {
+        "case": "webhooks-holdout/timing",
+        "paired_candidates": 2
+      },
+      {
+        "case": "webhooks-holdout/ceiling",
+        "paired_candidates": 1
+      },
+      {
+        "case": "webhooks-holdout/arithmetic",
+        "paired_candidates": 2
+      },
+      {
+        "case": "webhooks-holdout/string",
+        "paired_candidates": 2
+      }
+    ],
+    "fixed_output_count_oracle": {
+      "tp": 50,
+      "returned": 133,
+      "precision": 0.37593984962406013
+    },
+    "decision": "not_adopted_no_measured_precision_or_recall_gain",
+    "baseline_results": "/private/tmp/graphicle-query-eval-20261030/memory-baseline-bundled/RESULTS.json",
+    "safeguards": {
+      "callee/callee-rationale": {
+        "relevant": [
+          "lease"
+        ],
+        "returned": [
+          "lease"
+        ],
+        "passed": true
+      },
+      "callee-pressure/lease-rationale": {
+        "relevant": [
+          "lease"
+        ],
+        "returned": [
+          "lease",
+          "wire",
+          "probe",
+          "ledger"
+        ],
+        "passed": true
+      },
+      "caller-pressure/lease-rationale": {
+        "relevant": [
+          "lease"
+        ],
+        "returned": [
+          "archive",
+          "ledger",
+          "wire",
+          "lease"
+        ],
+        "passed": true
+      },
+      "direct-contracts/all-direct": {
+        "relevant": [
+          "delimiter",
+          "ordering",
+          "escaping",
+          "null"
+        ],
+        "returned": [
+          "null",
+          "ordering",
+          "escaping",
+          "delimiter"
+        ],
+        "passed": true
+      }
+    },
+    "first_relevant_note": {
+      "baseline": {
+        "answerable_queries": 37,
+        "first_relevant_mrr": 0.8828828828828829,
+        "first_note_relevant": 29
+      },
+      "paired": {
+        "answerable_queries": 37,
+        "first_relevant_mrr": 0.8761261261261261,
+        "first_note_relevant": 29
+      }
+    }
+  },
+  "full_repository_comparison": {
+    "state": "completed",
+    "primary_summary": {
+      "slice": {
+        "all": {
+          "baseline": {
+            "queries": 11,
+            "complete": 11,
+            "tokens": 24586,
+            "model_calls": 11
+          },
+          "routed": {
+            "queries": 11,
+            "complete": 11,
+            "tokens": 15527,
+            "model_calls": 7
+          }
+        },
+        "location": {
+          "baseline": {
+            "queries": 4,
+            "complete": 4,
+            "tokens": 9471,
+            "model_calls": 4
+          },
+          "routed": {
+            "queries": 4,
+            "complete": 4,
+            "tokens": 412,
+            "model_calls": 0
+          }
+        },
+        "behavior": {
+          "baseline": {
+            "queries": 5,
+            "complete": 5,
+            "tokens": 11008,
+            "model_calls": 5
+          },
+          "routed": {
+            "queries": 5,
+            "complete": 5,
+            "tokens": 11008,
+            "model_calls": 5
+          }
+        },
+        "rationale": {
+          "baseline": {
+            "queries": 2,
+            "complete": 2,
+            "tokens": 4107,
+            "model_calls": 2
+          },
+          "routed": {
+            "queries": 2,
+            "complete": 2,
+            "tokens": 4107,
+            "model_calls": 2
+          }
+        }
+      },
+      "full": {
+        "all": {
+          "baseline": {
+            "queries": 11,
+            "complete": 6,
+            "tokens": 32085,
+            "model_calls": 11
+          },
+          "routed": {
+            "queries": 11,
+            "complete": 7,
+            "tokens": 21017,
+            "model_calls": 7
+          }
+        },
+        "location": {
+          "baseline": {
+            "queries": 4,
+            "complete": 3,
+            "tokens": 11664,
+            "model_calls": 4
+          },
+          "routed": {
+            "queries": 4,
+            "complete": 4,
+            "tokens": 596,
+            "model_calls": 0
+          }
+        },
+        "behavior": {
+          "baseline": {
+            "queries": 5,
+            "complete": 2,
+            "tokens": 14576,
+            "model_calls": 5
+          },
+          "routed": {
+            "queries": 5,
+            "complete": 2,
+            "tokens": 14576,
+            "model_calls": 5
+          }
+        },
+        "rationale": {
+          "baseline": {
+            "queries": 2,
+            "complete": 1,
+            "tokens": 5845,
+            "model_calls": 2
+          },
+          "routed": {
+            "queries": 2,
+            "complete": 1,
+            "tokens": 5845,
+            "model_calls": 2
+          }
+        }
+      }
+    },
+    "full_repository_inventory": [
+      {
+        "project": "nexus-963-h1",
+        "commit": "6aa329c82bb45c18c3ffa6048af46d78e965ce09",
+        "git_files": 2424,
+        "materialized_files": 2422,
+        "excluded_before_read": 2,
+        "indexed_files": 2298,
+        "indexed_bytes": 43391135,
+        "materialized_not_indexed": 124,
+        "converted_or_filtered_documents": 1,
+        "graph": {
+          "status": "built",
+          "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+          "nodes": 97346,
+          "edges": 139296,
+          "saved_graph": {
+            "status": "written",
+            "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+            "bytes": 113596199,
+            "query_file": "written",
+            "seconds": 1.7
+          }
+        },
+        "tracked_ignored_included": 22,
+        "passage_index": {
+          "files": 2298,
+          "passages": 23992,
+          "dropped": 0,
+          "segments": 1,
+          "emptied": 0,
+          "merged": false,
+          "deferred": false,
+          "seconds": 1.9
+        },
+        "sync_skipped_reasons": {
+          "Document not converted: OCR/legacy document helper is not installed; use the Mac app build": 91,
+          "Document not converted: No readable text was extracted; OCR may be required": 1
+        },
+        "manifest_sha256": "a576b1b0f3e25c7307aae32c004b252f28ce7d495c75a4152f519578f0b4e1bb",
+        "index_sha256": "3eac4e490c8cc9f199ac68aa0cf49db16b3914fdeba86bd5ecc626310006c345",
+        "sync_sha256": "66839a940a3519574f8e29f01524c8d1907aefaf5cd637a5983a01f019029a69"
+      },
+      {
+        "project": "nexus-963-h2",
+        "commit": "2447ab17fa50a585f11ad691bd944897768fcad0",
+        "git_files": 2425,
+        "materialized_files": 2423,
+        "excluded_before_read": 2,
+        "indexed_files": 2299,
+        "indexed_bytes": 43397354,
+        "materialized_not_indexed": 124,
+        "converted_or_filtered_documents": 1,
+        "graph": {
+          "status": "built",
+          "episode": "c012f9d39a6848ae42b56bbb33e824a21221f6a78741b0d4b45ca1b65177f6b4",
+          "nodes": 97351,
+          "edges": 139364,
+          "saved_graph": {
+            "status": "written",
+            "episode": "c012f9d39a6848ae42b56bbb33e824a21221f6a78741b0d4b45ca1b65177f6b4",
+            "bytes": 113613625,
+            "query_file": "written",
+            "seconds": 1.8
+          }
+        },
+        "tracked_ignored_included": 22,
+        "passage_index": {
+          "files": 2299,
+          "passages": 23995,
+          "dropped": 0,
+          "segments": 1,
+          "emptied": 0,
+          "merged": false,
+          "deferred": false,
+          "seconds": 1.9
+        },
+        "sync_skipped_reasons": {
+          "Document not converted: OCR/legacy document helper is not installed; use the Mac app build": 91,
+          "Document not converted: No readable text was extracted; OCR may be required": 1
+        },
+        "manifest_sha256": "d3fdec32ce7656f9c9d55548b983cf42be41966589c1217393f2b0d9f62aad39",
+        "index_sha256": "8cd3e31f2fd79dea3ef377cc256402441440ab33673281d3906ce92f011538ec",
+        "sync_sha256": "fc8f0924afb48b07082e39e008c151cfee8c3e887abded2b3720a91059c02f91"
+      },
+      {
+        "project": "nexus-944-h2",
+        "commit": "b717939a99d9b45426918eaf33feeb4b7a687f70",
+        "git_files": 2426,
+        "materialized_files": 2424,
+        "excluded_before_read": 2,
+        "indexed_files": 2300,
+        "indexed_bytes": 43378974,
+        "materialized_not_indexed": 124,
+        "converted_or_filtered_documents": 1,
+        "graph": {
+          "status": "built",
+          "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+          "nodes": 97346,
+          "edges": 139218,
+          "saved_graph": {
+            "status": "written",
+            "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+            "bytes": 113573631,
+            "query_file": "written",
+            "seconds": 1.7
+          }
+        },
+        "tracked_ignored_included": 22,
+        "passage_index": {
+          "files": 2300,
+          "passages": 23984,
+          "dropped": 0,
+          "segments": 1,
+          "emptied": 0,
+          "merged": false,
+          "deferred": false,
+          "seconds": 1.8
+        },
+        "sync_skipped_reasons": {
+          "Document not converted: OCR/legacy document helper is not installed; use the Mac app build": 91,
+          "Document not converted: No readable text was extracted; OCR may be required": 1
+        },
+        "manifest_sha256": "579347077755c0997b08fbda2e540f73eddfcb231f382917e2e888b0871aef26",
+        "index_sha256": "4cd9b046e17ae37ad626566938aa10ec528170b1d09ee70d707c814b04660f4a",
+        "sync_sha256": "46e6838ed6d8b49df0eef26a621ee03c5972f4079fe1810c12d1f18bc781beb0"
+      }
+    ],
+    "full_cases": [
+      {
+        "project": "nexus-963-h1",
+        "query": "captured-gateway",
+        "intent": "location",
+        "origin": "captured_tool_query",
+        "split": "development",
+        "variants": {
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.14285714285714285,
+            "tokens": 2924,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "47f4bb7a223ec09a3da62386f95eb372649c44462f4ea99ed9d568caae6c24e2",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 1,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "gatewaymeshservice"
+              ],
+              "matched": 1,
+              "candidates": 1,
+              "seeds": [
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymeshservice"
+              ],
+              "expanded": 2,
+              "anchored": 2,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "gatewayMeshService"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 4,
+              "candidates": 5,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 0,
+            "excerpts": 0,
+            "supporting_excerpt_precision": null,
+            "tokens": 100,
+            "route": {
+              "path": "identifier",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "gatewayMeshService"
+              ],
+              "not_found": [],
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3"
+            },
+            "model_calls": 0,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "19820626a6c695d3ad9e5783015fefa64390164db5051079404dc9f1cc1b9400",
+            "coverage": null,
+            "omitted": {
+              "definitions_and_references": 0
+            },
+            "code_graph": {
+              "status": "identifier_route",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0
+            },
+            "identifier_arm": null
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "gateway-owner",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "routed": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 0,
+            "excerpts": 8,
+            "supporting_excerpt_precision": 0.0,
+            "tokens": 2912,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "gatewayMeshService"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "61dd9c4f6820812f9ac34d922c7a0df99d679d0363811902e9fa5bf56c1bd659",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "gatewaymeshservice",
+                "choose",
+                "service",
+                "name",
+                "during",
+                "v4",
+                "migration"
+              ],
+              "matched": 4608,
+              "candidates": 300,
+              "seeds": [
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymeshservice",
+                "nexus_envoy_planning_spikes_lab138_vendor_dynamic_modules_sdk_rust_src_cluster_clusterlb_choose_host",
+                "bpf_nbpfxdp_vmlinux_migration_target_control",
+                "bpf_nbpfxdp_vmlinux_xattr_name",
+                "v1_service",
+                "bpf_nbpfxdp_vmlinux_bpf_sk_lookup_kern_v4"
+              ],
+              "expanded": 51,
+              "anchored": 298,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 224,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 0
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "gatewayMeshService"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 4,
+              "candidates": 5,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 0,
+            "excerpts": 8,
+            "supporting_excerpt_precision": 0.0,
+            "tokens": 2912,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "b2db22574e9e698104bdcea95a32687331291fee235e6ced01be841b6eb5f0d9",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "gatewaymeshservice",
+                "choose",
+                "service",
+                "name",
+                "during",
+                "v4",
+                "migration"
+              ],
+              "matched": 4608,
+              "candidates": 300,
+              "seeds": [
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymeshservice",
+                "nexus_envoy_planning_spikes_lab138_vendor_dynamic_modules_sdk_rust_src_cluster_clusterlb_choose_host",
+                "bpf_nbpfxdp_vmlinux_migration_target_control",
+                "bpf_nbpfxdp_vmlinux_xattr_name",
+                "v1_service",
+                "bpf_nbpfxdp_vmlinux_bpf_sk_lookup_kern_v4"
+              ],
+              "expanded": 51,
+              "anchored": 298,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 224,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 0
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "gatewayMeshService"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 4,
+              "candidates": 5,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "caller-callee-failure",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false,
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 0,
+            "excerpts": 8,
+            "supporting_excerpt_precision": 0.0,
+            "tokens": 2920,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "c2d0155c60d1b7b4cdc33c8edbcb3caebcbb309d6e2f88656a62ca930184c557",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "happens",
+                "dns",
+                "overlaps",
+                "getnexusserviceconfigs",
+                "fails",
+                "inside",
+                "detectandupdatednsoverlaps"
+              ],
+              "matched": 274,
+              "candidates": 274,
+              "seeds": [
+                "bpf_nbpfxdp_vmlinux_sctp_params_dns",
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "builder_mockdiscoveryclient_getnexusserviceconfigs",
+                "graviton_pkg_controller_gatewayserviceconfig_validation_ownership_test_testvalidatepathownership_insidesomeoneelsesdelegation",
+                "xlr8_pkg_cache_cache_getdnsoverlaps"
+              ],
+              "expanded": 26,
+              "anchored": 269,
+              "unanchored": 15,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 129,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 4
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs",
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 2,
+              "files": 31,
+              "candidates": 44,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false,
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 0,
+            "excerpts": 8,
+            "supporting_excerpt_precision": 0.0,
+            "tokens": 2920,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "GetNexusServiceConfigs",
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "fbe8292bc1f90805a42d8fcd13940a5fb2722fcd9671a5c2bb1a79613af21c4e",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "happens",
+                "dns",
+                "overlaps",
+                "getnexusserviceconfigs",
+                "fails",
+                "inside",
+                "detectandupdatednsoverlaps"
+              ],
+              "matched": 274,
+              "candidates": 274,
+              "seeds": [
+                "bpf_nbpfxdp_vmlinux_sctp_params_dns",
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "builder_mockdiscoveryclient_getnexusserviceconfigs",
+                "graviton_pkg_controller_gatewayserviceconfig_validation_ownership_test_testvalidatepathownership_insidesomeoneelsesdelegation",
+                "xlr8_pkg_cache_cache_getdnsoverlaps"
+              ],
+              "expanded": 26,
+              "anchored": 269,
+              "unanchored": 15,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 129,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 4
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs",
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 2,
+              "files": 31,
+              "candidates": 44,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "v4-failure",
+        "intent": "rationale",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 8,
+            "supporting_excerpt_precision": 0.125,
+            "tokens": 2915,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "5af4c20e8ff71e82db820cc370ffe1ae19f8940b8c6e4d4e2d32d66abbc771b8",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "detectandupdatednsoverlaps",
+                "keep",
+                "current",
+                "overlaps",
+                "v4",
+                "config",
+                "read",
+                "fails"
+              ],
+              "matched": 4621,
+              "candidates": 300,
+              "seeds": [
+                "bpf_nbpfxdp_vmlinux_drm_gpuva_op_unmap_keep",
+                "bpf_nbpfxdp_vmlinux_bpf_sk_lookup_kern_v4",
+                "bpf_nbpfxdp_vmlinux_buffer_page_read",
+                "nexusmesh_src_constants_config_config",
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "xlr8_pkg_cache_cache_getdnsoverlaps"
+              ],
+              "expanded": 30,
+              "anchored": 292,
+              "unanchored": 8,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 224,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 5
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 4,
+              "candidates": 8,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 8,
+            "supporting_excerpt_precision": 0.125,
+            "tokens": 2915,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "6d4202f3d52ca7d664d4bca19539af47135edcb2900b2e81ed78f5683e510cca",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "detectandupdatednsoverlaps",
+                "keep",
+                "current",
+                "overlaps",
+                "v4",
+                "config",
+                "read",
+                "fails"
+              ],
+              "matched": 4621,
+              "candidates": 300,
+              "seeds": [
+                "bpf_nbpfxdp_vmlinux_drm_gpuva_op_unmap_keep",
+                "bpf_nbpfxdp_vmlinux_bpf_sk_lookup_kern_v4",
+                "bpf_nbpfxdp_vmlinux_buffer_page_read",
+                "nexusmesh_src_constants_config_config",
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "xlr8_pkg_cache_cache_getdnsoverlaps"
+              ],
+              "expanded": 30,
+              "anchored": 292,
+              "unanchored": 8,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 224,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 5
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 4,
+              "candidates": 8,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "cache-success",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.14285714285714285,
+            "tokens": 2903,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "a83e6db2b7ddbdc5cc33f2f2a3ec9e77eefcbf6830c6dc90b56186833fa2dd86",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "getnexusserviceconfigs",
+                "return",
+                "cached",
+                "config",
+                "filter",
+                "absent"
+              ],
+              "matched": 4899,
+              "candidates": 300,
+              "seeds": [
+                "bpf_nbpfxdp_vmlinux_memcg_stock_pcp_cached",
+                "bpf_nbpfxdp_vmlinux_btf_kfunc_id_set_filter",
+                "xlr8_pkg_utils_slices_slices_filter",
+                "nexusmesh_src_constants_config_config",
+                "builder_mockdiscoveryclient_getnexusserviceconfigs",
+                "bpf_nbpfxdp_vmlinux_return_instance"
+              ],
+              "expanded": 7,
+              "anchored": 295,
+              "unanchored": 5,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 205,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 30,
+              "candidates": 40,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.14285714285714285,
+            "tokens": 2903,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "b9f12891fa4164027c5cef87837d3242be13e245e7d1f13e8f5a9a8099841d5d",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "getnexusserviceconfigs",
+                "return",
+                "cached",
+                "config",
+                "filter",
+                "absent"
+              ],
+              "matched": 4899,
+              "candidates": 300,
+              "seeds": [
+                "bpf_nbpfxdp_vmlinux_memcg_stock_pcp_cached",
+                "bpf_nbpfxdp_vmlinux_btf_kfunc_id_set_filter",
+                "xlr8_pkg_utils_slices_slices_filter",
+                "nexusmesh_src_constants_config_config",
+                "builder_mockdiscoveryclient_getnexusserviceconfigs",
+                "bpf_nbpfxdp_vmlinux_return_instance"
+              ],
+              "expanded": 7,
+              "anchored": 295,
+              "unanchored": 5,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 205,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 30,
+              "candidates": 40,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "callee-location",
+        "intent": "location",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 0,
+            "excerpts": 0,
+            "supporting_excerpt_precision": null,
+            "tokens": 264,
+            "route": {
+              "path": "identifier",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "not_found": [],
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3"
+            },
+            "model_calls": 0,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "27c7a9f8c7887a5c844eeba0920306c8e1addce8671ef7aa8f3ebc95f2c59142",
+            "coverage": null,
+            "omitted": {
+              "definitions_and_references": 0
+            },
+            "code_graph": {
+              "status": "identifier_route",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0
+            },
+            "identifier_arm": null
+          },
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 6,
+            "supporting_excerpt_precision": 0.16666666666666666,
+            "tokens": 2917,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "83eaa5cfcc3fbf358c6c94323ef32867c24b75a249169f15b4b4b6e3b658b964",
+            "coverage": {
+              "source_documents": 2298,
+              "source_passages": 23992,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "getnexusserviceconfigs",
+                "defined"
+              ],
+              "matched": 50,
+              "candidates": 50,
+              "seeds": [
+                "builder_mockdiscoveryclient_getnexusserviceconfigs",
+                "xlr8_pkg_discovery_etcd_test_testgetnexusserviceconfigs_errorcases",
+                "xlr8_pkg_discovery_etcd_test_testgetnexusserviceconfigs_successcases",
+                "bpf_nbpfxdp_vmlinux_acpi_predefined_info"
+              ],
+              "expanded": 16,
+              "anchored": 60,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 51,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 2
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 30,
+              "candidates": 40,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h2",
+        "query": "captured-overlap",
+        "intent": "location",
+        "origin": "captured_tool_query",
+        "split": "regression",
+        "variants": {
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 8,
+            "supporting_excerpt_precision": 0.125,
+            "tokens": 2919,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "adf38ace2e66b328a82e95b1fd53682d277c7c97145003cb9958c3b8bb791535",
+            "coverage": {
+              "source_documents": 2299,
+              "source_passages": 23995,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "c012f9d39a6848ae42b56bbb33e824a21221f6a78741b0d4b45ca1b65177f6b4",
+              "episode_lag": 0,
+              "terms": [
+                "detectandupdatednsoverlaps"
+              ],
+              "matched": 1,
+              "candidates": 1,
+              "seeds": [
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps"
+              ],
+              "expanded": 3,
+              "anchored": 2,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 4,
+              "candidates": 8,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 0,
+            "excerpts": 0,
+            "supporting_excerpt_precision": null,
+            "tokens": 134,
+            "route": {
+              "path": "identifier",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "not_found": [],
+              "episode": "c012f9d39a6848ae42b56bbb33e824a21221f6a78741b0d4b45ca1b65177f6b4"
+            },
+            "model_calls": 0,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "2e8f0e7134ca890381532d870ef5fa35b2bd133b936b8e8249f6f31412f3a9f4",
+            "coverage": null,
+            "omitted": {
+              "definitions_and_references": 0
+            },
+            "code_graph": {
+              "status": "identifier_route",
+              "episode": "c012f9d39a6848ae42b56bbb33e824a21221f6a78741b0d4b45ca1b65177f6b4",
+              "episode_lag": 0
+            },
+            "identifier_arm": null
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "waypoint-location",
+        "intent": "location",
+        "origin": "authored_real_case",
+        "split": "held_out",
+        "variants": {
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 0,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.0,
+            "tokens": 2904,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "2411a3619d543c428c2c552ff1afa992667d973907b2cf8e8453468815da7bdc",
+            "coverage": {
+              "source_documents": 2300,
+              "source_passages": 23984,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "defined"
+              ],
+              "matched": 43,
+              "candidates": 43,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_acpi_predefined_info"
+              ],
+              "expanded": 11,
+              "anchored": 52,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 38,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 3
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 0,
+            "excerpts": 0,
+            "supporting_excerpt_precision": null,
+            "tokens": 98,
+            "route": {
+              "path": "identifier",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "not_found": [],
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2"
+            },
+            "model_calls": 0,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "e1be898095e0c6e3460c7777fa284b53090c8990a5f58d4eb31fd86bd590dda7",
+            "coverage": null,
+            "omitted": {
+              "definitions_and_references": 0
+            },
+            "code_graph": {
+              "status": "identifier_route",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0
+            },
+            "identifier_arm": null
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "partial-inspection",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "held_out",
+        "variants": {
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 6,
+            "supporting_excerpt_precision": 0.16666666666666666,
+            "tokens": 2909,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "7464c1e1707f744b3916584b10dfe8ab631d073c847858270ba4a4636c64be9a",
+            "coverage": {
+              "source_documents": 2300,
+              "source_passages": 23984,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "handle",
+                "programs",
+                "inspected"
+              ],
+              "matched": 873,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_acpi_data_node_handle",
+                "dante_danteprograms"
+              ],
+              "expanded": 13,
+              "anchored": 298,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 190,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 2
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 6,
+            "supporting_excerpt_precision": 0.16666666666666666,
+            "tokens": 2909,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "afa36e514f89c42dad36a8db513847861d6458b3fb58ed9d0e589609502ac345",
+            "coverage": {
+              "source_documents": 2300,
+              "source_passages": 23984,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "handle",
+                "programs",
+                "inspected"
+              ],
+              "matched": 873,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_acpi_data_node_handle",
+                "dante_danteprograms"
+              ],
+              "expanded": 13,
+              "anchored": 298,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 190,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 2
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "uncertain-link",
+        "intent": "rationale",
+        "origin": "authored_real_case",
+        "split": "held_out",
+        "variants": {
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 0,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.0,
+            "tokens": 2930,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "9c03d4123ef56576d04459a66ded7550d203648c2d88f38fc7ffb38a78da8f35",
+            "coverage": {
+              "source_documents": 2300,
+              "source_passages": 23984,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "preserve",
+                "entries",
+                "link",
+                "lookup",
+                "query",
+                "fails"
+              ],
+              "matched": 1639,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_arch_init_data_lookup",
+                "bpf_nbpfxdp_vmlinux_bpf_attr_query",
+                "bpf_nbpfxdp_vmlinux_acpi_lpi_states_array_entries",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "bpf_nbpfxdp_vmlinux_sk_psock_link",
+                "bpf_nbpfxdp_vmlinux_acpi_pcct_ext_pcc_master_preserve_mask"
+              ],
+              "expanded": 20,
+              "anchored": 300,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 222,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 0,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.0,
+            "tokens": 2930,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "f4e674557626fd66ae3a8404598db4b73f7c5030a1bdc0967278f8c6b16592c5",
+            "coverage": {
+              "source_documents": 2300,
+              "source_passages": 23984,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "preserve",
+                "entries",
+                "link",
+                "lookup",
+                "query",
+                "fails"
+              ],
+              "matched": 1639,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_arch_init_data_lookup",
+                "bpf_nbpfxdp_vmlinux_bpf_attr_query",
+                "bpf_nbpfxdp_vmlinux_acpi_lpi_states_array_entries",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "bpf_nbpfxdp_vmlinux_sk_psock_link",
+                "bpf_nbpfxdp_vmlinux_acpi_pcct_ext_pcc_master_preserve_mask"
+              ],
+              "expanded": 20,
+              "anchored": 300,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 222,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "delete-missing",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "held_out",
+        "variants": {
+          "routed": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 0,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.0,
+            "tokens": 2932,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "c449107e8296e30d50d8b2012f269e5f076b6d8522456942533d6be25a5c081d",
+            "coverage": {
+              "source_documents": 2300,
+              "source_passages": 23984,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "entries",
+                "missing",
+                "link",
+                "waypoint",
+                "program"
+              ],
+              "matched": 1519,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_acpi_lpi_states_array_entries",
+                "bpf_nbpfxdp_vmlinux_sk_psock_link",
+                "nexus_envoy_workload_metrics_module_vendor_dynamic_modules_sdk_cpp_sdk_httpcalloutinitresult_missingrequiredheaders",
+                "bpf_nbpfxdp_vmlinux_rpc_stat_program",
+                "bpf_dante_waypoint_select_test"
+              ],
+              "expanded": 24,
+              "anchored": 296,
+              "unanchored": 4,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 246,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 4
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "evidence_recall": 0.0,
+            "supporting_excerpts": 0,
+            "excerpts": 7,
+            "supporting_excerpt_precision": 0.0,
+            "tokens": 2932,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": false,
+            "packet_sha256": "40eb10200a7fef63f58b54f29f478377f10336eeb5ebd7bc4b2f60097d220a1e",
+            "coverage": {
+              "source_documents": 2300,
+              "source_passages": 23984,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "entries",
+                "missing",
+                "link",
+                "waypoint",
+                "program"
+              ],
+              "matched": 1519,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_acpi_lpi_states_array_entries",
+                "bpf_nbpfxdp_vmlinux_sk_psock_link",
+                "nexus_envoy_workload_metrics_module_vendor_dynamic_modules_sdk_cpp_sdk_httpcalloutinitresult_missingrequiredheaders",
+                "bpf_nbpfxdp_vmlinux_rpc_stat_program",
+                "bpf_dante_waypoint_select_test"
+              ],
+              "expanded": 24,
+              "anchored": 296,
+              "unanchored": 4,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 246,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 4
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      }
+    ],
+    "slice_cases": [
+      {
+        "project": "nexus-963-h1",
+        "query": "captured-gateway",
+        "intent": "location",
+        "origin": "captured_tool_query",
+        "split": "development",
+        "variants": {
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 6,
+            "supporting_excerpt_precision": 0.16666666666666666,
+            "tokens": 2573,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "bf7c1afdd221d4df9022044e1d99ca56d1288f1489c591cda7e164af89626625",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "gatewaymeshservice"
+              ],
+              "matched": 1,
+              "candidates": 1,
+              "seeds": [
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymeshservice"
+              ],
+              "expanded": 2,
+              "anchored": 2,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "gatewayMeshService"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 0,
+            "excerpts": 0,
+            "supporting_excerpt_precision": null,
+            "tokens": 100,
+            "route": {
+              "path": "identifier",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "gatewayMeshService"
+              ],
+              "not_found": [],
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26"
+            },
+            "model_calls": 0,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "cdec68a33fb625c43d8a4167771d9b74712a103a56b319989f20c5bcca8d7741",
+            "coverage": null,
+            "omitted": {
+              "definitions_and_references": 0
+            },
+            "code_graph": {
+              "status": "identifier_route",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0
+            },
+            "identifier_arm": null
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "gateway-owner",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 4,
+            "supporting_excerpt_precision": 0.25,
+            "tokens": 2841,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "gatewayMeshService"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "25369bf00c6093ffcd6ac4ee7fb96d51befdd738afed4ad244f3936975f3c6bc",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "gatewaymeshservice",
+                "choose",
+                "service",
+                "name",
+                "during",
+                "v4",
+                "migration"
+              ],
+              "matched": 21,
+              "candidates": 21,
+              "seeds": [
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymeshservice",
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymodelclusternames",
+                "xds_discoveryserviceimpl_servicenames",
+                "xds_discoveryserviceimpl_configeventhandlerv4"
+              ],
+              "expanded": 10,
+              "anchored": 16,
+              "unanchored": 10,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 23,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 3
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "gatewayMeshService"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 4,
+            "supporting_excerpt_precision": 0.25,
+            "tokens": 2841,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "b6d2ee210380cc10c4b08f1e6bf906b895a8046c5d8e1b7260f10391fcdca932",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "gatewaymeshservice",
+                "choose",
+                "service",
+                "name",
+                "during",
+                "v4",
+                "migration"
+              ],
+              "matched": 21,
+              "candidates": 21,
+              "seeds": [
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymeshservice",
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymodelclusternames",
+                "xds_discoveryserviceimpl_servicenames",
+                "xds_discoveryserviceimpl_configeventhandlerv4"
+              ],
+              "expanded": 10,
+              "anchored": 16,
+              "unanchored": 10,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 23,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 3
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "gatewayMeshService"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "caller-callee-failure",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 2,
+            "excerpts": 5,
+            "supporting_excerpt_precision": 0.4,
+            "tokens": 2750,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "bdbc0b9e5dd2def593406c7c1fd418bae8d17a88a96f3f8c6a2e48051d2a0ae5",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "happens",
+                "dns",
+                "overlaps",
+                "getnexusserviceconfigs",
+                "fails",
+                "inside",
+                "detectandupdatednsoverlaps"
+              ],
+              "matched": 2,
+              "candidates": 2,
+              "seeds": [
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "discovery_etcdclient_getnexusserviceconfigs"
+              ],
+              "expanded": 7,
+              "anchored": 4,
+              "unanchored": 3,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 7,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 3
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs",
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 2,
+              "files": 3,
+              "candidates": 5,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 2,
+            "excerpts": 5,
+            "supporting_excerpt_precision": 0.4,
+            "tokens": 2750,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "GetNexusServiceConfigs",
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "30136a4f05794e26668bd964085ac2aec3a0f1bf4b874314d9cbe4ba32c670e5",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "happens",
+                "dns",
+                "overlaps",
+                "getnexusserviceconfigs",
+                "fails",
+                "inside",
+                "detectandupdatednsoverlaps"
+              ],
+              "matched": 2,
+              "candidates": 2,
+              "seeds": [
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "discovery_etcdclient_getnexusserviceconfigs"
+              ],
+              "expanded": 7,
+              "anchored": 4,
+              "unanchored": 3,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 7,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 3
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs",
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 2,
+              "files": 3,
+              "candidates": 5,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "v4-failure",
+        "intent": "rationale",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 5,
+            "supporting_excerpt_precision": 0.2,
+            "tokens": 2799,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "c626a94d0600cca0fc5edcd4347a4b2ff6864abf20f39844ec33f2e099cdbfe3",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "detectandupdatednsoverlaps",
+                "keep",
+                "current",
+                "overlaps",
+                "v4",
+                "config",
+                "read",
+                "fails"
+              ],
+              "matched": 25,
+              "candidates": 25,
+              "seeds": [
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "discovery_etcdclient_getv4configs",
+                "xds_discoveryserviceimpl_configwatchv4",
+                "builder_configgeneratorimpl",
+                "xds_discoveryserviceimpl_configeventhandlerv4"
+              ],
+              "expanded": 14,
+              "anchored": 17,
+              "unanchored": 16,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 29,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 5
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 5,
+            "supporting_excerpt_precision": 0.2,
+            "tokens": 2799,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "900fe78abaedbfd0a5947c35d8a5527580abbe09a0d1e2629a9783976db383f1",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "detectandupdatednsoverlaps",
+                "keep",
+                "current",
+                "overlaps",
+                "v4",
+                "config",
+                "read",
+                "fails"
+              ],
+              "matched": 25,
+              "candidates": 25,
+              "seeds": [
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "discovery_etcdclient_getv4configs",
+                "xds_discoveryserviceimpl_configwatchv4",
+                "builder_configgeneratorimpl",
+                "xds_discoveryserviceimpl_configeventhandlerv4"
+              ],
+              "expanded": 14,
+              "anchored": 17,
+              "unanchored": 16,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 29,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 5
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "cache-success",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 5,
+            "supporting_excerpt_precision": 0.2,
+            "tokens": 2801,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "a23d08d2abae957afab9c12c70866c864baad7f8cd0ea9be3b15cefb6133def5",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "getnexusserviceconfigs",
+                "return",
+                "cached",
+                "config",
+                "filter",
+                "absent"
+              ],
+              "matched": 22,
+              "candidates": 22,
+              "seeds": [
+                "discovery_etcdclient_getnexusserviceconfigs",
+                "go_type_xlr8_pkg_model_nexusserviceconfigfilter",
+                "builder_configgeneratorimpl"
+              ],
+              "expanded": 4,
+              "anchored": 10,
+              "unanchored": 12,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 22,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 5
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 3,
+              "candidates": 4,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 5,
+            "supporting_excerpt_precision": 0.2,
+            "tokens": 2801,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "8160ae00feebb0ade27771b22c4045f1382f78497d7b2655db8c76b945f502bb",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "getnexusserviceconfigs",
+                "return",
+                "cached",
+                "config",
+                "filter",
+                "absent"
+              ],
+              "matched": 22,
+              "candidates": 22,
+              "seeds": [
+                "discovery_etcdclient_getnexusserviceconfigs",
+                "go_type_xlr8_pkg_model_nexusserviceconfigfilter",
+                "builder_configgeneratorimpl"
+              ],
+              "expanded": 4,
+              "anchored": 10,
+              "unanchored": 12,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 22,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 5
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 3,
+              "candidates": 4,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "callee-location",
+        "intent": "location",
+        "origin": "authored_real_case",
+        "split": "development",
+        "variants": {
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 0,
+            "excerpts": 0,
+            "supporting_excerpt_precision": null,
+            "tokens": 106,
+            "route": {
+              "path": "identifier",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "not_found": [],
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26"
+            },
+            "model_calls": 0,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "399987373e5c0349c4085ff5ede6bd4f984a9ba9f5a339176b4ecdf31160acb0",
+            "coverage": null,
+            "omitted": {
+              "definitions_and_references": 0
+            },
+            "code_graph": {
+              "status": "identifier_route",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0
+            },
+            "identifier_arm": null
+          },
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 5,
+            "supporting_excerpt_precision": 0.2,
+            "tokens": 2855,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "fbe61fdc453b682cf63e880d3917b677b253093ace55ed67aa03026f4dadfd0f",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "4120d33f96ecac8d9a3bf59324d54bcc9d47fa970e471d0cbc4fe70cf106ee26",
+              "episode_lag": 0,
+              "terms": [
+                "getnexusserviceconfigs",
+                "defined"
+              ],
+              "matched": 1,
+              "candidates": 1,
+              "seeds": [
+                "discovery_etcdclient_getnexusserviceconfigs"
+              ],
+              "expanded": 5,
+              "anchored": 2,
+              "unanchored": 3,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 4,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 3,
+              "candidates": 4,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h2",
+        "query": "captured-overlap",
+        "intent": "location",
+        "origin": "captured_tool_query",
+        "split": "regression",
+        "variants": {
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 6,
+            "supporting_excerpt_precision": 0.16666666666666666,
+            "tokens": 2735,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "b516bde1b1431cdb3b1aeac49004730dbc9a9482d6d0dd43393e294911ad6b2f",
+            "coverage": {
+              "source_documents": 3,
+              "source_passages": 65,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "3243bfcadaa2b35b96c3b6c1700abdf5c717a90d26f307594f9143313aa69e2c",
+              "episode_lag": 0,
+              "terms": [
+                "detectandupdatednsoverlaps"
+              ],
+              "matched": 1,
+              "candidates": 1,
+              "seeds": [
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps"
+              ],
+              "expanded": 2,
+              "anchored": 2,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 0,
+            "excerpts": 0,
+            "supporting_excerpt_precision": null,
+            "tokens": 108,
+            "route": {
+              "path": "identifier",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "not_found": [],
+              "episode": "3243bfcadaa2b35b96c3b6c1700abdf5c717a90d26f307594f9143313aa69e2c"
+            },
+            "model_calls": 0,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "6906c8c2f1d0b34db08a9dacf22df445056230861cfe65654565612396d35ed8",
+            "coverage": null,
+            "omitted": {
+              "definitions_and_references": 0
+            },
+            "code_graph": {
+              "status": "identifier_route",
+              "episode": "3243bfcadaa2b35b96c3b6c1700abdf5c717a90d26f307594f9143313aa69e2c",
+              "episode_lag": 0
+            },
+            "identifier_arm": null
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "waypoint-location",
+        "intent": "location",
+        "origin": "authored_real_case",
+        "split": "held_out",
+        "variants": {
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 1,
+            "supporting_excerpt_precision": 1.0,
+            "tokens": 1308,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "fd4f3df3647718c5e5095b317b5296cff07264006a9324ffba04d850b68d7b9d",
+            "coverage": {
+              "source_documents": 1,
+              "source_passages": 9,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "2e77f5e9e45a513c92c9da483a2d9d5b1dfb5775a434212f95f8386c810f1ac9",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "defined"
+              ],
+              "matched": 1,
+              "candidates": 1,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry"
+              ],
+              "expanded": 4,
+              "anchored": 4,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 0,
+            "excerpts": 0,
+            "supporting_excerpt_precision": null,
+            "tokens": 98,
+            "route": {
+              "path": "identifier",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "not_found": [],
+              "episode": "2e77f5e9e45a513c92c9da483a2d9d5b1dfb5775a434212f95f8386c810f1ac9"
+            },
+            "model_calls": 0,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "44d3cfd4e661acd709201a6b1fa83a8a7bd9d9b5266811ee7edbfa2f8911d877",
+            "coverage": null,
+            "omitted": {
+              "definitions_and_references": 0
+            },
+            "code_graph": {
+              "status": "identifier_route",
+              "episode": "2e77f5e9e45a513c92c9da483a2d9d5b1dfb5775a434212f95f8386c810f1ac9",
+              "episode_lag": 0
+            },
+            "identifier_arm": null
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "partial-inspection",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "held_out",
+        "variants": {
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 1,
+            "supporting_excerpt_precision": 1.0,
+            "tokens": 1308,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "214ceb2691bc3db658e9ac19416dcf805e47390dfb6f9c4320bd5de87e4391b6",
+            "coverage": {
+              "source_documents": 1,
+              "source_passages": 9,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "2e77f5e9e45a513c92c9da483a2d9d5b1dfb5775a434212f95f8386c810f1ac9",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "handle",
+                "programs",
+                "inspected"
+              ],
+              "matched": 1,
+              "candidates": 1,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry"
+              ],
+              "expanded": 4,
+              "anchored": 4,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 1,
+            "supporting_excerpt_precision": 1.0,
+            "tokens": 1308,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "3dcfaf21d1fa6373da6db6d3296b6b5c9f690e4a9c0d15986d8fe4bb72f1d1f2",
+            "coverage": {
+              "source_documents": 1,
+              "source_passages": 9,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "2e77f5e9e45a513c92c9da483a2d9d5b1dfb5775a434212f95f8386c810f1ac9",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "handle",
+                "programs",
+                "inspected"
+              ],
+              "matched": 1,
+              "candidates": 1,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry"
+              ],
+              "expanded": 4,
+              "anchored": 4,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "uncertain-link",
+        "intent": "rationale",
+        "origin": "authored_real_case",
+        "split": "held_out",
+        "variants": {
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 1,
+            "supporting_excerpt_precision": 1.0,
+            "tokens": 1308,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "48e3bfa63f41c3429728c0e4d1ed4e9fec92c508f4e0671018d300bb2febfece",
+            "coverage": {
+              "source_documents": 1,
+              "source_passages": 9,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "2e77f5e9e45a513c92c9da483a2d9d5b1dfb5775a434212f95f8386c810f1ac9",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "preserve",
+                "entries",
+                "link",
+                "lookup",
+                "query",
+                "fails"
+              ],
+              "matched": 6,
+              "candidates": 6,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "dante_linkstate",
+                "bpf_dante_bpf_querytcxingress"
+              ],
+              "expanded": 5,
+              "anchored": 5,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 1,
+            "supporting_excerpt_precision": 1.0,
+            "tokens": 1308,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "f4b1c1975199df5c26ad5537888238e306d2738221ad01acd2143c436756b11c",
+            "coverage": {
+              "source_documents": 1,
+              "source_passages": 9,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "2e77f5e9e45a513c92c9da483a2d9d5b1dfb5775a434212f95f8386c810f1ac9",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "preserve",
+                "entries",
+                "link",
+                "lookup",
+                "query",
+                "fails"
+              ],
+              "matched": 6,
+              "candidates": 6,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "dante_linkstate",
+                "bpf_dante_bpf_querytcxingress"
+              ],
+              "expanded": 5,
+              "anchored": 5,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "delete-missing",
+        "intent": "behavior",
+        "origin": "authored_real_case",
+        "split": "held_out",
+        "variants": {
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 1,
+            "supporting_excerpt_precision": 1.0,
+            "tokens": 1308,
+            "route": {
+              "path": "retrieval",
+              "reason": "asks_more",
+              "identifier_route": true,
+              "defaulted": false,
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "names_fused": true
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "abbc2198d7b028a5738bc31d065f0b25c081ace36ffcf96a1feea6744c890e77",
+            "coverage": {
+              "source_documents": 1,
+              "source_passages": 9,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "2e77f5e9e45a513c92c9da483a2d9d5b1dfb5775a434212f95f8386c810f1ac9",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "entries",
+                "missing",
+                "link",
+                "waypoint",
+                "program"
+              ],
+              "matched": 5,
+              "candidates": 5,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "dante_linkstate"
+              ],
+              "expanded": 4,
+              "anchored": 5,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          },
+          "baseline": {
+            "complete": true,
+            "required_delivered": [
+              true,
+              true
+            ],
+            "evidence_recall": 1.0,
+            "supporting_excerpts": 1,
+            "excerpts": 1,
+            "supporting_excerpt_precision": 1.0,
+            "tokens": 1308,
+            "route": {
+              "path": "retrieval",
+              "reason": "off",
+              "identifier_route": false,
+              "defaulted": false,
+              "names": []
+            },
+            "model_calls": 1,
+            "source_verified": true,
+            "original_reported_complete": true,
+            "packet_sha256": "334062949179950241076f0ba99a4d93304317287239b64b7059187a393cbe27",
+            "coverage": {
+              "source_documents": 1,
+              "source_passages": 9,
+              "passage_limit_reached": false,
+              "omitted_documents": 0,
+              "omitted_documents_are": "none",
+              "omitted_reviewed_memories": 0,
+              "stale_memories": 0,
+              "unapproved_or_retired_memories": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            },
+            "code_graph": {
+              "status": "fused",
+              "episode": "2e77f5e9e45a513c92c9da483a2d9d5b1dfb5775a434212f95f8386c810f1ac9",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "entries",
+                "missing",
+                "link",
+                "waypoint",
+                "program"
+              ],
+              "matched": 5,
+              "candidates": 5,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "dante_linkstate"
+              ],
+              "expanded": 4,
+              "anchored": 5,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 3,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 1,
+              "candidates": 2,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            }
+          }
+        }
+      }
+    ],
+    "misses": [
+      {
+        "project": "nexus-963-h1",
+        "query": "gateway-owner",
+        "intent": "behavior",
+        "required": [
+          {
+            "file": "xlr8/pkg/core/builder/cluster_gateway.go",
+            "byte_start": 15269,
+            "byte_end": 15317,
+            "line": 324,
+            "quote": "if !v4MigrationEnabled {\n\t\treturn serviceName\n\t}",
+            "after": null
+          },
+          {
+            "file": "xlr8/pkg/core/builder/cluster_gateway.go",
+            "byte_start": 15319,
+            "byte_end": 15394,
+            "line": 327,
+            "quote": "if owner, ok := cache.GetDnsOverlaps()[serviceName]; ok {\n\t\treturn owner\n\t}",
+            "after": null
+          }
+        ],
+        "variants": {
+          "routed": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "tokens": 2912,
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "gatewaymeshservice",
+                "choose",
+                "service",
+                "name",
+                "during",
+                "v4",
+                "migration"
+              ],
+              "matched": 4608,
+              "candidates": 300,
+              "seeds": [
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymeshservice",
+                "nexus_envoy_planning_spikes_lab138_vendor_dynamic_modules_sdk_rust_src_cluster_clusterlb_choose_host",
+                "bpf_nbpfxdp_vmlinux_migration_target_control",
+                "bpf_nbpfxdp_vmlinux_xattr_name",
+                "v1_service",
+                "bpf_nbpfxdp_vmlinux_bpf_sk_lookup_kern_v4"
+              ],
+              "expanded": 51,
+              "anchored": 298,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 224,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 0
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "gatewayMeshService"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 4,
+              "candidates": 5,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            }
+          },
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "tokens": 2912,
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "gatewaymeshservice",
+                "choose",
+                "service",
+                "name",
+                "during",
+                "v4",
+                "migration"
+              ],
+              "matched": 4608,
+              "candidates": 300,
+              "seeds": [
+                "xlr8_pkg_core_builder_cluster_gateway_gatewaymeshservice",
+                "nexus_envoy_planning_spikes_lab138_vendor_dynamic_modules_sdk_rust_src_cluster_clusterlb_choose_host",
+                "bpf_nbpfxdp_vmlinux_migration_target_control",
+                "bpf_nbpfxdp_vmlinux_xattr_name",
+                "v1_service",
+                "bpf_nbpfxdp_vmlinux_bpf_sk_lookup_kern_v4"
+              ],
+              "expanded": 51,
+              "anchored": 298,
+              "unanchored": 2,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 224,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 0
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "gatewayMeshService"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 4,
+              "candidates": 5,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-963-h1",
+        "query": "caller-callee-failure",
+        "intent": "behavior",
+        "required": [
+          {
+            "file": "xlr8/pkg/xds/xds.go",
+            "byte_start": 46238,
+            "byte_end": 46311,
+            "line": 1144,
+            "quote": "v31Configs, _, _, _ := s.DiscoveryClient.GetNexusServiceConfigs(nil, nil)",
+            "after": null
+          },
+          {
+            "file": "xlr8/pkg/xds/xds.go",
+            "byte_start": 47013,
+            "byte_end": 47049,
+            "line": 1171,
+            "quote": "cache.UpdateDnsOverlaps(newOverlaps)",
+            "after": "func (s *DiscoveryServiceImpl) detectAndUpdateDnsOverlaps"
+          },
+          {
+            "file": "xlr8/pkg/discovery/etcd.go",
+            "byte_start": 4166,
+            "byte_end": 4199,
+            "line": 122,
+            "quote": "return nil, nil, subsetNames, err",
+            "after": null
+          }
+        ],
+        "variants": {
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false,
+              false
+            ],
+            "tokens": 2920,
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "happens",
+                "dns",
+                "overlaps",
+                "getnexusserviceconfigs",
+                "fails",
+                "inside",
+                "detectandupdatednsoverlaps"
+              ],
+              "matched": 274,
+              "candidates": 274,
+              "seeds": [
+                "bpf_nbpfxdp_vmlinux_sctp_params_dns",
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "builder_mockdiscoveryclient_getnexusserviceconfigs",
+                "graviton_pkg_controller_gatewayserviceconfig_validation_ownership_test_testvalidatepathownership_insidesomeoneelsesdelegation",
+                "xlr8_pkg_cache_cache_getdnsoverlaps"
+              ],
+              "expanded": 26,
+              "anchored": 269,
+              "unanchored": 15,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 129,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 4
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs",
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 2,
+              "files": 31,
+              "candidates": 44,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            }
+          },
+          "routed": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false,
+              false
+            ],
+            "tokens": 2920,
+            "code_graph": {
+              "status": "fused",
+              "episode": "5c22e77b78e1d63c15e2aefcd510cefd891997308051a4d46922c9adc87295c3",
+              "episode_lag": 0,
+              "terms": [
+                "happens",
+                "dns",
+                "overlaps",
+                "getnexusserviceconfigs",
+                "fails",
+                "inside",
+                "detectandupdatednsoverlaps"
+              ],
+              "matched": 274,
+              "candidates": 274,
+              "seeds": [
+                "bpf_nbpfxdp_vmlinux_sctp_params_dns",
+                "xds_discoveryserviceimpl_detectandupdatednsoverlaps",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "builder_mockdiscoveryclient_getnexusserviceconfigs",
+                "graviton_pkg_controller_gatewayserviceconfig_validation_ownership_test_testvalidatepathownership_insidesomeoneelsesdelegation",
+                "xlr8_pkg_cache_cache_getdnsoverlaps"
+              ],
+              "expanded": 26,
+              "anchored": 269,
+              "unanchored": 15,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 129,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 4
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "GetNexusServiceConfigs",
+                "detectAndUpdateDnsOverlaps"
+              ],
+              "paths": [],
+              "defined": 2,
+              "files": 31,
+              "candidates": 44,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "waypoint-location",
+        "intent": "location",
+        "required": [
+          {
+            "file": "bpf/dante/bpf.go",
+            "byte_start": 16585,
+            "byte_end": 16608,
+            "line": 488,
+            "quote": "func keepWaypointEntry(",
+            "after": null
+          }
+        ],
+        "variants": {
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false
+            ],
+            "tokens": 2904,
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "defined"
+              ],
+              "matched": 43,
+              "candidates": 43,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_acpi_predefined_info"
+              ],
+              "expanded": 11,
+              "anchored": 52,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 38,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 3
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            }
+          },
+          "routed": {
+            "complete": true,
+            "required_delivered": [
+              true
+            ],
+            "tokens": 98,
+            "code_graph": {
+              "status": "identifier_route",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0
+            },
+            "identifier_arm": null,
+            "omitted": {
+              "definitions_and_references": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "uncertain-link",
+        "intent": "rationale",
+        "required": [
+          {
+            "file": "bpf/dante/bpf.go",
+            "byte_start": 16737,
+            "byte_end": 16787,
+            "line": 492,
+            "quote": "case l == linkUnknown, q.Failed:\n\t\treturn true, \"\"",
+            "after": null
+          },
+          {
+            "file": "bpf/dante/bpf.go",
+            "byte_start": 16405,
+            "byte_end": 16584,
+            "line": 486,
+            "quote": "// keepWaypointEntry decides whether a waypoint_info entry survives startup validation and,\n// when not, why. Everything uncertain is kept (fail-open; informer events correct it).",
+            "after": null
+          }
+        ],
+        "variants": {
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "tokens": 2930,
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "preserve",
+                "entries",
+                "link",
+                "lookup",
+                "query",
+                "fails"
+              ],
+              "matched": 1639,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_arch_init_data_lookup",
+                "bpf_nbpfxdp_vmlinux_bpf_attr_query",
+                "bpf_nbpfxdp_vmlinux_acpi_lpi_states_array_entries",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "bpf_nbpfxdp_vmlinux_sk_psock_link",
+                "bpf_nbpfxdp_vmlinux_acpi_pcct_ext_pcc_master_preserve_mask"
+              ],
+              "expanded": 20,
+              "anchored": 300,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 222,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            }
+          },
+          "routed": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "tokens": 2930,
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "preserve",
+                "entries",
+                "link",
+                "lookup",
+                "query",
+                "fails"
+              ],
+              "matched": 1639,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_arch_init_data_lookup",
+                "bpf_nbpfxdp_vmlinux_bpf_attr_query",
+                "bpf_nbpfxdp_vmlinux_acpi_lpi_states_array_entries",
+                "bpf_nbpfxdp_vmlinux_vcpu_guest_context_failsafe_callback_eip",
+                "bpf_nbpfxdp_vmlinux_sk_psock_link",
+                "bpf_nbpfxdp_vmlinux_acpi_pcct_ext_pcc_master_preserve_mask"
+              ],
+              "expanded": 20,
+              "anchored": 300,
+              "unanchored": 0,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 222,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 1
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            }
+          }
+        }
+      },
+      {
+        "project": "nexus-944-h2",
+        "query": "delete-missing",
+        "intent": "behavior",
+        "required": [
+          {
+            "file": "bpf/dante/bpf.go",
+            "byte_start": 16679,
+            "byte_end": 16735,
+            "line": 490,
+            "quote": "case l == linkNotFound:\n\t\treturn false, \"link_not_found\"",
+            "after": null
+          },
+          {
+            "file": "bpf/dante/bpf.go",
+            "byte_start": 17218,
+            "byte_end": 17253,
+            "line": 508,
+            "quote": "return false, \"no_waypoint_program\"",
+            "after": null
+          }
+        ],
+        "variants": {
+          "routed": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "tokens": 2932,
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "entries",
+                "missing",
+                "link",
+                "waypoint",
+                "program"
+              ],
+              "matched": 1519,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_acpi_lpi_states_array_entries",
+                "bpf_nbpfxdp_vmlinux_sk_psock_link",
+                "nexus_envoy_workload_metrics_module_vendor_dynamic_modules_sdk_cpp_sdk_httpcalloutinitresult_missingrequiredheaders",
+                "bpf_nbpfxdp_vmlinux_rpc_stat_program",
+                "bpf_dante_waypoint_select_test"
+              ],
+              "expanded": 24,
+              "anchored": 296,
+              "unanchored": 4,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 246,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 4
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            }
+          },
+          "baseline": {
+            "complete": false,
+            "required_delivered": [
+              false,
+              false
+            ],
+            "tokens": 2932,
+            "code_graph": {
+              "status": "fused",
+              "episode": "ca81ed71aae720291b04a90bb81af8395d3c4643eccfb1028a98ab9f8c3697d2",
+              "episode_lag": 0,
+              "terms": [
+                "keepwaypointentry",
+                "entries",
+                "missing",
+                "link",
+                "waypoint",
+                "program"
+              ],
+              "matched": 1519,
+              "candidates": 300,
+              "seeds": [
+                "bpf_dante_bpf_keepwaypointentry",
+                "bpf_nbpfxdp_vmlinux_acpi_lpi_states_array_entries",
+                "bpf_nbpfxdp_vmlinux_sk_psock_link",
+                "nexus_envoy_workload_metrics_module_vendor_dynamic_modules_sdk_cpp_sdk_httpcalloutinitresult_missingrequiredheaders",
+                "bpf_nbpfxdp_vmlinux_rpc_stat_program",
+                "bpf_dante_waypoint_select_test"
+              ],
+              "expanded": 24,
+              "anchored": 296,
+              "unanchored": 4,
+              "skipped_files": 0,
+              "depth": 1,
+              "cap": 300,
+              "document_nodes": "excluded",
+              "fused_candidates": 246,
+              "unchunked": 0,
+              "deduplicated": 0,
+              "cited": 4
+            },
+            "identifier_arm": {
+              "identifier_arm": "auto",
+              "defaulted": true,
+              "status": "fused",
+              "names": [
+                "keepWaypointEntry"
+              ],
+              "paths": [],
+              "defined": 1,
+              "files": 2,
+              "candidates": 3,
+              "code_graph": true,
+              "defining_files_outside_source": 0
+            },
+            "omitted": {
+              "sources": 0,
+              "memories": 0
+            }
+          }
+        }
+      }
+    ],
+    "exploratory_packing_diagnostics": [
+      {
+        "query": "captured-gateway",
+        "variant": "same_budget_without_focus",
+        "complete": true,
+        "required_delivered": [
+          true
+        ],
+        "evidence_recall": 1.0,
+        "supporting_excerpts": 0,
+        "excerpts": 7,
+        "supporting_excerpt_precision": 0.0,
+        "tokens": 2908,
+        "route": {
+          "path": "retrieval",
+          "reason": "off",
+          "identifier_route": false,
+          "defaulted": false,
+          "names": []
+        },
+        "model_calls": 1,
+        "source_verified": true
+      },
+      {
+        "query": "captured-gateway",
+        "variant": "eight_k_same_candidate_limit",
+        "complete": true,
+        "required_delivered": [
+          true
+        ],
+        "evidence_recall": 1.0,
+        "supporting_excerpts": 1,
+        "excerpts": 8,
+        "supporting_excerpt_precision": 0.125,
+        "tokens": 7113,
+        "route": {
+          "path": "retrieval",
+          "reason": "off",
+          "identifier_route": false,
+          "defaulted": false,
+          "names": []
+        },
+        "model_calls": 1,
+        "source_verified": true
+      },
+      {
+        "query": "gateway-owner",
+        "variant": "same_budget_without_focus",
+        "complete": false,
+        "required_delivered": [
+          false,
+          false
+        ],
+        "evidence_recall": 0.0,
+        "supporting_excerpts": 0,
+        "excerpts": 8,
+        "supporting_excerpt_precision": 0.0,
+        "tokens": 2896,
+        "route": {
+          "path": "retrieval",
+          "reason": "off",
+          "identifier_route": false,
+          "defaulted": false,
+          "names": []
+        },
+        "model_calls": 1,
+        "source_verified": true
+      },
+      {
+        "query": "gateway-owner",
+        "variant": "eight_k_same_candidate_limit",
+        "complete": false,
+        "required_delivered": [
+          false,
+          false
+        ],
+        "evidence_recall": 0.0,
+        "supporting_excerpts": 0,
+        "excerpts": 8,
+        "supporting_excerpt_precision": 0.0,
+        "tokens": 7063,
+        "route": {
+          "path": "retrieval",
+          "reason": "off",
+          "identifier_route": false,
+          "defaulted": false,
+          "names": []
+        },
+        "model_calls": 1,
+        "source_verified": true
+      },
+      {
+        "query": "caller-callee-failure",
+        "variant": "same_budget_without_focus",
+        "complete": false,
+        "required_delivered": [
+          false,
+          false,
+          false
+        ],
+        "evidence_recall": 0.0,
+        "supporting_excerpts": 0,
+        "excerpts": 8,
+        "supporting_excerpt_precision": 0.0,
+        "tokens": 2903,
+        "route": {
+          "path": "retrieval",
+          "reason": "off",
+          "identifier_route": false,
+          "defaulted": false,
+          "names": []
+        },
+        "model_calls": 1,
+        "source_verified": true
+      },
+      {
+        "query": "caller-callee-failure",
+        "variant": "eight_k_same_candidate_limit",
+        "complete": false,
+        "required_delivered": [
+          true,
+          false,
+          true
+        ],
+        "evidence_recall": 0.6666666666666666,
+        "supporting_excerpts": 2,
+        "excerpts": 8,
+        "supporting_excerpt_precision": 0.25,
+        "tokens": 6216,
+        "route": {
+          "path": "retrieval",
+          "reason": "off",
+          "identifier_route": false,
+          "defaulted": false,
+          "names": []
+        },
+        "model_calls": 1,
+        "source_verified": true
+      }
+    ],
+    "scoring_correction": {
+      "description": "Location tasks accept a hash-bound exact definition citation in evidence.code_graph as well as route.symbols. A clipped source body cannot satisfy behavior or rationale. Frozen queries and source-span labels unchanged. Original packets and original driver results retained.",
+      "scorer_sha256": "3fbe7f9a0209148b13418a64782ce4f96f4ec4439d4d14038b8c8874f2035dc6",
+      "old_scorer_sha256": "17c5939e7eab3339e3b1b2493bd83c1492685298efc1b07ec5fd6037e05fe6e8"
+    },
+    "profile": {
+      "build": {
+        "command": [
+          "/Users/jensoncs/.cargo/bin/cargo",
+          "+1.94.1",
+          "build",
+          "--locked",
+          "--offline",
+          "--release",
+          "--bin",
+          "graphicle",
+          "--features",
+          "local-inference",
+          "-j",
+          "4"
+        ],
+        "exit_code": 0,
+        "seconds": 415.4846750830184,
+        "profile": "optimized release; default project profile",
+        "binary": "/private/tmp/graphicle-performance-recheck-20261030-laitmxoy/bin/graphicle-ready",
+        "binary_sha256": "ca87e8b076a3a008789cd5278b3ff9ae1e52386fafee41d7465cab7dcdd86010"
+      },
+      "binary_sha256": "ca87e8b076a3a008789cd5278b3ff9ae1e52386fafee41d7465cab7dcdd86010",
+      "source_manifest_sha256": "f39dfc50be1d04ab50624ccc579270077bd400b601a3e51817c44d92d3573b4f",
+      "source_differences_from_current": [
+        "crates/graphicle/src/business_context.rs",
+        "crates/graphicle/src/review.rs",
+        "crates/graphicle/tests/it/pinned_review.rs"
+      ],
+      "scope": "Only sync/context tested; review/history differences are not exercised. Slice and full corpus both use this executable.",
+      "debug_run": "Interrupted during first graph construction before any scored queries. Partial index excluded from results."
+    },
+    "model_calls": "Local MiniLM only; no remote model calls",
+    "interpretation": "Required-span delivery, not generated-answer correctness; no full-repository reviewed-note labels. Source policy exclusions retained. No latency comparison because local work overlapped."
+  },
+  "candidate_build": {
+    "binary_sha256": "6e677f8c594850ac4639a88d1456e615d746b483bca8eab52e1ff16c06aca1d8",
+    "source_patch_sha256": "85a0017a862ec578e31501ff5ac963de081c35d8ded30294306b5a07e6f415cf",
+    "unit_tests_passed": 3,
+    "integration_tests_passed": 6,
+    "candidate_applied_to_product": false
+  },
+  "runtime_source_preserved": {
+    "crates/graphicle/src/query.rs": true,
+    "crates/graphicle/src/symbol_links.rs": true,
+    "crates/graphicle/src/review.rs": true,
+    "crates/graphicle/src/business_context.rs": true,
+    "crates/graphicle-graph/src/extractors/go_review.go": true
+  },
+  "decision": "Keep current product scorer. Pair context preserved recall but did not improve precision. Full-repository retrieval reveals missing named-symbol bodies; test source selection and whole-declaration packing next.",
+  "validation": {
+    "new_context_calls": 98,
+    "paired_note_calls": 48,
+    "slice_control_calls": 22,
+    "full_repository_calls": 22,
+    "exploratory_diagnostic_calls": 6,
+    "python_passed": 55,
+    "python_skipped": 2,
+    "rust_candidate_unit_passed": 3,
+    "rust_symbol_integration_passed": 6,
+    "remote_model_calls": 0,
+    "production_code_changed": false,
+    "git_diff_check": "passed"
+  },
+  "limitations": [
+    "Only two captured diagnostic queries and nine authored real-code queries; no independent human-query traffic.",
+    "Full corpus means policy-eligible repository sources: credential paths/symlinks excluded before reads, and normal size/binary/conversion exclusions retained. All gold source files match their frozen hashes.",
+    "Reviewed-note quality is synthetic; the full-repository snapshots contain no reviewed-note corpus.",
+    "Required-span delivery is not end-to-end agent or generated-answer accuracy.",
+    "The release executable differs from current source only in review/history implementation and associated integration tests; sync/context sources match. The same release binary ran both slice and full controls.",
+    "One debug setup was interrupted before queries; it is excluded. Functional runs overlap and are not controlled latency measurements.",
+    "Scoring was corrected to accept verified exact symbol citations for location questions only. Original raw packets/results and hash-verified launch code are preserved.",
+    "Pair snippets are bounded prefixes/tails for long declarations; they are scorer inputs, not a proof of complete branch delivery."
+  ],
+  "artifacts": "/private/tmp/graphicle-pair-context-20261030",
+  "reproduction_sha256": {
+    "bench/memory/tools/full_repository_eval.py": "6ffdf157afacbb6f384796c4c9a678574690652c77e2f2de12b3440c8edf4d75",
+    "bench/memory/tools/real_query_eval.py": "3fbe7f9a0209148b13418a64782ce4f96f4ec4439d4d14038b8c8874f2035dc6",
+    "bench/memory/tools/query_ablations.py": "b29933668bd875a2f4106466f9af3842ed899258b14d070cddb2e331df72cabc",
+    "bench/memory/tests/test_full_repository_eval.py": "7c7c2cb547c63f711c89fcc4d7dbc205785fca958675a91060db469494a99b65",
+    "bench/memory/tests/test_real_query_eval.py": "7a1172b6f590db52e1f832201e5e9048b432910bf6892ffb29bbd5b4c03087cd",
+    "bench/memory/results/caller-callee-scoring-not-adopted-20261030.patch": "85a0017a862ec578e31501ff5ac963de081c35d8ded30294306b5a07e6f415cf"
+  }
+}

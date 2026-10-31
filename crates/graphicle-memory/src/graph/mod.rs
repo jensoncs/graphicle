@@ -12,6 +12,7 @@ use graphicle::{affected, graph, python_compat, query_terms, record, serve_searc
 pub mod anchor;
 pub mod canonical;
 pub mod community_stability;
+pub mod cross_repo_http;
 pub mod cross_repo_imports;
 pub mod identity;
 pub mod retrieval;

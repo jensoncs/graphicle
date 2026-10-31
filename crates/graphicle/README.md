@@ -74,6 +74,23 @@ Sources → Graph → Memory → Agents & API → Usage**. Graph citations open 
 retained original at the cited episode, and graph views keep their selected
 anchor and report truncated node and edge lists.
 
+The Graph view starts with **Services & repositories → entry points → nested
+dependencies**. Repository cards reuse the permission-filtered workspace map;
+its import links do not establish deployment identity or runtime service traffic.
+Entry browsing scans the entire selected episode and pages results. Recorded HTTP
+routes and Bash scripts are distinguished from candidate call roots and
+main-named functions. Automatic Go HTTP/gRPC/event registration discovery is not
+yet complete; missing call edges can create false root candidates.
+Entry types have separate counts and filters. The initial view prefers program
+entry candidates, then recorded routes or scripts; generic call-root candidates
+are opt-in so incomplete resolution does not flood the default screen.
+
+Expand one branch at a time to follow recorded calls or route handlers. The tree
+keeps its snapshot, labels inferred links, and reports cycles, partial
+neighborhoods and the 8-level/200-expansion limits. **Search all symbols / memory
+graph** opens the focused incoming/outgoing view. UI navigation regression checks
+run with `node --test tests/test_graph_view.cjs` from this crate.
+
 The versioned HTTP endpoint is
 `POST /v1/workspaces/{workspace}/repos/{repository}/commands`; the URL binds
 the repository. `/docs` serves the quickstart and `/v1/openapi.json` describes

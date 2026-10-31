@@ -3,6 +3,7 @@
 //! Native extractor modules; unported languages are listed in the migration ledger.
 pub mod apex;
 pub mod base;
+pub mod basic_dependencies;
 pub mod bash;
 pub mod blade;
 mod builtins_data;

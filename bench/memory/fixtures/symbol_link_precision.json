@@ -1,0 +1,325 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance": "Hand-authored synthetic coding-memory regression fixtures, 2026-10-30. Labels written before the first run; not real session data or an independent held-out effectiveness benchmark.",
+  "projects": [
+    {
+      "id": "billing",
+      "split": "regression",
+      "files": {
+        "billing.py": "def invoice_total(lines):\n    return round(sum(lines), 2)\n\n\ndef receipt_label(number):\n    return f\"INV-{number}\"\n",
+        "shipping.py": "def shipping_cost(weight):\n    return weight * 3\n"
+      },
+      "memories": [
+        {
+          "id": "settlement",
+          "title": "Cent settlement contract",
+          "body": "The payment processor rejects fractional minor units. Preserve two decimal places at the outbound boundary.",
+          "symbols": [
+            {
+              "path": "billing.py",
+              "qualified_name": "invoice_total"
+            }
+          ]
+        },
+        {
+          "id": "audit",
+          "title": "Quarterly audit evidence",
+          "body": "Finance needs the original line items retained for seven years in the audit archive.",
+          "symbols": [
+            {
+              "path": "billing.py",
+              "qualified_name": "invoice_total"
+            }
+          ]
+        },
+        {
+          "id": "receipt",
+          "title": "Receipt prefix migration",
+          "body": "Keep the INV prefix until legacy accounting imports have been migrated.",
+          "symbols": [
+            {
+              "path": "billing.py",
+              "qualified_name": "receipt_label"
+            }
+          ]
+        },
+        {
+          "id": "shipping",
+          "title": "Freight carrier surcharge",
+          "body": "The carrier applies a three-unit rate per kilogram under the annual contract.",
+          "symbols": [
+            {
+              "path": "shipping.py",
+              "qualified_name": "shipping_cost"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "linked-rationale",
+          "category": "linked_relevant",
+          "question": "Which constraint must I preserve when changing invoice_total?",
+          "relevant_memories": [
+            "settlement",
+            "audit"
+          ],
+          "rationale": "The settlement constraint and retention requirement both concern changes to the total calculation; receipt and freight decisions do not."
+        },
+        {
+          "id": "direct-recall",
+          "category": "lexical_relevant",
+          "question": "What is the cent settlement contract for fractional minor units?",
+          "relevant_memories": [
+            "settlement"
+          ],
+          "rationale": "Only the processor's monetary precision contract answers this question."
+        },
+        {
+          "id": "same-symbol-no-memory",
+          "category": "code_only",
+          "question": "What value does invoice_total return for [10, 20]?",
+          "relevant_memories": [],
+          "rationale": "The calculation follows directly from current code; historical processor and audit requirements are unnecessary."
+        },
+        {
+          "id": "narrow-rationale",
+          "category": "same_symbol_distractor",
+          "question": "Why does invoice_total round to two decimal places?",
+          "relevant_memories": [
+            "settlement"
+          ],
+          "rationale": "Audit retention is attached to the same symbol but does not explain rounding."
+        },
+        {
+          "id": "unrelated",
+          "category": "no_answer",
+          "question": "Who approved the satellite telemetry retention policy?",
+          "relevant_memories": [],
+          "rationale": "Neither code nor any memory establishes an approval or satellite policy."
+        },
+        {
+          "id": "other-symbol",
+          "category": "lexical_relevant",
+          "question": "Why keep the INV receipt prefix?",
+          "relevant_memories": [
+            "receipt"
+          ],
+          "rationale": "The legacy accounting migration is the only relevant decision."
+        }
+      ]
+    },
+    {
+      "id": "retry",
+      "split": "regression",
+      "files": {
+        "transport.py": "def retry_delay(attempt):\n    return min(2 ** attempt, 60)\n\n\ndef request_id(value):\n    return str(value)\n",
+        "logging.py": "def log_level():\n    return \"warning\"\n"
+      },
+      "memories": [
+        {
+          "id": "ceiling",
+          "title": "Partner recovery window",
+          "body": "Our upstream's connection lease expires after one minute. The waiting period must never exceed that duration.",
+          "symbols": [
+            {
+              "path": "transport.py",
+              "qualified_name": "retry_delay"
+            }
+          ]
+        },
+        {
+          "id": "jitter",
+          "title": "Fleet synchronization follow-up",
+          "body": "Randomized scheduling is deferred until the gateway migration is finished. Identical schedules can otherwise amplify congestion.",
+          "symbols": [
+            {
+              "path": "transport.py",
+              "qualified_name": "retry_delay"
+            }
+          ]
+        },
+        {
+          "id": "log-policy",
+          "title": "Operational logging policy",
+          "body": "Routine successful requests must not emit warning messages.",
+          "symbols": [
+            {
+              "path": "logging.py",
+              "qualified_name": "log_level"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "linked-rationale",
+          "category": "linked_relevant",
+          "question": "What decisions should I consider before modifying retry_delay?",
+          "relevant_memories": [
+            "ceiling",
+            "jitter"
+          ],
+          "rationale": "The upstream lease and deferred randomization constrain changes to waiting behavior."
+        },
+        {
+          "id": "direct-recall",
+          "category": "lexical_relevant",
+          "question": "When does our upstream connection lease expire?",
+          "relevant_memories": [
+            "ceiling"
+          ],
+          "rationale": "Only the partner recovery decision describes the lease duration."
+        },
+        {
+          "id": "same-symbol-no-memory",
+          "category": "code_only",
+          "question": "What does retry_delay(3) return?",
+          "relevant_memories": [],
+          "rationale": "The answer is arithmetic from code; operational history is unnecessary."
+        },
+        {
+          "id": "narrow-rationale",
+          "category": "same_symbol_distractor",
+          "question": "Why is retry_delay capped at 60?",
+          "relevant_memories": [
+            "ceiling"
+          ],
+          "rationale": "The lease explains the cap. Deferred randomization does not."
+        },
+        {
+          "id": "unrelated",
+          "category": "no_answer",
+          "question": "Which database encryption key was rotated yesterday?",
+          "relevant_memories": [],
+          "rationale": "The fixture contains no key rotation evidence."
+        }
+      ]
+    },
+    {
+      "id": "cache",
+      "split": "regression",
+      "files": {
+        "cache.py": "def cache_key(tenant, item):\n    return f\"{tenant}:{item}\"\n\n\ndef cache_ttl():\n    return 300\n"
+      },
+      "memories": [
+        {
+          "id": "isolation",
+          "title": "Customer isolation boundary",
+          "body": "Separate organizations may reuse object identifiers. Partition their entries to prevent one customer observing another customer's data.",
+          "symbols": [
+            {
+              "path": "cache.py",
+              "qualified_name": "cache_key"
+            }
+          ]
+        },
+        {
+          "id": "encoding",
+          "title": "Delimiter migration",
+          "body": "Colon characters remain permitted in legacy identifiers. A length-prefixed representation is planned after the old clients retire.",
+          "symbols": [
+            {
+              "path": "cache.py",
+              "qualified_name": "cache_key"
+            }
+          ]
+        },
+        {
+          "id": "expiry",
+          "title": "Freshness service agreement",
+          "body": "Inventory can lag behind the origin by at most five minutes.",
+          "symbols": [
+            {
+              "path": "cache.py",
+              "qualified_name": "cache_ttl"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "linked-rationale",
+          "category": "linked_relevant",
+          "question": "Which constraints should a replacement for cache_key preserve?",
+          "relevant_memories": [
+            "isolation",
+            "encoding"
+          ],
+          "rationale": "Customer separation and compatibility with legacy identifiers constrain the key representation."
+        },
+        {
+          "id": "direct-recall",
+          "category": "lexical_relevant",
+          "question": "What is the inventory freshness service agreement?",
+          "relevant_memories": [
+            "expiry"
+          ],
+          "rationale": "Only the freshness decision specifies the inventory lag."
+        },
+        {
+          "id": "same-symbol-no-memory",
+          "category": "code_only",
+          "question": "What string does cache_key('acme', '42') produce?",
+          "relevant_memories": [],
+          "rationale": "Current source directly specifies the string; no decision is required."
+        },
+        {
+          "id": "narrow-rationale",
+          "category": "same_symbol_distractor",
+          "question": "Why must cache_key include the tenant?",
+          "relevant_memories": [
+            "isolation"
+          ],
+          "rationale": "Tenant separation is explained by customer isolation, not delimiter migration or expiry."
+        },
+        {
+          "id": "unrelated",
+          "category": "no_answer",
+          "question": "What is the approved lunar navigation algorithm?",
+          "relevant_memories": [],
+          "rationale": "There is no relevant memory or implementation in this fixture."
+        }
+      ]
+    },
+    {
+      "id": "stale",
+      "split": "regression",
+      "files": {
+        "pricing.py": "def discount_rate():\n    return 0.10\n"
+      },
+      "memories": [
+        {
+          "id": "launch",
+          "title": "Launch promotion approval",
+          "body": "The initial campaign grants a ten percent reduction for all eligible purchases.",
+          "symbols": [
+            {
+              "path": "pricing.py",
+              "qualified_name": "discount_rate"
+            }
+          ]
+        }
+      ],
+      "updates": {
+        "pricing.py": "def discount_rate():\n    return 0.15\n"
+      },
+      "queries": [
+        {
+          "id": "stale-direct",
+          "category": "stale",
+          "question": "What launch promotion approval currently applies to discount_rate?",
+          "relevant_memories": [],
+          "rationale": "The linked implementation changed after the decision was recorded; the stale memory cannot establish current approval."
+        },
+        {
+          "id": "stale-symbol",
+          "category": "stale",
+          "question": "Which current constraints should I preserve when changing discount_rate?",
+          "relevant_memories": [],
+          "rationale": "The only recorded decision is stale after the rate change."
+        }
+      ]
+    }
+  ]
+}

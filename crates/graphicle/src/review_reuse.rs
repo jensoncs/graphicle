@@ -28,10 +28,10 @@ impl Scopes {
                 .collect()
         }
     }
-    pub(super) fn counts(&self, entries: &[(impl AsRef<str>, Value)]) -> BTreeMap<String, usize> {
+    pub(super) fn counts<'a>(&self, entries: impl IntoIterator<Item = (&'a str, &'a Value)>) -> BTreeMap<String, usize> {
         let mut counts = BTreeMap::new();
         for (collection, entry) in entries {
-            for scope in self.keys(collection.as_ref(), entry) {
+            for scope in self.keys(collection, entry) {
                 *counts.entry(scope.clone()).or_default() += 1;
             }
         }
@@ -43,7 +43,7 @@ impl Scopes {
         selected: &mut [(&str, Value)],
         report: &mut Value,
     ) {
-        let actual = self.counts(selected);
+        let actual = self.counts(selected.iter().map(|(collection, entry)| (*collection, entry)));
         let mut supplied_files: BTreeMap<&str, usize> = BTreeMap::new();
         for (collection, entry) in selected.iter().filter(|(_, e)| e["side"] == "head") {
             if *collection == "entries"

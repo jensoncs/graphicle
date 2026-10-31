@@ -1,0 +1,180 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance": "Fresh synthetic falsification cases labelled before symbol-diversity runs: useful direct notes compete with an irrelevant callee note, cross-file callee, and a two-hop rationale. Not an independent effectiveness holdout.",
+  "projects": [
+    {
+      "id": "direct-contracts",
+      "split": "regression",
+      "files": {
+        "codec.py": "def encode_payload(value):\n    return format_fields(value)\n\n\ndef format_fields(value):\n    return str(value)\n"
+      },
+      "memories": [
+        {
+          "id": "delimiter",
+          "title": "Record boundary",
+          "body": "External consumers require a trailing newline.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "ordering",
+          "title": "Legacy ordering",
+          "body": "Older clients expect the original field sequence.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "escaping",
+          "title": "Embedded delimiters",
+          "body": "Quotation marks must be doubled inside strings.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "null",
+          "title": "Absent values",
+          "body": "Missing entries use the literal null token.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "sampling",
+          "title": "Diagnostic sampling",
+          "body": "Emit tracing events for one percent of invocations.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "format_fields"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "all-direct",
+          "category": "relevant_direct_competes_with_irrelevant_callee",
+          "question": "Which compatibility constraints govern encode_payload output?",
+          "relevant_memories": [
+            "delimiter",
+            "ordering",
+            "escaping",
+            "null"
+          ],
+          "rationale": "All four wire-format decisions apply to output compatibility. Sampling internal traces does not."
+        }
+      ]
+    },
+    {
+      "id": "cross-file",
+      "split": "regression",
+      "files": {
+        "client.py": "from delay import backoff_delay\n\n\ndef send_packet(attempt):\n    return backoff_delay(attempt)\n",
+        "delay.py": "def backoff_delay(attempt):\n    return min(2 ** attempt, 60)\n"
+      },
+      "memories": [
+        {
+          "id": "lease",
+          "title": "Peer lifetime",
+          "body": "The remote session expires after one minute. Longer pauses abandon the connection.",
+          "symbols": [
+            {
+              "path": "delay.py",
+              "qualified_name": "backoff_delay"
+            }
+          ]
+        },
+        {
+          "id": "audit",
+          "title": "Ledger retention",
+          "body": "Keep the fiscal archive immutable.",
+          "symbols": [
+            {
+              "path": "client.py",
+              "qualified_name": "send_packet"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "cross-file-callee",
+          "category": "cross_file_dependency",
+          "question": "Why does send_packet cap the backoff at sixty seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The peer lifetime explains the cap; fiscal history is unrelated."
+        }
+      ]
+    },
+    {
+      "id": "transitive",
+      "split": "regression",
+      "files": {
+        "codec.py": "def send_packet(attempt):\n    return retry_interval(attempt)\n\n\ndef retry_interval(attempt):\n    return backoff_delay(attempt)\n\n\ndef backoff_delay(attempt):\n    return min(2 ** attempt, 60)\n"
+      },
+      "memories": [
+        {
+          "id": "lease",
+          "title": "Peer lifetime",
+          "body": "The remote session expires after one minute. Longer pauses abandon the connection.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "backoff_delay"
+            }
+          ]
+        },
+        {
+          "id": "wire",
+          "title": "Record boundary",
+          "body": "External consumers require a trailing newline.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "send_packet"
+            }
+          ]
+        },
+        {
+          "id": "order",
+          "title": "Legacy ordering",
+          "body": "Older clients expect the original field sequence.",
+          "symbols": [
+            {
+              "path": "codec.py",
+              "qualified_name": "send_packet"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "two-hop-callee",
+          "category": "transitive_dependency",
+          "question": "Why does send_packet cap the backoff at sixty seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The lifetime decision is attached two call edges away and remains needed to explain the cap."
+        }
+      ]
+    }
+  ]
+}

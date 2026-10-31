@@ -19,6 +19,78 @@ fn run(
     go_types::review(root.path(),&json!({"roots":roots.iter().map(|r|json!({"directory":r,"module":"."})).collect::<Vec<_>>(),"goos":"linux","goarch":"amd64","tags":tags,"tests":tests,"workspace":workspace})).unwrap()
 }
 #[test]
+fn interface_candidates_require_the_whole_contract_and_keep_dispatch_unresolved() {
+    let root = tree(&[("app/go.mod", "module example/app\ngo 1.23\n"), ("app/main.go", r#"package app
+type Store interface { Load() ([]string,error); Ready() bool }
+type A struct{}
+func (*A) Load() ([]string,error) { return nil, failure{} }
+func (*A) Ready() bool { return false }
+type B struct{}
+func (B) Load() ([]string,error) { return []string{},nil }
+func (B) Ready() bool { return true }
+type Wrong struct{}
+func (Wrong) Load() ([]string,error) { return nil,nil }
+type failure struct{}
+func (failure) Error() string { return "unavailable" }
+func Ignore(s Store) { items,_ := s.Load(); _ = items }
+func Handle(s Store) error { _,err := s.Load(); return err }
+func Unassigned(s Store) { s.Load() }
+func Declaration(s Store) { var items, _ = s.Load(); _ = items }
+"#)]);
+    let report = run(&root, &["app"], &[], false, "");
+    let calls = report["worlds"][0]["calls"].as_array().unwrap();
+    for caller in ["Ignore", "Handle", "Unassigned", "Declaration"] {
+        let calls: Vec<_> = calls.iter().filter(|c| c["caller"].as_str().unwrap().contains(&format!(".{caller}|")) && c["spelling"] == "s.Load").collect();
+        assert!(calls.iter().any(|c| c["reason"] == "interface_dispatch" && c.get("target").is_none()), "{report}");
+        let possible: Vec<_> = calls.iter().filter(|c| c["relation"] == "may_call").collect();
+        assert_eq!(possible.len(), 2, "{report}");
+        for call in possible {
+            assert_eq!(call["evidence"], "interface_implementation");
+            assert!(!call["target"].as_str().unwrap().contains("Wrong"));
+            assert_eq!(call["discarded_error"] == true, caller != "Handle");
+        }
+    }
+}
+
+#[test]
+fn discarded_error_candidates_survive_interface_site_budget() {
+    let source = format!("package app\ntype Store interface {{ Load() (int,error) }}\ntype S struct{{}}\nfunc (S) Load() (int,error) {{ return 0,nil }}\nfunc AHandled(s Store) error {{ var err error; {} return err }}\nfunc ZDiscarded(s Store) {{ _,_ = s.Load() }}\n", "_,err = s.Load();".repeat(20_001));
+    let root = tree(&[("app/go.mod", "module example/app\ngo 1.23\n"), ("app/main.go", &source)]);
+    let report = run(&root, &["app"], &[], false, "");
+    let calls = report["worlds"][0]["calls"].as_array().unwrap();
+    assert!(calls.iter().any(|c| c["caller"].as_str().unwrap().contains(".ZDiscarded|") && c["relation"] == "may_call" && c["discarded_error"] == true));
+    assert!(calls.iter().any(|c| c["reason"] == "interface_candidate_budget"));
+}
+
+#[test]
+fn interface_candidates_respect_consumer_instances_and_build_tags() {
+    let root = tree(&[
+        ("one/go.mod", "module example/one\ngo 1.23\nrequire example/dep v1.0.0\nreplace example/dep => ../v1\n"),
+        ("one/main.go", "package one\nimport \"example/dep\"\nfunc Use(s dep.Store) { _,_ = s.Load() }\n"),
+        ("two/go.mod", "module example/two\ngo 1.23\nrequire example/dep v1.1.0\nreplace example/dep => ../v2\n"),
+        ("two/main.go", "package two\nimport \"example/dep\"\nfunc Use(s dep.Store) { _,_ = s.Load() }\n"),
+        ("v1/go.mod", "module example/dep\ngo 1.23\n"),
+        ("v2/go.mod", "module example/dep\ngo 1.23\n"),
+    ]);
+    for version in ["v1", "v2"] {
+        std::fs::write(root.path().join(version).join("main.go"), "package dep\ntype Store interface { Load() (int,error) }\ntype S struct{}\n").unwrap();
+        for (file, tag) in [("active.go", "pilot"), ("inactive.go", "!pilot")] {
+            std::fs::write(root.path().join(version).join(file), format!("//go:build {tag}\npackage dep\nfunc (S) Load() (int,error) {{ return 0,nil }}\n")).unwrap();
+        }
+    }
+    let report = run(&root, &["one", "two", "v1", "v2"], &["pilot"], false, "");
+    for (index, version) in [(0,"v1"), (1,"v2")] {
+        let calls = report["worlds"][index]["calls"].as_array().unwrap();
+        let candidates: Vec<_> = calls.iter().filter(|c| c["relation"] == "may_call").collect();
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(candidates[0]["target_file"], format!("{version}/active.go"));
+    }
+    std::fs::write(root.path().join("v1/active.go"), "//go:build pilot\npackage dep\nfunc (S) Load() (int,error) { return missing, nil }\n").unwrap();
+    let broken = run(&root, &["one", "v1"], &["pilot"], false, "");
+    assert!(!broken["worlds"][0]["calls"].as_array().unwrap().iter().any(|c| c["relation"] == "may_call"));
+}
+
+#[test]
 fn compiler_keeps_receiver_identity_and_build_tags() {
     let root = tree(&[
         ("app/go.mod", "module example/app\ngo 1.23\n"),

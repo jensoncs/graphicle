@@ -118,20 +118,36 @@ pub fn source_hits(documents: &[Value], hits: &[Value], expand: bool) -> Result<
             .get(a..b)
             .ok_or_else(|| Error::bad("Invalid source window"))?;
         if expand {
-            // One neighbouring paragraph often contains a question, attribution,
-            // condition or correction. Do not silently read the entire file.
+            // A requested declaration may have an attached rationale comment.
+            // Preserve that bounded comment paragraph, but do not enlarge the
+            // range with surrounding code that packing could focus on instead.
+            let whole = source["keep_whole"] == true;
             let left = content[..a].trim_end_matches('\n');
             let previous = left.rfind("\n\n").map_or(0, |n| n + 2);
-            if a - previous <= 1600 && text::count(&content[previous..a]) <= 256 {
+            let before = content[previous..a].trim();
+            let comment = !before.is_empty()
+                && (before.lines().all(|line| {
+                    let line = line.trim();
+                    line.starts_with("//") || line.starts_with('#')
+                }) || before
+                    .strip_prefix("/*")
+                    .and_then(|s| s.strip_suffix("*/"))
+                    .is_some_and(|inner| !inner.contains("*/")));
+            if (!whole || comment)
+                && a - previous <= 1600
+                && text::count(&content[previous..a]) <= 256
+            {
                 a = previous;
             }
-            let rest = &content[b..];
-            let next = rest
-                .find("\n\n")
-                .map(|n| b + n + 2)
-                .unwrap_or(content.len());
-            if next - b <= 1600 && text::count(&content[b..next]) <= 256 {
-                b = next;
+            if !whole {
+                let rest = &content[b..];
+                let next = rest
+                    .find("\n\n")
+                    .map(|n| b + n + 2)
+                    .unwrap_or(content.len());
+                if next - b <= 1600 && text::count(&content[b..next]) <= 256 {
+                    b = next;
+                }
             }
         }
         let mut item = hit.clone();
@@ -139,7 +155,9 @@ pub fn source_hits(documents: &[Value], hits: &[Value], expand: bool) -> Result<
         item["source"]["byte_start"] = json!(a);
         item["source"]["byte_end"] = json!(b);
         if let Some(prior) = out.iter_mut().find(|p| {
-            p["source"]["id"] == source["id"]
+            source["keep_whole"] != true
+                && p["source"]["keep_whole"] != true
+                && p["source"]["id"] == source["id"]
                 && p["source"]["sha256"] == source["sha256"]
                 && interval(&p["source"]).is_ok_and(|(x, y)| {
                     x <= b && a <= y && text::count(&content[x.min(a)..y.max(b)]) <= 2000
@@ -260,4 +278,48 @@ pub fn pack(documents: &[Value], groups: &[Vec<Value>], max_tokens: usize) -> Re
         json!({"tokens":text::count(&json!(selected).to_string()),"max_tokens":max_tokens,
         "omitted_windows":candidates-selected.len(),"truncated_windows":truncated,"evidence":selected}),
     )
+}
+
+#[cfg(test)]
+mod requested_range_tests {
+    use super::*;
+
+    #[test]
+    fn requested_range_keeps_attached_comment_but_not_preceding_code() {
+        for prefix in [
+            "// Keep uncertainty.\n// Events repair it.\n",
+            "/** Keep uncertainty. */\n",
+        ] {
+            let content = format!("previous_code();\n\n{prefix}fn keep() {{ return 1; }}");
+            let start = content.find("fn keep").unwrap();
+            let doc = json!({"id":"file:a.rs","sha256":"pin","content":content});
+            let hit = json!({"source":{"id":"file:a.rs","sha256":"pin","byte_start":start,
+                "byte_end":content.len(),"keep_whole":true}});
+            let result = source_hits(&[doc.clone()], &[hit.clone()], true).unwrap();
+            assert!(s(&result[0], "text").starts_with(prefix));
+            assert!(!s(&result[0], "text").contains("previous_code"));
+            let exact = source_hits(&[doc], &[hit], false).unwrap();
+            assert_eq!(exact[0]["source"]["byte_start"], start);
+        }
+    }
+
+    #[test]
+    fn requested_range_is_not_expanded_or_merged_into_a_neighbor() {
+        let content = "old context\n\nfn keep() { return 1; }\n\nnext context";
+        let a = content.find("fn keep").unwrap();
+        let b = content.find("\n\nnext").unwrap();
+        let doc = json!({"id":"file:a.rs","path":"a.rs","sha256":"pinned","content":content});
+        let requested = json!({"identity":"named","text":&content[a..b],"source":{
+            "id":"file:a.rs","sha256":"pinned","byte_start":a,"byte_end":b,"keep_whole":true}});
+        let neighbor = json!({"identity":"chunk","source":{
+            "id":"file:a.rs","sha256":"pinned","byte_start":0,"byte_end":b}});
+        let hits = source_hits(&[doc.clone()], &[requested.clone(), neighbor], true).unwrap();
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0]["text"], &content[a..b]);
+        assert_eq!(hits[0]["source"]["byte_start"], a);
+        assert_eq!(hits[0]["source"]["byte_end"], b);
+        let mut stale = requested;
+        stale["source"]["sha256"] = json!("old");
+        assert!(source_hits(&[doc], &[stale], true).is_err());
+    }
 }

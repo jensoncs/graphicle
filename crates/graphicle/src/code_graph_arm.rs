@@ -782,6 +782,8 @@ trait Episode {
     /// [`code_candidates`], without `documents`): node ids and scores, best
     /// first, at most [`CAP`].
     fn candidates(&self, question: &str, documents: bool) -> Found;
+    /// Exact explicitly named declarations, before the broad lexical cap.
+    fn named_definitions(&self, names: &[String]) -> Vec<String>;
     /// The seeds' neighbourhood as [`expand_seeds`] finds it.
     fn expand(&self, seeds: &[String], question: &str) -> Result<Expanded>;
     /// [`current_edge`] between `a` and `b`.
@@ -860,6 +862,18 @@ impl Episode for Resident {
                 .collect(),
             seeds: found.seeds,
         }
+    }
+    fn named_definitions(&self, names: &[String]) -> Vec<String> {
+        if names.is_empty() {
+            return Vec::new();
+        }
+        let graph: &Graph = &self.handle;
+        crate::identifier_arm::symbols_of(graph)
+            .into_iter()
+            .filter(|(_, symbol, _, _)| names.iter().any(|name| names_symbol(name, symbol)))
+            .take(CAP)
+            .map(|(index, ..)| graphicle::serve_search::id(graph, index))
+            .collect()
     }
     fn expand(&self, seeds: &[String], question: &str) -> Result<Expanded> {
         let graph: &Graph = &self.handle;
@@ -1024,6 +1038,25 @@ impl Episode for Saved {
             seeds: seeds.iter().map(|&i| self.id(i)).collect(),
         }
     }
+    fn named_definitions(&self, names: &[String]) -> Vec<String> {
+        let mut found = BTreeSet::new();
+        for name in names {
+            let dotted = dotted_name(name);
+            let last = dotted.rsplit('.').next().unwrap_or(&dotted);
+            for position in self.ok(self.file.symbols_ending(last)).unwrap_or_default() {
+                if let Some((index, symbol, _, _)) = self.ok(self.file.symbol(position))
+                    && names_symbol(name, symbol)
+                {
+                    found.insert(index);
+                }
+            }
+        }
+        found
+            .into_iter()
+            .take(CAP)
+            .map(|index| self.id(index))
+            .collect()
+    }
     fn expand(&self, seeds: &[String], question: &str) -> Result<Expanded> {
         use graphicle::serve_search::text;
         let file = &*self.file;
@@ -1175,8 +1208,27 @@ fn plan_on(
     documents: bool,
 ) -> Result<Plan> {
     let mut plan = Plan::empty(episode.clone(), documents);
-    let candidates =
+    let mut candidates =
         crate::phase::phase("arm_candidates", || source.candidates(question, documents));
+    let named = source.named_definitions(&crate::identifier_arm::explicit_names(question).names);
+    // Keep each matching declaration (including ambiguous names) ahead of
+    // generic words in a behavioral question. Normal anchoring still enforces
+    // current source hashes and the episode's lag restrictions.
+    let mut seen = BTreeSet::new();
+    candidates.candidates = named
+        .iter()
+        .map(|id| (id.clone(), 1.0))
+        .chain(candidates.candidates)
+        .filter(|(id, _)| seen.insert(id.clone()))
+        .take(CAP)
+        .collect();
+    let mut seen = BTreeSet::new();
+    candidates.seeds = named
+        .into_iter()
+        .chain(candidates.seeds)
+        .filter(|id| seen.insert(id.clone()))
+        .take(CAP)
+        .collect();
     plan.terms = candidates.terms.clone();
     if candidates.candidates.is_empty() {
         let mut skipped = json!({"status":"no_match"});
@@ -1343,6 +1395,51 @@ pub fn code_symbol(attributes: &impl graphicle::record::Properties) -> bool {
                 && attr(attributes, "label").as_deref() != path.rsplit('/').next()
         }
     }
+}
+
+fn dotted_name(name: &str) -> String {
+    name.replace("::", ".").replace("->", ".").replace('#', ".")
+}
+
+fn names_symbol(name: &str, symbol: &str) -> bool {
+    let dotted = dotted_name(name);
+    symbol == dotted
+        || symbol
+            .strip_suffix(&dotted)
+            .is_some_and(|head| head.ends_with('.'))
+}
+
+/// Full anchored ranges for code symbols explicitly named in the query.
+/// Uses only hits already authorized and freshness-checked by the graph arm.
+/// Reuses the arm's bounded synthetic citation construction; no new graph read.
+pub fn named_windows(arm: &Arm, question: &str, documents: &[Value]) -> Vec<Value> {
+    let named = crate::identifier_arm::explicit_names(question);
+    let hits = arm
+        .hits
+        .iter()
+        .filter(|hit| {
+            let Some(attributes) = hit.facts.as_object() else {
+                return false;
+            };
+            if !code_symbol(attributes) {
+                return false;
+            }
+            let Some(symbol) = crate::identifier_route::symbol_name(attributes) else {
+                return false;
+            };
+            named.names.iter().any(|name| names_symbol(name, &symbol))
+        })
+        .cloned()
+        .collect();
+    let selected = Arm {
+        hits,
+        diagnostics: Value::Null,
+    };
+    let (_, _, mut windows) = fuse(&selected, &[], documents);
+    for window in &mut windows {
+        window["source"]["keep_whole"] = json!(true);
+    }
+    windows
 }
 
 /// Map anchored hits onto the candidate id space of `rank`. Returns the arm
@@ -1570,6 +1667,57 @@ mod tests {
         assert_eq!(unchunked[0]["source"]["code_graph"]["stable_id"], "s2");
         assert_eq!(unchunked[0]["source"]["byte_start"], 19);
         assert_eq!(unchunked[0]["text"], "def b():\n    pass\n");
+    }
+
+    #[test]
+    fn explicit_declarations_survive_broad_candidate_pressure() {
+        let mut nodes = (0..CAP + 50).map(|i| json!({
+            "id": format!("noise_{i}"), "label": "reject missing config body before service logic",
+            "kind":"function", "qualified_name":format!("noise_{i}"),
+            "source_file":"noise.py", "source_location":"L1"
+        })).collect::<Vec<_>>();
+        for owner in ["Handler", "Service"] {
+            nodes.push(
+                json!({"id":owner,"label":"UpdateServiceConfig", "kind":"method",
+                "qualified_name":format!("{owner}.UpdateServiceConfig"),
+                "source_file":format!("{owner}.go"),"source_location":"L1"}),
+            );
+        }
+        let graph =
+            Graph::from_node_link(&json!({"directed":true,"nodes":nodes,"links":[]}), "links")
+                .unwrap();
+        let dir = tempfile::TempDir::new().unwrap();
+        let saved = Saved::new(std::sync::Arc::new(crate::query_file::tests::written(
+            &graph,
+            dir.path(),
+        )));
+        let resident = Resident {
+            index: std::sync::Arc::new(graphicle::serve_search::SearchIndex::new(&graph)),
+            handle: graphicle::session::GraphHandle::new(graph),
+            starts: std::sync::OnceLock::new(),
+        };
+        for episode in [&resident as &dyn Episode, &saved] {
+            for documents in [false, true] {
+                let plan = plan_on(
+                    episode,
+                    "e".into(),
+                    None,
+                    "How does UpdateServiceConfig reject missing config body before service logic?",
+                    documents,
+                )
+                .unwrap();
+                let ids: Vec<_> = plan
+                    .nodes
+                    .iter()
+                    .take(2)
+                    .map(|n| n.node_id.as_str())
+                    .collect();
+                assert_eq!(ids, ["Handler", "Service"]);
+                assert!(plan.nodes.len() <= CAP);
+                let qualified = episode.named_definitions(&["Handler.UpdateServiceConfig".into()]);
+                assert_eq!(qualified, ["Handler"]);
+            }
+        }
     }
 
     /// The query file plans exactly as the resident graph does: the same

@@ -3,6 +3,15 @@
 use crate::{Error, Result, model::Profile};
 use std::path::PathBuf;
 
+/// Passage byte ranges retained by the tokenizer in the actual scored batch.
+/// Query, padding and special tokens are excluded. Whitespace between tokens
+/// is not model evidence; ranges are intentionally not collapsed to a prefix.
+pub struct RerankResult {
+    pub scores: Vec<f64>,
+    pub tokens: usize,
+    pub passage_ranges: Vec<Vec<(usize, usize)>>,
+}
+
 pub fn directory(profile: &Profile) -> Result<PathBuf> {
     let url = url::Url::parse(&profile.base_url)
         .map_err(|_| Error::bad("Local ONNX profiles use a file:// model directory"))?;
@@ -277,6 +286,9 @@ mod cpu {
     }
     fn run(model: &mut Model, inputs: Vec<EncodeInput<'_>>) -> Result<(Vec<Vec<f64>>, usize)> {
         let encoded = model.tokenizer.encode_batch(inputs, true).map_err(fail)?;
+        run_encoded(model, &encoded)
+    }
+    fn run_encoded(model: &mut Model, encoded: &[tokenizers::Encoding]) -> Result<(Vec<Vec<f64>>, usize)> {
         let batch = encoded.len();
         let width = encoded.first().map_or(0, |e| e.len());
         if batch == 0 || batch > 32 || width == 0 {
@@ -285,7 +297,7 @@ mod cpu {
         let mut masks = Vec::with_capacity(batch * width);
         let mut ids = Vec::with_capacity(batch * width);
         let mut types = Vec::with_capacity(batch * width);
-        for e in &encoded {
+        for e in encoded {
             ids.extend(e.get_ids().iter().map(|&x| i64::from(x)));
             masks.extend(e.get_attention_mask().iter().map(|&x| i64::from(x)));
             types.extend(e.get_type_ids().iter().map(|&x| i64::from(x)));
@@ -401,11 +413,18 @@ mod cpu {
         query: &str,
         texts: &[String],
     ) -> Result<(Vec<f64>, usize)> {
+        rerank_visible(profile, query, texts).map(|result| (result.scores, result.tokens))
+    }
+    pub fn rerank_visible(
+        profile: &Profile,
+        query: &str,
+        texts: &[String],
+    ) -> Result<RerankResult> {
         if query.len() > 16000 || texts.len() > 32 || texts.iter().any(|t| t.len() > 32000) {
             return Err(Error::bad("Rerank at most 32 bounded candidates"));
         }
         if texts.is_empty() {
-            return Ok((vec![], 0));
+            return Ok(RerankResult { scores: vec![], tokens: 0, passage_ranges: vec![] });
         }
         let shared = checked_load(profile)?;
         let mut model = shared
@@ -414,14 +433,17 @@ mod cpu {
         if model.manifest.pooling != "logits" {
             return Err(Error::bad("Reranking requires a cross-encoder manifest"));
         }
-        let (scores, tokens) = run(
-            &mut model,
-            texts
+        let encoded = model.tokenizer.encode_batch(texts
                 .iter()
                 .map(|s| EncodeInput::Dual(query.into(), s.as_str().into()))
-                .collect(),
-        )?;
-        Ok((scores.into_iter().map(|v| v[0]).collect(), tokens))
+                .collect(), true).map_err(fail)?;
+        let passage_ranges = encoded.iter().map(|encoding| {
+            encoding.get_sequence_ids().iter().zip(encoding.get_offsets())
+                .filter_map(|(sequence, &(start, end))| (*sequence == Some(1) && start < end).then_some((start, end)))
+                .collect()
+        }).collect();
+        let (scores, tokens) = run_encoded(&mut model, &encoded)?;
+        Ok(RerankResult { scores: scores.into_iter().map(|v| v[0]).collect(), tokens, passage_ranges })
     }
     // The dynamic-runtime loader can panic on an incompatible native library.
     // Keep that operator error inside the Rust Result boundary.
@@ -432,7 +454,7 @@ mod cpu {
 }
 
 #[cfg(feature = "local-inference")]
-pub use cpu::{embed, embed_query, rerank_counted};
+pub use cpu::{embed, embed_query, rerank_counted, rerank_visible};
 #[cfg(not(feature = "local-inference"))]
 pub fn embed(_profile: &Profile, _texts: &[String]) -> Result<(Vec<Vec<f64>>, usize, bool)> {
     Err(Error::bad(
@@ -454,6 +476,10 @@ pub fn rerank_counted(
     Err(Error::bad(
         "This binary was built without the local-inference feature",
     ))
+}
+#[cfg(not(feature = "local-inference"))]
+pub fn rerank_visible(_profile: &Profile, _query: &str, _texts: &[String]) -> Result<RerankResult> {
+    Err(Error::bad("This binary was built without the local-inference feature"))
 }
 
 /// Convenience API when only the ordering scores are needed.

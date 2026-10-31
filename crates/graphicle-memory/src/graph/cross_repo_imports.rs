@@ -167,6 +167,9 @@ pub struct ExportIndex {
     /// Module path → export; one module path may be reachable from several
     /// derivations, the most exact one wins.
     pub modules: BTreeMap<String, ModuleExport>,
+    /// HTTP routes exported from the same immutable graph episode.
+    #[serde(default)]
+    pub http_routes: Vec<super::cross_repo_http::RouteExport>,
 }
 
 impl ExportIndex {
@@ -651,7 +654,7 @@ fn node_kind(node: &impl crate::graph::record::Properties) -> String {
     }
 }
 
-fn is_test_path(path: &str) -> bool {
+pub(super) fn is_test_path(path: &str) -> bool {
     let lower = path.to_ascii_lowercase();
     lower.ends_with("_test.go")
         || lower.split('/').any(|seg| {
@@ -1474,6 +1477,7 @@ pub fn exports(
         episode: episode.map(str::to_string),
         packages,
         modules,
+        http_routes: super::cross_repo_http::exports(graph, repo, episode),
     }
 }
 

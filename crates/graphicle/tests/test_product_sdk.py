@@ -19,6 +19,13 @@ sys.path.insert(0, str(ROOT.parents[1] / "sdk/python"))
 from graphicle_sdk import Client, LocalServer, GraphicleError
 
 
+def test_graph_explorer_navigation():
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node is needed for browser navigation regression checks")
+    subprocess.run([node, "--test", str(ROOT / "tests/test_graph_view.cjs")], check=True)
+
+
 @pytest.fixture
 def product(tmp_path, monkeypatch):
     monkeypatch.delenv("GRAPHICLE_BILLING_CONFIG", raising=False)

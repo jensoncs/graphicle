@@ -204,6 +204,115 @@ fn projects_cited(packet: &Value) -> Vec<String> {
         .collect()
 }
 
+#[test]
+fn http_routes_link_handlers_and_middleware_with_scope_and_freshness() {
+    // The extractor switch is process-wide. Isolate it from parallel tests.
+    if std::env::var("GRAPHICLE_HTTP_TEST_CHILD").as_deref() != Ok("1") {
+        let status = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "workspace_scope::http_routes_link_handlers_and_middleware_with_scope_and_freshness", "--nocapture"])
+            .env("GRAPHICLE_HTTP_TEST_CHILD", "1").env("GRAPHICLE_ROUTES", "1").status().unwrap();
+        assert!(status.success());
+        return;
+    }
+    let router = "package api\nimport \"github.com/gin-gonic/gin\"\nfunc routes() {\n r := gin.New()\n v1 := r.Group(\"/nexus/v1\")\n v1.Use(Forward())\n v1.DELETE(\"/serviceconfig\", DeleteConfig)\n}\n";
+    let handlers = "package api\nimport \"github.com/gin-gonic/gin\"\nfunc DeleteConfig(c *gin.Context) {\n if c.Query(\"configId\") == \"\" { c.Status(400); return }\n c.Status(200)\n}\nfunc Forward() gin.HandlerFunc {\n return func(c *gin.Context) { if c.Request.Method == \"DELETE\" { c.Next(); return }; c.Status(503) }\n}\n";
+    let client = "export class NexusClient {\n async deleteConfig(configId: string) {\n  return this.axios.delete('/nexus/v1/serviceconfig', { params: {configId} });\n }\n}\n";
+    let test_router = router.replace("func routes()", "func testRoutes()");
+    let test_handlers = "package api\ntype fake struct{}\nfunc (f *fake) DeleteConfig() {}\n";
+    let f = Fixture::new();
+    let server = f.project(
+        "http-server",
+        "Server",
+        &[
+            ("router.go", router),
+            ("handlers.go", handlers),
+            ("router_test.go", &test_router),
+            ("handlers_test.go", test_handlers),
+        ],
+    );
+    let caller = f.project("http-client", "Client", &[("client.ts", client)]);
+    let linked = f.store.graph_link(&f.workspace, &f.key).unwrap();
+    assert!(linked["edges"].as_u64().unwrap() >= 3, "{linked}");
+    let args = json!({"scope":"workspace","repository_id":caller,"question":"How does NexusClient.deleteConfig() send its request?", "cross_repo":true});
+    let packet = f.context(&f.key, args.clone());
+    assert!(
+        packet["workspace"]["cross_repo"]["edges_read"]
+            .as_u64()
+            .unwrap()
+            >= 3,
+        "{packet}"
+    );
+    assert!(
+        packet["evidence"].to_string().contains("cross_repo_http"),
+        "{packet}"
+    );
+    assert!(
+        window(&packet, &server, "handlers.go").is_some(),
+        "{packet}"
+    );
+    assert!(
+        packet["evidence"].to_string().contains("func DeleteConfig"),
+        "{packet}"
+    );
+    let (credential, token) = f.reader("reader");
+    f.revoke(&server, &credential);
+    let denied = f.context(&token, args.clone());
+    assert!(!denied.to_string().contains(&server), "{denied}");
+    assert_eq!(denied["workspace"]["cross_repo"]["edges_read"], 0);
+    // The handler bytes remain the same; changing only the registration
+    // must still withhold every derived HTTP edge until the graph is rebuilt.
+    let changed = router.replace("/serviceconfig", "/renamed");
+    f.sync(
+        &server,
+        &[("router.go", &changed), ("handlers.go", handlers)],
+    );
+    let stale = f.context(&f.key, args.clone());
+    assert_eq!(stale["workspace"]["cross_repo"]["edges_read"], 0, "{stale}");
+    jobs::drain_projection(&f.store, &server).unwrap();
+    f.store.graph_link(&f.workspace, &f.key).unwrap();
+    assert_eq!(
+        f.context(&f.key, args.clone())["workspace"]["cross_repo"]["edges_read"],
+        0
+    );
+    // Restore the route, then introduce a second exporter. A relative URL
+    // cannot select either server; relinking closes the formerly unique edge.
+    f.sync(&server, &[("router.go", router), ("handlers.go", handlers)]);
+    jobs::drain_projection(&f.store, &server).unwrap();
+    let second = f.project(
+        "second-http-server",
+        "Other server",
+        &[("router.go", router), ("handlers.go", handlers)],
+    );
+    f.store.graph_link(&f.workspace, &f.key).unwrap();
+    assert_eq!(
+        f.context(&f.key, args.clone())["workspace"]["cross_repo"]["edges_read"],
+        0
+    );
+    // Restore a unique, live edge before testing caller deletion, so the
+    // deletion assertion cannot pass merely because ambiguity removed it.
+    f.sync(&second, &[("empty.go", "package api\n")]);
+    jobs::drain_projection(&f.store, &second).unwrap();
+    f.store.graph_link(&f.workspace, &f.key).unwrap();
+    assert!(
+        f.context(&f.key, args.clone())["workspace"]["cross_repo"]["edges_read"]
+            .as_u64()
+            .unwrap()
+            >= 3
+    );
+    // Removing the caller also cannot leave a usable stale request edge.
+    f.sync(&caller, &[("empty.ts", "export const empty = true;\n")]);
+    assert_eq!(
+        f.context(&f.key, args.clone())["workspace"]["cross_repo"]["edges_read"],
+        0
+    );
+    jobs::drain_projection(&f.store, &caller).unwrap();
+    f.store.graph_link(&f.workspace, &f.key).unwrap();
+    assert_eq!(
+        f.context(&f.key, args)["workspace"]["cross_repo"]["edges_read"],
+        0
+    );
+}
+
 /// The window of `path` in `project`, if the packet cites it.
 fn window<'a>(packet: &'a Value, project: &str, path: &str) -> Option<&'a Value> {
     packet["evidence"]

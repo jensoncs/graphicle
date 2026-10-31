@@ -1,0 +1,1453 @@
+{
+  "state": "v4_adopted_in_product_worktree",
+  "artifact_root": "/private/tmp/graphicle-atlas-nexus-20261030",
+  "dataset": {
+    "path": "bench/memory/fixtures/atlas_nexus_queries.json",
+    "sha256": "b64274c3461e425bdb53799b46ff59c4d61f71e7badafd66c8ae013a6ce1ae67",
+    "provenance": "14 authored real-code queries; six premarked validation cases by the same author, not an independent holdout. No production-query or generated-answer quality claim."
+  },
+  "historical_dataset": {
+    "path": "bench/memory/fixtures/real_query_seed.json",
+    "sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9",
+    "provenance": "Eleven frozen Nexus questions: two captured diagnostic requests and nine authored real-case questions."
+  },
+  "comparison": {
+    "explicit_regressions": [],
+    "v2_regressions": [],
+    "defaults_regressions": [],
+    "baseline": {
+      "single": {
+        "single": {
+          "queries": 10,
+          "complete": 6,
+          "errors": 0,
+          "required_delivered": 6,
+          "required_total": 10,
+          "tokens": 29054,
+          "supporting_excerpts": 6,
+          "excerpts": 64
+        }
+      },
+      "workspace": {
+        "cross_off": {
+          "queries": 4,
+          "complete": 0,
+          "errors": 0,
+          "required_delivered": 1,
+          "required_total": 11,
+          "tokens": 11404,
+          "supporting_excerpts": 1,
+          "excerpts": 29
+        },
+        "cross_on": {
+          "queries": 4,
+          "complete": 0,
+          "errors": 0,
+          "required_delivered": 1,
+          "required_total": 11,
+          "tokens": 11404,
+          "supporting_excerpts": 1,
+          "excerpts": 29
+        }
+      }
+    },
+    "candidate": {
+      "single": {
+        "single": {
+          "queries": 10,
+          "complete": 10,
+          "errors": 0,
+          "required_delivered": 10,
+          "required_total": 10,
+          "tokens": 28598,
+          "supporting_excerpts": 12,
+          "excerpts": 68
+        }
+      },
+      "workspace": {
+        "cross_off": {
+          "queries": 4,
+          "complete": 3,
+          "errors": 0,
+          "required_delivered": 8,
+          "required_total": 11,
+          "tokens": 11543,
+          "supporting_excerpts": 7,
+          "excerpts": 31
+        },
+        "cross_on": {
+          "queries": 4,
+          "complete": 3,
+          "errors": 0,
+          "required_delivered": 8,
+          "required_total": 11,
+          "tokens": 11543,
+          "supporting_excerpts": 7,
+          "excerpts": 31
+        }
+      }
+    },
+    "defaults_baseline": {
+      "single": {
+        "defaults": {
+          "queries": 10,
+          "complete": 4,
+          "errors": 0,
+          "required_delivered": 4,
+          "required_total": 10,
+          "tokens": 28628,
+          "supporting_excerpts": 5,
+          "excerpts": 66
+        }
+      },
+      "workspace": {
+        "defaults": {
+          "queries": 4,
+          "complete": 0,
+          "errors": 0,
+          "required_delivered": 2,
+          "required_total": 11,
+          "tokens": 11668,
+          "supporting_excerpts": 2,
+          "excerpts": 31
+        }
+      }
+    },
+    "defaults_candidate": {
+      "single": {
+        "defaults": {
+          "queries": 10,
+          "complete": 9,
+          "errors": 0,
+          "required_delivered": 9,
+          "required_total": 10,
+          "tokens": 28774,
+          "supporting_excerpts": 12,
+          "excerpts": 69
+        }
+      },
+      "workspace": {
+        "defaults": {
+          "queries": 4,
+          "complete": 3,
+          "errors": 0,
+          "required_delivered": 9,
+          "required_total": 11,
+          "tokens": 11496,
+          "supporting_excerpts": 8,
+          "excerpts": 30
+        }
+      }
+    },
+    "historical": {
+      "queries": 11,
+      "baseline_complete": 6,
+      "candidate_complete": 11,
+      "regressions": []
+    },
+    "memory": {
+      "candidate": {
+        "named": {
+          "planned": 48,
+          "completed": 48,
+          "failed": 0,
+          "tp": 50,
+          "fp": 83,
+          "precision": 0.37593984962406013,
+          "macro_recall": 0.990990990990991,
+          "mean_tokens": 429.0208333333333
+        }
+      },
+      "lost_relevant_cases": [],
+      "safeguards": {
+        "callee/callee-rationale": {
+          "gold": [
+            "lease"
+          ],
+          "returned": [
+            "lease"
+          ],
+          "passed": true
+        },
+        "callee-pressure/lease-rationale": {
+          "gold": [
+            "lease"
+          ],
+          "returned": [
+            "lease",
+            "probe",
+            "wire",
+            "ledger"
+          ],
+          "passed": true
+        },
+        "caller-pressure/lease-rationale": {
+          "gold": [
+            "lease"
+          ],
+          "returned": [
+            "wire",
+            "archive",
+            "lease",
+            "probe"
+          ],
+          "passed": true
+        },
+        "direct-contracts/all-direct": {
+          "gold": [
+            "delimiter",
+            "escaping",
+            "null",
+            "ordering"
+          ],
+          "returned": [
+            "null",
+            "escaping",
+            "delimiter",
+            "ordering"
+          ],
+          "passed": true
+        }
+      }
+    }
+  },
+  "case_results": {
+    "baseline-v2": [
+      {
+        "query": "atlas-empty-list",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-partial-list",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-update-identity",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-mapping-error",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-apply-proof",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-update-identity",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-delete-local",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-missing",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-loop",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-list-results",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "cross-update-identity",
+        "scope": "workspace",
+        "variants": {
+          "cross_off": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 2
+          },
+          "cross_on": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 2
+          }
+        }
+      },
+      {
+        "query": "cross-delete-local",
+        "scope": "workspace",
+        "variants": {
+          "cross_on": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 4
+          },
+          "cross_off": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 4
+          }
+        }
+      },
+      {
+        "query": "cross-partial-list",
+        "scope": "workspace",
+        "variants": {
+          "cross_off": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 3
+          },
+          "cross_on": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 3
+          }
+        }
+      },
+      {
+        "query": "cross-forward-error",
+        "scope": "workspace",
+        "variants": {
+          "cross_on": {
+            "complete": false,
+            "required_delivered": 1,
+            "required_total": 2
+          },
+          "cross_off": {
+            "complete": false,
+            "required_delivered": 1,
+            "required_total": 2
+          }
+        }
+      }
+    ],
+    "baseline-defaults": [
+      {
+        "query": "atlas-empty-list",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-partial-list",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-update-identity",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-mapping-error",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-apply-proof",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-update-identity",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-delete-local",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-missing",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-loop",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-list-results",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "cross-update-identity",
+        "scope": "workspace",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 2
+          }
+        }
+      },
+      {
+        "query": "cross-delete-local",
+        "scope": "workspace",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 1,
+            "required_total": 4
+          }
+        }
+      },
+      {
+        "query": "cross-partial-list",
+        "scope": "workspace",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 3
+          }
+        }
+      },
+      {
+        "query": "cross-forward-error",
+        "scope": "workspace",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 1,
+            "required_total": 2
+          }
+        }
+      }
+    ],
+    "candidate-v4-full": [
+      {
+        "query": "atlas-empty-list",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-partial-list",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-update-identity",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-mapping-error",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-apply-proof",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-update-identity",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-delete-local",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-missing",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-loop",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-list-results",
+        "scope": "single",
+        "variants": {
+          "single": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "cross-update-identity",
+        "scope": "workspace",
+        "variants": {
+          "cross_off": {
+            "complete": true,
+            "required_delivered": 2,
+            "required_total": 2
+          },
+          "cross_on": {
+            "complete": true,
+            "required_delivered": 2,
+            "required_total": 2
+          }
+        }
+      },
+      {
+        "query": "cross-delete-local",
+        "scope": "workspace",
+        "variants": {
+          "cross_on": {
+            "complete": false,
+            "required_delivered": 1,
+            "required_total": 4
+          },
+          "cross_off": {
+            "complete": false,
+            "required_delivered": 1,
+            "required_total": 4
+          }
+        }
+      },
+      {
+        "query": "cross-partial-list",
+        "scope": "workspace",
+        "variants": {
+          "cross_off": {
+            "complete": true,
+            "required_delivered": 3,
+            "required_total": 3
+          },
+          "cross_on": {
+            "complete": true,
+            "required_delivered": 3,
+            "required_total": 3
+          }
+        }
+      },
+      {
+        "query": "cross-forward-error",
+        "scope": "workspace",
+        "variants": {
+          "cross_on": {
+            "complete": true,
+            "required_delivered": 2,
+            "required_total": 2
+          },
+          "cross_off": {
+            "complete": true,
+            "required_delivered": 2,
+            "required_total": 2
+          }
+        }
+      }
+    ],
+    "candidate-v4-defaults": [
+      {
+        "query": "atlas-empty-list",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-partial-list",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-update-identity",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-mapping-error",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "atlas-apply-proof",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-update-identity",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 0,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-delete-local",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-missing",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-forward-loop",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "nexus-list-results",
+        "scope": "single",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 1,
+            "required_total": 1
+          }
+        }
+      },
+      {
+        "query": "cross-update-identity",
+        "scope": "workspace",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 2,
+            "required_total": 2
+          }
+        }
+      },
+      {
+        "query": "cross-delete-local",
+        "scope": "workspace",
+        "variants": {
+          "defaults": {
+            "complete": false,
+            "required_delivered": 2,
+            "required_total": 4
+          }
+        }
+      },
+      {
+        "query": "cross-partial-list",
+        "scope": "workspace",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 3,
+            "required_total": 3
+          }
+        }
+      },
+      {
+        "query": "cross-forward-error",
+        "scope": "workspace",
+        "variants": {
+          "defaults": {
+            "complete": true,
+            "required_delivered": 2,
+            "required_total": 2
+          }
+        }
+      }
+    ]
+  },
+  "historical_cases": [
+    {
+      "project": "nexus-963-h1",
+      "query": "captured-gateway",
+      "baseline_complete": true,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-963-h1",
+      "query": "gateway-owner",
+      "baseline_complete": false,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-963-h1",
+      "query": "caller-callee-failure",
+      "baseline_complete": false,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-963-h1",
+      "query": "v4-failure",
+      "baseline_complete": true,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-963-h1",
+      "query": "cache-success",
+      "baseline_complete": true,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-963-h1",
+      "query": "callee-location",
+      "baseline_complete": true,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-963-h2",
+      "query": "captured-overlap",
+      "baseline_complete": true,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-944-h2",
+      "query": "waypoint-location",
+      "baseline_complete": false,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-944-h2",
+      "query": "partial-inspection",
+      "baseline_complete": true,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-944-h2",
+      "query": "uncertain-link",
+      "baseline_complete": false,
+      "candidate_complete": true
+    },
+    {
+      "project": "nexus-944-h2",
+      "query": "delete-missing",
+      "baseline_complete": false,
+      "candidate_complete": true
+    }
+  ],
+  "cross_repository_graph": {
+    "recorded_import_edges": 0,
+    "cross_on_off_same_quality": true,
+    "interpretation": "Gains are workspace source selection and packing, not proven Atlas-to-Nexus HTTP traversal."
+  },
+  "implementation": {
+    "sources": {
+      "crates/graphicle/src/code_graph_arm.rs": {
+        "before_sha256": "5648245b5458c3c0b0cb51f95d6bfee96b0c33cb8358d0b398bc0434675badfb",
+        "adopted_sha256": "8c23cd2fe49adc4c418d083c0284ea03c3a8e5d886023108572a20d59da63ec5"
+      },
+      "crates/graphicle/src/query.rs": {
+        "before_sha256": "644936e267c50067fdc43aaca48bcaffeae842f1602b94df4555e56f0ceddcf3",
+        "adopted_sha256": "6b996fc8c07397d80d302e0bfee6b4ae7d2779f5288147435a9ebca726945dfc"
+      },
+      "crates/graphicle/src/evidence.rs": {
+        "before_sha256": "d44f57a8a844bb7613d6dd5fe1000e0fb5ef8ee8adbd9df94a5b949d92884952",
+        "adopted_sha256": "e2903b3212e9df53489951f3a319c85726e15d12da9f7be4b84ad96388a146db"
+      },
+      "crates/graphicle/src/identifier_arm.rs": {
+        "before_sha256": "6b817a5bd423fc0abc83c5d1416b69724e462a10bb0644f6e35c63819d97d2ee",
+        "adopted_sha256": "abc4a14b3e0c6389b451da93dd935989eac43b29ff6c46f984dfa5a21ad886f7"
+      },
+      "crates/graphicle/src/notes_first.rs": {
+        "before_sha256": "1e08ebcb9d44fd0587da321262ab03db877edce8c574aec4993b506c457925de",
+        "adopted_sha256": "5f56497633f86998c5687c4467c8a1c9895a805baa59a97578ecd9894b31f1fc"
+      },
+      "crates/graphicle-memory/src/packing.rs": {
+        "before_sha256": "5c8fe260bfb283bfb542e620c575bdfa0d866bc942367eec61bf22f049f8b313",
+        "adopted_sha256": "042f5214cf21e101c979e2607f0606e83535ab006caa00914682f44bf099a29a"
+      },
+      "crates/graphicle/tests/it/query_code_graph_arm.rs": {
+        "before_sha256": "4a1121c650bc875599c538775dd616ea343b5f69d97d405bd56134d0b0d7c749",
+        "adopted_sha256": "0c11f8d78f6c62aa7d5521bd578eef95e347b532450800c195275b018a3978fe"
+      }
+    },
+    "evaluated_binary_sha256": "cd11108f5cb73ed4dc1c68f4fc7efe84a52c9c9584ce9666dfe3d0ad2afe0d30",
+    "product_binary_sha256": "e21074bfef343de00b0afaf66dd3644796d4410ac4c5d9ee8e54c1a7e7ce5b46",
+    "promotion": "Seven-file patch applied after acceptance. Evaluated runtime changes were formatted, with module-doc correction, before promotion. Product build also contains preserved pre-existing graph navigation/tool changes; full empirical matrix ran on the isolated saved candidate. Product tests and a replay smoke check validate integration.",
+    "defaults": "No configuration default or public switch added. Existing freshness/authorization, six-range cap, hard packet budgets and memory share retained. Oversized ranges may be clipped."
+  },
+  "protocols": {
+    "baseline-v2": {
+      "dataset_sha256": "b64274c3461e425bdb53799b46ff59c4d61f71e7badafd66c8ae013a6ce1ae67",
+      "binary_sha256": "ca87e8b076a3a008789cd5278b3ff9ae1e52386fafee41d7465cab7dcdd86010",
+      "runner_sha256": "a3af84aa79c157d851d9aa3f7086b2a111c1c186239adf163d37443fb0105647",
+      "scorer_sha256": "3fbe7f9a0209148b13418a64782ce4f96f4ec4439d4d14038b8c8874f2035dc6",
+      "local": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "inventory": {
+        "atlas": {
+          "commit": "aa5c6103d2b04db966ffab779a404f2c549fbad7",
+          "indexed_files": 1574,
+          "manifest_sha256": "7924a94795b23bc94e9407aa5069c190d24e85ef94eba09ed8799d87867bfcba",
+          "sync_sha256": "b6e87c8d9909e46d0ab86b57e54c780288189eb80574a7845a80c250afcf5906",
+          "index_sha256": "7728ceaa421a1e4b4c9a17def1d5e7fe9a6f0418a206cbab92b87ed361a00ef7"
+        },
+        "nexus": {
+          "commit": "0225ca2f30694b7ea1a6d6f063e602f24a0fd05a",
+          "indexed_files": 2429,
+          "manifest_sha256": "2aece8a438aa1e6c7fe0a845709f97617137948e08d7d94ba7ea17ab596cf5b0",
+          "sync_sha256": "a86a6aac0ec9356cd57302ab00edab8c796c7b01316771251f2adc497f1ae1bb",
+          "index_sha256": "4d85333459799ac7763273c0420e3019cfc3929cab3903be9fc1077164f9859d"
+        }
+      },
+      "repositories": {
+        "atlas": "4349d1a52b92465a8b4802fa78b1777d",
+        "nexus": "52a5559c8ba54bec8937d2ba8a7bf8fe"
+      },
+      "link_sha256": "427620cf5299c904db5d620d3a7de16b620d869038d8064ea97bcda3be1006d2",
+      "scope": "Full pinned trees; source delivery only. No independent production queries or answer-quality labels."
+    },
+    "baseline-defaults": {
+      "dataset_sha256": "b64274c3461e425bdb53799b46ff59c4d61f71e7badafd66c8ae013a6ce1ae67",
+      "binary_sha256": "ca87e8b076a3a008789cd5278b3ff9ae1e52386fafee41d7465cab7dcdd86010",
+      "runner_sha256": "136a7bf05a33c6bced864f48292a8013ce623a672419d4def35bdcdecb9ca1eb",
+      "scorer_sha256": "3fbe7f9a0209148b13418a64782ce4f96f4ec4439d4d14038b8c8874f2035dc6",
+      "local": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "inventory": {
+        "atlas": {
+          "commit": "aa5c6103d2b04db966ffab779a404f2c549fbad7",
+          "indexed_files": 1574,
+          "manifest_sha256": "7924a94795b23bc94e9407aa5069c190d24e85ef94eba09ed8799d87867bfcba",
+          "sync_sha256": "b6e87c8d9909e46d0ab86b57e54c780288189eb80574a7845a80c250afcf5906",
+          "index_sha256": "7728ceaa421a1e4b4c9a17def1d5e7fe9a6f0418a206cbab92b87ed361a00ef7"
+        },
+        "nexus": {
+          "commit": "0225ca2f30694b7ea1a6d6f063e602f24a0fd05a",
+          "indexed_files": 2429,
+          "manifest_sha256": "2aece8a438aa1e6c7fe0a845709f97617137948e08d7d94ba7ea17ab596cf5b0",
+          "sync_sha256": "a86a6aac0ec9356cd57302ab00edab8c796c7b01316771251f2adc497f1ae1bb",
+          "index_sha256": "4d85333459799ac7763273c0420e3019cfc3929cab3903be9fc1077164f9859d"
+        }
+      },
+      "repositories": {
+        "atlas": "4349d1a52b92465a8b4802fa78b1777d",
+        "nexus": "52a5559c8ba54bec8937d2ba8a7bf8fe"
+      },
+      "link_sha256": "427620cf5299c904db5d620d3a7de16b620d869038d8064ea97bcda3be1006d2",
+      "retrieval_defaults": true,
+      "scope": "Full pinned trees; source delivery only. No independent production queries or answer-quality labels."
+    },
+    "candidate-v4-full": {
+      "dataset_sha256": "b64274c3461e425bdb53799b46ff59c4d61f71e7badafd66c8ae013a6ce1ae67",
+      "binary_sha256": "cd11108f5cb73ed4dc1c68f4fc7efe84a52c9c9584ce9666dfe3d0ad2afe0d30",
+      "runner_sha256": "136a7bf05a33c6bced864f48292a8013ce623a672419d4def35bdcdecb9ca1eb",
+      "scorer_sha256": "3fbe7f9a0209148b13418a64782ce4f96f4ec4439d4d14038b8c8874f2035dc6",
+      "local": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "inventory": {
+        "atlas": {
+          "commit": "aa5c6103d2b04db966ffab779a404f2c549fbad7",
+          "indexed_files": 1574,
+          "manifest_sha256": "7924a94795b23bc94e9407aa5069c190d24e85ef94eba09ed8799d87867bfcba",
+          "sync_sha256": "b6e87c8d9909e46d0ab86b57e54c780288189eb80574a7845a80c250afcf5906",
+          "index_sha256": "7728ceaa421a1e4b4c9a17def1d5e7fe9a6f0418a206cbab92b87ed361a00ef7"
+        },
+        "nexus": {
+          "commit": "0225ca2f30694b7ea1a6d6f063e602f24a0fd05a",
+          "indexed_files": 2429,
+          "manifest_sha256": "2aece8a438aa1e6c7fe0a845709f97617137948e08d7d94ba7ea17ab596cf5b0",
+          "sync_sha256": "a86a6aac0ec9356cd57302ab00edab8c796c7b01316771251f2adc497f1ae1bb",
+          "index_sha256": "4d85333459799ac7763273c0420e3019cfc3929cab3903be9fc1077164f9859d"
+        }
+      },
+      "repositories": {
+        "atlas": "4349d1a52b92465a8b4802fa78b1777d",
+        "nexus": "52a5559c8ba54bec8937d2ba8a7bf8fe"
+      },
+      "link_sha256": "427620cf5299c904db5d620d3a7de16b620d869038d8064ea97bcda3be1006d2",
+      "retrieval_defaults": false,
+      "scope": "Full pinned trees; source delivery only. No independent production queries or answer-quality labels."
+    },
+    "candidate-v4-defaults": {
+      "dataset_sha256": "b64274c3461e425bdb53799b46ff59c4d61f71e7badafd66c8ae013a6ce1ae67",
+      "binary_sha256": "cd11108f5cb73ed4dc1c68f4fc7efe84a52c9c9584ce9666dfe3d0ad2afe0d30",
+      "runner_sha256": "136a7bf05a33c6bced864f48292a8013ce623a672419d4def35bdcdecb9ca1eb",
+      "scorer_sha256": "3fbe7f9a0209148b13418a64782ce4f96f4ec4439d4d14038b8c8874f2035dc6",
+      "local": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "inventory": {
+        "atlas": {
+          "commit": "aa5c6103d2b04db966ffab779a404f2c549fbad7",
+          "indexed_files": 1574,
+          "manifest_sha256": "7924a94795b23bc94e9407aa5069c190d24e85ef94eba09ed8799d87867bfcba",
+          "sync_sha256": "b6e87c8d9909e46d0ab86b57e54c780288189eb80574a7845a80c250afcf5906",
+          "index_sha256": "7728ceaa421a1e4b4c9a17def1d5e7fe9a6f0418a206cbab92b87ed361a00ef7"
+        },
+        "nexus": {
+          "commit": "0225ca2f30694b7ea1a6d6f063e602f24a0fd05a",
+          "indexed_files": 2429,
+          "manifest_sha256": "2aece8a438aa1e6c7fe0a845709f97617137948e08d7d94ba7ea17ab596cf5b0",
+          "sync_sha256": "a86a6aac0ec9356cd57302ab00edab8c796c7b01316771251f2adc497f1ae1bb",
+          "index_sha256": "4d85333459799ac7763273c0420e3019cfc3929cab3903be9fc1077164f9859d"
+        }
+      },
+      "repositories": {
+        "atlas": "4349d1a52b92465a8b4802fa78b1777d",
+        "nexus": "52a5559c8ba54bec8937d2ba8a7bf8fe"
+      },
+      "link_sha256": "427620cf5299c904db5d620d3a7de16b620d869038d8064ea97bcda3be1006d2",
+      "retrieval_defaults": true,
+      "scope": "Full pinned trees; source delivery only. No independent production queries or answer-quality labels."
+    }
+  },
+  "receipts_sha256": {
+    "baseline-v2/PROTOCOL.json": "1ff8179e6b2bf1984802194c1c1e8aaf8f393a08ca4530af862e1b41274d31c3",
+    "baseline-v2/RESULTS.json": "6de0994d97331f52ed9c09ac8b2d208c879ac0576aaa62e53bd6c45b2efcae5e",
+    "baseline-v2/LINK.json": "427620cf5299c904db5d620d3a7de16b620d869038d8064ea97bcda3be1006d2",
+    "baseline-defaults/PROTOCOL.json": "4463723f83aeeed85de5e2b866f7d52a3ce9d6bbcfda8bd2cc1618de66843adb",
+    "baseline-defaults/RESULTS.json": "283bf4f7a6157dc7e729baf6cd221d8ccfdba27e9ea8b12de0bb44b126449da9",
+    "baseline-defaults/LINK.json": "427620cf5299c904db5d620d3a7de16b620d869038d8064ea97bcda3be1006d2",
+    "candidate-v4-full/PROTOCOL.json": "39d3c43295c5977c02e2957b713daf11ad686a065b2ec7c4a00f20ed2ff4402b",
+    "candidate-v4-full/RESULTS.json": "fdb3245480587bf337b4cf404c35348539df21f550bbdb0c17a047d9ec4c30a0",
+    "candidate-v4-full/LINK.json": "427620cf5299c904db5d620d3a7de16b620d869038d8064ea97bcda3be1006d2",
+    "candidate-v4-defaults/PROTOCOL.json": "73bae519eefd5225cb1c1d69e09d22d0eb3896aef7c96b5f988999436611bafe",
+    "candidate-v4-defaults/RESULTS.json": "dad595cea771ae36532f841a1e697f666ccf994980bcafcd973204c96a978977",
+    "candidate-v4-defaults/LINK.json": "427620cf5299c904db5d620d3a7de16b620d869038d8064ea97bcda3be1006d2",
+    "candidate-v4-historical/RESULTS.json": "7dd1cfb5d154d8f2b3c342e9576afc0c39075a8a050a1ea56c04840715ec4144",
+    "candidate-v4-memory/RESULTS.json": "e329ac60cc9fc353092f1c7fe704d8b3ba28ae60744f655dfcdc8fc508ca34eb",
+    "candidate-v2-full/RESULTS.json": "300a459fd47cc2ac3422395569367810d2a10c66cf27fc25c87aaa7debbb3b6f",
+    "candidate-v3-full/RESULTS.json": "a1bcd572251f2e9f58a650d6f6165a48bdc4eeb033c2030dbe5545a9447b792e",
+    "V4-BUILD.json": "85ebdeb29b25b096e31217b7346870be67366606831b547e70997185c78849fc",
+    "V4-INTEGRATION.json": "95efde983ec5964b3dc813c5355dcc67ee07929137d40c2a5625d57c64345eec",
+    "V3-REGRESSIONS.json": "2d78e47e0915a32aa462354a9cf4801b3ba4dae8352097e74857c28e7bacc9fa",
+    "V4-ACCEPTANCE.json": "73440dacab53aca6c477a8f3e94db15a600d18bc15698e16b5f20fe08776da44",
+    "PRODUCT-V4-VALIDATION.json": "8a60292cc3d822d4346613ab8b4b782be025d0b38efd08d80a310ea1fa1037c2"
+  },
+  "validation": {
+    "product": [
+      {
+        "step": "runtime-unit",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--features",
+          "local-inference",
+          "--lib"
+        ],
+        "cwd": "/Users/jensoncs/sharechat/graphicle/crates/graphicle",
+        "exit_code": 0,
+        "seconds": 160.74580179195618,
+        "log": "/private/tmp/graphicle-atlas-nexus-20261030/product-v4-runtime-unit.log",
+        "log_sha256": "95fad775c8f10d659253127dd5e05eba2943aa4dcddbaf1e990b1d530e2faa68",
+        "test_results": [
+          "test result: ok. 404 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 45.27s"
+        ]
+      },
+      {
+        "step": "build",
+        "command": [
+          "cargo",
+          "build",
+          "--offline",
+          "--features",
+          "local-inference",
+          "--bin",
+          "graphicle"
+        ],
+        "cwd": "/Users/jensoncs/sharechat/graphicle/crates/graphicle",
+        "exit_code": 0,
+        "seconds": 43.7832737499848,
+        "log": "/private/tmp/graphicle-atlas-nexus-20261030/product-v4-build.log",
+        "log_sha256": "4b4fd646352f4720d8bc14e1e2391e87224c1425a1513626bed80fdca66df91e",
+        "test_results": []
+      },
+      {
+        "step": "query_code_graph_arm",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--features",
+          "local-inference",
+          "--test",
+          "it",
+          "query_code_graph_arm::",
+          "--",
+          "--test-threads=2"
+        ],
+        "cwd": "/Users/jensoncs/sharechat/graphicle/crates/graphicle",
+        "exit_code": 0,
+        "seconds": 29.114867624943145,
+        "log": "/private/tmp/graphicle-atlas-nexus-20261030/product-v4-query_code_graph_arm.log",
+        "log_sha256": "e78affcb711eeaf772f0c3d72c7a216cf21e3bd7eec6cc17a78fbce6d94dc3f8",
+        "test_results": [
+          "test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 509 filtered out; finished in 3.43s"
+        ]
+      },
+      {
+        "step": "workspace_scope",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--features",
+          "local-inference",
+          "--test",
+          "it",
+          "workspace_scope::",
+          "--",
+          "--test-threads=2"
+        ],
+        "cwd": "/Users/jensoncs/sharechat/graphicle/crates/graphicle",
+        "exit_code": 0,
+        "seconds": 12.1072032499942,
+        "log": "/private/tmp/graphicle-atlas-nexus-20261030/product-v4-workspace_scope.log",
+        "log_sha256": "8f965544dfa28f6e57f351ea07a0ff05d7f2630b7fdcd1e5776b4b6bc5bcd305",
+        "test_results": [
+          "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 499 filtered out; finished in 10.81s"
+        ]
+      },
+      {
+        "step": "symbol_links",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--features",
+          "local-inference",
+          "--test",
+          "it",
+          "symbol_links::",
+          "--",
+          "--test-threads=2"
+        ],
+        "cwd": "/Users/jensoncs/sharechat/graphicle/crates/graphicle",
+        "exit_code": 0,
+        "seconds": 7.042220875038765,
+        "log": "/private/tmp/graphicle-atlas-nexus-20261030/product-v4-symbol_links.log",
+        "log_sha256": "6090b7e6118d7d73041caa73b3b01d696a982dbcde55c1d4d882782812315f3d",
+        "test_results": [
+          "test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 514 filtered out; finished in 4.43s"
+        ]
+      },
+      {
+        "step": "packing-unit",
+        "command": [
+          "cargo",
+          "test",
+          "--offline",
+          "--lib",
+          "requested_range_tests::"
+        ],
+        "cwd": "/Users/jensoncs/sharechat/graphicle/crates/graphicle-memory",
+        "exit_code": 0,
+        "seconds": 78.37358220800525,
+        "log": "/private/tmp/graphicle-atlas-nexus-20261030/product-v4-packing-unit.log",
+        "log_sha256": "41408f010d8d4d55d64fb2636c0df8201d038ca7c8a32477d6d3040c4f396142",
+        "test_results": [
+          "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 83 filtered out; finished in 0.15s"
+        ]
+      }
+    ],
+    "python_evaluator_tests_passed": 38,
+    "isolated_runtime_tests_passed": 400,
+    "isolated_integration_tests_passed": 38,
+    "v3_new_regressions_failed_before_fix": 2,
+    "candidate_v4_context_calls": 91,
+    "remote_model_calls": 0,
+    "note_cases": 48,
+    "git_diff_check": "passed",
+    "product_replay_smoke": {
+      "binary_sha256": "e21074bfef343de00b0afaf66dd3644796d4410ac4c5d9ee8e54c1a7e7ce5b46",
+      "cases": [
+        {
+          "query": "caller-callee-failure",
+          "complete": true,
+          "required_delivered": [
+            true,
+            true,
+            true
+          ],
+          "evidence_recall": 1.0,
+          "supporting_excerpts": 2,
+          "excerpts": 7,
+          "supporting_excerpt_precision": 0.2857142857142857,
+          "tokens": 2921,
+          "route": {
+            "path": "retrieval",
+            "reason": "off",
+            "identifier_route": false,
+            "defaulted": false,
+            "names": []
+          },
+          "model_calls": 1,
+          "source_verified": true
+        },
+        {
+          "query": "cross-partial-list",
+          "complete": true,
+          "per_project": {
+            "atlas": {
+              "complete": true,
+              "required_delivered": [
+                true,
+                true
+              ],
+              "evidence_recall": 1.0,
+              "supporting_excerpts": 1,
+              "excerpts": 3,
+              "supporting_excerpt_precision": 0.3333333333333333,
+              "tokens": 2884,
+              "route": {
+                "path": "retrieval",
+                "reason": "workspace",
+                "defaulted": true,
+                "identifier_route": false
+              },
+              "model_calls": 2,
+              "source_verified": true
+            },
+            "nexus": {
+              "complete": true,
+              "required_delivered": [
+                true
+              ],
+              "evidence_recall": 1.0,
+              "supporting_excerpts": 1,
+              "excerpts": 5,
+              "supporting_excerpt_precision": 0.2,
+              "tokens": 2884,
+              "route": {
+                "path": "retrieval",
+                "reason": "workspace",
+                "defaulted": true,
+                "identifier_route": false
+              },
+              "model_calls": 2,
+              "source_verified": true
+            }
+          },
+          "required_delivered": 3,
+          "required_total": 3,
+          "tokens": 2884,
+          "excerpts": 8,
+          "supporting_excerpts": 2,
+          "workspace": {
+            "workspace_id": "3f61027cead240c3a5236ba26b75e97c",
+            "projects_searched": 2,
+            "projects_failed": 0,
+            "projects_left_out": 0,
+            "max_projects": 8,
+            "cross_repo": {
+              "enabled": true,
+              "edges_read": 0,
+              "followed": 0,
+              "lifted": 0,
+              "annotated": 0,
+              "withheld_changed": 0,
+              "limit": 6
+            }
+          },
+          "omitted": {
+            "sources": 6,
+            "memories": 0
+          },
+          "model_calls": 2
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "Default nexus-update-identity: 5245 graph matches, 300 candidates, named_windows=0; exact declaration absent before packing.",
+    "cross-delete-local still misses three of four required spans under explicit settings, two under retrieval defaults.",
+    "No Atlas/Nexus import edges; current HTTP extractor does not support Go/Gin or separately indexed client-server linkage.",
+    "Retrieval-default trial still explicitly pins local MiniLM/blend and packet budget.",
+    "Note precision remains 50/133 (37.59%); real reviewed-note precision and generated-answer quality unmeasured.",
+    "256-token reranker truncation is traced, not ablated. Concurrent debug/release runs do not support latency comparisons."
+  ],
+  "history": {
+    "v2_receipt": "bench/memory/results/atlas-nexus-named-ranges-20261030.json",
+    "v3_rejected": "Attached comments recovered historical 11/11 but expanded qualified references caused workspace 3/4 -> 2/4. V4 preserves exact names and multiple requested ranges per file.",
+    "excluded_initial_launch": "baseline/: invalid max_projects on project scope; corrected baseline-v2 replay is authoritative."
+  }
+}

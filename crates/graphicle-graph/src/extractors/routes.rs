@@ -65,6 +65,8 @@ use std::{
 };
 use tree_sitter::Node;
 
+mod go;
+
 /// `--routes` / `GRAPHICLE_ROUTES=1`.
 pub static ENABLED: AtomicBool = AtomicBool::new(false);
 pub fn enabled() -> bool {
@@ -207,6 +209,8 @@ struct Facts {
 struct Route {
     file: String,
     line: usize,
+    end_line: usize,
+    middleware: Vec<String>,
     method: String,
     /// The path as declared, before any router prefix.
     path: String,
@@ -455,6 +459,7 @@ fn relative(from: &Path, to: &Path) -> String {
 /// The grammar this pass reads `path` with, if any.
 fn language(path: &Path) -> Option<(&'static str, tree_sitter::Language)> {
     Some(match crate::extract_languages::suffix(path).as_str() {
+        ".go" => ("go", tree_sitter_go::LANGUAGE.into()),
         ".py" => ("python", tree_sitter_python::LANGUAGE.into()),
         ".js" | ".jsx" | ".mjs" | ".cjs" => ("javascript", tree_sitter_javascript::LANGUAGE.into()),
         ".ts" | ".mts" | ".cts" => (
@@ -736,6 +741,8 @@ impl Scan<'_> {
             self.routes.push(Route {
                 file: self.file.to_string(),
                 line: site.start_position().row + 1,
+                end_line: site.end_position().row + 1,
+                middleware: vec![],
                 method,
                 path: path.clone(),
                 router: self.name(site, router),
@@ -1589,6 +1596,13 @@ fn segments(path: &str) -> Vec<String> {
 
 /// Whether a request's segments reach a route's. An unknown base stands for
 /// one or more leading segments; on both sides, the rest must match.
+pub fn http_path_matches(route: &str, request: &str) -> bool {
+    let route = segments(route);
+    !route.iter().any(|s| s == "+")
+        && (route.is_empty() || route.iter().any(|s| !matches!(s.as_str(), "*" | "**")))
+        && matches(&route, &segments(request))
+}
+
 fn matches(route: &[String], request: &[String]) -> bool {
     let base = |s: &[String]| s.first().is_some_and(|x| x == "+");
     match (base(route), base(request)) {
@@ -1644,6 +1658,9 @@ fn scan(path: &Path) -> Option<Scanned> {
 }
 
 fn scan_parsed(path: &Path, python: bool, parsed: &super::engine_parser::Parsed) -> Scanned {
+    if path.extension().is_some_and(|e| e == "go") {
+        return go::scan(path, parsed);
+    }
     let src = parsed.source.as_slice();
     let file = path.to_string_lossy().to_string();
     let mut scan = Scan {
@@ -1674,7 +1691,8 @@ fn scan_parsed(path: &Path, python: bool, parsed: &super::engine_parser::Parsed)
 /// Text every file with an include call contains. Look for names rather than
 /// adjacent punctuation: whitespace and JS comments may precede the `(`.
 static MOUNT_TEXT: LazyLock<regex::bytes::Regex> = LazyLock::new(|| {
-    regex::bytes::Regex::new(r"include|register_blueprint|\b(?:mount|use)\b").expect("valid")
+    regex::bytes::Regex::new(r"include|register_blueprint|\b(?:mount|use|Group|Use)\b")
+        .expect("valid")
 });
 
 /// Whether `path` may contain an include call (a cheap text test).
@@ -2369,7 +2387,8 @@ pub fn resolve(
     let mut by_label: FxHashMap<String, Vec<String>> = FxHashMap::default();
     for n in nodes.iter().chain(context) {
         let (id, label, file) = (s(n, "id"), s(n, "label"), s(n, "source_file"));
-        if id.is_empty() || file.is_empty() || s(n, "node_kind") == "route" {
+        if id.is_empty() || file.is_empty() || matches!(s(n, "node_kind"), "route" | "http_request")
+        {
             continue;
         }
         let key = source_key(file, root);
@@ -2496,7 +2515,7 @@ pub fn resolve(
         if ids.insert(id.clone()) {
             let mut node = json!({"id": id, "label": format!("{} {}", r.method, path),
                     "file_type": "code", "node_kind": "route", "source_file": r.file,
-                    "source_location": format!("L{}", r.line), "route_method": r.method,
+                    "source_location": if r.file.ends_with(".go") { format!("L{}-L{}", r.line, r.end_line) } else { format!("L{}", r.line) }, "route_method": r.method,
                     "route_path": path, "_route_apps": [application_relative], "_origin": "ast"});
             if !mounts.is_empty() {
                 node["_route_mounts"] = json!(mounts);
@@ -2504,24 +2523,43 @@ pub fn resolve(
             nodes.push(node);
             declared.push((id.clone(), key.clone(), r.method.clone(), segments(&path)));
         }
-        // A path declared twice in one file keeps one node and both handlers.
-        if let Some((name, line)) = &r.handler {
-            let handler = node_for(&r.file, name, *line).or_else(|| {
-                // Django views live in another module: a unique name.
-                // A known definition line must resolve in its own file.
-                if *line != 0 {
+        let handler_for = |name: &str, line: usize| {
+            node_for(&r.file, name, line).or_else(|| {
+                if line != 0 {
                     return None;
                 }
-                by_label
-                    .get(name)
-                    .filter(|v| v.len() == 1)
-                    .map(|v| v[0].clone())
-            });
-            if let Some(h) = handler {
-                edges.push(edge(&h, &id, "handles", &r.file, r.line));
+                if r.file.ends_with(".go") {
+                    let dir = Path::new(&key).parent();
+                    let ids: BTreeSet<_> = by_name
+                        .iter()
+                        .filter(|((file, bare), _)| {
+                            bare == name
+                                && Path::new(file).parent() == dir
+                                && (key.ends_with("_test.go") || !file.ends_with("_test.go"))
+                        })
+                        .flat_map(|(_, entries)| entries.iter().map(|(_, id)| id.clone()))
+                        .collect();
+                    (ids.len() == 1).then(|| ids.into_iter().next().unwrap())
+                } else {
+                    by_label
+                        .get(name)
+                        .filter(|v| v.len() == 1)
+                        .map(|v| v[0].clone())
+                }
+            })
+        };
+        if let Some((name, line)) = &r.handler
+            && let Some(h) = handler_for(name, *line)
+        {
+            edges.push(edge(&h, &id, "handles", &r.file, r.line));
+        }
+        for name in &r.middleware {
+            if let Some(h) = handler_for(name, 0) {
+                edges.push(edge(&h, &id, "middleware_for", &r.file, r.line));
             }
         }
     }
+
     // A statically bound TestClient cannot reach an unrelated application
     // merely because its URL happens to be unique in the corpus. This is a
     // scoped application constraint: mounted routes retain their terminal
@@ -2546,7 +2584,7 @@ pub fn resolve(
                     )
                 })
                 .collect();
-            (s(n, "id"), apps)
+            (s(n, "id").to_string(), apps)
         })
         .collect();
     let mut seen = FxHashSet::default();
@@ -2619,6 +2657,24 @@ pub fn resolve(
             && seen.insert((caller.clone(), route.clone()))
         {
             edges.push(edge(&caller, route, "http_calls", &q.file, q.line));
+        }
+        // Keep unresolved wire requests so independently indexed repositories
+        // can resolve them later. Explicit in-process clients stay local.
+        if chosen.is_none() && !explicit && q.method.is_some() {
+            let method = q.method.as_deref().unwrap();
+            let request_id = make_id([
+                "http_request",
+                key.as_str(),
+                &q.line.to_string(),
+                method,
+                &q.path,
+            ]);
+            if ids.insert(request_id.clone()) {
+                nodes.push(json!({"id":request_id, "label":format!("{} {}", method, q.path),
+                    "file_type":"code", "node_kind":"http_request", "source_file":q.file,
+                    "source_location":format!("L{}-L{}", q.line, q.line),
+                    "http_method":method, "http_path":q.path, "http_caller":caller, "_origin":"ast"}));
+            }
         }
     }
 }

@@ -1,0 +1,400 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance": "Hand-authored synthetic capacity-pressure fixtures, labelled before baseline or priority trial measurements. Not an independent real-session holdout. Tests every direct target, caller/callee competition, multi-link priority and fallback.",
+  "projects": [
+    {
+      "id": "direct-pressure",
+      "split": "regression",
+      "files": {
+        "pipeline.py": "def stage_0():\n    return 1\n\n\ndef stage_1():\n    return 2\n\n\ndef stage_2():\n    return 3\n\n\ndef stage_3():\n    return 4\n\n\ndef stage_4():\n    return 5\n\n\ndef stage_5():\n    return 6\n"
+      },
+      "memories": [
+        {
+          "id": "ledger",
+          "title": "Quokka ledger",
+          "body": "Retain the original fiscal records for seven years.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_0"
+            }
+          ]
+        },
+        {
+          "id": "archive",
+          "title": "Wombat archive",
+          "body": "Cold storage must use immutable objects.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_1"
+            }
+          ]
+        },
+        {
+          "id": "wire",
+          "title": "Orchid protocol",
+          "body": "External consumers require a trailing newline.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_2"
+            }
+          ]
+        },
+        {
+          "id": "probe",
+          "title": "Cedar sampling",
+          "body": "Availability checks must avoid remote dependencies.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_3"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Peer lifetime",
+          "body": "The remote session expires after one minute.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_4"
+            }
+          ]
+        },
+        {
+          "id": "order",
+          "title": "Violet ordering",
+          "body": "Preserve the original field sequence for older clients.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_5"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "direct-0",
+          "category": "direct_capacity",
+          "question": "Which constraint applies to stage_0?",
+          "relevant_memories": [
+            "ledger"
+          ],
+          "rationale": "The explicitly named declaration has its own reviewed contract; other declarations are unrelated."
+        },
+        {
+          "id": "direct-1",
+          "category": "direct_capacity",
+          "question": "Which constraint applies to stage_1?",
+          "relevant_memories": [
+            "archive"
+          ],
+          "rationale": "The explicitly named declaration has its own reviewed contract; other declarations are unrelated."
+        },
+        {
+          "id": "direct-2",
+          "category": "direct_capacity",
+          "question": "Which constraint applies to stage_2?",
+          "relevant_memories": [
+            "wire"
+          ],
+          "rationale": "The explicitly named declaration has its own reviewed contract; other declarations are unrelated."
+        },
+        {
+          "id": "direct-3",
+          "category": "direct_capacity",
+          "question": "Which constraint applies to stage_3?",
+          "relevant_memories": [
+            "probe"
+          ],
+          "rationale": "The explicitly named declaration has its own reviewed contract; other declarations are unrelated."
+        },
+        {
+          "id": "direct-4",
+          "category": "direct_capacity",
+          "question": "Which constraint applies to stage_4?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The explicitly named declaration has its own reviewed contract; other declarations are unrelated."
+        },
+        {
+          "id": "direct-5",
+          "category": "direct_capacity",
+          "question": "Which constraint applies to stage_5?",
+          "relevant_memories": [
+            "order"
+          ],
+          "rationale": "The explicitly named declaration has its own reviewed contract; other declarations are unrelated."
+        }
+      ]
+    },
+    {
+      "id": "callee-pressure",
+      "split": "regression",
+      "files": {
+        "pipeline.py": "def backoff_delay(attempt):\n    return min(2 ** attempt, 60)\n\n\ndef send_packet(attempt):\n    return backoff_delay(attempt)\n"
+      },
+      "memories": [
+        {
+          "id": "lease",
+          "title": "Peer lifetime",
+          "body": "The remote session expires after one minute. Longer pauses abandon the connection.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "backoff_delay"
+            }
+          ]
+        },
+        {
+          "id": "ledger",
+          "title": "Quokka ledger",
+          "body": "Retain the original fiscal records for seven years.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "send_packet"
+            }
+          ]
+        },
+        {
+          "id": "archive",
+          "title": "Wombat archive",
+          "body": "Cold storage must use immutable objects.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "send_packet"
+            }
+          ]
+        },
+        {
+          "id": "wire",
+          "title": "Orchid protocol",
+          "body": "External consumers require a trailing newline.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "send_packet"
+            }
+          ]
+        },
+        {
+          "id": "probe",
+          "title": "Cedar sampling",
+          "body": "Availability checks must avoid remote dependencies.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "send_packet"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "lease-rationale",
+          "category": "callee_capacity",
+          "question": "Why does send_packet cap the backoff at sixty seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The session lifetime explains the ceiling and is linked to the callee; direct-symbol bookkeeping, storage, format and monitoring decisions do not explain it."
+        }
+      ]
+    },
+    {
+      "id": "caller-pressure",
+      "split": "regression",
+      "files": {
+        "pipeline.py": "def backoff_delay(attempt):\n    return min(2 ** attempt, 60)\n\n\ndef send_packet(attempt):\n    return backoff_delay(attempt)\n"
+      },
+      "memories": [
+        {
+          "id": "lease",
+          "title": "Peer lifetime",
+          "body": "The remote session expires after one minute. Longer pauses abandon the connection.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "send_packet"
+            }
+          ]
+        },
+        {
+          "id": "ledger",
+          "title": "Quokka ledger",
+          "body": "Retain the original fiscal records for seven years.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "backoff_delay"
+            }
+          ]
+        },
+        {
+          "id": "archive",
+          "title": "Wombat archive",
+          "body": "Cold storage must use immutable objects.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "backoff_delay"
+            }
+          ]
+        },
+        {
+          "id": "wire",
+          "title": "Orchid protocol",
+          "body": "External consumers require a trailing newline.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "backoff_delay"
+            }
+          ]
+        },
+        {
+          "id": "probe",
+          "title": "Cedar sampling",
+          "body": "Availability checks must avoid remote dependencies.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "backoff_delay"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "lease-rationale",
+          "category": "caller_capacity",
+          "question": "Why does backoff_delay cap the backoff at sixty seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The session lifetime explains the ceiling and is linked to the caller; direct-symbol bookkeeping, storage, format and monitoring decisions do not explain it."
+        }
+      ]
+    },
+    {
+      "id": "shared-pressure",
+      "split": "regression",
+      "files": {
+        "pipeline.py": "def stage_0():\n    return 1\n\n\ndef stage_1():\n    return 2\n\n\ndef stage_2():\n    return 3\n\n\ndef stage_3():\n    return 4\n\n\ndef stage_4():\n    return 5\n\n\ndef stage_5():\n    return 6\n"
+      },
+      "memories": [
+        {
+          "id": "ledger",
+          "title": "Quokka ledger",
+          "body": "Retain the original fiscal records for seven years.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_0"
+            }
+          ]
+        },
+        {
+          "id": "archive",
+          "title": "Wombat archive",
+          "body": "Cold storage must use immutable objects.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_1"
+            }
+          ]
+        },
+        {
+          "id": "wire",
+          "title": "Orchid protocol",
+          "body": "External consumers require a trailing newline.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_2"
+            }
+          ]
+        },
+        {
+          "id": "probe",
+          "title": "Cedar sampling",
+          "body": "Availability checks must avoid remote dependencies.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_3"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Peer lifetime",
+          "body": "The remote session expires after one minute.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_4"
+            }
+          ]
+        },
+        {
+          "id": "shared",
+          "title": "Shared obligation",
+          "body": "The amber registry requires a durable audit receipt.",
+          "symbols": [
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_0"
+            },
+            {
+              "path": "pipeline.py",
+              "qualified_name": "stage_5"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "shared-target",
+          "category": "multiple_links",
+          "question": "Which constraints apply to stage_5?",
+          "relevant_memories": [
+            "shared"
+          ],
+          "rationale": "One memory links two declarations, including the explicitly named target."
+        },
+        {
+          "id": "unresolved",
+          "category": "unresolved_capacity",
+          "question": "Which constraints apply to stage_5 and missing_stage?",
+          "relevant_memories": [
+            "shared"
+          ],
+          "rationale": "An unresolved name must preserve the original ranking fallback."
+        },
+        {
+          "id": "prose",
+          "category": "prose_capacity",
+          "question": "What decisions govern this pipeline?",
+          "relevant_memories": [
+            "ledger",
+            "archive",
+            "wire",
+            "probe",
+            "lease",
+            "shared"
+          ],
+          "rationale": "All recorded decisions apply to the pipeline as a whole; no explicit symbol is named."
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,125 @@
+--- a/crates/graphicle/src/code_graph_arm.rs
++++ b/crates/graphicle/src/code_graph_arm.rs
+@@ -1342,7 +1342,29 @@
+             attr(attributes, "file_type").as_deref() == Some("code")
+                 && attr(attributes, "label").as_deref() != path.rsplit('/').next()
+         }
++    }
++}
++
++/// Full anchored ranges for code symbols explicitly named in the query.
++/// Uses only hits already authorized and freshness-checked by the graph arm.
++/// Reuses the arm's bounded synthetic citation construction; no new graph read.
++pub fn named_windows(arm: &Arm, question: &str, documents: &[Value]) -> Vec<Value> {
++    let named = crate::identifier_arm::named(question);
++    let hits = arm.hits.iter().filter(|hit| {
++        let Some(attributes) = hit.facts.as_object() else { return false; };
++        if !code_symbol(attributes) { return false; }
++        let Some(symbol) = crate::identifier_route::symbol_name(attributes) else { return false; };
++        named.names.iter().any(|name| {
++            let dotted = name.replace("::", ".").replace("->", ".").replace('#', ".");
++            symbol == dotted || symbol.strip_suffix(&dotted).is_some_and(|head| head.ends_with('.'))
++        })
++    }).cloned().collect();
++    let selected = Arm { hits, diagnostics: Value::Null };
++    let (_, _, mut windows) = fuse(&selected, &[], documents);
++    for window in &mut windows {
++        window["source"]["keep_whole"] = json!(true);
+     }
++    windows
+ }
+ 
+ /// Map anchored hits onto the candidate id space of `rank`. Returns the arm
+--- a/crates/graphicle/src/query.rs
++++ b/crates/graphicle/src/query.rs
+@@ -1654,6 +1654,21 @@
+             .collect::<Vec<_>>()
+     };
+     let mut sources = selected("sources");
++    if graph_enabled && let Some(arm) = code_graph {
++        let mut named = crate::code_graph_arm::named_windows(arm, query, &snapshot.documents);
++        code_graph_report["named_windows"] = json!(named.len());
++        // A partial chunk must not stand in for the queried declaration.
++        // Keep non-covered windows for surrounding callers and other context.
++        sources.retain(|row| !named.iter().any(|whole| {
++            let source = &row["source"];
++            let anchor = &whole["source"];
++            source["id"] == anchor["id"]
++                && source["byte_start"].as_u64() >= anchor["byte_start"].as_u64()
++                && source["byte_end"].as_u64() <= anchor["byte_end"].as_u64()
++        }));
++        named.extend(sources);
++        sources = named;
++    }
+     // One window per file and one copy of identical files, then the call's
+     // limit (`rank` offered EXTRA_SOURCES more).
+     let (mut repeated, mut copies) = if as_ranked {
+--- a/crates/graphicle/src/evidence.rs
++++ b/crates/graphicle/src/evidence.rs
+@@ -117,7 +117,7 @@
+         content
+             .get(a..b)
+             .ok_or_else(|| Error::bad("Invalid source window"))?;
+-        if expand {
++        if expand && source["keep_whole"] != true {
+             // One neighbouring paragraph often contains a question, attribution,
+             // condition or correction. Do not silently read the entire file.
+             let left = content[..a].trim_end_matches('\n');
+@@ -139,7 +139,9 @@
+         item["source"]["byte_start"] = json!(a);
+         item["source"]["byte_end"] = json!(b);
+         if let Some(prior) = out.iter_mut().find(|p| {
+-            p["source"]["id"] == source["id"]
++            source["keep_whole"] != true
++                && p["source"]["keep_whole"] != true
++                && p["source"]["id"] == source["id"]
+                 && p["source"]["sha256"] == source["sha256"]
+                 && interval(&p["source"]).is_ok_and(|(x, y)| {
+                     x <= b && a <= y && text::count(&content[x.min(a)..y.max(b)]) <= 2000
+--- a/crates/graphicle-memory/src/packing.rs
++++ b/crates/graphicle-memory/src/packing.rs
+@@ -571,7 +571,9 @@
+                 serde_json::to_string(header).map_err(|e| e.to_string())?
+             ));
+         }
+-        let slots = (hits.len() - position).clamp(1, 3);
++        // Explicitly requested ranges spend the remaining source allowance
++        // before ordinary snippets. Hard packet and memory budgets still apply.
++        let slots = if source["keep_whole"] == true { 1 } else { (hits.len() - position).clamp(1, 3) };
+         let allowed_tokens = max_tokens
+             .saturating_sub(text::count(&rendered) + 100)
+             .min(source_tokens / slots);
+@@ -1112,5 +1114,33 @@
+         }
+         rendered.push_str(&block);
+         listed
++    }
++}
++
++#[cfg(test)]
++mod requested_range_tests {
++    use super::*;
++
++    #[test]
++    fn requested_body_uses_remaining_allowance_and_respects_packet_budget() {
++        let body = "check_condition();\n".repeat(240) + "return FAILURE;\n";
++        let hit = |id: &str, text: &str, whole: bool| json!({"identity":id,"text":text,
++            "source":{"id":id,"path":id,"sha256":"pinned","line":1,"byte_start":0,
++                "byte_end":text.len(),"total_bytes":text.len(),"complete":true,"keep_whole":whole}});
++        let mut request = json!({"repo":{"name":"test","snapshot":"pin"},"question":"condition",
++            "hits":[hit("file:a",&body,false),hit("file:b","extra",false),hit("file:c","extra",false)],
++            "memories":[],"max_tokens":1800,"max_chars":8000});
++        let baseline = pack(&request).unwrap();
++        assert!(baseline["sources"][0]["byte_end"].as_u64().unwrap() < body.len() as u64);
++        request["hits"][0]["source"]["keep_whole"] = json!(true);
++        let candidate = pack(&request).unwrap();
++        assert_eq!(candidate["sources"][0]["byte_end"], body.len());
++        assert!(candidate["tokens"].as_u64().unwrap() <= 1800);
++        assert!(candidate["markdown"].as_str().unwrap().chars().count() <= 8000);
++        request["max_tokens"] = json!(400);
++        let small = pack(&request).unwrap();
++        assert!(small["tokens"].as_u64().unwrap() <= 400);
++        assert_eq!(small["complete_evidence_guaranteed"], false);
++        assert!(small["sources"][0]["byte_end"].as_u64().unwrap() < body.len() as u64);
+     }
+ }

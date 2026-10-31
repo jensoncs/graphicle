@@ -1,0 +1,57 @@
+--- a/crates/graphicle/src/query.rs
++++ b/crates/graphicle/src/query.rs
+@@ -884,7 +884,18 @@
+     let code = sources
+         .iter()
+         .find(|source| source["identity"] == link["from"])
+-        .map_or("", |source| s(source, "text"));
++        .map_or("", |source| {
++            let text = s(source, "text");
++            let Some((start, end, base)) = link["byte_start"].as_u64()
++                .zip(link["byte_end"].as_u64())
++                .zip(source["source"]["byte_start"].as_u64())
++                .map(|((start, end), base)| (start, end, base)) else { return text; };
++            // Intersect with this already-authorized window. Never fetch more
++            // source or attach a neighboring declaration to the note.
++            let start = start.saturating_sub(base).min(text.len() as u64) as usize;
++            let end = end.saturating_sub(base).min(text.len() as u64) as usize;
++            text.get(start..end).unwrap_or("")
++        });
+     format!(
+         "Reviewed decision: {}\n{}\nLinked code symbol: {}\nCode window:\n{}",
+         s(row, "title").chars().take(256).collect::<String>(),
+@@ -3295,6 +3306,22 @@
+     }
+ 
+     #[test]
++    fn context_is_the_linked_symbol_intersection_not_neighboring_code() {
++        let row = json!({"title":"note", "text":"body", "memory":{"link":{
++            "from":"window", "qualified_name":"target", "byte_start":106,"byte_end":112}}});
++        let sources = vec![json!({"identity":"window", "source":{"byte_start":100},
++            "text":"other TARGET unrelated"})];
++        let text = linked_memory_text(&row, &sources);
++        assert!(text.ends_with("Code window:\nTARGET"), "{text}");
++        let mut clipped = row.clone();
++        clipped["memory"]["link"]["byte_start"] = json!(90);
++        clipped["memory"]["link"]["byte_end"] = json!(105);
++        assert!(linked_memory_text(&clipped, &sources).ends_with("Code window:\nother"));
++        clipped["memory"]["link"]["byte_start"] = json!(130);
++        assert!(linked_memory_text(&clipped, &sources).ends_with("Code window:\n"));
++    }
++
++    #[test]
+     fn model_input_bounds_preserve_unicode() {
+         let row = json!({"title":"界".repeat(1000),"text":"界".repeat(10000),
+             "memory":{"link":{"from":"file:code:0","qualified_name":"界".repeat(1000)}}});
+--- a/crates/graphicle/src/symbol_links.rs
++++ b/crates/graphicle/src/symbol_links.rs
+@@ -270,7 +270,8 @@
+                 lifted["memory"]["via"] = json!("link");
+                 lifted["memory"]["link"] = json!({"direction":"code_to_memory","from":hit["identity"],
+                     "stable_id":live.stable_id,"revision":live.revision,
+-                    "qualified_name":live.identity.qualified_name,"rung":link["rung"]});
++                    "qualified_name":live.identity.qualified_name,"rung":link["rung"],
++                    "byte_start":range.start,"byte_end":range.end});
+                 memories.push(lifted);
+             }
+         }

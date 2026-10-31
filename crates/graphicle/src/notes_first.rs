@@ -17,9 +17,10 @@
 //!   date, up to today, in its path or text). A code file never moves, so a
 //!   question in prose about code finds its code where the fused ranking
 //!   put it. A question that names code keeps the fused ranking unchanged.
-//! - [`one_per_file`]: a packet quotes at most one window of a file, and one
-//!   copy of identical files (the same bytes under other paths), so the
-//!   budget goes to more files.
+//! - [`one_per_file`]: a packet keeps the first window of each file, plus
+//!   distinct explicitly requested symbol ranges, and one copy of identical
+//!   files (the same bytes under other paths), so the budget goes to more files
+//!   without dropping a second function the question names.
 //!
 //! Both apply only with the `notes_first` switch ([`switch`]), which is off
 //! unless a call turns it on ([`crate::query::NOTES_FIRST_DEFAULT`]).
@@ -317,9 +318,10 @@ pub fn rerank(
     )
 }
 
-/// Keep the first window of each file among `candidates` (in rank order)
-/// and the first of files with identical bytes; how many windows of an
-/// already quoted file, and how many copies, were dropped.
+/// Keep the first ordinary window of each file and one copy of identical
+/// files. Distinct explicitly requested ranges of a retained file also survive:
+/// asking about two functions must not silently discard the second function.
+/// Returns the numbers of repeated windows and identical copies removed.
 pub fn one_per_file(candidates: &mut Vec<Value>, documents: &[Value]) -> (usize, usize) {
     let sha: BTreeMap<&str, &str> = documents
         .iter()
@@ -327,10 +329,25 @@ pub fn one_per_file(candidates: &mut Vec<Value>, documents: &[Value]) -> (usize,
         .collect();
     let mut files = BTreeSet::new();
     let mut contents = BTreeSet::new();
+    let mut ranges: BTreeMap<String, Vec<(u64, u64)>> = BTreeMap::new();
     let (mut repeated, mut copies) = (0, 0);
     candidates.retain(|c| {
-        let id = s(&c["source"], "id").to_string();
+        let source = &c["source"];
+        let id = s(source, "id").to_string();
+        let range = source["byte_start"]
+            .as_u64()
+            .zip(source["byte_end"].as_u64())
+            .filter(|(a, b)| a < b);
         if files.contains(&id) {
+            if source["keep_whole"] == true
+                && let Some((a, b)) = range
+            {
+                let prior = ranges.entry(id.clone()).or_default();
+                if !prior.iter().any(|(x, y)| *x <= a && b <= *y) {
+                    prior.push((a, b));
+                    return true;
+                }
+            }
             repeated += 1;
             return false;
         }
@@ -339,6 +356,9 @@ pub fn one_per_file(candidates: &mut Vec<Value>, documents: &[Value]) -> (usize,
         {
             copies += 1;
             return false;
+        }
+        if let Some(range) = range {
+            ranges.entry(id.clone()).or_default().push(range);
         }
         files.insert(id);
         true

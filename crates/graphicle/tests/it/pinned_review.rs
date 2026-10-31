@@ -7,6 +7,8 @@ use serde_json::{Value, json};
 
 #[path = "service_boundaries.rs"]
 mod service_boundaries;
+#[path = "basic_impact.rs"]
+mod basic_impact;
 
 struct Fixture {
     _dir: tempfile::TempDir,
@@ -336,6 +338,33 @@ fn compiler_cache_reuses_exact_inputs_and_forgets_removed_snapshots() {
     assert_eq!(missing["impact"], "incomplete");
     assert_eq!(missing["analysis_cache"]["base_hit"], false);
     assert!(review::run(&f.store, &f.workspace, "revoked", &args).is_err());
+}
+
+#[test]
+fn cached_type_failures_stay_incomplete_and_source_repairs_invalidate_them() {
+    let f = Fixture::new();
+    let repo = f.repo("qualified-facts");
+    let a = f.pin(&repo,"app",'a', &[("go.mod",MOD),("code.go","package tax\nfunc F() int { return omitted() }\n")]);
+    let b = f.pin(&repo,"app",'b', &[("go.mod",MOD),("code.go","package tax\nfunc F() int { return omitted()+1 }\n")]);
+    let args = request(&repo,vec![a.clone()],vec![b.clone()]);
+    let cold = f.run(&args);
+    let warm = f.run(&args);
+    assert_eq!(warm["analysis_cache"]["base_hit"],true);
+    assert_eq!(warm["analysis_cache"]["head_hit"],true);
+    assert_eq!(cold["packet_id"],warm["packet_id"]);
+    assert_eq!(warm["impact"],"incomplete");
+    assert_eq!(warm["coverage"]["complete"],false);
+    assert!(warm["coverage"]["issues"].to_string().contains("incomplete_package"));
+    let fixed = f.pin(&repo,"app",'c', &[("go.mod",MOD),("code.go","package tax\nfunc F() int { return omitted()+1 }\n"),("restored.go","package tax\nfunc omitted() int { return 3 }\n")]);
+    let repaired = f.run(&request(&repo,vec![a],vec![fixed]));
+    assert_eq!(repaired["analysis_cache"]["base_hit"],true);
+    assert_eq!(repaired["analysis_cache"]["head_hit"],false);
+    let malformed = f.pin(&repo,"app",'d', &[("go.mod",MOD),("code.go","package tax\nfunc broken(\n")]);
+    let bad_args = request(&repo,vec![b],vec![malformed]);
+    f.run(&bad_args);
+    let again = f.run(&bad_args);
+    assert_eq!(again["analysis_cache"]["head_hit"],false);
+    assert_eq!(again["coverage"]["complete"],false);
 }
 
 #[test]

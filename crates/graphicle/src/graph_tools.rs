@@ -70,7 +70,7 @@ mod structured;
 #[path = "statement_analysis.rs"]
 mod statement_analysis;
 
-pub const NAVIGATION: [&str; 11] = [
+pub const NAVIGATION: [&str; 12] = [
     "query_graph",
     "get_node",
     "get_neighbors",
@@ -80,6 +80,7 @@ pub const NAVIGATION: [&str; 11] = [
     "shortest_path",
     "search_symbols",
     "execution_flows",
+    "entry_points",
     "architecture_preview",
     "statement_flow",
 ];
@@ -416,7 +417,7 @@ pub fn call(store: &Store, workspace: &str, token: &str, args: &Value) -> Result
         };
         let reading = reading(db, p, identifier, as_of)?;
         let resident = resident(db, identifier, &reading.episode)?;
-        if matches!(tool, "search_symbols" | "execution_flows" | "architecture_preview") {
+        if matches!(tool, "search_symbols" | "entry_points" | "execution_flows" | "architecture_preview") {
             let (mut result, indices) = structured::run(&resident.context.graph, tool, &engine)?;
             let mut contents = HashMap::new();
             let nodes = indices.iter().take(CITED_LIMIT).map(|i| citation(db, identifier, &resident, &reading, *i, &mut contents)).collect::<Result<Vec<_>>>()?;

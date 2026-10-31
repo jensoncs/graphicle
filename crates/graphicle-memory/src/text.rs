@@ -11,6 +11,20 @@ pub fn count(text: &str) -> usize {
     tokenizer().encode_ordinary(text).len()
 }
 
+/// Exact count when it fits, otherwise stop at a stable tokenizer boundary.
+/// Unlike counting arbitrary prefixes, these segment counts cannot shrink
+/// when the rest of the text is appended.
+pub fn count_within(text: &str, limit: usize) -> Option<usize> {
+    let mut pieces = PrefixCounts::new(text, SEGMENT);
+    for i in 1..pieces.starts.len() {
+        if pieces.total(i) > limit {
+            return None;
+        }
+    }
+    let total = pieces.count(text.len());
+    (total <= limit).then_some(total)
+}
+
 /// Token counts of prefixes of one text, each exactly `count(&text[..end])`.
 ///
 /// `count` is additive over the pieces of cl100k's pre-tokenizer, and the
@@ -200,4 +214,27 @@ pub fn canonical(value: &serde_json::Value) -> String {
         }
     }
     serde_json::to_string(&ordered(value)).expect("JSON values are serializable")
+}
+
+#[cfg(test)]
+mod bounded_count_tests {
+    use super::*;
+    #[test]
+    fn bounded_counts_match_exact_counts_at_unicode_and_whitespace_boundaries() {
+        let fragments = ["hello world", "\n    next", "can't I'LL", "你好🙂", "a12345!", "\r\n\t  ", "<|endoftext|>", "\"{}[]\\", "é\u{301}"];
+        let mut seed = 13_u64;
+        for size in [0, 1, 10, 64, 200] {
+            for _ in 0..20 {
+                let mut value = String::new();
+                for _ in 0..size {
+                    seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                    value.push_str(fragments[(seed >> 32) as usize % fragments.len()]);
+                }
+                let expected = count(&value);
+                for limit in [0, 1, expected.saturating_sub(1), expected, expected + 1] {
+                    assert_eq!(count_within(&value, limit), (expected <= limit).then_some(expected), "limit={limit}, value={value:?}");
+                }
+            }
+        }
+    }
 }

@@ -294,7 +294,7 @@ fn every_flag_combination_lists_each_tool_once() {
         .filter_map(McpTool::confined)
         .map(|tool| tool.name().to_string())
         .collect();
-    assert_eq!(core.len(), 27, "{core:?}");
+    assert_eq!(core.len(), 28, "{core:?}");
     let navigation_end = 15 + graph_tools::NAVIGATION.len();
     assert_eq!(core[15..navigation_end], graph_tools::NAVIGATION.map(String::from));
     assert_eq!(core[navigation_end], "review_changes");
@@ -2558,6 +2558,35 @@ fn structured_symbols_and_flows_are_cited_authorized_and_revision_bound() {
     assert!(graph_tools::call(&f.store,&f.workspace,"invalid-capability",&json!({"tool":"search_symbols","repository_id":f.repo,"parameter_name":"tenant"})).is_err());
     let app=f.app();let spec=rpc(&f,&app,&f.key,"tools/list",json!({}));
     for name in ["search_symbols","execution_flows"] {assert!(spec["result"]["tools"].as_array().unwrap().iter().any(|t|t["name"]==name),"{spec}");}
+}
+
+#[test]
+fn entry_points_are_authorized_paged_and_snapshot_bound() {
+    let f = Fixture::new(&[("app.py", "def handle():\n    return helper()\n\ndef helper():\n    return 1\n")]);
+    let run = |args: Value| {
+        let mut args = args;
+        args["tool"] = json!("entry_points");
+        args["repository_id"] = json!(f.repo);
+        graph_tools::call(&f.store, &f.workspace, &f.key, &args).unwrap()
+    };
+    let before = run(json!({"limit":1}));
+    assert_eq!(before["total"], 1, "{before}");
+    assert_eq!(before["entries"][0]["label"], "handle()");
+    assert_eq!(before["entries"][0]["category"], "candidate");
+    assert_eq!(before["nodes"][0]["checked"], true);
+    assert_eq!(before["coverage"]["complete"], false);
+    let old = before["episode"].clone();
+    f.sync(&f.repo, &[("app.py", "def replacement():\n    return 2\n")]);
+    jobs::drain_projection(&f.store, &f.repo).unwrap();
+    assert_eq!(run(json!({}))["entries"][0]["label"], "replacement()");
+    let historic = run(json!({"as_of":old}));
+    assert_eq!(historic["entries"][0]["label"], "handle()");
+    assert_eq!(historic["nodes"][0]["checked"], false);
+    let other = f.store.create_workspace("Other viewer").unwrap();
+    assert!(graph_tools::call(&f.store, &f.workspace, s(&other,"capability"),
+        &json!({"tool":"entry_points","repository_id":f.repo})).is_err());
+    assert!(graph_tools::call(&f.store, &f.workspace, &f.key,
+        &json!({"tool":"entry_points","repository_id":"missing-repository"})).is_err());
 }
 
 #[test]

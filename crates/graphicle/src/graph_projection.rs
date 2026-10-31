@@ -1571,6 +1571,7 @@ use graphicle_memory::graph::cross_repo_imports::{self as xrepo, ExportIndex, Pa
 
 /// `via` marker on cross-repository report items.
 pub const VIA_CROSS_REPO_IMPORT: &str = "cross_repo_import";
+pub const VIA_CROSS_REPO_HTTP: &str = "cross_repo_http";
 const MANIFEST_FILES: &[&str] = &["pyproject.toml", "setup.cfg", "package.json", "go.mod"];
 const MANIFEST_SKIP_DIRS: &[&str] = &["node_modules/", "vendor/", ".venv/", "dist/", "build/"];
 
@@ -1704,7 +1705,7 @@ struct Linkable {
 /// Version of the stored link state (`gf_cross_link_state`). Another value,
 /// as after an upgrade, rebuilds every export index and relinks every
 /// project once.
-pub const LINK_STATE_FORMAT: &str = concat!("xrepo-link-1/", env!("CARGO_PKG_VERSION"));
+pub const LINK_STATE_FORMAT: &str = concat!("xrepo-link-2-http/", env!("CARGO_PKG_VERSION"));
 
 /// The export index stored for `repository` at `episode`, if any.
 fn stored_export_index(
@@ -2045,6 +2046,13 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
             index
                 .modules
                 .retain(|_, module| !prefixes.iter().any(|prefix| below(&module.relpath, prefix)));
+            index.http_routes.retain(|route| {
+                route
+                    .node
+                    .relpath
+                    .as_deref()
+                    .is_some_and(|path| !prefixes.iter().any(|prefix| below(path, prefix)))
+            });
             repo.index = index;
         }
     }
@@ -2135,9 +2143,11 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
     // something to link: a workspace whose projects export nothing (one of
     // conversations only, for example) gains no rows.
     let keep_state = hidden == 0
-        && repos
-            .iter()
-            .any(|repo| !repo.index.packages.is_empty() || !repo.index.modules.is_empty());
+        && repos.iter().any(|repo| {
+            !repo.index.packages.is_empty()
+                || !repo.index.modules.is_empty()
+                || !repo.index.http_routes.is_empty()
+        });
     if keep_state {
         for repo in &repos {
             if let Some(built) = &repo.built {
@@ -2196,14 +2206,23 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
                 let sha = importer.heads.get(relpath)?;
                 blob(db, &importer.id, sha).ok().flatten()
             };
-            xrepo::link(
+            let mut report = xrepo::link(
                 &graph,
                 &importer.id,
                 Some(&importer.episode),
                 &importer.manifests,
                 &others,
                 &loader,
-            )
+            );
+            report
+                .edges
+                .extend(graphicle_memory::graph::cross_repo_http::link(
+                    &graph,
+                    &importer.id,
+                    Some(&importer.episode),
+                    &others,
+                ));
+            report
         };
         if hidden > 0 {
             // A restricted view cannot establish workspace-wide uniqueness of
@@ -2359,6 +2378,7 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
                 "ecosystem": p.ecosystem.as_str(), "name": p.name, "version": p.version,
             })).collect::<Vec<_>>(),
             "exported_modules": r.index.modules.len(),
+            "exported_http_routes": r.index.http_routes.len(),
         })).collect::<Vec<_>>(),
         "pairs": pairs,
         "edges": edges_total,
@@ -2526,6 +2546,7 @@ pub fn live_cross_edges(
     };
     let mut readable: HashMap<String, bool> = HashMap::new();
     let mut out = Vec::new();
+    let mut current_episodes: HashMap<String, String> = HashMap::new();
     for edge in rows(
         db,
         &format!(
@@ -2543,6 +2564,22 @@ pub fn live_cross_edges(
             }
         };
         if allowed {
+            // HTTP bindings depend on registration and middleware files as
+            // well as the endpoint itself. An unchanged handler alone cannot
+            // validate an old route. Require both complete current episodes.
+            if s(&edge, "relation") == graphicle_memory::graph::cross_repo_http::RELATION {
+                let mut fresh = true;
+                for side in ["source", "target"] {
+                    let id = s(&edge, &format!("{side}_repository_id"));
+                    if !current_episodes.contains_key(id) {
+                        current_episodes.insert(id.to_string(), current_episode(db, id)?);
+                    }
+                    fresh &= current_episodes[id] == s(&edge, &format!("{side}_episode"));
+                }
+                if !fresh {
+                    continue;
+                }
+            }
             out.push(edge);
         }
     }

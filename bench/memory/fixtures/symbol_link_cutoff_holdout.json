@@ -1,0 +1,149 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance": "New hand-authored synthetic projects held out from cutoff calibration, labelled before any score collection. Includes Python and JavaScript, code-only negatives and a paraphrased callee rationale. Not independently labelled real-session effectiveness data.",
+  "projects": [
+    {
+      "id": "pagination-holdout",
+      "split": "held_out",
+      "files": {
+        "pages.py": "def page_size(requested):\n    return min(requested, 250)\n\n\ndef page_cursor(value):\n    return str(value)\n"
+      },
+      "memories": [
+        {
+          "id": "ceiling",
+          "title": "Batch transport agreement",
+          "body": "The upstream rejects envelopes containing more than two hundred and fifty records.",
+          "symbols": [
+            {
+              "path": "pages.py",
+              "qualified_name": "page_size"
+            }
+          ]
+        },
+        {
+          "id": "cursor",
+          "title": "Continuation interoperability",
+          "body": "Older consumers interpret the continuation marker as an opaque string.",
+          "symbols": [
+            {
+              "path": "pages.py",
+              "qualified_name": "page_cursor"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "change",
+          "category": "linked_relevant",
+          "question": "Which constraint should a change to page_size preserve?",
+          "relevant_memories": [
+            "ceiling"
+          ],
+          "rationale": "The upstream envelope limit constrains the page size, whereas cursor representation does not."
+        },
+        {
+          "id": "reason",
+          "category": "linked_relevant",
+          "question": "Why does page_size stop at 250?",
+          "relevant_memories": [
+            "ceiling"
+          ],
+          "rationale": "The upstream contract explains the bound."
+        },
+        {
+          "id": "arithmetic",
+          "category": "code_only",
+          "question": "What does page_size(600) return?",
+          "relevant_memories": [],
+          "rationale": "Current source supplies the numeric answer without historical notes."
+        },
+        {
+          "id": "prose",
+          "category": "lexical_relevant",
+          "question": "What upstream contract governs the number of records in a batch?",
+          "relevant_memories": [
+            "ceiling"
+          ],
+          "rationale": "Only the envelope capacity contract answers the question."
+        }
+      ]
+    },
+    {
+      "id": "webhooks-holdout",
+      "split": "held_out",
+      "files": {
+        "delivery.js": "export function retryPause(attempt) {\n  return Math.min(2 ** attempt, 45);\n}\n\nexport function sendEvent(attempt) {\n  return retryPause(attempt);\n}\n\nexport function eventKey(value) {\n  return String(value);\n}\n"
+      },
+      "memories": [
+        {
+          "id": "lifetime",
+          "title": "Delivery expiration",
+          "body": "The receiver retires an unacknowledged delivery after three quarters of a minute. Longer waits lose the pending notification.",
+          "symbols": [
+            {
+              "path": "delivery.js",
+              "qualified_name": "retryPause"
+            }
+          ]
+        },
+        {
+          "id": "schema",
+          "title": "Envelope compatibility",
+          "body": "Downstream decoders require the original field sequence in serialized messages.",
+          "symbols": [
+            {
+              "path": "delivery.js",
+              "qualified_name": "sendEvent"
+            }
+          ]
+        },
+        {
+          "id": "tracing",
+          "title": "Diagnostic sampling",
+          "body": "Emit tracing events for one percent of invocations.",
+          "symbols": [
+            {
+              "path": "delivery.js",
+              "qualified_name": "eventKey"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "timing",
+          "category": "callee_rationale",
+          "question": "Which constraints govern sendEvent retry timing?",
+          "relevant_memories": [
+            "lifetime"
+          ],
+          "rationale": "The decision attached to the callee bounds the waiting interval; serialization and tracing do not."
+        },
+        {
+          "id": "ceiling",
+          "category": "callee_rationale",
+          "question": "Why does sendEvent stop increasing the pause after forty-five seconds?",
+          "relevant_memories": [
+            "lifetime"
+          ],
+          "rationale": "The receiver lifetime explains the cap despite using different wording."
+        },
+        {
+          "id": "arithmetic",
+          "category": "code_only",
+          "question": "What value does retryPause(2) return?",
+          "relevant_memories": [],
+          "rationale": "The result is directly calculable from source."
+        },
+        {
+          "id": "string",
+          "category": "code_only",
+          "question": "What does eventKey(7) return?",
+          "relevant_memories": [],
+          "rationale": "String conversion needs no historical tracing or transport decisions."
+        }
+      ]
+    }
+  ]
+}

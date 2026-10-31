@@ -267,11 +267,13 @@ Function history,
 patches, churn and ownership can remain available, all explicitly partial.
 This is bounded analysis, not a fallback to blame-only collection.
 
-Review packing first reserves unannotated current-head declarations and the
-normal diff/hunk allowance. Optional business metadata then competes for at most
-one quarter of the packet budget, bounded by the capacity left after that
-reservation. Nonempty analyzed history takes priority over metadata-only
-annotations, with changed current-head entries first within each group. Metadata
+Review packing first reserves unannotated current-head declarations and required
+call contracts, plus room for an affordable complete diff hunk. Optional business metadata for that required code then competes
+for at most one quarter of the packet budget; remaining capacity funds hunks
+and other context. Nonempty analyzed history takes priority over metadata-only
+annotations, with changed current-head entries first within each group. Among
+blocks at the same priority, smaller complete blocks come first. Their event records,
+source bindings, sample limitations and continuity omissions remain intact. Metadata
 that cannot fit is omitted without dropping its code entry. The
 `business_context.packing` counters report the allowance and omitted annotations.
 `used_tokens` measures annotation capacity allocated to selected entries;
@@ -279,7 +281,7 @@ that cannot fit is omitted without dropping its code entry. The
 first use of optional capacity before execution-flow enrichment. Flow citations
 are not charged as required code: a complete path and its cited reason upgrades
 must fit together. Unused flow/hunk reservations can fund a second pass over
-selected entries without history, within the same quarter-budget cap.
+selected entries without history, including optional code, within the same quarter-budget cap.
 `refill_tokens` reports that second pass. No history bundle is truncated to fit.
 Full and delta packets use the same deterministic selection; dropping or changing
 an annotation changes its entry revision. A history-enabled packet with no actual
@@ -291,3 +293,10 @@ array/envelope overhead. Re-review requests check the aggregate budget before
 transport. Preserve these omission records in the reviewer prompt and resupply
 current pinned history on a later push. Changed omission metadata changes entry
 revisions and deltas, even when the source excerpt itself is unchanged.
+
+History metadata is collected in bounded Git batches for the retained blame
+ranges (up to 32 files × 128 ranges), rather than failing at 128 distinct commits
+across the request. Each record, subprocess response, deadline, combined
+base/head byte budget and credential check remains enforced. Attribution and
+history omissions remain explicit; complete recent membership still gates use
+of older evidence.

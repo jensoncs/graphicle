@@ -154,12 +154,15 @@ struct File<'a> {
 /// The links step of a query (see the module documentation). `rows` are the
 /// query's candidate rows (its memory rows are the memories it may serve),
 /// `sources` and `selected_memories` what the fusion selected, in rank
-/// order, and `candidates` the windows already taken.
+/// order, and `candidates` the windows already taken. `memory_candidates` is
+/// the caller's bounded reranking prefix (normally [`MEMORY_LIMIT`]); the query
+/// applies the final [`MEMORY_LIMIT`] after any configured local reranking.
 #[allow(clippy::too_many_arguments)]
 pub fn lift(
     db: &Connection,
     repository: &str,
     mode: Mode,
+    memory_candidates: usize,
     snapshot: &Snapshot,
     rows: &[Value],
     sources: &[Value],
@@ -257,7 +260,7 @@ pub fn lift(
                     continue;
                 }
                 taken.insert(s(row, "identity").to_string());
-                if memories.len() >= MEMORY_LIMIT {
+                if memories.len() >= memory_candidates {
                     counts.over_limit += 1;
                     continue;
                 }

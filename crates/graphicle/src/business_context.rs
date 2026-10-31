@@ -405,6 +405,15 @@ pub(crate) fn annotate(
             annotated += 1;
         }
         omitted += omitted_assertions;
+        // Absence of historical/domain evidence is already described by the
+        // report's limitations. Do not attach and hash an empty annotation on
+        // every conservative dependency candidate.
+        if candidates.is_empty() && assertions.is_empty() && evolution_evidence.is_none()
+            && entry["reasons"].as_array().is_some_and(|reasons| !reasons.is_empty()
+                && reasons.iter().all(|reason| reason["uncertain_scope"] == true))
+        {
+            continue;
+        }
         entry["business_context"] = json!({"candidates":candidates,"historical_assertions":assertions,"history":history_status,"omitted_assertions":omitted_assertions,"criticality":"unknown","runtime_hotness":"unknown","owner_confirmed":false,"dependency_paths":"reasons"});
         if let Some(mut evidence) = evolution_evidence {
             for field in ["similar_changes", "function_history", "cochange"] {
@@ -600,6 +609,71 @@ fn git(root: &Path, args: &[&str], deadline: Instant, limit: usize) -> Result<Ve
     }
 }
 
+/// Metadata demand is bounded by the retained ranges, not an unrelated global
+/// commit sample. Each Git response and individual record keep their old bounds.
+fn commit_subjects(
+    root: &Path,
+    commits: &BTreeSet<String>,
+    repository: &str,
+    deadline: Instant,
+) -> Result<BTreeMap<String, (String, String, i64)>> {
+    if commits.len() > MAX_FILES * MAX_RANGES || commits.iter().any(|id| !commit_id(id)) {
+        return Err(Error::bad("Invalid bounded history commit set"));
+    }
+    let ids: Vec<_> = commits.iter().cloned().collect();
+    let mut records = BTreeMap::new();
+    for chunk in ids.chunks(MAX_RANGES) {
+        records.extend(commit_subject_batch(root, &chunk.iter().cloned().collect(), repository, deadline)?);
+    }
+    Ok(records)
+}
+
+/// One bounded Git invocation for immutable commit metadata. Per-range `show`
+/// calls spent the shared collection deadline on process startup in large files.
+fn commit_subject_batch(
+    root: &Path,
+    commits: &BTreeSet<String>,
+    repository: &str,
+    deadline: Instant,
+) -> Result<BTreeMap<String, (String, String, i64)>> {
+    if commits.len() > 128 || commits.iter().any(|id| !commit_id(id)) {
+        return Err(Error::bad("Invalid bounded history commit set"));
+    }
+    if commits.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let mut args = vec!["show", "-s", "--no-walk=unsorted", "--no-show-signature", "--format=%H%x00%ct%x00%ae%x00%s%x00"];
+    args.extend(commits.iter().map(String::as_str));
+    args.push("--");
+    let bytes = git(root, &args, deadline, commits.len() * (64 * 1024 + 66))?;
+    let raw = std::str::from_utf8(&bytes).map_err(|_| Error::bad("Invalid commit metadata"))?;
+    ensure_safe(raw)?;
+    let fields: Vec<_> = raw.trim_end_matches('\n').split_terminator('\0').collect();
+    if fields.len() != commits.len() * 4 {
+        return Err(Error::bad("Incomplete batched commit metadata"));
+    }
+    let mut subjects = BTreeMap::new();
+    for record in fields.chunks_exact(4) {
+        let id = record[0].strip_prefix('\n').unwrap_or(record[0]);
+        if !commits.contains(id) || subjects.contains_key(id) {
+            return Err(Error::bad("Unexpected batched commit identity"));
+        }
+        if record[1..].iter().map(|field| field.len()).sum::<usize>() + 3 > 64 * 1024 {
+            return Err(Error::bad("Commit metadata exceeds its byte bound"));
+        }
+        let timestamp = record[1].parse().map_err(|_| Error::bad("Invalid commit time"))?;
+        let author = crate::digest(&json!([repository, record[2].to_lowercase()]));
+        let mut cleaned = String::new();
+        for ch in record[3].trim().chars().filter(|c| !c.is_control()) {
+            if cleaned.len() + ch.len_utf8() > 512 { break; }
+            cleaned.push(ch);
+        }
+        ensure_safe(&cleaned)?;
+        subjects.insert(id.to_owned(), (cleaned, author, timestamp));
+    }
+    Ok(subjects)
+}
+
 /// Explicit local collection; the API never accepts checkout paths.
 pub fn collect(root: &Path, pin: Pin, paths: &[String]) -> Result<History> {
     collect_with_budget(root, pin, paths, DEFAULT_HISTORY_BYTES)
@@ -651,7 +725,7 @@ pub fn collect_with_budget(
         deadline,
         16,
     )? == b"true\n";
-    let mut subjects = BTreeMap::new();
+    let mut commits = BTreeSet::new();
     let mut files = vec![];
     for path in unique {
         let bytes = git(
@@ -712,49 +786,11 @@ pub fn collect_with_budget(
         }
         let omitted_ranges = ranges.len().saturating_sub(MAX_RANGES);
         ranges.truncate(MAX_RANGES);
-        for range in &mut ranges {
-            if !subjects.contains_key(&range.commit) {
-                if subjects.len() >= 128 {
-                    return Err(Error::bad("History exceeds 128 distinct commits"));
-                }
-                let subject = git(
-                    root,
-                    &[
-                        "show",
-                        "-s",
-                        "--format=%ct%x00%ae%x00%s",
-                        "--no-show-signature",
-                        &range.commit,
-                        "--",
-                    ],
-                    deadline,
-                    64 * 1024,
-                )?;
-                let metadata = String::from_utf8_lossy(&subject);
-                ensure_safe(&metadata)?;
-                let fields: Vec<_> = metadata.trim_end().splitn(3, '\0').collect();
-                if fields.len() != 3 {
-                    return Err(Error::bad("Invalid commit metadata"));
-                }
-                let timestamp: i64 = fields[0]
-                    .parse()
-                    .map_err(|_| Error::bad("Invalid commit time"))?;
-                let author = crate::digest(&json!([pin.repository_id, fields[1].to_lowercase()]));
-                let subject = fields[2];
-                let mut cleaned = String::new();
-                for ch in subject.trim().chars().filter(|c| !c.is_control()) {
-                    if cleaned.len() + ch.len_utf8() > 512 {
-                        break;
-                    }
-                    cleaned.push(ch);
-                }
-                ensure_safe(&cleaned)?;
-                subjects.insert(range.commit.clone(), (cleaned, author, timestamp));
+        for range in &ranges {
+            commits.insert(range.commit.clone());
+            if commits.len() > MAX_FILES * MAX_RANGES {
+                return Err(Error::bad("History exceeds the retained range bound"));
             }
-            let (subject, author, timestamp) = &subjects[&range.commit];
-            range.subject = subject.clone();
-            range.author_id = Some(author.clone());
-            range.timestamp = Some(*timestamp);
         }
         files.push(FileHistory {
             path: path.clone(),
@@ -763,6 +799,15 @@ pub fn collect_with_budget(
             omitted_ranges,
             attributions: ranges,
         });
+    }
+    let subjects = commit_subjects(root, &commits, &pin.repository_id, deadline)?;
+    for file in &mut files {
+        for range in &mut file.attributions {
+            let (subject, author, timestamp) = &subjects[&range.commit];
+            range.subject = subject.clone();
+            range.author_id = Some(author.clone());
+            range.timestamp = Some(*timestamp);
+        }
     }
     let mut history = History {
         format: FORMAT.into(),
@@ -970,6 +1015,48 @@ mod tests {
             assertion_kind("Revert \"Fix payment retries\""),
             "revert_candidate"
         );
+    }
+
+    #[test]
+    fn batched_metadata_keeps_commit_identity_and_deadline() {
+        let dir = tempfile::tempdir().unwrap();
+        fixture_git(dir.path(), &["init", "-q"]);
+        std::fs::write(dir.path().join("a.go"), "package a\n").unwrap();
+        fixture_git(dir.path(), &["add", "a.go"]);
+        fixture_git(dir.path(), &["commit", "-qm", "First subject"]);
+        let first = fixture_git(dir.path(), &["rev-parse", "HEAD"]);
+        std::fs::write(dir.path().join("a.go"), "package a\nfunc F() {}\n").unwrap();
+        fixture_git(dir.path(), &["commit", "-qam", "Second subject"]);
+        let second = fixture_git(dir.path(), &["rev-parse", "HEAD"]);
+        let commits = BTreeSet::from([first.clone(), second.clone()]);
+        let records = commit_subjects(dir.path(), &commits, "repo", Instant::now() + Duration::from_secs(5)).unwrap();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[&first].0, "First subject");
+        assert_eq!(records[&second].0, "Second subject");
+        assert_eq!(records[&first].1, records[&second].1);
+        assert!(records[&first].2 > 0);
+        assert!(commit_subjects(dir.path(), &commits, "repo", Instant::now()).is_err());
+        assert!(commit_subjects(dir.path(), &BTreeSet::from(["-bad".into()]), "repo", Instant::now() + Duration::from_secs(5)).is_err());
+        assert!(commit_subjects(dir.path(), &BTreeSet::from(["0".repeat(40)]), "repo", Instant::now() + Duration::from_secs(5)).is_err());
+        let large_subject = "x".repeat(70_000);
+        fixture_git(dir.path(), &["commit", "--allow-empty", "-qm", &large_subject]);
+        let oversized = fixture_git(dir.path(), &["rev-parse", "HEAD"]);
+        assert!(commit_subjects(dir.path(), &BTreeSet::from([first, oversized]), "repo", Instant::now() + Duration::from_secs(5)).is_err());
+    }
+
+    #[test]
+    fn metadata_batches_keep_more_than_128_retained_commits() {
+        let dir = tempfile::tempdir().unwrap();
+        fixture_git(dir.path(), &["init", "-q"]);
+        for i in 0..130 {
+            fixture_git(dir.path(), &["commit", "--allow-empty", "-qm", &format!("Retained record {i}")]);
+        }
+        let ids = fixture_git(dir.path(), &["log", "--format=%H"]);
+        let commits = ids.lines().map(str::to_owned).collect();
+        let records = commit_subjects(dir.path(), &commits, "repo", Instant::now() + Duration::from_secs(5)).unwrap();
+        assert_eq!(records.len(), 130);
+        assert!(records.values().any(|v| v.0 == "Retained record 0"));
+        assert!(records.values().any(|v| v.0 == "Retained record 129"));
     }
 
     #[test]

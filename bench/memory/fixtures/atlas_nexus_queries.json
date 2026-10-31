@@ -1,0 +1,452 @@
+{
+  "format": "graphicle.multi-repo-eval.v1",
+  "provenance": "14 authored questions over pinned Atlas and Nexus code: 10 single-project and 4 cross-project HTTP flows. Validation cases frozen before candidate implementation, but authored by the same agent; not an independent production holdout. No reviewed-memory or generated-answer labels.",
+  "projects": [
+    {
+      "id": "atlas",
+      "repo": "atlas-backstage",
+      "commit": "aa5c6103d2b04db966ffab779a404f2c549fbad7",
+      "files": {
+        "plugins/nexus-frontend/src/services/nexusctl.ts": "d417cb1c430847f648a999fb71c9fd1c2caf54b76f92b6052dd48cfafdc0e283",
+        "packages/backend/src/plugins/load-balancers/graviton.ts": "70479c35d5ff9a849a42171e9ad5003f6d2bad6622e3eb1b817e5c055dda848b"
+      },
+      "source_root": "/private/tmp/graphicle-atlas-nexus-20261030/atlas/checkout"
+    },
+    {
+      "id": "nexus",
+      "repo": "nexus",
+      "commit": "0225ca2f30694b7ea1a6d6f063e602f24a0fd05a",
+      "files": {
+        "graviton/pkg/application/httpserver/routes_handler.go": "d83af7df12d9dfcaea2a8625895a9abac66be0f0fe37bc70ae7f357f5b4b6d8f",
+        "graviton/pkg/application/httpserver/env_forwarding.go": "1d5b93a80f62cb663985376eb64a9bce9f7e8a0a8921931990a8cb4ff0d1bc56",
+        "graviton/pkg/application/httpserver/router.go": "f7954648f6091f63b26f6361ceae902179880f538ea31c7811989e8c537f5d1b"
+      },
+      "source_root": "/private/tmp/graphicle-atlas-nexus-20261030/nexus/checkout"
+    }
+  ],
+  "queries": [
+    {
+      "id": "atlas-empty-list",
+      "projects": [
+        "atlas"
+      ],
+      "question": "How does NexusctlApi.listConfigs handle a 404 versus other errors?",
+      "intent": "behavior",
+      "split": "development",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "atlas",
+          "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+          "byte_start": 11067,
+          "byte_end": 11176,
+          "line": 318,
+          "quote": "if (err?.response?.status === 404) {\n        return { configs: [], partial: false };\n      }\n      throw err;",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "atlas-partial-list",
+      "projects": [
+        "atlas"
+      ],
+      "question": "How does NexusctlApi.listConfigs detect partial results from Graviton?",
+      "intent": "behavior",
+      "split": "development",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "atlas",
+          "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+          "byte_start": 10689,
+          "byte_end": 10750,
+          "line": 309,
+          "quote": "const partial = res.headers?.['x-partial-result'] === 'true';",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "atlas-update-identity",
+      "projects": [
+        "atlas"
+      ],
+      "question": "How does NexusctlApi.updateConfig identify the service configuration in its PUT request?",
+      "intent": "behavior",
+      "split": "development",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "atlas",
+          "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+          "byte_start": 12176,
+          "byte_end": 12321,
+          "line": 357,
+          "quote": "const res = await this.axios.put('/nexus/v1/serviceconfig', payload, {\n      params: { configId },\n    });\n    return res.data?.data ?? res.data;",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "atlas-mapping-error",
+      "projects": [
+        "atlas"
+      ],
+      "question": "How does extractGravitonError explain a service config mapping write failed error?",
+      "intent": "behavior",
+      "split": "validation",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "atlas",
+          "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+          "byte_start": 2049,
+          "byte_end": 2183,
+          "line": 49,
+          "quote": "if (serverMessage.includes('service config mapping write failed')) {\n        return 'Save partially applied — verifying...';\n      }",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "atlas-apply-proof",
+      "projects": [
+        "atlas"
+      ],
+      "question": "Why can GravitonClient.apply reject a successful HTTP response, and what must the response contain?",
+      "intent": "behavior",
+      "split": "validation",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "atlas",
+          "file": "packages/backend/src/plugins/load-balancers/graviton.ts",
+          "byte_start": 3801,
+          "byte_end": 4224,
+          "line": 132,
+          "quote": "const { generation, resourceVersion } = res;\n    if (\n      typeof generation !== 'number' ||\n      typeof resourceVersion !== 'string' ||\n      !resourceVersion\n    ) {\n      throw new GravitonError(\n        502,\n        'graviton answered the apply without a generation and resourceVersion; the change may still have been applied, check History before retrying',\n      );\n    }\n    return { generation, resourceVersion };",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "nexus-update-identity",
+      "projects": [
+        "nexus"
+      ],
+      "question": "How does UpdateServiceConfig reject missing configId or a name in the PUT body before calling service logic?",
+      "intent": "behavior",
+      "split": "development",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/routes_handler.go",
+          "byte_start": 6678,
+          "byte_end": 7421,
+          "line": 188,
+          "quote": "func (h *Handlers) UpdateServiceConfig(ctx *gin.Context) {\n\tconfigID := ctx.Query(\"configId\")\n\tif configID == \"\" {\n\t\tctx.JSON(http.StatusBadRequest, gin.H{\"error\": \"configId query param is required\"})\n\t\treturn\n\t}\n\n\t// D-04: raw-JSON `name`-key check BEFORE ShouldBindJSON.\n\tif rawBody, ok := ctx.Get(\"cachedRequestBody\"); ok {\n\t\tif bodyBytes, ok2 := rawBody.([]byte); ok2 && len(bodyBytes) > 0 {\n\t\t\traw := map[string]json.RawMessage{}\n\t\t\tif err := json.Unmarshal(bodyBytes, &raw); err == nil {\n\t\t\t\tif _, nameFound := raw[\"name\"]; nameFound {\n\t\t\t\t\tctx.JSON(http.StatusBadRequest, gin.H{\"error\": \"name is not permitted in PUT body; configId identifies the resource\"})\n\t\t\t\t\treturn\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n\n\tvar payload entity.UpdateServiceConfigPayload",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "nexus-delete-local",
+      "projects": [
+        "nexus"
+      ],
+      "question": "Why does EnvForwardingMiddleware keep DELETE serviceconfig requests local?",
+      "intent": "behavior",
+      "split": "development",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+          "byte_start": 2623,
+          "byte_end": 2691,
+          "line": 69,
+          "quote": "if c.Request.Method == http.MethodDelete {\n\t\t\tc.Next()\n\t\t\treturn\n\t\t}",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "nexus-forward-missing",
+      "projects": [
+        "nexus"
+      ],
+      "question": "What does EnvForwardingMiddleware return when the target environment has no configured Graviton URL?",
+      "intent": "behavior",
+      "split": "development",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+          "byte_start": 3049,
+          "byte_end": 3331,
+          "line": 84,
+          "quote": "envVar := \"GRAVITON_URL_\" + strings.ToUpper(targetEnv)\n\t\turlEnv := os.Getenv(envVar)\n\t\tif urlEnv == \"\" {\n\t\t\tc.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{\n\t\t\t\t\"error\": fmt.Sprintf(\"target environment '%s' has no configured graviton URL\", targetEnv),\n\t\t\t})\n\t\t\treturn\n\t\t}",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "nexus-forward-loop",
+      "projects": [
+        "nexus"
+      ],
+      "question": "How does EnvForwardingMiddleware prevent forwarding loops?",
+      "intent": "behavior",
+      "split": "validation",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+          "byte_start": 2392,
+          "byte_end": 2460,
+          "line": 61,
+          "quote": "if c.GetHeader(\"X-Forwarded-From\") != \"\" {\n\t\t\tc.Next()\n\t\t\treturn\n\t\t}",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "nexus-list-results",
+      "projects": [
+        "nexus"
+      ],
+      "question": "How does ListServiceConfigsByAppID report an empty merged result versus partial cross-environment results?",
+      "intent": "behavior",
+      "split": "validation",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/routes_handler.go",
+          "byte_start": 12051,
+          "byte_end": 12373,
+          "line": 316,
+          "quote": "if len(merged) == 0 {\n\t\tctx.JSON(http.StatusNotFound, gin.H{\"error\": services.ErrServiceConfigNotFound.Error()})\n\t\treturn\n\t}\n\tif partial {\n\t\tctx.Writer.Header().Set(\"X-Partial-Result\", \"true\")\n\t}\n\tctx.JSON(http.StatusOK, entity.NewGenericResponse(constants.MsgListServiceConfigsByAppIDSuccess, http.StatusOK, nil, merged))",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "cross-update-identity",
+      "projects": [
+        "atlas",
+        "nexus"
+      ],
+      "question": "Trace service configuration updates from Atlas NexusctlApi.updateConfig to Nexus UpdateServiceConfig: how is configId sent and which identity inputs does the server reject?",
+      "intent": "behavior",
+      "split": "development",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "atlas",
+          "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+          "byte_start": 12176,
+          "byte_end": 12321,
+          "line": 357,
+          "quote": "const res = await this.axios.put('/nexus/v1/serviceconfig', payload, {\n      params: { configId },\n    });\n    return res.data?.data ?? res.data;",
+          "after": null
+        },
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/routes_handler.go",
+          "byte_start": 6678,
+          "byte_end": 7421,
+          "line": 188,
+          "quote": "func (h *Handlers) UpdateServiceConfig(ctx *gin.Context) {\n\tconfigID := ctx.Query(\"configId\")\n\tif configID == \"\" {\n\t\tctx.JSON(http.StatusBadRequest, gin.H{\"error\": \"configId query param is required\"})\n\t\treturn\n\t}\n\n\t// D-04: raw-JSON `name`-key check BEFORE ShouldBindJSON.\n\tif rawBody, ok := ctx.Get(\"cachedRequestBody\"); ok {\n\t\tif bodyBytes, ok2 := rawBody.([]byte); ok2 && len(bodyBytes) > 0 {\n\t\t\traw := map[string]json.RawMessage{}\n\t\t\tif err := json.Unmarshal(bodyBytes, &raw); err == nil {\n\t\t\t\tif _, nameFound := raw[\"name\"]; nameFound {\n\t\t\t\t\tctx.JSON(http.StatusBadRequest, gin.H{\"error\": \"name is not permitted in PUT body; configId identifies the resource\"})\n\t\t\t\t\treturn\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n\n\tvar payload entity.UpdateServiceConfigPayload",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "cross-delete-local",
+      "projects": [
+        "atlas",
+        "nexus"
+      ],
+      "question": "Trace Atlas NexusctlApi.deleteConfig through the Nexus DELETE /nexus/v1/serviceconfig route: how is identity passed and why is this operation never forwarded to another environment?",
+      "intent": "behavior",
+      "split": "development",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "atlas",
+          "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+          "byte_start": 12847,
+          "byte_end": 12997,
+          "line": 385,
+          "quote": "async deleteConfig(configId: string): Promise<void> {\n    await this.axios.delete('/nexus/v1/serviceconfig', {\n      params: { configId },\n    });\n  }",
+          "after": null
+        },
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/router.go",
+          "byte_start": 5372,
+          "byte_end": 5431,
+          "line": 140,
+          "quote": "auth.DELETE(\"/serviceconfig\", handlers.DeleteServiceConfig)",
+          "after": null
+        },
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/routes_handler.go",
+          "byte_start": 9326,
+          "byte_end": 9605,
+          "line": 256,
+          "quote": "func (h *Handlers) DeleteServiceConfig(ctx *gin.Context) {\n\tconfigID := ctx.Query(\"configId\")\n\tif configID == \"\" {\n\t\tctx.JSON(http.StatusBadRequest, gin.H{\"error\": \"configId query param is required\"})\n\t\treturn\n\t}\n\tpayload := &entity.DeleteServiceConfigPayload{ConfigID: configID}",
+          "after": null
+        },
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+          "byte_start": 2623,
+          "byte_end": 2691,
+          "line": 69,
+          "quote": "if c.Request.Method == http.MethodDelete {\n\t\t\tc.Next()\n\t\t\treturn\n\t\t}",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "cross-partial-list",
+      "projects": [
+        "atlas",
+        "nexus"
+      ],
+      "question": "How do Nexus ListServiceConfigsByAppID and Atlas NexusctlApi.listConfigs communicate empty results and partial cross-environment results?",
+      "intent": "behavior",
+      "split": "validation",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/routes_handler.go",
+          "byte_start": 12051,
+          "byte_end": 12373,
+          "line": 316,
+          "quote": "if len(merged) == 0 {\n\t\tctx.JSON(http.StatusNotFound, gin.H{\"error\": services.ErrServiceConfigNotFound.Error()})\n\t\treturn\n\t}\n\tif partial {\n\t\tctx.Writer.Header().Set(\"X-Partial-Result\", \"true\")\n\t}\n\tctx.JSON(http.StatusOK, entity.NewGenericResponse(constants.MsgListServiceConfigsByAppIDSuccess, http.StatusOK, nil, merged))",
+          "after": null
+        },
+        {
+          "project": "atlas",
+          "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+          "byte_start": 11067,
+          "byte_end": 11176,
+          "line": 318,
+          "quote": "if (err?.response?.status === 404) {\n        return { configs: [], partial: false };\n      }\n      throw err;",
+          "after": null
+        },
+        {
+          "project": "atlas",
+          "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+          "byte_start": 10689,
+          "byte_end": 10750,
+          "line": 309,
+          "quote": "const partial = res.headers?.['x-partial-result'] === 'true';",
+          "after": null
+        }
+      ]
+    },
+    {
+      "id": "cross-forward-error",
+      "projects": [
+        "atlas",
+        "nexus"
+      ],
+      "question": "When Nexus EnvForwardingMiddleware has no configured Graviton URL for the target environment, what HTTP error is emitted and how does Atlas extractGravitonError explain it?",
+      "intent": "behavior",
+      "split": "validation",
+      "origin": {
+        "kind": "authored_real_case",
+        "description": "Authored from pinned real source before candidate changes; not captured human traffic or independently judged answer quality."
+      },
+      "required": [
+        {
+          "project": "nexus",
+          "file": "graviton/pkg/application/httpserver/env_forwarding.go",
+          "byte_start": 3049,
+          "byte_end": 3331,
+          "line": 84,
+          "quote": "envVar := \"GRAVITON_URL_\" + strings.ToUpper(targetEnv)\n\t\turlEnv := os.Getenv(envVar)\n\t\tif urlEnv == \"\" {\n\t\t\tc.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{\n\t\t\t\t\"error\": fmt.Sprintf(\"target environment '%s' has no configured graviton URL\", targetEnv),\n\t\t\t})\n\t\t\treturn\n\t\t}",
+          "after": null
+        },
+        {
+          "project": "atlas",
+          "file": "plugins/nexus-frontend/src/services/nexusctl.ts",
+          "byte_start": 1827,
+          "byte_end": 2042,
+          "line": 43,
+          "quote": "if (\n        serverMessage.includes('target environment') &&\n        serverMessage.includes('has no configured graviton URL')\n      ) {\n        return 'Target environment is not reachable from this cluster';\n      }",
+          "after": null
+        }
+      ]
+    }
+  ],
+  "acceptance": {
+    "budgets": {
+      "max_tokens": 3000,
+      "max_chars": 12000,
+      "limit": 8
+    },
+    "primary": "All required source spans delivered with exact project, hash and byte provenance. Metadata alone never satisfies a behavior question.",
+    "gates": [
+      "Compare unchanged questions and budget on same full indexes.",
+      "Report all errors and regressions, including validation cases.",
+      "Preserve prior 48 memory cases, callee rationale and four formatting notes.",
+      "No unauthorized or stale source, no remote model calls.",
+      "Cross-repository improvement requires both projects, not one successful side."
+    ],
+    "secondary": [
+      "Supporting-excerpt precision is only a coarse overlap measure, not answer correctness.",
+      "Record graph-edge use separately from workspace search.",
+      "Do not compare latency while local indexing/builds overlap."
+    ]
+  }
+}

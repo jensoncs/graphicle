@@ -1,0 +1,237 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance": "Fresh hand-authored synthetic challenge cases, labelled before either baseline or exact-symbol trial runs. Covers qualified names, duplicate names and paths, multiple names, unresolved names, prose and a relevant callee memory. Not independently labelled real-session holdout data.",
+  "projects": [
+    {
+      "id": "qualified",
+      "split": "regression",
+      "files": {
+        "writers.py": "class JsonWriter:\n    def encode_payload(self, value):\n        return str(value)\n\n    def health_check(self):\n        return True\n\n\nclass CsvWriter:\n    def encode_payload(self, value):\n        return str(value)\n"
+      },
+      "memories": [
+        {
+          "id": "json",
+          "title": "Interchange commitment",
+          "body": "External consumers require a trailing newline after each serialized record.",
+          "symbols": [
+            {
+              "path": "writers.py",
+              "qualified_name": "JsonWriter.encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "csv",
+          "title": "Spreadsheet interoperability",
+          "body": "Escape embedded delimiters using doubled quotation marks.",
+          "symbols": [
+            {
+              "path": "writers.py",
+              "qualified_name": "CsvWriter.encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "monitor",
+          "title": "Availability sampling",
+          "body": "The monitoring probe must remain allocation free.",
+          "symbols": [
+            {
+              "path": "writers.py",
+              "qualified_name": "JsonWriter.health_check"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "qualified-name",
+          "category": "qualified_symbol",
+          "question": "Which constraint applies to JsonWriter.encode_payload?",
+          "relevant_memories": [
+            "json"
+          ],
+          "rationale": "Only the explicitly qualified writer's serialization contract applies."
+        },
+        {
+          "id": "ambiguous-name",
+          "category": "ambiguous_symbol",
+          "question": "Which constraints apply to the encode_payload implementations?",
+          "relevant_memories": [
+            "json",
+            "csv"
+          ],
+          "rationale": "The unqualified method has two implementations; both serialization contracts are relevant."
+        }
+      ]
+    },
+    {
+      "id": "paths",
+      "split": "regression",
+      "files": {
+        "api/codec.py": "def encode_payload(value):\n    return str(value)\n\n\ndef check_ready():\n    return True\n",
+        "worker/codec.py": "def encode_payload(value):\n    return str(value)\n"
+      },
+      "memories": [
+        {
+          "id": "api",
+          "title": "Wire compatibility",
+          "body": "The public protocol requires the original field ordering for older clients.",
+          "symbols": [
+            {
+              "path": "api/codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "worker",
+          "title": "Batch transfer policy",
+          "body": "Internal jobs use compressed blocks at rest.",
+          "symbols": [
+            {
+              "path": "worker/codec.py",
+              "qualified_name": "encode_payload"
+            }
+          ]
+        },
+        {
+          "id": "ready",
+          "title": "Probe latency budget",
+          "body": "Availability checks must finish without contacting external dependencies.",
+          "symbols": [
+            {
+              "path": "api/codec.py",
+              "qualified_name": "check_ready"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "path-qualified",
+          "category": "path_qualified",
+          "question": "Which constraint applies to encode_payload in api/codec.py?",
+          "relevant_memories": [
+            "api"
+          ],
+          "rationale": "The explicit file path selects the public codec rather than the worker codec."
+        },
+        {
+          "id": "duplicate-path",
+          "category": "ambiguous_symbol",
+          "question": "Which constraints apply to encode_payload in codec.py?",
+          "relevant_memories": [
+            "api",
+            "worker"
+          ],
+          "rationale": "The basename matches two files; both contracts remain possible."
+        }
+      ]
+    },
+    {
+      "id": "headers",
+      "split": "regression",
+      "files": {
+        "headers.py": "def read_header(data):\n    return data[:8]\n\n\ndef write_header(data):\n    return data[:8]\n\n\ndef format_hint():\n    return \"binary\"\n"
+      },
+      "memories": [
+        {
+          "id": "read",
+          "title": "Ingress compatibility",
+          "body": "Legacy senders include the eight byte prefix in every frame.",
+          "symbols": [
+            {
+              "path": "headers.py",
+              "qualified_name": "read_header"
+            }
+          ]
+        },
+        {
+          "id": "write",
+          "title": "Egress compatibility",
+          "body": "Downstream consumers require the fixed width prefix.",
+          "symbols": [
+            {
+              "path": "headers.py",
+              "qualified_name": "write_header"
+            }
+          ]
+        },
+        {
+          "id": "hint",
+          "title": "Diagnostic display",
+          "body": "Support tooling expects the binary label verbatim.",
+          "symbols": [
+            {
+              "path": "headers.py",
+              "qualified_name": "format_hint"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "multiple-names",
+          "category": "multiple_symbols",
+          "question": "Which constraints apply to read_header and write_header?",
+          "relevant_memories": [
+            "read",
+            "write"
+          ],
+          "rationale": "Both explicitly named framing functions have independent compatibility requirements."
+        },
+        {
+          "id": "partly-unresolved",
+          "category": "unresolved_symbol",
+          "question": "Which constraints apply to read_header and missing_header?",
+          "relevant_memories": [
+            "read"
+          ],
+          "rationale": "The known function's decision remains relevant; the unknown name must not be treated as a resolved declaration."
+        },
+        {
+          "id": "prose-only",
+          "category": "prose",
+          "question": "What compatibility requirements govern incoming and outgoing frames?",
+          "relevant_memories": [
+            "read",
+            "write"
+          ],
+          "rationale": "The question refers to framing behavior without naming declarations; both compatibility decisions are relevant."
+        }
+      ]
+    },
+    {
+      "id": "callee",
+      "split": "regression",
+      "files": {
+        "sender.py": "def backoff_delay(attempt):\n    return min(2 ** attempt, 60)\n\n\ndef send_packet(attempt):\n    return backoff_delay(attempt)\n"
+      },
+      "memories": [
+        {
+          "id": "lease",
+          "title": "Peer session lifetime",
+          "body": "The peer's connection lease expires after one minute. Longer pauses abandon the session.",
+          "symbols": [
+            {
+              "path": "sender.py",
+              "qualified_name": "backoff_delay"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "callee-rationale",
+          "category": "callee_memory",
+          "question": "Why does send_packet cap the backoff at sixty seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The named caller delegates its timing to backoff_delay; the callee's lease constraint explains the caller's behavior."
+        }
+      ]
+    }
+  ]
+}

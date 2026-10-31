@@ -1,0 +1,330 @@
+{
+  "format": "graphicle.real-query-seed.v1",
+  "provenance": "Two captured diagnostic queries and nine authored questions over real historical source slices. No human-query log; no reviewer-memory labels. Known Nexus #963 is development, Nexus #944 is a separate PR holdout for these routing/context experiments, previously used in other investigations. Not an independent production holdout.",
+  "projects": [
+    {
+      "id": "nexus-963-h1",
+      "source_root": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h1-prepared",
+      "files": {
+        "xlr8/pkg/core/builder/cluster_gateway.go": "ec9c3b89dcbbb7708f8511d5b0fbfc597b73ede2d21d810a05bbd25f33ad96b9",
+        "xlr8/pkg/xds/xds.go": "b531b3678a50a1635ce8346c1e5cd2b0be69ce2f02fac0b1d532467def005e75",
+        "xlr8/pkg/discovery/etcd.go": "472f0648a5e1d4cd5b2df282be09d7be90aec288062e5a28b8acceb08c436312"
+      },
+      "split": "development",
+      "commit": "6aa329c82bb45c18c3ffa6048af46d78e965ce09",
+      "queries": [
+        {
+          "id": "captured-gateway",
+          "question": "gatewayMeshService",
+          "intent": "location",
+          "origin": {
+            "kind": "captured_tool_query",
+            "path": "/private/tmp/graphicle-required-investigation-20261030/h1-probe.jsonl",
+            "sha256": "06d894758d3bfeef0d8af53eb24391e7b36bc0fba1dea13688385a04a34768a5",
+            "line": 1,
+            "tool": "query_graph",
+            "arguments": {
+              "question": "gatewayMeshService",
+              "depth": 1,
+              "token_budget": 2000
+            },
+            "description": "Captured diagnostic tool request, not independent human traffic. Question replayed through context for this ablation."
+          },
+          "required": [
+            {
+              "file": "xlr8/pkg/core/builder/cluster_gateway.go",
+              "byte_start": 15215,
+              "byte_end": 15267,
+              "line": 323,
+              "quote": "func gatewayMeshService(serviceName string) string {",
+              "after": null
+            }
+          ]
+        },
+        {
+          "id": "gateway-owner",
+          "question": "How does gatewayMeshService choose the service name during v4 migration?",
+          "intent": "behavior",
+          "origin": {
+            "kind": "authored_real_case",
+            "description": "Evaluation-authored question over historical source; not a human query or independent production traffic."
+          },
+          "required": [
+            {
+              "file": "xlr8/pkg/core/builder/cluster_gateway.go",
+              "byte_start": 15269,
+              "byte_end": 15317,
+              "line": 324,
+              "quote": "if !v4MigrationEnabled {\n\t\treturn serviceName\n\t}",
+              "after": null
+            },
+            {
+              "file": "xlr8/pkg/core/builder/cluster_gateway.go",
+              "byte_start": 15319,
+              "byte_end": 15394,
+              "line": 327,
+              "quote": "if owner, ok := cache.GetDnsOverlaps()[serviceName]; ok {\n\t\treturn owner\n\t}",
+              "after": null
+            }
+          ]
+        },
+        {
+          "id": "caller-callee-failure",
+          "question": "What happens to DNS overlaps when GetNexusServiceConfigs fails inside detectAndUpdateDnsOverlaps?",
+          "intent": "behavior",
+          "origin": {
+            "kind": "authored_real_case",
+            "description": "Evaluation-authored question over historical source; not a human query or independent production traffic."
+          },
+          "required": [
+            {
+              "file": "xlr8/pkg/xds/xds.go",
+              "byte_start": 46238,
+              "byte_end": 46311,
+              "line": 1144,
+              "quote": "v31Configs, _, _, _ := s.DiscoveryClient.GetNexusServiceConfigs(nil, nil)",
+              "after": null
+            },
+            {
+              "file": "xlr8/pkg/xds/xds.go",
+              "byte_start": 47013,
+              "byte_end": 47049,
+              "line": 1171,
+              "quote": "cache.UpdateDnsOverlaps(newOverlaps)",
+              "after": "func (s *DiscoveryServiceImpl) detectAndUpdateDnsOverlaps"
+            },
+            {
+              "file": "xlr8/pkg/discovery/etcd.go",
+              "byte_start": 4166,
+              "byte_end": 4199,
+              "line": 122,
+              "quote": "return nil, nil, subsetNames, err",
+              "after": null
+            }
+          ]
+        },
+        {
+          "id": "v4-failure",
+          "question": "Why does detectAndUpdateDnsOverlaps keep current overlaps when the v4 config read fails?",
+          "intent": "rationale",
+          "origin": {
+            "kind": "authored_real_case",
+            "description": "Evaluation-authored question over historical source; not a human query or independent production traffic."
+          },
+          "required": [
+            {
+              "file": "xlr8/pkg/xds/xds.go",
+              "byte_start": 45634,
+              "byte_end": 45712,
+              "line": 1129,
+              "quote": "if err != nil {\n\t\t// Read failed: keep the current overlaps rather than guess.",
+              "after": "func (s *DiscoveryServiceImpl) detectAndUpdateDnsOverlaps"
+            },
+            {
+              "file": "xlr8/pkg/xds/xds.go",
+              "byte_start": 45828,
+              "byte_end": 45894,
+              "line": 1132,
+              "quote": "Msg(\"v4 config read failed; DNS overlap index unchanged\")\n\t\treturn",
+              "after": null
+            }
+          ]
+        },
+        {
+          "id": "cache-success",
+          "question": "How does GetNexusServiceConfigs return a cached config when the filter is absent?",
+          "intent": "behavior",
+          "origin": {
+            "kind": "authored_real_case",
+            "description": "Evaluation-authored question over historical source; not a human query or independent production traffic."
+          },
+          "required": [
+            {
+              "file": "xlr8/pkg/discovery/etcd.go",
+              "byte_start": 3398,
+              "byte_end": 3585,
+              "line": 101,
+              "quote": "if filter == nil || len(filter.Names) == 0 {\n\t\tif cached, ok := cache.GetCachedConfigs(); ok {\n\t\t\tRecordConfigCacheHit()\n\t\t\treturn cached.Configs, cached.Versions, cached.SubsetNames, nil",
+              "after": null
+            }
+          ]
+        },
+        {
+          "id": "callee-location",
+          "question": "Where is GetNexusServiceConfigs defined?",
+          "intent": "location",
+          "origin": {
+            "kind": "authored_real_case",
+            "description": "Evaluation-authored question over historical source; not a human query or independent production traffic."
+          },
+          "required": [
+            {
+              "file": "xlr8/pkg/discovery/etcd.go",
+              "byte_start": 3054,
+              "byte_end": 3098,
+              "line": 95,
+              "quote": "func (d *etcdClient) GetNexusServiceConfigs(",
+              "after": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nexus-963-h2",
+      "source_root": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h2-prepared",
+      "files": {
+        "xlr8/pkg/core/builder/cluster_gateway.go": "ec9c3b89dcbbb7708f8511d5b0fbfc597b73ede2d21d810a05bbd25f33ad96b9",
+        "xlr8/pkg/xds/xds.go": "2413873880e9fa4efc6580be574ec9c5814cb58753d26fa2c0b32127034d9d97",
+        "xlr8/pkg/discovery/etcd.go": "472f0648a5e1d4cd5b2df282be09d7be90aec288062e5a28b8acceb08c436312"
+      },
+      "split": "regression",
+      "commit": "2447ab17fa50a585f11ad691bd944897768fcad0",
+      "queries": [
+        {
+          "id": "captured-overlap",
+          "question": "detectAndUpdateDnsOverlaps",
+          "intent": "location",
+          "origin": {
+            "kind": "captured_tool_query",
+            "path": "/private/tmp/graphicle-required-investigation-20261030/h2-probe.jsonl",
+            "sha256": "4f22a4e4e19210f97c710b46d94b14360f928b565dcc19f71de1481a9b7ec7b2",
+            "line": 1,
+            "tool": "query_graph",
+            "arguments": {
+              "question": "detectAndUpdateDnsOverlaps",
+              "depth": 1,
+              "token_budget": 2000
+            },
+            "description": "Captured diagnostic tool request, not independent human traffic. Question replayed through context for this ablation."
+          },
+          "required": [
+            {
+              "file": "xlr8/pkg/xds/xds.go",
+              "byte_start": 45496,
+              "byte_end": 45577,
+              "line": 1127,
+              "quote": "func (s *DiscoveryServiceImpl) detectAndUpdateDnsOverlaps(v4ServiceName string) {",
+              "after": null
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "nexus-944-h2",
+      "source_root": "/private/tmp/graphicle-investigation-rca-cohort-20261030/cohort-v2/nexus-944/h2-source",
+      "files": {
+        "bpf/dante/bpf.go": "69e0c0e688efaec5273acbfbdcac067a6cbedfd775e341d1589c135ed08195d6"
+      },
+      "split": "held_out",
+      "commit": null,
+      "queries": [
+        {
+          "id": "waypoint-location",
+          "question": "Where is keepWaypointEntry defined?",
+          "intent": "location",
+          "origin": {
+            "kind": "authored_real_case",
+            "description": "Evaluation-authored question over historical source; not a human query or independent production traffic."
+          },
+          "required": [
+            {
+              "file": "bpf/dante/bpf.go",
+              "byte_start": 16585,
+              "byte_end": 16608,
+              "line": 488,
+              "quote": "func keepWaypointEntry(",
+              "after": null
+            }
+          ]
+        },
+        {
+          "id": "partial-inspection",
+          "question": "How does keepWaypointEntry handle programs that could not all be inspected?",
+          "intent": "behavior",
+          "origin": {
+            "kind": "authored_real_case",
+            "description": "Evaluation-authored question over historical source; not a human query or independent production traffic."
+          },
+          "required": [
+            {
+              "file": "bpf/dante/bpf.go",
+              "byte_start": 17097,
+              "byte_end": 17216,
+              "line": 505,
+              "quote": "if q.Listed > len(q.Names) {\n\t\treturn true, \"\" // some programs could not be inspected; one may be waypoint_outbound\n\t}",
+              "after": null
+            }
+          ]
+        },
+        {
+          "id": "uncertain-link",
+          "question": "Why does keepWaypointEntry preserve entries when link lookup or query fails?",
+          "intent": "rationale",
+          "origin": {
+            "kind": "authored_real_case",
+            "description": "Evaluation-authored question over historical source; not a human query or independent production traffic."
+          },
+          "required": [
+            {
+              "file": "bpf/dante/bpf.go",
+              "byte_start": 16737,
+              "byte_end": 16787,
+              "line": 492,
+              "quote": "case l == linkUnknown, q.Failed:\n\t\treturn true, \"\"",
+              "after": null
+            },
+            {
+              "file": "bpf/dante/bpf.go",
+              "byte_start": 16405,
+              "byte_end": 16584,
+              "line": 486,
+              "quote": "// keepWaypointEntry decides whether a waypoint_info entry survives startup validation and,\n// when not, why. Everything uncertain is kept (fail-open; informer events correct it).",
+              "after": null
+            }
+          ]
+        },
+        {
+          "id": "delete-missing",
+          "question": "When does keepWaypointEntry delete entries for a missing link or no waypoint program?",
+          "intent": "behavior",
+          "origin": {
+            "kind": "authored_real_case",
+            "description": "Evaluation-authored question over historical source; not a human query or independent production traffic."
+          },
+          "required": [
+            {
+              "file": "bpf/dante/bpf.go",
+              "byte_start": 16679,
+              "byte_end": 16735,
+              "line": 490,
+              "quote": "case l == linkNotFound:\n\t\treturn false, \"link_not_found\"",
+              "after": null
+            },
+            {
+              "file": "bpf/dante/bpf.go",
+              "byte_start": 17218,
+              "byte_end": 17253,
+              "line": 508,
+              "quote": "return false, \"no_waypoint_program\"",
+              "after": null
+            }
+          ]
+        }
+      ],
+      "pin": [
+        {
+          "repository_id": "416bacdd5035487b8ee8ee70bea632c5",
+          "commit": "b717939a99d9b45426918eaf33feeb4b7a687f70",
+          "snapshot": "dc6f31bc28d10eafa588074ac3fd37a573d1de47407d92e601563de019adf840",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "nexus",
+          "modules": [
+            "bpf"
+          ]
+        }
+      ]
+    }
+  ]
+}

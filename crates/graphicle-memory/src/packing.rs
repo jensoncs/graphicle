@@ -571,7 +571,13 @@ pub fn pack(request: &Value) -> Result<Value> {
                 serde_json::to_string(header).map_err(|e| e.to_string())?
             ));
         }
-        let slots = (hits.len() - position).clamp(1, 3);
+        // Explicitly requested ranges spend the remaining source allowance
+        // before ordinary snippets. Hard packet and memory budgets still apply.
+        let slots = if source["keep_whole"] == true {
+            1
+        } else {
+            (hits.len() - position).clamp(1, 3)
+        };
         let allowed_tokens = max_tokens
             .saturating_sub(text::count(&rendered) + 100)
             .min(source_tokens / slots);
@@ -1112,5 +1118,35 @@ impl NextFiles {
         }
         rendered.push_str(&block);
         listed
+    }
+}
+
+#[cfg(test)]
+mod requested_range_tests {
+    use super::*;
+
+    #[test]
+    fn requested_body_uses_remaining_allowance_and_respects_packet_budget() {
+        let body = "check_condition();\n".repeat(240) + "return FAILURE;\n";
+        let hit = |id: &str, text: &str, whole: bool| {
+            json!({"identity":id,"text":text,
+            "source":{"id":id,"path":id,"sha256":"pinned","line":1,"byte_start":0,
+                "byte_end":text.len(),"total_bytes":text.len(),"complete":true,"keep_whole":whole}})
+        };
+        let mut request = json!({"repo":{"name":"test","snapshot":"pin"},"question":"condition",
+            "hits":[hit("file:a",&body,false),hit("file:b","extra",false),hit("file:c","extra",false)],
+            "memories":[],"max_tokens":1800,"max_chars":8000});
+        let baseline = pack(&request).unwrap();
+        assert!(baseline["sources"][0]["byte_end"].as_u64().unwrap() < body.len() as u64);
+        request["hits"][0]["source"]["keep_whole"] = json!(true);
+        let candidate = pack(&request).unwrap();
+        assert_eq!(candidate["sources"][0]["byte_end"], body.len());
+        assert!(candidate["tokens"].as_u64().unwrap() <= 1800);
+        assert!(candidate["markdown"].as_str().unwrap().chars().count() <= 8000);
+        request["max_tokens"] = json!(400);
+        let small = pack(&request).unwrap();
+        assert!(small["tokens"].as_u64().unwrap() <= 400);
+        assert_eq!(small["complete_evidence_guaranteed"], false);
+        assert!(small["sources"][0]["byte_end"].as_u64().unwrap() < body.len() as u64);
     }
 }

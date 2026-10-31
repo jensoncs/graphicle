@@ -41,6 +41,7 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
         "configured_service_boundaries": ["http", "grpc", "event"],
         "configured_service_boundaries_authority": "pinned_configuration_assertions",
         "change_impact_scope": "pinned-go-snapshot-sets-v1",
+        "basic_change_impact": {"languages":["terraform","helm","bash","python","rust"],"granularity":"file-module-chart","compiler_resolution":false},
         "business_context": true,
         "business_context_scope": "static-candidates-and-pinned-history-v1",
         "execution_coverage": true,

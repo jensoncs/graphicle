@@ -106,6 +106,17 @@ fn code_like(word: &str) -> bool {
 ///   (`a.b`, `a::b`, `a->b`, `a#b`) with a part written as code or
 ///   capitalized, whole and by those parts.
 pub fn named(text: &str) -> Named {
+    read_named(text, true)
+}
+
+/// Names as explicitly written, without broadening a qualified reference to
+/// its components. Source reservation needs this stricter form; lexical search
+/// continues to use `named` so it can find definitions and references broadly.
+pub(crate) fn explicit_names(text: &str) -> Named {
+    read_named(text, false)
+}
+
+fn read_named(text: &str, expand_parts: bool) -> Named {
     static FENCE: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(r"(?s)```.*?(?:```|\z)|~~~.*?(?:~~~|\z)").expect("the fence rule")
     });
@@ -197,6 +208,9 @@ pub fn named(text: &str) -> Named {
             if !file {
                 out.push((at, token.to_string()));
             }
+            if !expand_parts {
+                return;
+            }
         }
         for part in &parts {
             if worded(part) && (parts.len() > 1 || in_code || code_like(part)) {
@@ -213,6 +227,15 @@ pub fn named(text: &str) -> Named {
         qualified(token.start(), token.as_str(), false, &mut mentions);
     }
     for call in CALL.captures_iter(&prose) {
+        let start = call.get(1).expect("a name").start();
+        if !expand_parts
+            && prose[..start]
+                .chars()
+                .next_back()
+                .is_some_and(|c| ".:#>".contains(c))
+        {
+            continue;
+        }
         let name = &call[1];
         if name.len() >= 3 && !common(name) {
             mentions.push((call.get(1).expect("a name").start(), name.to_string()));
@@ -1076,6 +1099,20 @@ fn defining_outside_source(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn explicit_references_do_not_reserve_qualifier_parts_or_unrelated_methods() {
+        let query = "Explain Store.load_config() and `Other.save_config`, then load_config().";
+        let strict = explicit_names(query);
+        assert!(strict.names.contains(&"Store.load_config".to_string()));
+        assert!(strict.names.contains(&"Other.save_config".to_string()));
+        assert!(strict.names.contains(&"load_config".to_string()));
+        assert!(!strict.names.contains(&"Store".to_string()));
+        assert!(!strict.names.contains(&"Other".to_string()));
+        assert!(!strict.names.contains(&"save_config".to_string()));
+        // Broad matching remains available to lexical retrieval.
+        assert!(named(query).names.contains(&"save_config".to_string()));
+    }
 
     #[test]
     fn identifiers_and_paths_are_read_from_code_and_prose() {
