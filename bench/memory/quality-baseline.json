@@ -27,6 +27,7 @@
       "routed": true
     },
     "source_debug_candidates": 400,
+    "memory_debug_candidates": 400,
     "datasets": [
       {
         "id": "links",
@@ -62,6 +63,16 @@
         "id": "source",
         "kind": "source",
         "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+      },
+      {
+        "id": "language-memory",
+        "kind": "memory",
+        "sha256": "593920bc990429862224a4e7b81720a7604b8961d3c7b183f23fcbe84ecb0384"
+      },
+      {
+        "id": "language-source",
+        "kind": "source",
+        "sha256": "515b8c8e2dd25b9efac7506444d10e14ffe94ee27c587c4144241f61b5bed9b9"
       }
     ],
     "case_ids": [
@@ -122,6 +133,141 @@
       "exact/qualified/qualified-name/counted",
       "exact/qualified/qualified-name/off",
       "exact/qualified/qualified-name/on",
+      "language-memory/go-delivery/ambiguous-method/counted",
+      "language-memory/go-delivery/ambiguous-method/off",
+      "language-memory/go-delivery/ambiguous-method/on",
+      "language-memory/go-delivery/callee-rationale/counted",
+      "language-memory/go-delivery/callee-rationale/off",
+      "language-memory/go-delivery/callee-rationale/on",
+      "language-memory/go-delivery/literal-result/counted",
+      "language-memory/go-delivery/literal-result/off",
+      "language-memory/go-delivery/literal-result/on",
+      "language-memory/go-delivery/no-answer/counted",
+      "language-memory/go-delivery/no-answer/off",
+      "language-memory/go-delivery/no-answer/on",
+      "language-memory/go-delivery/owner-contract/counted",
+      "language-memory/go-delivery/owner-contract/off",
+      "language-memory/go-delivery/owner-contract/on",
+      "language-memory/go-delivery/prose-contract/counted",
+      "language-memory/go-delivery/prose-contract/off",
+      "language-memory/go-delivery/prose-contract/on",
+      "language-memory/go-delivery/qualified-method/counted",
+      "language-memory/go-delivery/qualified-method/off",
+      "language-memory/go-delivery/qualified-method/on",
+      "language-memory/java-delivery/ambiguous-method/counted",
+      "language-memory/java-delivery/ambiguous-method/off",
+      "language-memory/java-delivery/ambiguous-method/on",
+      "language-memory/java-delivery/callee-rationale/counted",
+      "language-memory/java-delivery/callee-rationale/off",
+      "language-memory/java-delivery/callee-rationale/on",
+      "language-memory/java-delivery/literal-result/counted",
+      "language-memory/java-delivery/literal-result/off",
+      "language-memory/java-delivery/literal-result/on",
+      "language-memory/java-delivery/no-answer/counted",
+      "language-memory/java-delivery/no-answer/off",
+      "language-memory/java-delivery/no-answer/on",
+      "language-memory/java-delivery/owner-contract/counted",
+      "language-memory/java-delivery/owner-contract/off",
+      "language-memory/java-delivery/owner-contract/on",
+      "language-memory/java-delivery/prose-contract/counted",
+      "language-memory/java-delivery/prose-contract/off",
+      "language-memory/java-delivery/prose-contract/on",
+      "language-memory/java-delivery/qualified-method/counted",
+      "language-memory/java-delivery/qualified-method/off",
+      "language-memory/java-delivery/qualified-method/on",
+      "language-memory/kotlin-delivery/ambiguous-method/counted",
+      "language-memory/kotlin-delivery/ambiguous-method/off",
+      "language-memory/kotlin-delivery/ambiguous-method/on",
+      "language-memory/kotlin-delivery/callee-rationale/counted",
+      "language-memory/kotlin-delivery/callee-rationale/off",
+      "language-memory/kotlin-delivery/callee-rationale/on",
+      "language-memory/kotlin-delivery/literal-result/counted",
+      "language-memory/kotlin-delivery/literal-result/off",
+      "language-memory/kotlin-delivery/literal-result/on",
+      "language-memory/kotlin-delivery/no-answer/counted",
+      "language-memory/kotlin-delivery/no-answer/off",
+      "language-memory/kotlin-delivery/no-answer/on",
+      "language-memory/kotlin-delivery/owner-contract/counted",
+      "language-memory/kotlin-delivery/owner-contract/off",
+      "language-memory/kotlin-delivery/owner-contract/on",
+      "language-memory/kotlin-delivery/prose-contract/counted",
+      "language-memory/kotlin-delivery/prose-contract/off",
+      "language-memory/kotlin-delivery/prose-contract/on",
+      "language-memory/kotlin-delivery/qualified-method/counted",
+      "language-memory/kotlin-delivery/qualified-method/off",
+      "language-memory/kotlin-delivery/qualified-method/on",
+      "language-memory/rust-delivery/ambiguous-method/counted",
+      "language-memory/rust-delivery/ambiguous-method/off",
+      "language-memory/rust-delivery/ambiguous-method/on",
+      "language-memory/rust-delivery/callee-rationale/counted",
+      "language-memory/rust-delivery/callee-rationale/off",
+      "language-memory/rust-delivery/callee-rationale/on",
+      "language-memory/rust-delivery/literal-result/counted",
+      "language-memory/rust-delivery/literal-result/off",
+      "language-memory/rust-delivery/literal-result/on",
+      "language-memory/rust-delivery/no-answer/counted",
+      "language-memory/rust-delivery/no-answer/off",
+      "language-memory/rust-delivery/no-answer/on",
+      "language-memory/rust-delivery/owner-contract/counted",
+      "language-memory/rust-delivery/owner-contract/off",
+      "language-memory/rust-delivery/owner-contract/on",
+      "language-memory/rust-delivery/prose-contract/counted",
+      "language-memory/rust-delivery/prose-contract/off",
+      "language-memory/rust-delivery/prose-contract/on",
+      "language-memory/rust-delivery/qualified-method/counted",
+      "language-memory/rust-delivery/qualified-method/off",
+      "language-memory/rust-delivery/qualified-method/on",
+      "language-memory/typescript-delivery/ambiguous-method/counted",
+      "language-memory/typescript-delivery/ambiguous-method/off",
+      "language-memory/typescript-delivery/ambiguous-method/on",
+      "language-memory/typescript-delivery/callee-rationale/counted",
+      "language-memory/typescript-delivery/callee-rationale/off",
+      "language-memory/typescript-delivery/callee-rationale/on",
+      "language-memory/typescript-delivery/literal-result/counted",
+      "language-memory/typescript-delivery/literal-result/off",
+      "language-memory/typescript-delivery/literal-result/on",
+      "language-memory/typescript-delivery/no-answer/counted",
+      "language-memory/typescript-delivery/no-answer/off",
+      "language-memory/typescript-delivery/no-answer/on",
+      "language-memory/typescript-delivery/owner-contract/counted",
+      "language-memory/typescript-delivery/owner-contract/off",
+      "language-memory/typescript-delivery/owner-contract/on",
+      "language-memory/typescript-delivery/prose-contract/counted",
+      "language-memory/typescript-delivery/prose-contract/off",
+      "language-memory/typescript-delivery/prose-contract/on",
+      "language-memory/typescript-delivery/qualified-method/counted",
+      "language-memory/typescript-delivery/qualified-method/off",
+      "language-memory/typescript-delivery/qualified-method/on",
+      "language-source/go-delivery/caller-callee/baseline",
+      "language-source/go-delivery/caller-callee/routed",
+      "language-source/go-delivery/language-construct/baseline",
+      "language-source/go-delivery/language-construct/routed",
+      "language-source/go-delivery/method-branch/baseline",
+      "language-source/go-delivery/method-branch/routed",
+      "language-source/java-delivery/caller-callee/baseline",
+      "language-source/java-delivery/caller-callee/routed",
+      "language-source/java-delivery/language-construct/baseline",
+      "language-source/java-delivery/language-construct/routed",
+      "language-source/java-delivery/method-branch/baseline",
+      "language-source/java-delivery/method-branch/routed",
+      "language-source/kotlin-delivery/caller-callee/baseline",
+      "language-source/kotlin-delivery/caller-callee/routed",
+      "language-source/kotlin-delivery/language-construct/baseline",
+      "language-source/kotlin-delivery/language-construct/routed",
+      "language-source/kotlin-delivery/method-branch/baseline",
+      "language-source/kotlin-delivery/method-branch/routed",
+      "language-source/rust-delivery/caller-callee/baseline",
+      "language-source/rust-delivery/caller-callee/routed",
+      "language-source/rust-delivery/language-construct/baseline",
+      "language-source/rust-delivery/language-construct/routed",
+      "language-source/rust-delivery/method-branch/baseline",
+      "language-source/rust-delivery/method-branch/routed",
+      "language-source/typescript-delivery/caller-callee/baseline",
+      "language-source/typescript-delivery/caller-callee/routed",
+      "language-source/typescript-delivery/language-construct/baseline",
+      "language-source/typescript-delivery/language-construct/routed",
+      "language-source/typescript-delivery/method-branch/baseline",
+      "language-source/typescript-delivery/method-branch/routed",
       "links/billing/direct-recall/counted",
       "links/billing/direct-recall/off",
       "links/billing/direct-recall/on",
@@ -242,7 +388,7 @@
     ]
   },
   "provenance": {
-    "report_sha256": "39f5b3cd113213e3d62f29e2e18a68af7793911e2b41423f1e306adc1e1adfb4",
+    "report_sha256": "72c10b89969b1f462eaa8cf9b25ee910e9b34a419491c2bd7ea85ba88b1042cd",
     "protocol": {
       "contract": {
         "scoring_version": 1,
@@ -271,6 +417,7 @@
           "routed": true
         },
         "source_debug_candidates": 400,
+        "memory_debug_candidates": 400,
         "datasets": [
           {
             "id": "links",
@@ -306,6 +453,16 @@
             "id": "source",
             "kind": "source",
             "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+          },
+          {
+            "id": "language-memory",
+            "kind": "memory",
+            "sha256": "593920bc990429862224a4e7b81720a7604b8961d3c7b183f23fcbe84ecb0384"
+          },
+          {
+            "id": "language-source",
+            "kind": "source",
+            "sha256": "515b8c8e2dd25b9efac7506444d10e14ffe94ee27c587c4144241f61b5bed9b9"
           }
         ],
         "case_ids": [
@@ -366,6 +523,141 @@
           "exact/qualified/qualified-name/counted",
           "exact/qualified/qualified-name/off",
           "exact/qualified/qualified-name/on",
+          "language-memory/go-delivery/ambiguous-method/counted",
+          "language-memory/go-delivery/ambiguous-method/off",
+          "language-memory/go-delivery/ambiguous-method/on",
+          "language-memory/go-delivery/callee-rationale/counted",
+          "language-memory/go-delivery/callee-rationale/off",
+          "language-memory/go-delivery/callee-rationale/on",
+          "language-memory/go-delivery/literal-result/counted",
+          "language-memory/go-delivery/literal-result/off",
+          "language-memory/go-delivery/literal-result/on",
+          "language-memory/go-delivery/no-answer/counted",
+          "language-memory/go-delivery/no-answer/off",
+          "language-memory/go-delivery/no-answer/on",
+          "language-memory/go-delivery/owner-contract/counted",
+          "language-memory/go-delivery/owner-contract/off",
+          "language-memory/go-delivery/owner-contract/on",
+          "language-memory/go-delivery/prose-contract/counted",
+          "language-memory/go-delivery/prose-contract/off",
+          "language-memory/go-delivery/prose-contract/on",
+          "language-memory/go-delivery/qualified-method/counted",
+          "language-memory/go-delivery/qualified-method/off",
+          "language-memory/go-delivery/qualified-method/on",
+          "language-memory/java-delivery/ambiguous-method/counted",
+          "language-memory/java-delivery/ambiguous-method/off",
+          "language-memory/java-delivery/ambiguous-method/on",
+          "language-memory/java-delivery/callee-rationale/counted",
+          "language-memory/java-delivery/callee-rationale/off",
+          "language-memory/java-delivery/callee-rationale/on",
+          "language-memory/java-delivery/literal-result/counted",
+          "language-memory/java-delivery/literal-result/off",
+          "language-memory/java-delivery/literal-result/on",
+          "language-memory/java-delivery/no-answer/counted",
+          "language-memory/java-delivery/no-answer/off",
+          "language-memory/java-delivery/no-answer/on",
+          "language-memory/java-delivery/owner-contract/counted",
+          "language-memory/java-delivery/owner-contract/off",
+          "language-memory/java-delivery/owner-contract/on",
+          "language-memory/java-delivery/prose-contract/counted",
+          "language-memory/java-delivery/prose-contract/off",
+          "language-memory/java-delivery/prose-contract/on",
+          "language-memory/java-delivery/qualified-method/counted",
+          "language-memory/java-delivery/qualified-method/off",
+          "language-memory/java-delivery/qualified-method/on",
+          "language-memory/kotlin-delivery/ambiguous-method/counted",
+          "language-memory/kotlin-delivery/ambiguous-method/off",
+          "language-memory/kotlin-delivery/ambiguous-method/on",
+          "language-memory/kotlin-delivery/callee-rationale/counted",
+          "language-memory/kotlin-delivery/callee-rationale/off",
+          "language-memory/kotlin-delivery/callee-rationale/on",
+          "language-memory/kotlin-delivery/literal-result/counted",
+          "language-memory/kotlin-delivery/literal-result/off",
+          "language-memory/kotlin-delivery/literal-result/on",
+          "language-memory/kotlin-delivery/no-answer/counted",
+          "language-memory/kotlin-delivery/no-answer/off",
+          "language-memory/kotlin-delivery/no-answer/on",
+          "language-memory/kotlin-delivery/owner-contract/counted",
+          "language-memory/kotlin-delivery/owner-contract/off",
+          "language-memory/kotlin-delivery/owner-contract/on",
+          "language-memory/kotlin-delivery/prose-contract/counted",
+          "language-memory/kotlin-delivery/prose-contract/off",
+          "language-memory/kotlin-delivery/prose-contract/on",
+          "language-memory/kotlin-delivery/qualified-method/counted",
+          "language-memory/kotlin-delivery/qualified-method/off",
+          "language-memory/kotlin-delivery/qualified-method/on",
+          "language-memory/rust-delivery/ambiguous-method/counted",
+          "language-memory/rust-delivery/ambiguous-method/off",
+          "language-memory/rust-delivery/ambiguous-method/on",
+          "language-memory/rust-delivery/callee-rationale/counted",
+          "language-memory/rust-delivery/callee-rationale/off",
+          "language-memory/rust-delivery/callee-rationale/on",
+          "language-memory/rust-delivery/literal-result/counted",
+          "language-memory/rust-delivery/literal-result/off",
+          "language-memory/rust-delivery/literal-result/on",
+          "language-memory/rust-delivery/no-answer/counted",
+          "language-memory/rust-delivery/no-answer/off",
+          "language-memory/rust-delivery/no-answer/on",
+          "language-memory/rust-delivery/owner-contract/counted",
+          "language-memory/rust-delivery/owner-contract/off",
+          "language-memory/rust-delivery/owner-contract/on",
+          "language-memory/rust-delivery/prose-contract/counted",
+          "language-memory/rust-delivery/prose-contract/off",
+          "language-memory/rust-delivery/prose-contract/on",
+          "language-memory/rust-delivery/qualified-method/counted",
+          "language-memory/rust-delivery/qualified-method/off",
+          "language-memory/rust-delivery/qualified-method/on",
+          "language-memory/typescript-delivery/ambiguous-method/counted",
+          "language-memory/typescript-delivery/ambiguous-method/off",
+          "language-memory/typescript-delivery/ambiguous-method/on",
+          "language-memory/typescript-delivery/callee-rationale/counted",
+          "language-memory/typescript-delivery/callee-rationale/off",
+          "language-memory/typescript-delivery/callee-rationale/on",
+          "language-memory/typescript-delivery/literal-result/counted",
+          "language-memory/typescript-delivery/literal-result/off",
+          "language-memory/typescript-delivery/literal-result/on",
+          "language-memory/typescript-delivery/no-answer/counted",
+          "language-memory/typescript-delivery/no-answer/off",
+          "language-memory/typescript-delivery/no-answer/on",
+          "language-memory/typescript-delivery/owner-contract/counted",
+          "language-memory/typescript-delivery/owner-contract/off",
+          "language-memory/typescript-delivery/owner-contract/on",
+          "language-memory/typescript-delivery/prose-contract/counted",
+          "language-memory/typescript-delivery/prose-contract/off",
+          "language-memory/typescript-delivery/prose-contract/on",
+          "language-memory/typescript-delivery/qualified-method/counted",
+          "language-memory/typescript-delivery/qualified-method/off",
+          "language-memory/typescript-delivery/qualified-method/on",
+          "language-source/go-delivery/caller-callee/baseline",
+          "language-source/go-delivery/caller-callee/routed",
+          "language-source/go-delivery/language-construct/baseline",
+          "language-source/go-delivery/language-construct/routed",
+          "language-source/go-delivery/method-branch/baseline",
+          "language-source/go-delivery/method-branch/routed",
+          "language-source/java-delivery/caller-callee/baseline",
+          "language-source/java-delivery/caller-callee/routed",
+          "language-source/java-delivery/language-construct/baseline",
+          "language-source/java-delivery/language-construct/routed",
+          "language-source/java-delivery/method-branch/baseline",
+          "language-source/java-delivery/method-branch/routed",
+          "language-source/kotlin-delivery/caller-callee/baseline",
+          "language-source/kotlin-delivery/caller-callee/routed",
+          "language-source/kotlin-delivery/language-construct/baseline",
+          "language-source/kotlin-delivery/language-construct/routed",
+          "language-source/kotlin-delivery/method-branch/baseline",
+          "language-source/kotlin-delivery/method-branch/routed",
+          "language-source/rust-delivery/caller-callee/baseline",
+          "language-source/rust-delivery/caller-callee/routed",
+          "language-source/rust-delivery/language-construct/baseline",
+          "language-source/rust-delivery/language-construct/routed",
+          "language-source/rust-delivery/method-branch/baseline",
+          "language-source/rust-delivery/method-branch/routed",
+          "language-source/typescript-delivery/caller-callee/baseline",
+          "language-source/typescript-delivery/caller-callee/routed",
+          "language-source/typescript-delivery/language-construct/baseline",
+          "language-source/typescript-delivery/language-construct/routed",
+          "language-source/typescript-delivery/method-branch/baseline",
+          "language-source/typescript-delivery/method-branch/routed",
           "links/billing/direct-recall/counted",
           "links/billing/direct-recall/off",
           "links/billing/direct-recall/on",
@@ -485,18 +777,21 @@
           "source/payments/unicode/routed"
         ]
       },
-      "binary_sha256": "9b05aad556640bec02970c22cf34ea2f19b511bbc1fd7ff5b41779c10e4958e1",
+      "binary_sha256": "6bbeac5d3a5638c7b0a51ffc3f946fa4f714e15b71901390ee78dc29345ee73a",
       "python": "3.15.1",
       "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
       "runner_sha256": {
-        "quality.py": "4f1c76c584ae357a53a447771ca68c77a57dc42a62dfb86d3ca8c7b843204e86",
-        "quality_diagnostics.py": "d08c6b357726f7cf7d81ea0e10cf7b743f272cfc9c06bd1f703c9f8e8926f566",
-        "symbol_link_precision.py": "f7f6476120ef560ecdac7c0b811aba0f46f4ec457a7dd969424eca679b7eccb9",
-        "real_query_eval.py": "8ad7f488fdc34ab38f2fa65b652f2ce8249b782defd87a32c53fcf48a4e0bec5",
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
         "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
       },
       "models": "none",
       "phase_timings": true,
+      "source_roots": {},
+      "memory_debug_candidates": 400,
+      "memory_diagnostics_version": 1,
       "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
     }
   },
@@ -507,6 +802,8 @@
       "variant": "off",
       "category": "linked_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -524,6 +821,8 @@
       "variant": "counted",
       "category": "linked_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -541,6 +840,8 @@
       "variant": "on",
       "category": "linked_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -551,9 +852,7 @@
         "audit",
         "settlement"
       ],
-      "irrelevant": [
-        "receipt"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/billing/direct-recall/counted",
@@ -561,6 +860,8 @@
       "variant": "counted",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -579,6 +880,8 @@
       "variant": "on",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -589,7 +892,6 @@
       ],
       "irrelevant": [
         "audit",
-        "receipt",
         "shipping"
       ]
     },
@@ -599,6 +901,8 @@
       "variant": "off",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -617,16 +921,13 @@
       "variant": "on",
       "category": "code_only",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "audit",
-        "receipt",
-        "settlement",
-        "shipping"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/billing/same-symbol-no-memory/off",
@@ -634,6 +935,8 @@
       "variant": "off",
       "category": "code_only",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -646,6 +949,8 @@
       "variant": "counted",
       "category": "code_only",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -658,6 +963,8 @@
       "variant": "off",
       "category": "same_symbol_distractor",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -674,6 +981,8 @@
       "variant": "counted",
       "category": "same_symbol_distractor",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -690,6 +999,8 @@
       "variant": "on",
       "category": "same_symbol_distractor",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -699,8 +1010,7 @@
         "settlement"
       ],
       "irrelevant": [
-        "audit",
-        "receipt"
+        "audit"
       ]
     },
     {
@@ -709,6 +1019,8 @@
       "variant": "counted",
       "category": "no_answer",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -721,6 +1033,8 @@
       "variant": "on",
       "category": "no_answer",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -733,6 +1047,8 @@
       "variant": "off",
       "category": "no_answer",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -745,6 +1061,8 @@
       "variant": "on",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -753,10 +1071,7 @@
       "retrieved_relevant": [
         "receipt"
       ],
-      "irrelevant": [
-        "audit",
-        "settlement"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/billing/other-symbol/off",
@@ -764,6 +1079,8 @@
       "variant": "off",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -780,6 +1097,8 @@
       "variant": "counted",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -796,6 +1115,8 @@
       "variant": "off",
       "category": "linked_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -811,6 +1132,8 @@
       "variant": "counted",
       "category": "linked_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -826,6 +1149,8 @@
       "variant": "on",
       "category": "linked_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -844,6 +1169,8 @@
       "variant": "counted",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -860,6 +1187,8 @@
       "variant": "on",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -878,6 +1207,8 @@
       "variant": "off",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -894,15 +1225,13 @@
       "variant": "on",
       "category": "code_only",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "ceiling",
-        "jitter",
-        "log-policy"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/retry/same-symbol-no-memory/off",
@@ -910,6 +1239,8 @@
       "variant": "off",
       "category": "code_only",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -922,6 +1253,8 @@
       "variant": "counted",
       "category": "code_only",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -934,6 +1267,8 @@
       "variant": "off",
       "category": "same_symbol_distractor",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -948,6 +1283,8 @@
       "variant": "counted",
       "category": "same_symbol_distractor",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -962,6 +1299,8 @@
       "variant": "on",
       "category": "same_symbol_distractor",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -980,6 +1319,8 @@
       "variant": "counted",
       "category": "no_answer",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -992,6 +1333,8 @@
       "variant": "on",
       "category": "no_answer",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1004,6 +1347,8 @@
       "variant": "off",
       "category": "no_answer",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1016,6 +1361,8 @@
       "variant": "off",
       "category": "linked_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1031,6 +1378,8 @@
       "variant": "counted",
       "category": "linked_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1046,6 +1395,8 @@
       "variant": "on",
       "category": "linked_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1056,9 +1407,7 @@
         "encoding",
         "isolation"
       ],
-      "irrelevant": [
-        "expiry"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/cache/direct-recall/counted",
@@ -1066,6 +1415,8 @@
       "variant": "counted",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1082,6 +1433,8 @@
       "variant": "on",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1090,10 +1443,7 @@
       "retrieved_relevant": [
         "expiry"
       ],
-      "irrelevant": [
-        "encoding",
-        "isolation"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/cache/direct-recall/off",
@@ -1101,6 +1451,8 @@
       "variant": "off",
       "category": "lexical_relevant",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1117,15 +1469,13 @@
       "variant": "on",
       "category": "code_only",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "encoding",
-        "expiry",
-        "isolation"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/cache/same-symbol-no-memory/off",
@@ -1133,6 +1483,8 @@
       "variant": "off",
       "category": "code_only",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1145,6 +1497,8 @@
       "variant": "counted",
       "category": "code_only",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1157,6 +1511,8 @@
       "variant": "off",
       "category": "same_symbol_distractor",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1171,6 +1527,8 @@
       "variant": "counted",
       "category": "same_symbol_distractor",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1185,6 +1543,8 @@
       "variant": "on",
       "category": "same_symbol_distractor",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1194,8 +1554,7 @@
         "isolation"
       ],
       "irrelevant": [
-        "encoding",
-        "expiry"
+        "encoding"
       ]
     },
     {
@@ -1204,6 +1563,8 @@
       "variant": "counted",
       "category": "no_answer",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1216,6 +1577,8 @@
       "variant": "on",
       "category": "no_answer",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1228,6 +1591,8 @@
       "variant": "off",
       "category": "no_answer",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1240,6 +1605,8 @@
       "variant": "off",
       "category": "stale",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1252,6 +1619,8 @@
       "variant": "counted",
       "category": "stale",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1264,6 +1633,8 @@
       "variant": "on",
       "category": "stale",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1276,6 +1647,8 @@
       "variant": "counted",
       "category": "stale",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1288,6 +1661,8 @@
       "variant": "on",
       "category": "stale",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1300,6 +1675,8 @@
       "variant": "off",
       "category": "stale",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -1312,6 +1689,8 @@
       "variant": "off",
       "category": "qualified_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1326,6 +1705,8 @@
       "variant": "counted",
       "category": "qualified_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1340,6 +1721,8 @@
       "variant": "on",
       "category": "qualified_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1348,10 +1731,7 @@
       "retrieved_relevant": [
         "json"
       ],
-      "irrelevant": [
-        "csv",
-        "monitor"
-      ]
+      "irrelevant": []
     },
     {
       "id": "exact/qualified/ambiguous-name/counted",
@@ -1359,6 +1739,8 @@
       "variant": "counted",
       "category": "ambiguous_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1374,6 +1756,8 @@
       "variant": "on",
       "category": "ambiguous_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1384,9 +1768,7 @@
         "csv",
         "json"
       ],
-      "irrelevant": [
-        "monitor"
-      ]
+      "irrelevant": []
     },
     {
       "id": "exact/qualified/ambiguous-name/off",
@@ -1394,6 +1776,8 @@
       "variant": "off",
       "category": "ambiguous_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1409,6 +1793,8 @@
       "variant": "off",
       "category": "path_qualified",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1423,6 +1809,8 @@
       "variant": "counted",
       "category": "path_qualified",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1437,6 +1825,8 @@
       "variant": "on",
       "category": "path_qualified",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1445,10 +1835,7 @@
       "retrieved_relevant": [
         "api"
       ],
-      "irrelevant": [
-        "ready",
-        "worker"
-      ]
+      "irrelevant": []
     },
     {
       "id": "exact/paths/duplicate-path/counted",
@@ -1456,6 +1843,8 @@
       "variant": "counted",
       "category": "ambiguous_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1471,6 +1860,8 @@
       "variant": "on",
       "category": "ambiguous_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1481,9 +1872,7 @@
         "api",
         "worker"
       ],
-      "irrelevant": [
-        "ready"
-      ]
+      "irrelevant": []
     },
     {
       "id": "exact/paths/duplicate-path/off",
@@ -1491,6 +1880,8 @@
       "variant": "off",
       "category": "ambiguous_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1506,6 +1897,8 @@
       "variant": "off",
       "category": "multiple_symbols",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1521,6 +1914,8 @@
       "variant": "counted",
       "category": "multiple_symbols",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1536,6 +1931,8 @@
       "variant": "on",
       "category": "multiple_symbols",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1546,9 +1943,7 @@
         "read",
         "write"
       ],
-      "irrelevant": [
-        "hint"
-      ]
+      "irrelevant": []
     },
     {
       "id": "exact/headers/partly-unresolved/counted",
@@ -1556,6 +1951,8 @@
       "variant": "counted",
       "category": "unresolved_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1570,6 +1967,8 @@
       "variant": "on",
       "category": "unresolved_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1589,6 +1988,8 @@
       "variant": "off",
       "category": "unresolved_symbol",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1603,6 +2004,8 @@
       "variant": "on",
       "category": "prose",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1623,6 +2026,8 @@
       "variant": "off",
       "category": "prose",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1641,6 +2046,8 @@
       "variant": "counted",
       "category": "prose",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1659,6 +2066,8 @@
       "variant": "off",
       "category": "callee_memory",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1673,6 +2082,8 @@
       "variant": "counted",
       "category": "callee_memory",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1687,6 +2098,8 @@
       "variant": "on",
       "category": "callee_memory",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1703,6 +2116,8 @@
       "variant": "off",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1717,6 +2132,8 @@
       "variant": "counted",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1731,6 +2148,8 @@
       "variant": "on",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1739,11 +2158,7 @@
       "retrieved_relevant": [
         "ledger"
       ],
-      "irrelevant": [
-        "archive",
-        "probe",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "pressure/direct-pressure/direct-1/counted",
@@ -1751,6 +2166,8 @@
       "variant": "counted",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1765,6 +2182,8 @@
       "variant": "on",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1773,11 +2192,7 @@
       "retrieved_relevant": [
         "archive"
       ],
-      "irrelevant": [
-        "ledger",
-        "probe",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "pressure/direct-pressure/direct-1/off",
@@ -1785,6 +2200,8 @@
       "variant": "off",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1799,6 +2216,8 @@
       "variant": "on",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1807,11 +2226,7 @@
       "retrieved_relevant": [
         "wire"
       ],
-      "irrelevant": [
-        "archive",
-        "ledger",
-        "probe"
-      ]
+      "irrelevant": []
     },
     {
       "id": "pressure/direct-pressure/direct-2/off",
@@ -1819,6 +2234,8 @@
       "variant": "off",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1833,6 +2250,8 @@
       "variant": "counted",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1847,6 +2266,8 @@
       "variant": "off",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1861,6 +2282,8 @@
       "variant": "counted",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1875,6 +2298,8 @@
       "variant": "on",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1883,11 +2308,7 @@
       "retrieved_relevant": [
         "probe"
       ],
-      "irrelevant": [
-        "archive",
-        "ledger",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "pressure/direct-pressure/direct-4/counted",
@@ -1895,6 +2316,8 @@
       "variant": "counted",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1909,6 +2332,8 @@
       "variant": "on",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1917,11 +2342,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "archive",
-        "ledger",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "pressure/direct-pressure/direct-4/off",
@@ -1929,6 +2350,8 @@
       "variant": "off",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1943,6 +2366,8 @@
       "variant": "on",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1951,11 +2376,7 @@
       "retrieved_relevant": [
         "order"
       ],
-      "irrelevant": [
-        "archive",
-        "ledger",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "pressure/direct-pressure/direct-5/off",
@@ -1963,6 +2384,8 @@
       "variant": "off",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1977,6 +2400,8 @@
       "variant": "counted",
       "category": "direct_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -1991,6 +2416,8 @@
       "variant": "off",
       "category": "callee_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2005,6 +2432,8 @@
       "variant": "counted",
       "category": "callee_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2019,15 +2448,18 @@
       "variant": "on",
       "category": "callee_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
         "lease"
       ],
-      "retrieved_relevant": [],
+      "retrieved_relevant": [
+        "lease"
+      ],
       "irrelevant": [
         "archive",
-        "ledger",
         "probe",
         "wire"
       ]
@@ -2038,6 +2470,8 @@
       "variant": "off",
       "category": "caller_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2052,6 +2486,8 @@
       "variant": "counted",
       "category": "caller_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2066,15 +2502,18 @@
       "variant": "on",
       "category": "caller_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
         "lease"
       ],
-      "retrieved_relevant": [],
+      "retrieved_relevant": [
+        "lease"
+      ],
       "irrelevant": [
         "archive",
-        "ledger",
         "probe",
         "wire"
       ]
@@ -2085,6 +2524,8 @@
       "variant": "off",
       "category": "multiple_links",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2099,6 +2540,8 @@
       "variant": "counted",
       "category": "multiple_links",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2113,6 +2556,8 @@
       "variant": "on",
       "category": "multiple_links",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2121,11 +2566,7 @@
       "retrieved_relevant": [
         "shared"
       ],
-      "irrelevant": [
-        "archive",
-        "ledger",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "pressure/shared-pressure/unresolved/counted",
@@ -2133,6 +2574,8 @@
       "variant": "counted",
       "category": "unresolved_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2147,6 +2590,8 @@
       "variant": "on",
       "category": "unresolved_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2167,6 +2612,8 @@
       "variant": "off",
       "category": "unresolved_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2181,6 +2628,8 @@
       "variant": "on",
       "category": "prose_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2193,7 +2642,9 @@
       ],
       "retrieved_relevant": [
         "archive",
+        "lease",
         "ledger",
+        "probe",
         "shared",
         "wire"
       ],
@@ -2205,6 +2656,8 @@
       "variant": "off",
       "category": "prose_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2224,6 +2677,8 @@
       "variant": "counted",
       "category": "prose_capacity",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2243,6 +2698,8 @@
       "variant": "off",
       "category": "relevant_direct_competes_with_irrelevant_callee",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2260,6 +2717,8 @@
       "variant": "counted",
       "category": "relevant_direct_competes_with_irrelevant_callee",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2277,6 +2736,8 @@
       "variant": "on",
       "category": "relevant_direct_competes_with_irrelevant_callee",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2299,6 +2760,8 @@
       "variant": "off",
       "category": "cross_file_dependency",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2313,6 +2776,8 @@
       "variant": "counted",
       "category": "cross_file_dependency",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2327,6 +2792,8 @@
       "variant": "on",
       "category": "cross_file_dependency",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2345,6 +2812,8 @@
       "variant": "off",
       "category": "transitive_dependency",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2359,6 +2828,8 @@
       "variant": "counted",
       "category": "transitive_dependency",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2373,6 +2844,8 @@
       "variant": "on",
       "category": "transitive_dependency",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2392,6 +2865,8 @@
       "variant": "off",
       "category": "linked_relevant",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2406,6 +2881,8 @@
       "variant": "counted",
       "category": "linked_relevant",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2420,6 +2897,8 @@
       "variant": "on",
       "category": "linked_relevant",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2428,9 +2907,7 @@
       "retrieved_relevant": [
         "ceiling"
       ],
-      "irrelevant": [
-        "cursor"
-      ]
+      "irrelevant": []
     },
     {
       "id": "cutoff/pagination-holdout/reason/counted",
@@ -2438,6 +2915,8 @@
       "variant": "counted",
       "category": "linked_relevant",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2452,6 +2931,8 @@
       "variant": "on",
       "category": "linked_relevant",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2460,9 +2941,7 @@
       "retrieved_relevant": [
         "ceiling"
       ],
-      "irrelevant": [
-        "cursor"
-      ]
+      "irrelevant": []
     },
     {
       "id": "cutoff/pagination-holdout/reason/off",
@@ -2470,6 +2949,8 @@
       "variant": "off",
       "category": "linked_relevant",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2484,14 +2965,13 @@
       "variant": "on",
       "category": "code_only",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "ceiling",
-        "cursor"
-      ]
+      "irrelevant": []
     },
     {
       "id": "cutoff/pagination-holdout/arithmetic/off",
@@ -2499,6 +2979,8 @@
       "variant": "off",
       "category": "code_only",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2511,6 +2993,8 @@
       "variant": "counted",
       "category": "code_only",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2523,6 +3007,8 @@
       "variant": "off",
       "category": "lexical_relevant",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2539,6 +3025,8 @@
       "variant": "counted",
       "category": "lexical_relevant",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2555,6 +3043,8 @@
       "variant": "on",
       "category": "lexical_relevant",
       "split": "held_out",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2573,6 +3063,8 @@
       "variant": "off",
       "category": "callee_rationale",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2589,6 +3081,8 @@
       "variant": "counted",
       "category": "callee_rationale",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2605,6 +3099,8 @@
       "variant": "on",
       "category": "callee_rationale",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2624,6 +3120,8 @@
       "variant": "counted",
       "category": "callee_rationale",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2642,6 +3140,8 @@
       "variant": "on",
       "category": "callee_rationale",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2661,6 +3161,8 @@
       "variant": "off",
       "category": "callee_rationale",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [
@@ -2679,15 +3181,13 @@
       "variant": "on",
       "category": "code_only",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "lifetime",
-        "schema",
-        "tracing"
-      ]
+      "irrelevant": []
     },
     {
       "id": "cutoff/webhooks-holdout/arithmetic/off",
@@ -2695,6 +3195,8 @@
       "variant": "off",
       "category": "code_only",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2707,6 +3209,8 @@
       "variant": "counted",
       "category": "code_only",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2719,6 +3223,8 @@
       "variant": "off",
       "category": "code_only",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2733,6 +3239,8 @@
       "variant": "counted",
       "category": "code_only",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2747,13 +3255,13 @@
       "variant": "on",
       "category": "code_only",
       "split": "held_out",
+      "language": "javascript",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
       "irrelevant": [
-        "lifetime",
-        "schema",
         "tracing"
       ]
     },
@@ -2763,6 +3271,8 @@
       "variant": "off",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2777,6 +3287,8 @@
       "variant": "counted",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2791,6 +3303,8 @@
       "variant": "on",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2809,6 +3323,8 @@
       "variant": "counted",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2821,6 +3337,8 @@
       "variant": "on",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2838,6 +3356,8 @@
       "variant": "off",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2850,6 +3370,8 @@
       "variant": "on",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2867,6 +3389,8 @@
       "variant": "off",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2879,6 +3403,8 @@
       "variant": "counted",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2891,6 +3417,8 @@
       "variant": "off",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2903,6 +3431,8 @@
       "variant": "counted",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2915,6 +3445,8 @@
       "variant": "on",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2930,6 +3462,8 @@
       "variant": "counted",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2942,6 +3476,8 @@
       "variant": "on",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2957,6 +3493,8 @@
       "variant": "off",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2969,6 +3507,8 @@
       "variant": "on",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2984,6 +3524,8 @@
       "variant": "off",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -2996,6 +3538,8 @@
       "variant": "counted",
       "category": "no_answer_control",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
@@ -3008,6 +3552,8 @@
       "variant": "baseline",
       "category": "location",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3020,6 +3566,8 @@
       "variant": "routed",
       "category": "location",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3032,6 +3580,8 @@
       "variant": "routed",
       "category": "behavior",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3044,6 +3594,8 @@
       "variant": "baseline",
       "category": "behavior",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3056,6 +3608,8 @@
       "variant": "baseline",
       "category": "rationale",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3069,6 +3623,8 @@
       "variant": "routed",
       "category": "rationale",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3082,6 +3638,8 @@
       "variant": "routed",
       "category": "behavior",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3094,6 +3652,8 @@
       "variant": "baseline",
       "category": "behavior",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3106,6 +3666,8 @@
       "variant": "baseline",
       "category": "behavior",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3119,6 +3681,8 @@
       "variant": "routed",
       "category": "behavior",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3132,6 +3696,8 @@
       "variant": "routed",
       "category": "behavior",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
@@ -3144,9 +3710,2412 @@
       "variant": "baseline",
       "category": "behavior",
       "split": "regression",
+      "language": "python",
+      "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-memory/typescript-delivery/qualified-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/qualified-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/qualified-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/callee-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/typescript-delivery/callee-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/typescript-delivery/callee-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/typescript-delivery/owner-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/owner-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/owner-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/ambiguous-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/ambiguous-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/ambiguous-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/prose-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/prose-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": [
+        "lease",
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/typescript-delivery/prose-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/no-answer/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/typescript-delivery/no-answer/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/typescript-delivery/no-answer/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/typescript-delivery/literal-result/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/literal-result/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/typescript-delivery/literal-result/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/qualified-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/qualified-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/qualified-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/callee-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/go-delivery/callee-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/go-delivery/callee-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/go-delivery/owner-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/owner-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/owner-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/ambiguous-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/ambiguous-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/ambiguous-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/prose-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/prose-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/go-delivery/prose-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/no-answer/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/go-delivery/no-answer/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/go-delivery/no-answer/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/go-delivery/literal-result/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/literal-result/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/go-delivery/literal-result/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/qualified-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/qualified-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/qualified-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/callee-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/java-delivery/callee-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/java-delivery/callee-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/java-delivery/owner-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/owner-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/owner-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/ambiguous-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/ambiguous-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/ambiguous-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/prose-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/prose-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": [
+        "lease",
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/java-delivery/prose-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/no-answer/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/java-delivery/no-answer/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/java-delivery/no-answer/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/java-delivery/literal-result/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/literal-result/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/java-delivery/literal-result/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/qualified-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/qualified-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/qualified-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/callee-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/kotlin-delivery/callee-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/kotlin-delivery/callee-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/kotlin-delivery/owner-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/owner-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/owner-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/ambiguous-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/ambiguous-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/ambiguous-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/prose-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/prose-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": [
+        "lease",
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/kotlin-delivery/prose-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/no-answer/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/kotlin-delivery/no-answer/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/kotlin-delivery/no-answer/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/kotlin-delivery/literal-result/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/literal-result/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/kotlin-delivery/literal-result/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/qualified-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/qualified-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/qualified-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "qualified_method",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/callee-rationale/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/rust-delivery/callee-rationale/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/rust-delivery/callee-rationale/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "cross_file_dependency",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/rust-delivery/owner-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/owner-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/owner-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "enclosing_contract",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/ambiguous-method/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/ambiguous-method/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/ambiguous-method/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "ambiguous_method",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/prose-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/prose-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": [
+        "lease",
+        "owner"
+      ]
+    },
+    {
+      "id": "language-memory/rust-delivery/prose-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/no-answer/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "lease",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/rust-delivery/no-answer/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/rust-delivery/no-answer/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "alternate",
+        "owner",
+        "wire"
+      ]
+    },
+    {
+      "id": "language-memory/rust-delivery/literal-result/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/literal-result/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-memory/rust-delivery/literal-result/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "language-source/typescript-delivery/method-branch/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/typescript-delivery/method-branch/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/typescript-delivery/caller-callee/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/typescript-delivery/caller-callee/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/typescript-delivery/language-construct/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/typescript-delivery/language-construct/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "typescript",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/go-delivery/method-branch/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/go-delivery/method-branch/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/go-delivery/caller-callee/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/go-delivery/caller-callee/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/go-delivery/language-construct/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/go-delivery/language-construct/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "go",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/java-delivery/method-branch/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/java-delivery/method-branch/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/java-delivery/caller-callee/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/java-delivery/caller-callee/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/java-delivery/language-construct/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/java-delivery/language-construct/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "java",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/kotlin-delivery/method-branch/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/kotlin-delivery/method-branch/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/kotlin-delivery/caller-callee/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/kotlin-delivery/caller-callee/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/kotlin-delivery/language-construct/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/kotlin-delivery/language-construct/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "kotlin",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/rust-delivery/method-branch/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/rust-delivery/method-branch/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "language-source/rust-delivery/caller-callee/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/rust-delivery/caller-callee/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/rust-delivery/language-construct/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "language-source/rust-delivery/language-construct/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "rust",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
         true
       ]
     }

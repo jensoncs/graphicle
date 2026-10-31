@@ -7,6 +7,8 @@
     {"id": "diversity", "kind": "memory", "file": "symbol_link_diversity.json"},
     {"id": "cutoff", "kind": "memory", "file": "symbol_link_cutoff_holdout.json"},
     {"id": "negative", "kind": "memory", "file": "note_no_answer_controls.json"},
-    {"id": "source", "kind": "source", "file": "quality_sources.json"}
+    {"id": "source", "kind": "source", "file": "quality_sources.json"},
+    {"id": "language-memory", "kind": "memory", "file": "quality_language_memories.json"},
+    {"id": "language-source", "kind": "source", "file": "quality_language_sources.json"}
   ]
 }

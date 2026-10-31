@@ -1,12 +1,13 @@
 """Evidence completeness cannot be satisfied by a title or a wrong revision."""
 import hashlib
+import json
 import sys
 from pathlib import Path
 
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
-from real_query_eval import load_sources, safe_path, score, validate_questions
+from real_query_eval import load_sources, safe_path, score, validate_capture, validate_questions
 
 
 def fixture():
@@ -30,6 +31,30 @@ def test_complete_requires_exact_source_and_all_labels():
     e = packet["evidence"][0]
     e.update(byte_end=13, text=files["read.go"][:13].decode())
     assert not score(packet, q, files)["complete"]
+
+
+@pytest.mark.parametrize("change", [None, "question", "hash", "line", "tool", "arguments"])
+def test_captured_queries_must_match_a_pinned_log(tmp_path, change):
+    record = {"tool": "query_graph", "arguments": {"question": "Read", "depth": 1}}
+    path = tmp_path / "capture.jsonl"
+    path.write_text(json.dumps(record) + "\n")
+    query = {"question": "Read", "origin": {**record, "path": str(path),
+             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(), "line": 1}}
+    if change == "question":
+        query["question"] = "Edited query"
+    elif change == "hash":
+        path.write_text(json.dumps(record) + "\n\n")
+    elif change == "line":
+        query["origin"]["line"] = 0
+    elif change == "tool":
+        query["origin"]["tool"] = "context"
+    elif change == "arguments":
+        query["origin"]["arguments"] = {"question": "Read", "depth": 2}
+    if change is None:
+        validate_capture(query)
+    else:
+        with pytest.raises(ValueError, match="Captured"):
+            validate_capture(query)
 
 
 def test_location_citation_never_substitutes_for_behavior():

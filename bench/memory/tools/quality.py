@@ -14,9 +14,10 @@ import statistics
 import tempfile
 from pathlib import Path
 
-from real_query_eval import run_project, safe_path, validate_questions
+from real_query_eval import load_sources, run_project, safe_path, validate_questions
 from retrieval_recall import digest, save
 from symbol_link_precision import REQUEST, VARIANTS, evaluate_project, validate
+from quality_diagnostics import summarize_memory_diagnostics
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SUITE = ROOT / "fixtures/quality_suite.json"
@@ -29,11 +30,12 @@ def read(path):
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
-def load_suite(path):
+def load_suite(path, source_roots=None):
     suite = read(path)
     if suite.get("format") != "graphicle.quality-suite.v1" or not suite.get("datasets"):
         raise ValueError("Expected a nonempty graphicle.quality-suite.v1 manifest")
-    entries, seen = [], set()
+    entries, seen, relocated = [], set(), set()
+    source_roots = source_roots or {}
     for entry in suite["datasets"]:
         name = entry["id"]
         if len(safe_path(name).parts) != 1 or name in seen:
@@ -43,6 +45,13 @@ def load_suite(path):
         if not source.resolve().is_relative_to(path.parent.resolve()):
             raise ValueError("Dataset escaped the suite directory")
         dataset = read(source)
+        for project in dataset.get("projects", []):
+            key = name + "/" + project["id"]
+            if key in source_roots:
+                if dataset.get("format") != "graphicle.real-query-seed.v1":
+                    raise ValueError("Source overrides require a pinned real-source dataset")
+                project["source_root"] = source_roots[key]
+                relocated.add(key)
         if entry["kind"] == "memory":
             validate(dataset)
         elif entry["kind"] == "source":
@@ -50,6 +59,8 @@ def load_suite(path):
         else:
             raise ValueError("Unknown evaluator kind")
         entries.append({**entry, "data": dataset, "sha256": digest(source)})
+    if relocated != set(source_roots):
+        raise ValueError("Unknown source-root dataset/project")
     return entries
 
 
@@ -78,17 +89,34 @@ def source_project(project, folder):
 
 
 def validate_source(dataset):
-    if dataset.get("format") != "graphicle.quality-sources.v1" or not dataset.get("projects"):
-        raise ValueError("Expected nonempty inline source fixtures")
+    pinned = dataset.get("format") == "graphicle.real-query-seed.v1"
+    if (dataset.get("format") not in ("graphicle.quality-sources.v1", "graphicle.real-query-seed.v1")
+            or not dataset.get("projects") or not dataset.get("provenance")):
+        raise ValueError("Expected nonempty source fixtures with provenance")
     seen = set()
     for p in dataset["projects"]:
         if len(safe_path(p["id"]).parts) != 1 or p["id"] in seen:
             raise ValueError("Source project IDs must be unique safe names")
         seen.add(p["id"])
-        if p.get("split") != "regression" or not p.get("files") or not p.get("queries"):
-            raise ValueError("Inline source fixtures must declare regression provenance")
-        with tempfile.TemporaryDirectory(prefix="graphicle-quality-labels-") as tmp:
-            source_project(p, Path(tmp))
+        if (p.get("split") not in (("regression", "development", "held_out") if pinned else ("regression",))
+                or not p.get("files") or not p.get("queries")):
+            raise ValueError("Source fixtures must declare their split, files and queries")
+        if pinned:
+            validate_questions(p, load_sources(p))
+        else:
+            if any(q.get("origin", {}).get("kind", "authored_fixture") != "authored_fixture"
+                   for q in p["queries"]):
+                raise ValueError("Inline synthetic sources cannot claim captured-query provenance")
+            with tempfile.TemporaryDirectory(prefix="graphicle-quality-labels-") as tmp:
+                source_project(p, Path(tmp))
+
+
+def project_language(project):
+    """Count a mixed-language project once; unknown extensions stay explicit."""
+    names = {".py": "python", ".js": "javascript", ".ts": "typescript", ".tsx": "typescript",
+             ".go": "go", ".java": "java", ".kt": "kotlin", ".rs": "rust"}
+    languages = sorted({names.get(Path(name).suffix, "unknown") for name in project["files"]})
+    return languages[0] if len(languages) == 1 else "mixed:" + "+".join(languages)
 
 
 def normalize(entry, project, rows):
@@ -101,12 +129,16 @@ def normalize(entry, project, rows):
             case = {"id": "/".join((entry["id"], project["id"], qid, variant)),
                     "kind": entry["kind"], "variant": variant,
                     "category": q.get("category", q.get("intent")), "split": project["split"],
+                    "language": project_language(project),
+                    "origin": q.get("origin", {}).get("kind", "authored_fixture"),
                     "seconds": value.get("seconds"), "tokens": value.get("tokens"),
                     "error": value.get("error"), "content_preserved": row.get("counted_preserves_content")}
             if entry["kind"] == "memory":
                 gold, found = set(q["relevant_memories"]), set(value.get("returned", []))
                 case.update(relevant=sorted(gold), retrieved_relevant=sorted(gold & found),
                             irrelevant=sorted(found - gold))
+                if "memory_diagnostics" in value:
+                    case["memory_diagnostics"] = value["memory_diagnostics"]
                 if q["category"] == "stale" and found:
                     case["error"] = "Stale memory was returned"
             else:
@@ -133,6 +165,7 @@ def summary(cases):
                    "latency_ms_completed": {"n": len(times), "p50": percentile(times, .5),
                        "p95": percentile(times, .95), "p99": percentile(times, .99)}}
         if kind == "memory":
+            metrics["diagnostics"] = summarize_memory_diagnostics(rows)
             tp = sum(len(c["retrieved_relevant"]) for c in ok)
             fp = sum(len(c["irrelevant"]) for c in ok)
             gold = sum(len(c["relevant"]) for c in rows)
@@ -233,6 +266,17 @@ def markdown(report):
         lines.append(f"| {name} | {m['completed']} / {m['planned']} | {percent(m.get('precision_completed'))} | "
                      f"{percent(m.get('recall', m.get('evidence_recall')))} | "
                      f"{percent(m.get('empty_memory_accuracy', m.get('completeness')))} | {tokens} | {p95} |")
+    for field, title in (("language", "Code language"), ("origin", "Query origin")):
+        lines += ["", "## " + title, "",
+                  "| Group | Variant | Completed / planned | Precision | Recall / evidence recall |",
+                  "|---|---|---:|---:|---:|"]
+        for group, variants in report.get("by_" + field, {}).items():
+            for variant, metrics in variants.items():
+                lines.append(f"| {group} | {variant} | {metrics['completed']} / {metrics['planned']} | "
+                             f"{percent(metrics.get('precision_completed'))} | "
+                             f"{percent(metrics.get('recall', metrics.get('evidence_recall')))} |")
+    lines += ["", "Authored fixtures, authored real-source questions and captured diagnostic tool queries are distinct populations.",
+              "A captured tool query is not evidence of independent human-query quality. Mixed-language projects count once."]
     lines += ["", "Failed calls remain in recall/completeness denominators; precision, tokens and latency use completed calls only.",
               "Latency includes a new CLI process per query and profiling overhead. Small-sample percentiles are descriptive; no latency gate.",
               "Empty memory means no reviewed notes returned, not answer abstention. Phase durations overlap and must not be summed.", "",
@@ -240,19 +284,30 @@ def markdown(report):
     lines += [f"- `{f['case']}`: {f['reason']}" + (" — " + ", ".join(f["ids"]) if "ids" in f else "")
               for f in report["gate"]["findings"]] or ["No observed regressions." if report["gate"]["status"] == "passed" else "No baseline comparison."]
     lines += ["", "## Not measured", ""] + ["- " + name for name in UNMEASURED]
+    lines += ["", "## Memory failure diagnostics", "",
+              "Observed stages only: an absent candidate is not proof of an indexing or authorization failure.",
+              "Trace coverage and truncation are explicit; diagnostic metrics do not change the regression gate.", ""]
+    for name, m in report["summary"].items():
+        d = m.get("diagnostics")
+        if d is None:
+            continue
+        lines.append(f"- **{name}**: {d['traced']}/{d['planned']} traced; "
+                     f"{d['truncated_traces']} truncated traces; missing stages "
+                     f"`{json.dumps(d['missing_by_observed_stage'], sort_keys=True)}`; "
+                     f"irrelevant-note routes `{json.dumps(d['false_positives_by_route'], sort_keys=True)}`.")
     lines += ["", "Inspect `cases/<dataset>/<project>/<query>/<variant>.diagnostics.json` and saved packets for failures.",
               "JSON also contains category breakdowns, individual outcomes, corpus hashes and the evaluated binary hash.", ""]
     return "\n".join(lines)
 
 
-def run(binary, suite, output, baseline=None):
-    entries = load_suite(suite)
+def run(binary, suite, output, baseline=None, source_roots=None):
+    entries = load_suite(suite, source_roots)
     # Reserve the run directory atomically; concurrent runs may not overwrite
     # one another's frozen protocol, packets or partial results.
     output.mkdir(parents=True, exist_ok=False)
     contract = {"scoring_version": 1, "request": REQUEST, "memory_variants": VARIANTS,
                 "source_variants": {"baseline": False, "routed": True},
-                "source_debug_candidates": 400,
+                "source_debug_candidates": 400, "memory_debug_candidates": 400,
                 "datasets": [{k: e[k] for k in ("id", "kind", "sha256")} for e in entries],
                 "case_ids": sorted("/".join((e["id"], p["id"], q["id"], v))
                                    for e in entries for p in e["data"]["projects"] for q in p["queries"]
@@ -262,18 +317,24 @@ def run(binary, suite, output, baseline=None):
                 "runner_sha256": {name: digest(Path(__file__).with_name(name)) for name in
                     ("quality.py", "quality_diagnostics.py", "symbol_link_precision.py", "real_query_eval.py", "retrieval_recall.py")},
                 "models": "none", "phase_timings": True,
+                "source_roots": {e["id"] + "/" + p["id"]: p["source_root"]
+                                 for e in entries for p in e["data"]["projects"] if "source_root" in p},
+                "memory_debug_candidates": 400, "memory_diagnostics_version": 1,
                 "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"}
     save(output / "PROTOCOL.json", protocol)
-    cases = []
+    cases, grounding = [], {}
     for entry in entries:
         for project in entry["data"]["projects"]:
             destination = output / "cases" / entry["id"]
             if entry["kind"] == "memory":
                 rows = evaluate_project(project, binary, destination, diagnose=True)
+                if rows and "memory_grounding" in rows[0]:
+                    grounding[entry["id"] + "/" + project["id"]] = rows[0]["memory_grounding"]
             else:
                 try:
                     with tempfile.TemporaryDirectory(prefix="graphicle-quality-source-") as tmp:
-                        prepared = source_project(project, Path(tmp))
+                        prepared = (project if entry["data"]["format"] == "graphicle.real-query-seed.v1"
+                                    else source_project(project, Path(tmp)))
                         rows = run_project(prepared, binary, destination, None, diagnose=True)
                 except Exception as error:
                     rows = [{"query": q["id"], "variants": {v: {"error": f"setup: {error}"}
@@ -282,13 +343,22 @@ def run(binary, suite, output, baseline=None):
             save(output / "CASES.json", cases)
             print(f"{entry['id']}/{project['id']}: {len(rows)} queries", flush=True)
     report = {"format": FORMAT, "contract": contract, "protocol": protocol, "cases": cases,
-              "summary": summary(cases), "unmeasured": UNMEASURED,
+              "summary": summary(cases), "unmeasured": UNMEASURED, "memory_grounding": grounding,
               "by_category": {cat: summary([c for c in cases if c["category"] == cat])
                               for cat in sorted({c["category"] for c in cases})}}
+    for field in ("language", "origin"):
+        report["by_" + field] = {key: summary([c for c in cases if c[field] == key])
+                                for key in sorted({c[field] for c in cases})}
     inputs = [(binary, protocol["binary_sha256"])]
     inputs += [(suite.parent / e["file"], e["sha256"]) for e in entries]
     inputs += [(Path(__file__).with_name(name), sha) for name, sha in protocol["runner_sha256"].items()]
     report["integrity_errors"] = []
+    for entry in entries:
+        if entry["data"]["format"] == "graphicle.real-query-seed.v1":
+            try:
+                validate_source(entry["data"])
+            except (ValueError, KeyError, TypeError, OSError) as error:
+                report["integrity_errors"].append(f"Pinned source or capture changed: {error}")
     for path, sha in inputs:
         try:
             unchanged = digest(path) == sha
@@ -311,6 +381,8 @@ def main():
     execute.add_argument("--suite", type=Path, default=DEFAULT_SUITE)
     execute.add_argument("--out", type=Path, required=True)
     execute.add_argument("--baseline", type=Path)
+    execute.add_argument("--source-root", action="append", default=[], metavar="DATASET/PROJECT=DIR",
+                         help="Relocate pinned source; file and capture hashes must still match")
     compare = commands.add_parser("compare", help="Recheck a saved scorecard against a frozen baseline")
     compare.add_argument("--report", type=Path, required=True)
     compare.add_argument("--baseline", type=Path, required=True)
@@ -320,8 +392,14 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == "run":
+            roots = {}
+            for override in args.source_root:
+                key, separator, value = override.partition("=")
+                if not separator or not key or not value or key in roots:
+                    raise ValueError("Source override must uniquely name DATASET/PROJECT=DIR")
+                roots[key] = value
             result = run(args.binary.resolve(strict=True), args.suite.resolve(strict=True), args.out.resolve(),
-                         read(args.baseline) if args.baseline else None)["gate"]
+                         read(args.baseline) if args.baseline else None, roots)["gate"]
         elif args.command == "compare":
             result = gate(read(args.report), read(args.baseline))
             print(json.dumps(result, indent=2))
@@ -332,7 +410,7 @@ def main():
                 raise ValueError("Cannot freeze a run containing invalid observations")
             baseline = {"format": FORMAT, "contract": report["contract"],
                         "provenance": {"report_sha256": digest(args.report), "protocol": report["protocol"]},
-                        "cases": [{k: v for k, v in c.items() if k not in ("seconds", "tokens")}
+                        "cases": [{k: v for k, v in c.items() if k not in ("seconds", "tokens", "memory_diagnostics")}
                                   for c in report["cases"]]}
             # Never overwrite an accepted baseline implicitly.
             args.out.parent.mkdir(parents=True, exist_ok=True)

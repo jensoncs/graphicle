@@ -6,6 +6,15 @@ fixtures and exact-source checks, preserves per-case diagnostics, and compares
 against an explicitly frozen baseline without treating synthetic cases as
 real-user accuracy.
 
+The CI scorecard covers 110 authored questions (309 context calls) across Python,
+JavaScript, TypeScript, Go, Java, Kotlin and Rust, with per-language and
+query-origin breakdowns. The separate `fixtures/quality_real_suite.json` replays
+11 pinned historical-source questions against `quality-real-baseline.json` when
+the external checkouts and capture logs are available. Its two captured tool
+queries and nine authored real-source questions are not independent human
+traffic. See the quality guide for provenance checks, relocation and remaining
+real-user data requirements.
+
 Retrieval and answer benchmarks for Graphicle's memory, run through the real
 `graphicle` program. This folder is the first part of the public benchmark
 kit: the tools that measure the retrieval options of the runtime README (its

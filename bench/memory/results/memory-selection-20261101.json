@@ -1,0 +1,1544 @@
+{
+  "date": "2026-11-01",
+  "status": "passed",
+  "source_head": "1dc0609afadb18fa2237b99046bb240181cd5558",
+  "scope": "Authored synthetic regression fixtures; no independent user-query, generated-answer or production-latency claim.",
+  "changes": [
+    "Follow canonical nesting only toward owners, retaining enclosing contracts and excluding unrelated sibling methods; union all definitions of ambiguous names while retaining unresolved/stale/bounded fallback.",
+    "Collect up to 32 model-free linked candidates; prioritize exact integer duration equivalence before the cap, without rejecting unmatched notes or changing local-reranker scoring.",
+    "Project-wide decision inventories use the existing request limit, clamped to 4..32; ordinary focused queries keep four and packing budgets still apply."
+  ],
+  "runtime_source_sha256": {
+    "crates/graphicle-memory/src/retrieval.rs": "c1f6b609f9bddab7f26f7132464c65aca3b302dd3e6822bfa774b1fd6365e042",
+    "crates/graphicle-memory/src/text.rs": "f4496587204bdc0f45d9c47b4a487178173a8eba85130b760b225939ced1986e",
+    "crates/graphicle-memory/tests/native_contracts.rs": "4722de7b4926194a6b750e5fad909424fd396116612fb01bed577e9c241d8355",
+    "crates/graphicle/src/code_question.rs": "c20354de3c35dc93494fe1f1bd54c55ad57e7984a17ee04e0a4d28e1c1f4c4cf",
+    "crates/graphicle/src/identifier_arm.rs": "bbe2c68e2527f980c3f467237f348f03f4618277db714af9a498b10f3c463aed",
+    "crates/graphicle/src/lib.rs": "057876fff233e875156966941c64612b53060f4177a7b1b56e24d79e4851dcf3",
+    "crates/graphicle/src/query.rs": "0ede81dfaa2c4d71f7c822a4429c92c3313021275f348af0cad38737cc9d2870",
+    "crates/graphicle/src/symbol_links.rs": "835176a4c08539312180734ab7844598c1effae4be5e99a3a587bfc99b2836ed",
+    "crates/graphicle/tests/it/symbol_links.rs": "e9aed57b155610f2b05e20bda6f4b6495d0a679344a75b3036979bda444c1318",
+    "crates/graphicle/src/memory_diagnostics.rs": "f767484c1081d627bb5999a153dbb85fed57acd7b12164dfb870857fa4f4f14f"
+  },
+  "model_free": {
+    "calls": 174,
+    "repeat_calls": 174,
+    "repeat_outcomes_identical": true,
+    "baseline_sha256": "b567c1b63b58c6c4ceac7a995f7e796b704c3a9b6595f8dc6bda608d8059257b",
+    "before_report_sha256": "7c8aaa7b1ef9d2bbd1067b3100d341f51cbec7d4f3bcc37bf14c818bc1d6f828",
+    "before_summary": {
+      "memory/counted": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16777,
+        "mean_tokens_completed": 310.68518518518516,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 625.5,
+          "p95": 1328.8999999999999,
+          "p99": 2478.5
+        },
+        "diagnostics": {
+          "planned": 54,
+          "measured": 54,
+          "traced": 54,
+          "truncated_traces": 0,
+          "unmeasured": 0,
+          "missing_by_observed_stage": {
+            "link_withheld": 42
+          },
+          "false_positives_by_route": {
+            "ranked": 5
+          },
+          "observed_candidate_recall_lower_bound": 1.0,
+          "observed_packing_recall_lower_bound": 0.19230769230769232,
+          "traced_gold_occurrences": 52,
+          "mean_reciprocal_rank": {
+            "value": 0.24324324324324326,
+            "n": 37
+          },
+          "at_k": {
+            "1": {
+              "precision_returned": {
+                "value": 0.75,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.21621621621621623,
+                "n": 37
+              }
+            },
+            "4": {
+              "precision_returned": {
+                "value": 0.6666666666666666,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.22972972972972974,
+                "n": 37
+              }
+            },
+            "8": {
+              "precision_returned": {
+                "value": 0.6666666666666666,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.22972972972972974,
+                "n": 37
+              }
+            }
+          }
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/off": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16777,
+        "mean_tokens_completed": 310.68518518518516,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 630.4,
+          "p95": 1279.0,
+          "p99": 1630.8
+        },
+        "diagnostics": {
+          "planned": 54,
+          "measured": 54,
+          "traced": 54,
+          "truncated_traces": 0,
+          "unmeasured": 0,
+          "missing_by_observed_stage": {
+            "eligible_not_selected": 42
+          },
+          "false_positives_by_route": {
+            "ranked": 5
+          },
+          "observed_candidate_recall_lower_bound": 1.0,
+          "observed_packing_recall_lower_bound": 0.19230769230769232,
+          "traced_gold_occurrences": 52,
+          "mean_reciprocal_rank": {
+            "value": 0.24324324324324326,
+            "n": 37
+          },
+          "at_k": {
+            "1": {
+              "precision_returned": {
+                "value": 0.75,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.21621621621621623,
+                "n": 37
+              }
+            },
+            "4": {
+              "precision_returned": {
+                "value": 0.6666666666666666,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.22972972972972974,
+                "n": 37
+              }
+            },
+            "8": {
+              "precision_returned": {
+                "value": 0.6666666666666666,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.22972972972972974,
+                "n": 37
+              }
+            }
+          }
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/on": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 21019,
+        "mean_tokens_completed": 389.24074074074076,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 654.9000000000001,
+          "p95": 1557.9,
+          "p99": 2638.9
+        },
+        "diagnostics": {
+          "planned": 54,
+          "measured": 54,
+          "traced": 54,
+          "truncated_traces": 0,
+          "unmeasured": 0,
+          "missing_by_observed_stage": {
+            "linked_candidate_cap": 4
+          },
+          "false_positives_by_route": {
+            "ranked": 5,
+            "symbol_link": 51
+          },
+          "observed_candidate_recall_lower_bound": 1.0,
+          "observed_packing_recall_lower_bound": 0.9230769230769231,
+          "traced_gold_occurrences": 52,
+          "mean_reciprocal_rank": {
+            "value": 0.8693693693693693,
+            "n": 37
+          },
+          "at_k": {
+            "1": {
+              "precision_returned": {
+                "value": 0.6818181818181818,
+                "n": 44
+              },
+              "recall": {
+                "value": 0.6734234234234234,
+                "n": 37
+              }
+            },
+            "4": {
+              "precision_returned": {
+                "value": 0.5681818181818182,
+                "n": 44
+              },
+              "recall": {
+                "value": 0.9369369369369369,
+                "n": 37
+              }
+            },
+            "8": {
+              "precision_returned": {
+                "value": 0.5681818181818182,
+                "n": 44
+              },
+              "recall": {
+                "value": 0.9369369369369369,
+                "n": 37
+              }
+            }
+          }
+        },
+        "tp": 48,
+        "fp": 56,
+        "fn": 4,
+        "precision_completed": 0.46153846153846156,
+        "recall": 0.9230769230769231,
+        "macro_recall": 0.9369369369369369,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.5882352941176471
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 3438,
+        "mean_tokens_completed": 573,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 582.4227500124834,
+          "p95": 630.1525419694372,
+          "p99": 630.1525419694372
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 2964,
+        "mean_tokens_completed": 494,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 569.9347920017317,
+          "p95": 660.807374981232,
+          "p99": 660.807374981232
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "initial_report_sha256": "3edcf3fe0c87fab14b2072dff074cbbf1206282da3a308ae4f995c9d119fb5e9",
+    "initial_protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "memory_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "links",
+            "kind": "memory",
+            "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+          },
+          {
+            "id": "exact",
+            "kind": "memory",
+            "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+          },
+          {
+            "id": "pressure",
+            "kind": "memory",
+            "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+          },
+          {
+            "id": "diversity",
+            "kind": "memory",
+            "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+          },
+          {
+            "id": "cutoff",
+            "kind": "memory",
+            "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+          },
+          {
+            "id": "negative",
+            "kind": "memory",
+            "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+          },
+          {
+            "id": "source",
+            "kind": "source",
+            "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+          }
+        ],
+        "case_ids": [
+          "cutoff/pagination-holdout/arithmetic/counted",
+          "cutoff/pagination-holdout/arithmetic/off",
+          "cutoff/pagination-holdout/arithmetic/on",
+          "cutoff/pagination-holdout/change/counted",
+          "cutoff/pagination-holdout/change/off",
+          "cutoff/pagination-holdout/change/on",
+          "cutoff/pagination-holdout/prose/counted",
+          "cutoff/pagination-holdout/prose/off",
+          "cutoff/pagination-holdout/prose/on",
+          "cutoff/pagination-holdout/reason/counted",
+          "cutoff/pagination-holdout/reason/off",
+          "cutoff/pagination-holdout/reason/on",
+          "cutoff/webhooks-holdout/arithmetic/counted",
+          "cutoff/webhooks-holdout/arithmetic/off",
+          "cutoff/webhooks-holdout/arithmetic/on",
+          "cutoff/webhooks-holdout/ceiling/counted",
+          "cutoff/webhooks-holdout/ceiling/off",
+          "cutoff/webhooks-holdout/ceiling/on",
+          "cutoff/webhooks-holdout/string/counted",
+          "cutoff/webhooks-holdout/string/off",
+          "cutoff/webhooks-holdout/string/on",
+          "cutoff/webhooks-holdout/timing/counted",
+          "cutoff/webhooks-holdout/timing/off",
+          "cutoff/webhooks-holdout/timing/on",
+          "diversity/cross-file/cross-file-callee/counted",
+          "diversity/cross-file/cross-file-callee/off",
+          "diversity/cross-file/cross-file-callee/on",
+          "diversity/direct-contracts/all-direct/counted",
+          "diversity/direct-contracts/all-direct/off",
+          "diversity/direct-contracts/all-direct/on",
+          "diversity/transitive/two-hop-callee/counted",
+          "diversity/transitive/two-hop-callee/off",
+          "diversity/transitive/two-hop-callee/on",
+          "exact/callee/callee-rationale/counted",
+          "exact/callee/callee-rationale/off",
+          "exact/callee/callee-rationale/on",
+          "exact/headers/multiple-names/counted",
+          "exact/headers/multiple-names/off",
+          "exact/headers/multiple-names/on",
+          "exact/headers/partly-unresolved/counted",
+          "exact/headers/partly-unresolved/off",
+          "exact/headers/partly-unresolved/on",
+          "exact/headers/prose-only/counted",
+          "exact/headers/prose-only/off",
+          "exact/headers/prose-only/on",
+          "exact/paths/duplicate-path/counted",
+          "exact/paths/duplicate-path/off",
+          "exact/paths/duplicate-path/on",
+          "exact/paths/path-qualified/counted",
+          "exact/paths/path-qualified/off",
+          "exact/paths/path-qualified/on",
+          "exact/qualified/ambiguous-name/counted",
+          "exact/qualified/ambiguous-name/off",
+          "exact/qualified/ambiguous-name/on",
+          "exact/qualified/qualified-name/counted",
+          "exact/qualified/qualified-name/off",
+          "exact/qualified/qualified-name/on",
+          "links/billing/direct-recall/counted",
+          "links/billing/direct-recall/off",
+          "links/billing/direct-recall/on",
+          "links/billing/linked-rationale/counted",
+          "links/billing/linked-rationale/off",
+          "links/billing/linked-rationale/on",
+          "links/billing/narrow-rationale/counted",
+          "links/billing/narrow-rationale/off",
+          "links/billing/narrow-rationale/on",
+          "links/billing/other-symbol/counted",
+          "links/billing/other-symbol/off",
+          "links/billing/other-symbol/on",
+          "links/billing/same-symbol-no-memory/counted",
+          "links/billing/same-symbol-no-memory/off",
+          "links/billing/same-symbol-no-memory/on",
+          "links/billing/unrelated/counted",
+          "links/billing/unrelated/off",
+          "links/billing/unrelated/on",
+          "links/cache/direct-recall/counted",
+          "links/cache/direct-recall/off",
+          "links/cache/direct-recall/on",
+          "links/cache/linked-rationale/counted",
+          "links/cache/linked-rationale/off",
+          "links/cache/linked-rationale/on",
+          "links/cache/narrow-rationale/counted",
+          "links/cache/narrow-rationale/off",
+          "links/cache/narrow-rationale/on",
+          "links/cache/same-symbol-no-memory/counted",
+          "links/cache/same-symbol-no-memory/off",
+          "links/cache/same-symbol-no-memory/on",
+          "links/cache/unrelated/counted",
+          "links/cache/unrelated/off",
+          "links/cache/unrelated/on",
+          "links/retry/direct-recall/counted",
+          "links/retry/direct-recall/off",
+          "links/retry/direct-recall/on",
+          "links/retry/linked-rationale/counted",
+          "links/retry/linked-rationale/off",
+          "links/retry/linked-rationale/on",
+          "links/retry/narrow-rationale/counted",
+          "links/retry/narrow-rationale/off",
+          "links/retry/narrow-rationale/on",
+          "links/retry/same-symbol-no-memory/counted",
+          "links/retry/same-symbol-no-memory/off",
+          "links/retry/same-symbol-no-memory/on",
+          "links/retry/unrelated/counted",
+          "links/retry/unrelated/off",
+          "links/retry/unrelated/on",
+          "links/stale/stale-direct/counted",
+          "links/stale/stale-direct/off",
+          "links/stale/stale-direct/on",
+          "links/stale/stale-symbol/counted",
+          "links/stale/stale-symbol/off",
+          "links/stale/stale-symbol/on",
+          "negative/cross-file/absent-0/counted",
+          "negative/cross-file/absent-0/off",
+          "negative/cross-file/absent-0/on",
+          "negative/cross-file/absent-1/counted",
+          "negative/cross-file/absent-1/off",
+          "negative/cross-file/absent-1/on",
+          "negative/cross-file/absent-2/counted",
+          "negative/cross-file/absent-2/off",
+          "negative/cross-file/absent-2/on",
+          "negative/direct-contracts/absent-0/counted",
+          "negative/direct-contracts/absent-0/off",
+          "negative/direct-contracts/absent-0/on",
+          "negative/direct-contracts/absent-1/counted",
+          "negative/direct-contracts/absent-1/off",
+          "negative/direct-contracts/absent-1/on",
+          "negative/direct-contracts/absent-2/counted",
+          "negative/direct-contracts/absent-2/off",
+          "negative/direct-contracts/absent-2/on",
+          "pressure/callee-pressure/lease-rationale/counted",
+          "pressure/callee-pressure/lease-rationale/off",
+          "pressure/callee-pressure/lease-rationale/on",
+          "pressure/caller-pressure/lease-rationale/counted",
+          "pressure/caller-pressure/lease-rationale/off",
+          "pressure/caller-pressure/lease-rationale/on",
+          "pressure/direct-pressure/direct-0/counted",
+          "pressure/direct-pressure/direct-0/off",
+          "pressure/direct-pressure/direct-0/on",
+          "pressure/direct-pressure/direct-1/counted",
+          "pressure/direct-pressure/direct-1/off",
+          "pressure/direct-pressure/direct-1/on",
+          "pressure/direct-pressure/direct-2/counted",
+          "pressure/direct-pressure/direct-2/off",
+          "pressure/direct-pressure/direct-2/on",
+          "pressure/direct-pressure/direct-3/counted",
+          "pressure/direct-pressure/direct-3/off",
+          "pressure/direct-pressure/direct-3/on",
+          "pressure/direct-pressure/direct-4/counted",
+          "pressure/direct-pressure/direct-4/off",
+          "pressure/direct-pressure/direct-4/on",
+          "pressure/direct-pressure/direct-5/counted",
+          "pressure/direct-pressure/direct-5/off",
+          "pressure/direct-pressure/direct-5/on",
+          "pressure/shared-pressure/prose/counted",
+          "pressure/shared-pressure/prose/off",
+          "pressure/shared-pressure/prose/on",
+          "pressure/shared-pressure/shared-target/counted",
+          "pressure/shared-pressure/shared-target/off",
+          "pressure/shared-pressure/shared-target/on",
+          "pressure/shared-pressure/unresolved/counted",
+          "pressure/shared-pressure/unresolved/off",
+          "pressure/shared-pressure/unresolved/on",
+          "source/payments/caller-callee/baseline",
+          "source/payments/caller-callee/routed",
+          "source/payments/failure-branch/baseline",
+          "source/payments/failure-branch/routed",
+          "source/payments/location/baseline",
+          "source/payments/location/routed",
+          "source/payments/rationale/baseline",
+          "source/payments/rationale/routed",
+          "source/payments/rounding/baseline",
+          "source/payments/rounding/routed",
+          "source/payments/unicode/baseline",
+          "source/payments/unicode/routed"
+        ]
+      },
+      "binary_sha256": "848bed89a5079f203ad1e35d4806aa65153f575ec74d68575f4a406ad37272a1",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "964ac61ae4b8be5845a8209b4be2344ccf7df41a09c83401e65d05528415f265",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "ff6c8456524e50205c7a3bce7b422f076188b61d161c660667fbe4e33f6d6f83",
+        "real_query_eval.py": "8ad7f488fdc34ab38f2fa65b652f2ce8249b782defd87a32c53fcf48a4e0bec5",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "memory_debug_candidates": 400,
+      "memory_diagnostics_version": 1,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    },
+    "final_report_sha256": "69604a572effb804584210ddafb0927c83c9205b5e7b253a33ce0202ed03e888",
+    "final_protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "memory_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "links",
+            "kind": "memory",
+            "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+          },
+          {
+            "id": "exact",
+            "kind": "memory",
+            "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+          },
+          {
+            "id": "pressure",
+            "kind": "memory",
+            "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+          },
+          {
+            "id": "diversity",
+            "kind": "memory",
+            "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+          },
+          {
+            "id": "cutoff",
+            "kind": "memory",
+            "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+          },
+          {
+            "id": "negative",
+            "kind": "memory",
+            "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+          },
+          {
+            "id": "source",
+            "kind": "source",
+            "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+          }
+        ],
+        "case_ids": [
+          "cutoff/pagination-holdout/arithmetic/counted",
+          "cutoff/pagination-holdout/arithmetic/off",
+          "cutoff/pagination-holdout/arithmetic/on",
+          "cutoff/pagination-holdout/change/counted",
+          "cutoff/pagination-holdout/change/off",
+          "cutoff/pagination-holdout/change/on",
+          "cutoff/pagination-holdout/prose/counted",
+          "cutoff/pagination-holdout/prose/off",
+          "cutoff/pagination-holdout/prose/on",
+          "cutoff/pagination-holdout/reason/counted",
+          "cutoff/pagination-holdout/reason/off",
+          "cutoff/pagination-holdout/reason/on",
+          "cutoff/webhooks-holdout/arithmetic/counted",
+          "cutoff/webhooks-holdout/arithmetic/off",
+          "cutoff/webhooks-holdout/arithmetic/on",
+          "cutoff/webhooks-holdout/ceiling/counted",
+          "cutoff/webhooks-holdout/ceiling/off",
+          "cutoff/webhooks-holdout/ceiling/on",
+          "cutoff/webhooks-holdout/string/counted",
+          "cutoff/webhooks-holdout/string/off",
+          "cutoff/webhooks-holdout/string/on",
+          "cutoff/webhooks-holdout/timing/counted",
+          "cutoff/webhooks-holdout/timing/off",
+          "cutoff/webhooks-holdout/timing/on",
+          "diversity/cross-file/cross-file-callee/counted",
+          "diversity/cross-file/cross-file-callee/off",
+          "diversity/cross-file/cross-file-callee/on",
+          "diversity/direct-contracts/all-direct/counted",
+          "diversity/direct-contracts/all-direct/off",
+          "diversity/direct-contracts/all-direct/on",
+          "diversity/transitive/two-hop-callee/counted",
+          "diversity/transitive/two-hop-callee/off",
+          "diversity/transitive/two-hop-callee/on",
+          "exact/callee/callee-rationale/counted",
+          "exact/callee/callee-rationale/off",
+          "exact/callee/callee-rationale/on",
+          "exact/headers/multiple-names/counted",
+          "exact/headers/multiple-names/off",
+          "exact/headers/multiple-names/on",
+          "exact/headers/partly-unresolved/counted",
+          "exact/headers/partly-unresolved/off",
+          "exact/headers/partly-unresolved/on",
+          "exact/headers/prose-only/counted",
+          "exact/headers/prose-only/off",
+          "exact/headers/prose-only/on",
+          "exact/paths/duplicate-path/counted",
+          "exact/paths/duplicate-path/off",
+          "exact/paths/duplicate-path/on",
+          "exact/paths/path-qualified/counted",
+          "exact/paths/path-qualified/off",
+          "exact/paths/path-qualified/on",
+          "exact/qualified/ambiguous-name/counted",
+          "exact/qualified/ambiguous-name/off",
+          "exact/qualified/ambiguous-name/on",
+          "exact/qualified/qualified-name/counted",
+          "exact/qualified/qualified-name/off",
+          "exact/qualified/qualified-name/on",
+          "links/billing/direct-recall/counted",
+          "links/billing/direct-recall/off",
+          "links/billing/direct-recall/on",
+          "links/billing/linked-rationale/counted",
+          "links/billing/linked-rationale/off",
+          "links/billing/linked-rationale/on",
+          "links/billing/narrow-rationale/counted",
+          "links/billing/narrow-rationale/off",
+          "links/billing/narrow-rationale/on",
+          "links/billing/other-symbol/counted",
+          "links/billing/other-symbol/off",
+          "links/billing/other-symbol/on",
+          "links/billing/same-symbol-no-memory/counted",
+          "links/billing/same-symbol-no-memory/off",
+          "links/billing/same-symbol-no-memory/on",
+          "links/billing/unrelated/counted",
+          "links/billing/unrelated/off",
+          "links/billing/unrelated/on",
+          "links/cache/direct-recall/counted",
+          "links/cache/direct-recall/off",
+          "links/cache/direct-recall/on",
+          "links/cache/linked-rationale/counted",
+          "links/cache/linked-rationale/off",
+          "links/cache/linked-rationale/on",
+          "links/cache/narrow-rationale/counted",
+          "links/cache/narrow-rationale/off",
+          "links/cache/narrow-rationale/on",
+          "links/cache/same-symbol-no-memory/counted",
+          "links/cache/same-symbol-no-memory/off",
+          "links/cache/same-symbol-no-memory/on",
+          "links/cache/unrelated/counted",
+          "links/cache/unrelated/off",
+          "links/cache/unrelated/on",
+          "links/retry/direct-recall/counted",
+          "links/retry/direct-recall/off",
+          "links/retry/direct-recall/on",
+          "links/retry/linked-rationale/counted",
+          "links/retry/linked-rationale/off",
+          "links/retry/linked-rationale/on",
+          "links/retry/narrow-rationale/counted",
+          "links/retry/narrow-rationale/off",
+          "links/retry/narrow-rationale/on",
+          "links/retry/same-symbol-no-memory/counted",
+          "links/retry/same-symbol-no-memory/off",
+          "links/retry/same-symbol-no-memory/on",
+          "links/retry/unrelated/counted",
+          "links/retry/unrelated/off",
+          "links/retry/unrelated/on",
+          "links/stale/stale-direct/counted",
+          "links/stale/stale-direct/off",
+          "links/stale/stale-direct/on",
+          "links/stale/stale-symbol/counted",
+          "links/stale/stale-symbol/off",
+          "links/stale/stale-symbol/on",
+          "negative/cross-file/absent-0/counted",
+          "negative/cross-file/absent-0/off",
+          "negative/cross-file/absent-0/on",
+          "negative/cross-file/absent-1/counted",
+          "negative/cross-file/absent-1/off",
+          "negative/cross-file/absent-1/on",
+          "negative/cross-file/absent-2/counted",
+          "negative/cross-file/absent-2/off",
+          "negative/cross-file/absent-2/on",
+          "negative/direct-contracts/absent-0/counted",
+          "negative/direct-contracts/absent-0/off",
+          "negative/direct-contracts/absent-0/on",
+          "negative/direct-contracts/absent-1/counted",
+          "negative/direct-contracts/absent-1/off",
+          "negative/direct-contracts/absent-1/on",
+          "negative/direct-contracts/absent-2/counted",
+          "negative/direct-contracts/absent-2/off",
+          "negative/direct-contracts/absent-2/on",
+          "pressure/callee-pressure/lease-rationale/counted",
+          "pressure/callee-pressure/lease-rationale/off",
+          "pressure/callee-pressure/lease-rationale/on",
+          "pressure/caller-pressure/lease-rationale/counted",
+          "pressure/caller-pressure/lease-rationale/off",
+          "pressure/caller-pressure/lease-rationale/on",
+          "pressure/direct-pressure/direct-0/counted",
+          "pressure/direct-pressure/direct-0/off",
+          "pressure/direct-pressure/direct-0/on",
+          "pressure/direct-pressure/direct-1/counted",
+          "pressure/direct-pressure/direct-1/off",
+          "pressure/direct-pressure/direct-1/on",
+          "pressure/direct-pressure/direct-2/counted",
+          "pressure/direct-pressure/direct-2/off",
+          "pressure/direct-pressure/direct-2/on",
+          "pressure/direct-pressure/direct-3/counted",
+          "pressure/direct-pressure/direct-3/off",
+          "pressure/direct-pressure/direct-3/on",
+          "pressure/direct-pressure/direct-4/counted",
+          "pressure/direct-pressure/direct-4/off",
+          "pressure/direct-pressure/direct-4/on",
+          "pressure/direct-pressure/direct-5/counted",
+          "pressure/direct-pressure/direct-5/off",
+          "pressure/direct-pressure/direct-5/on",
+          "pressure/shared-pressure/prose/counted",
+          "pressure/shared-pressure/prose/off",
+          "pressure/shared-pressure/prose/on",
+          "pressure/shared-pressure/shared-target/counted",
+          "pressure/shared-pressure/shared-target/off",
+          "pressure/shared-pressure/shared-target/on",
+          "pressure/shared-pressure/unresolved/counted",
+          "pressure/shared-pressure/unresolved/off",
+          "pressure/shared-pressure/unresolved/on",
+          "source/payments/caller-callee/baseline",
+          "source/payments/caller-callee/routed",
+          "source/payments/failure-branch/baseline",
+          "source/payments/failure-branch/routed",
+          "source/payments/location/baseline",
+          "source/payments/location/routed",
+          "source/payments/rationale/baseline",
+          "source/payments/rationale/routed",
+          "source/payments/rounding/baseline",
+          "source/payments/rounding/routed",
+          "source/payments/unicode/baseline",
+          "source/payments/unicode/routed"
+        ]
+      },
+      "binary_sha256": "51e43b6f5f16ccdac0e803ec494c485bd7fc1b464ef02052a3e41ba2aee15fd6",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "964ac61ae4b8be5845a8209b4be2344ccf7df41a09c83401e65d05528415f265",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "ff6c8456524e50205c7a3bce7b422f076188b61d161c660667fbe4e33f6d6f83",
+        "real_query_eval.py": "8ad7f488fdc34ab38f2fa65b652f2ce8249b782defd87a32c53fcf48a4e0bec5",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "memory_debug_candidates": 400,
+      "memory_diagnostics_version": 1,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    },
+    "summary": {
+      "memory/counted": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16785,
+        "mean_tokens_completed": 310.8333333333333,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 580.2,
+          "p95": 624.6,
+          "p99": 638.2
+        },
+        "diagnostics": {
+          "planned": 54,
+          "measured": 54,
+          "traced": 54,
+          "truncated_traces": 0,
+          "unmeasured": 0,
+          "missing_by_observed_stage": {
+            "link_withheld": 42
+          },
+          "false_positives_by_route": {
+            "ranked": 5
+          },
+          "observed_candidate_recall_lower_bound": 1.0,
+          "observed_packing_recall_lower_bound": 0.19230769230769232,
+          "traced_gold_occurrences": 52,
+          "mean_reciprocal_rank": {
+            "value": 0.24324324324324326,
+            "n": 37
+          },
+          "at_k": {
+            "1": {
+              "precision_returned": {
+                "value": 0.75,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.21621621621621623,
+                "n": 37
+              }
+            },
+            "4": {
+              "precision_returned": {
+                "value": 0.6666666666666666,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.22972972972972974,
+                "n": 37
+              }
+            },
+            "8": {
+              "precision_returned": {
+                "value": 0.6666666666666666,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.22972972972972974,
+                "n": 37
+              }
+            }
+          }
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/off": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 16785,
+        "mean_tokens_completed": 310.8333333333333,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 568.1,
+          "p95": 613.4,
+          "p99": 713.4000000000001
+        },
+        "diagnostics": {
+          "planned": 54,
+          "measured": 54,
+          "traced": 54,
+          "truncated_traces": 0,
+          "unmeasured": 0,
+          "missing_by_observed_stage": {
+            "eligible_not_selected": 42
+          },
+          "false_positives_by_route": {
+            "ranked": 5
+          },
+          "observed_candidate_recall_lower_bound": 1.0,
+          "observed_packing_recall_lower_bound": 0.19230769230769232,
+          "traced_gold_occurrences": 52,
+          "mean_reciprocal_rank": {
+            "value": 0.24324324324324326,
+            "n": 37
+          },
+          "at_k": {
+            "1": {
+              "precision_returned": {
+                "value": 0.75,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.21621621621621623,
+                "n": 37
+              }
+            },
+            "4": {
+              "precision_returned": {
+                "value": 0.6666666666666666,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.22972972972972974,
+                "n": 37
+              }
+            },
+            "8": {
+              "precision_returned": {
+                "value": 0.6666666666666666,
+                "n": 12
+              },
+              "recall": {
+                "value": 0.22972972972972974,
+                "n": 37
+              }
+            }
+          }
+        },
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.19230769230769232,
+        "macro_recall": 0.22972972972972974,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.8823529411764706
+      },
+      "memory/on": {
+        "planned": 54,
+        "completed": 54,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 20960,
+        "mean_tokens_completed": 388.14814814814815,
+        "latency_ms_completed": {
+          "n": 54,
+          "p50": 578.8,
+          "p95": 608.0,
+          "p99": 625.1
+        },
+        "diagnostics": {
+          "planned": 54,
+          "measured": 54,
+          "traced": 54,
+          "truncated_traces": 0,
+          "unmeasured": 0,
+          "missing_by_observed_stage": {},
+          "false_positives_by_route": {
+            "ranked": 5,
+            "symbol_link": 46
+          },
+          "observed_candidate_recall_lower_bound": 1.0,
+          "observed_packing_recall_lower_bound": 1.0,
+          "traced_gold_occurrences": 52,
+          "mean_reciprocal_rank": {
+            "value": 0.954954954954955,
+            "n": 37
+          },
+          "at_k": {
+            "1": {
+              "precision_returned": {
+                "value": 0.7727272727272727,
+                "n": 44
+              },
+              "recall": {
+                "value": 0.7815315315315315,
+                "n": 37
+              }
+            },
+            "4": {
+              "precision_returned": {
+                "value": 0.6060606060606061,
+                "n": 44
+              },
+              "recall": {
+                "value": 0.990990990990991,
+                "n": 37
+              }
+            },
+            "8": {
+              "precision_returned": {
+                "value": 0.6060606060606061,
+                "n": 44
+              },
+              "recall": {
+                "value": 1.0,
+                "n": 37
+              }
+            }
+          }
+        },
+        "tp": 52,
+        "fp": 51,
+        "fn": 0,
+        "precision_completed": 0.5048543689320388,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 17,
+        "empty_memory_accuracy": 0.5882352941176471
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 3438,
+        "mean_tokens_completed": 573,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 590.949916979298,
+          "p95": 642.9141249973327,
+          "p99": 642.9141249973327
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "total_tokens_completed": 2964,
+        "mean_tokens_completed": 494,
+        "latency_ms_completed": {
+          "n": 6,
+          "p50": 574.9879999784753,
+          "p95": 636.5264159976505,
+          "p99": 636.5264159976505
+        },
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "gate": {
+      "status": "passed",
+      "findings": []
+    },
+    "per_case_changes": [
+      {
+        "id": "exact/qualified/qualified-name/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "monitor"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "exact/qualified/ambiguous-name/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "monitor"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "exact/paths/duplicate-path/on",
+        "changes": {
+          "irrelevant": {
+            "before": [
+              "ready"
+            ],
+            "after": []
+          }
+        }
+      },
+      {
+        "id": "pressure/callee-pressure/lease-rationale/on",
+        "changes": {
+          "retrieved_relevant": {
+            "before": [],
+            "after": [
+              "lease"
+            ]
+          },
+          "irrelevant": {
+            "before": [
+              "archive",
+              "ledger",
+              "probe",
+              "wire"
+            ],
+            "after": [
+              "archive",
+              "probe",
+              "wire"
+            ]
+          }
+        }
+      },
+      {
+        "id": "pressure/caller-pressure/lease-rationale/on",
+        "changes": {
+          "retrieved_relevant": {
+            "before": [],
+            "after": [
+              "lease"
+            ]
+          },
+          "irrelevant": {
+            "before": [
+              "archive",
+              "ledger",
+              "probe",
+              "wire"
+            ],
+            "after": [
+              "archive",
+              "probe",
+              "wire"
+            ]
+          }
+        }
+      },
+      {
+        "id": "pressure/shared-pressure/prose/on",
+        "changes": {
+          "retrieved_relevant": {
+            "before": [
+              "archive",
+              "ledger",
+              "shared",
+              "wire"
+            ],
+            "after": [
+              "archive",
+              "lease",
+              "ledger",
+              "probe",
+              "shared",
+              "wire"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "local_reranker": {
+    "calls": 324,
+    "before_report_sha256": "21a684fd6c81fdaa8f435704c57b06ca58722f475282972d759bf7c7958d1167",
+    "after_report_sha256": "7d7d75d4d71089909255ce0f76eae55c27f3b56c9a83a1370e3581bef0b44776",
+    "before_protocol": {
+      "inputs": {
+        "/private/tmp/graphicle-memory-diagnostics-local-20261101": "7a635be01d7b189fa75139be0d8b5907090e3b25c178cbea91075d44d0831368",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/symbol_link_precision.py": "ff6c8456524e50205c7a3bce7b422f076188b61d161c660667fbe4e33f6d6f83",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/quality_suite.json": "4572f692d6b6a0d784f3f716c85b09e3517152c340c9b58df3dc7d38700b4196",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_precision.json": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_exact_scope.json": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_priority.json": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_diversity.json": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_cutoff_holdout.json": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/note_no_answer_controls.json": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+      },
+      "local_reranker": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "request": {
+        "max_tokens": 3000,
+        "max_chars": 12000,
+        "limit": 8,
+        "graph_retrieval": true,
+        "memory_retrieval": true,
+        "doc_links": false,
+        "cross_repo": false,
+        "identifier_route": false,
+        "notes_first": false
+      },
+      "variants": {
+        "off": {
+          "symbol_links": false
+        },
+        "counted": {},
+        "on": {
+          "symbol_links": true
+        }
+      }
+    },
+    "after_protocol": {
+      "inputs": {
+        "/private/tmp/graphicle-selection-owner-local-20261101": "4ea09ed02831b66351a980e07d1eee0cd939b72cb9a70ee5bbdc564ab0f97161",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/symbol_link_precision.py": "ff6c8456524e50205c7a3bce7b422f076188b61d161c660667fbe4e33f6d6f83",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/quality_suite.json": "4572f692d6b6a0d784f3f716c85b09e3517152c340c9b58df3dc7d38700b4196",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_precision.json": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_exact_scope.json": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_priority.json": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_diversity.json": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_cutoff_holdout.json": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/note_no_answer_controls.json": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+      },
+      "local_reranker": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "request": {
+        "max_tokens": 3000,
+        "max_chars": 12000,
+        "limit": 8,
+        "graph_retrieval": true,
+        "memory_retrieval": true,
+        "doc_links": false,
+        "cross_repo": false,
+        "identifier_route": false,
+        "notes_first": false
+      },
+      "variants": {
+        "off": {
+          "symbol_links": false
+        },
+        "counted": {},
+        "on": {
+          "symbol_links": true
+        }
+      }
+    },
+    "before_summary": {
+      "variants": {
+        "off": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 310.98148148148147
+        },
+        "counted": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 310.98148148148147
+        },
+        "on": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.4807692307692308,
+          "macro_recall": 0.990990990990991,
+          "empty_memory_accuracy": 0.5882352941176471,
+          "false_positive_memories": 54,
+          "mean_tokens_completed": 388.94444444444446
+        }
+      },
+      "on_minus_off": {
+        "paired": 54,
+        "excluded": 0,
+        "mean_tp_delta": 0.7407407407407407,
+        "mean_fp_delta": 0.9074074074074074,
+        "mean_tokens_delta": 77.96296296296296
+      }
+    },
+    "after_summary": {
+      "variants": {
+        "off": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 310.74074074074076
+        },
+        "counted": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 310.74074074074076
+        },
+        "on": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.5048543689320388,
+          "macro_recall": 1.0,
+          "empty_memory_accuracy": 0.5882352941176471,
+          "false_positive_memories": 51,
+          "mean_tokens_completed": 387.72222222222223
+        }
+      },
+      "on_minus_off": {
+        "paired": 54,
+        "excluded": 0,
+        "mean_tp_delta": 0.7777777777777778,
+        "mean_fp_delta": 0.8518518518518519,
+        "mean_tokens_delta": 76.98148148148148
+      }
+    },
+    "before_pooled": {
+      "off": {
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision": 0.6666666666666666,
+        "recall": 0.19230769230769232
+      },
+      "counted": {
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision": 0.6666666666666666,
+        "recall": 0.19230769230769232
+      },
+      "on": {
+        "tp": 50,
+        "fp": 54,
+        "fn": 2,
+        "precision": 0.4807692307692308,
+        "recall": 0.9615384615384616
+      }
+    },
+    "after_pooled": {
+      "off": {
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision": 0.6666666666666666,
+        "recall": 0.19230769230769232
+      },
+      "counted": {
+        "tp": 10,
+        "fp": 5,
+        "fn": 42,
+        "precision": 0.6666666666666666,
+        "recall": 0.19230769230769232
+      },
+      "on": {
+        "tp": 52,
+        "fp": 51,
+        "fn": 0,
+        "precision": 0.5048543689320388,
+        "recall": 1.0
+      }
+    },
+    "per_case_changes": [
+      {
+        "id": "exact/qualified/qualified-name/on",
+        "before": [
+          "json",
+          "monitor"
+        ],
+        "after": [
+          "json"
+        ],
+        "relevant": [
+          "json"
+        ]
+      },
+      {
+        "id": "exact/qualified/ambiguous-name/on",
+        "before": [
+          "csv",
+          "json",
+          "monitor"
+        ],
+        "after": [
+          "csv",
+          "json"
+        ],
+        "relevant": [
+          "csv",
+          "json"
+        ]
+      },
+      {
+        "id": "exact/paths/duplicate-path/on",
+        "before": [
+          "api",
+          "ready",
+          "worker"
+        ],
+        "after": [
+          "api",
+          "worker"
+        ],
+        "relevant": [
+          "api",
+          "worker"
+        ]
+      },
+      {
+        "id": "pressure/shared-pressure/prose/on",
+        "before": [
+          "archive",
+          "probe",
+          "shared",
+          "wire"
+        ],
+        "after": [
+          "archive",
+          "lease",
+          "ledger",
+          "probe",
+          "shared",
+          "wire"
+        ],
+        "relevant": [
+          "archive",
+          "lease",
+          "ledger",
+          "probe",
+          "shared",
+          "wire"
+        ]
+      }
+    ],
+    "lost_previous_relevant_ids": 0,
+    "added_irrelevant_ids": 0,
+    "build_note": "Matched local-inference builds; the final candidate includes the enclosing-contract regression guard."
+  },
+  "validation": {
+    "symbol_links_integration": 15,
+    "memory_freshness_integration": 22,
+    "workspace_scope_integration": 22,
+    "duration_literal_unit": 1,
+    "project_inventory_unit": 1,
+    "python_evaluators": {
+      "passed": 136,
+      "skipped_optional_model_tests": 2
+    },
+    "real_model_boundary_test": {
+      "passed": 1,
+      "calls": 9
+    },
+    "runtime_clippy_library": "passed with -D warnings",
+    "memory_clippy_library": {
+      "status": "existing_warning",
+      "lint": "clippy::collapsible_if",
+      "location": "crates/graphicle-memory/src/graph/cross_repo_http.rs:117",
+      "verified": "The same nested if exists in HEAD; this file was not modified."
+    },
+    "final_runtime_clippy_library": "passed with -D warnings after the enclosing-contract guard",
+    "restored_default_binary_sha256": "5d26be73abdf2d5d8be003e7cbff80cd4dd932591fcbb680d5587258810c4930"
+  },
+  "limits": [
+    "51 irrelevant occurrences remain (46 symbol links, five ordinary ranking) on the model-free suite.",
+    "Exact duration agreement is a ranking signal, not a calibrated relevance decision; unsupported quantities are ignored.",
+    "Inventories include only reached eligible links, not every note in the store. Prefix and packing limits still apply.",
+    "Default counted behavior, labels, questions, source evidence, authorization and freshness checks are preserved."
+  ],
+  "baseline_refresh": {
+    "before_sha256": "b567c1b63b58c6c4ceac7a995f7e796b704c3a9b6595f8dc6bda608d8059257b",
+    "after_sha256": "d1f2f82a56d182c6139d8bcb1ccc3bb0957d3f7467982ac20dd553a6fd65ab47",
+    "contract_changed": false,
+    "reason": "Freeze four recovered relevant occurrences and five fewer irrelevant occurrences after per-case model-free and local-reranker comparisons passed; labels and corpus unchanged."
+  }
+}

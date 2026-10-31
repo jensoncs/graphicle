@@ -139,6 +139,61 @@ fn includes(packet: &Value, memory: &Value) -> bool {
 }
 
 #[test]
+fn memory_debug_explains_caps_and_packing_without_changing_content() {
+    let f = Fixture::new(&[("a.py", A)]);
+    for i in 0..6 {
+        f.note(
+            &format!("Quokka ledger {i}"),
+            &format!("{i} {}", "quokka ".repeat(600)),
+            json!([{"path":"a.py","qualified_name":"alpha"}]),
+        );
+    }
+    let question = "Which constraints apply to alpha?";
+    let plain = f.context(question, json!({"symbol_links":true,"max_tokens":256}));
+    assert!(plain.get("memory_candidates_debug").is_none());
+    let debug = f.context(
+        question,
+        json!({"symbol_links":true,"max_tokens":256,"debug_candidates":400}),
+    );
+    for key in ["memories", "evidence", "markdown", "tokens"] {
+        assert_eq!(plain[key], debug[key], "{key}");
+    }
+    let trace = &debug["memory_candidates_debug"];
+    assert_eq!(trace["eligible_candidates"], 6);
+    assert_eq!(trace["truncated"], false);
+    let rows = trace["candidates"].as_array().unwrap();
+    assert_eq!(
+        rows.iter()
+            .filter(|r| r["link_final_rank"].as_u64().is_some_and(|rank| rank > 4))
+            .count(),
+        2
+    );
+    assert_eq!(rows.iter().filter(|r| !r["pack_rank"].is_null()).count(), 4);
+    assert!(
+        rows.iter()
+            .any(|r| !r["pack_rank"].is_null() && r["delivered"] == false)
+    );
+    assert!(!trace.to_string().contains("quokka"));
+    let bounded = f.context(question, json!({"symbol_links":true,"debug_candidates":1}));
+    assert_eq!(
+        bounded["memory_candidates_debug"]["candidates"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(bounded["memory_candidates_debug"]["truncated"], true);
+    let disabled = f.context(
+        question,
+        json!({"symbol_links":true,"debug_candidates":400,"memory_retrieval":false}),
+    );
+    assert_eq!(
+        disabled["memory_candidates_debug"]["eligible_candidates"],
+        0
+    );
+}
+
+#[test]
 fn literal_call_values_do_not_expand_linked_decisions() {
     let f = Fixture::new(&[(
         "codec.py",
@@ -171,6 +226,107 @@ fn literal_call_values_do_not_expand_linked_decisions() {
         rationale["symbol_links"]["literal_call_value"]["applied"],
         false
     );
+}
+
+#[test]
+fn prose_memory_anchors_keep_dependencies_without_neighbour_notes() {
+    let f = Fixture::new(&[(
+        "codec.py",
+        "def encode_item(value):\n    # quokka ledger\n    return normalize_item(value)\n\ndef normalize_item(value):\n    return str(value)\n\ndef probe_item():\n    return True\n",
+    )]);
+    let anchor = f.note(
+        "Quokka ledger",
+        "Keep the quokka ledger frozen.",
+        json!([{"path":"codec.py","qualified_name":"encode_item"}]),
+    );
+    let dependency = f.note(
+        "Orchid charter",
+        "Preserve the orchid charter.",
+        json!([{"path":"codec.py","qualified_name":"normalize_item"}]),
+    );
+    let neighbour = f.note(
+        "Cedar orchard",
+        "Keep the cedar orchard fenced.",
+        json!([{"path":"codec.py","qualified_name":"probe_item"}]),
+    );
+    let question = "What is the quokka ledger?";
+    let packet = f.context(
+        question,
+        json!({"symbol_links":true,"debug_candidates":400}),
+    );
+    assert!(
+        includes(&packet, &anchor) && includes(&packet, &dependency),
+        "{packet:#}"
+    );
+    assert!(!includes(&packet, &neighbour), "{packet:#}");
+    assert_eq!(
+        packet["symbol_links"]["query_symbol_scope"]["basis"],
+        "ranked_memories"
+    );
+    let trace = packet["memory_candidates_debug"]["candidates"]
+        .as_array()
+        .unwrap();
+    assert!(trace.iter().any(|c| {
+        c["id"] == neighbour["id"]
+            && c["link_outcomes"]["outside_symbol_scope"]
+                .as_u64()
+                .unwrap_or(0)
+                > 0
+    }));
+    let plain = f.context(question, json!({"symbol_links":true}));
+    for key in ["memories", "evidence", "markdown", "tokens"] {
+        assert_eq!(packet[key], plain[key], "{key}");
+    }
+    let multiple = f.context(
+        "What are the quokka ledger and cedar orchard?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&multiple, &anchor)
+            && includes(&multiple, &dependency)
+            && includes(&multiple, &neighbour),
+        "{multiple:#}"
+    );
+    let explicit = f.context(
+        "What governs the quokka ledger and `missing_item`?",
+        json!({"symbol_links":true}),
+    );
+    assert_eq!(
+        explicit["symbol_links"]["query_symbol_scope"]["applied"],
+        false
+    );
+    assert!(includes(&explicit, &neighbour), "{explicit:#}");
+    // An additional topic absent from the ranked notes must keep fallback,
+    // even when the first topic has a complete, live symbol anchor.
+    let partial = f.context(
+        "What is the quokka ledger and operational observability policy?",
+        json!({"symbol_links":true}),
+    );
+    assert_eq!(
+        partial["symbol_links"]["query_symbol_scope"]["applied"],
+        false
+    );
+    assert!(includes(&partial, &neighbour), "{partial:#}");
+    let inventory = f.context(
+        "What decisions govern this pipeline?",
+        json!({"symbol_links":true}),
+    );
+    assert_eq!(
+        inventory["symbol_links"]["query_symbol_scope"]["applied"],
+        false
+    );
+    let unlinked = f.note(
+        "Quokka stewardship",
+        "The quokka ledger needs approval.",
+        json!([]),
+    );
+    let fallback = f.context(question, json!({"symbol_links":true}));
+    assert!(includes(&fallback, &unlinked), "{fallback:#}");
+    assert_eq!(
+        fallback["symbol_links"]["query_symbol_scope"]["applied"],
+        false
+    );
+    assert!(includes(&fallback, &neighbour), "{fallback:#}");
 }
 
 #[test]
@@ -281,7 +437,7 @@ fn symbol_scope_does_not_guess_ambiguous_names() {
     );
     assert_eq!(
         ambiguous["symbol_links"]["query_symbol_scope"]["applied"],
-        false
+        true
     );
     assert!(
         includes(&ambiguous, &left) && includes(&ambiguous, &right),
@@ -295,6 +451,95 @@ fn symbol_scope_does_not_guess_ambiguous_names() {
         includes(&exact, &left) && !includes(&exact, &right),
         "{exact:#}"
     );
+}
+
+#[test]
+fn method_nesting_does_not_make_sibling_notes_relevant() {
+    let f = Fixture::new(&[(
+        "writer.py",
+        "class Writer:\n    def serialize(self, value):\n        return str(value)\n\n    def probe(self):\n        return True\n",
+    )]);
+    let selected = f.note(
+        "Quokka ledger",
+        "Keep the quokka ledger frozen.",
+        json!([{"path":"writer.py","qualified_name":"Writer.serialize"}]),
+    );
+    let sibling = f.note(
+        "Cedar orchard",
+        "Keep the cedar orchard fenced.",
+        json!([{"path":"writer.py","qualified_name":"Writer.probe"}]),
+    );
+    let owner = f.note(
+        "Orchid charter",
+        "Preserve the orchid charter.",
+        json!([{"path":"writer.py","qualified_name":"Writer"}]),
+    );
+    let packet = f.context(
+        "Which constraints apply to Writer.serialize?",
+        json!({"symbol_links":true}),
+    );
+    assert!(includes(&packet, &selected), "{packet:#}");
+    assert!(includes(&packet, &owner), "{packet:#}");
+    assert!(!includes(&packet, &sibling), "{packet:#}");
+}
+
+#[test]
+fn equivalent_durations_can_rescue_a_late_linked_constraint() {
+    let f = Fixture::new(&[(
+        "sender.py",
+        "def send_record():\n    return delay_record()\n\ndef delay_record():\n    return 120\n",
+    )]);
+    for i in 0..4 {
+        f.note(
+            &format!("Archive policy {i}"),
+            &format!("Preserve fiscal document {i}."),
+            json!([{"path":"sender.py","qualified_name":"send_record"}]),
+        );
+    }
+    let needed = f.note(
+        "Peer lifecycle",
+        "The remote lease ends after 120 seconds.",
+        json!([{"path":"sender.py","qualified_name":"delay_record"}]),
+    );
+    let packet = f.context(
+        "Why does send_record wait two minutes?",
+        json!({"symbol_links":true,"debug_candidates":400}),
+    );
+    assert!(includes(&packet, &needed), "{packet:#}");
+    assert_eq!(packet["symbol_links"]["candidate_memories"], 5);
+    assert_eq!(packet["symbol_links"]["memory_limit"], 4);
+    let trace = packet["memory_candidates_debug"]["candidates"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == needed["id"])
+        .unwrap();
+    assert_eq!(trace["link_final_rank"], 1);
+}
+
+#[test]
+fn project_decision_inventories_use_the_request_allowance_and_packing_budget() {
+    let f = Fixture::new(&[("service.py", A)]);
+    let notes: Vec<Value> = (0..6)
+        .map(|i| {
+            f.note(
+                &format!("Ledger {i}"),
+                &format!("Preserve the quokka archive {i}."),
+                json!([{"path":"service.py","qualified_name":"alpha"}]),
+            )
+        })
+        .collect();
+    let question = "List all the decisions for this service.";
+    let packet = f.context(
+        question,
+        json!({"symbol_links":true,"debug_candidates":400}),
+    );
+    assert!(notes.iter().all(|n| includes(&packet, n)), "{packet:#}");
+    assert_eq!(packet["symbol_links"]["memory_limit"], 8);
+    assert_eq!(packet["memory_candidates_debug"]["linked_memory_limit"], 8);
+    let small = f.context(question, json!({"symbol_links":true,"max_tokens":256}));
+    assert!(small["tokens"].as_u64().unwrap() <= 256);
+    assert!(small["omitted"]["memories"].as_u64().unwrap() > 0);
 }
 
 #[test]

@@ -13,7 +13,8 @@
 //!   memories linked to a symbol inside it (`code_to_memory`), and each
 //!   selected memory lifts the current windows of the symbols it links
 //!   (`memory_to_code`). One hop: a lifted item lifts nothing. At most
-//!   [`MEMORY_LIMIT`] memories and [`WINDOW_LIMIT`] windows, after the fused
+//!   [`MEMORY_LIMIT`] memories for focused questions (project-wide inventories
+//!   use the request's bounded result allowance) and [`WINDOW_LIMIT`] windows, after the fused
 //!   results, the code arm's anchors and the document links' windows, never
 //!   one already there. A link counts only while the live-symbol table
 //!   describes the bytes the reader reads (the file's sha256) and the symbol
@@ -39,13 +40,33 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 /// The switch, the packet field and the facts of the links followed.
 pub const ARM: &str = "symbol_links";
-/// Memories one query lifts through code windows.
+/// Linked memories for a focused query; the floor for project-wide inventories.
 pub const MEMORY_LIMIT: usize = 4;
+/// Bounded model-free candidate prefix, scored before the delivery cap.
+pub const MEMORY_CANDIDATES: usize = 32;
 /// Code windows one query lifts through memories, as the document links'
 /// `LIFT_LIMIT` bounds theirs.
 pub const WINDOW_LIMIT: usize = 6;
 /// Memories and documents a back-link listing names per symbol.
 pub const BACK_LINK_LIMIT: usize = 20;
+
+/// Exact duration agreement can connect a numeric question to a constraint
+/// expressed in another unit (seconds versus minutes). It only changes order;
+/// lack of a literal match is never evidence that a note is irrelevant.
+pub(crate) fn prioritize_literals(question: &str, memories: &mut [Value]) {
+    let wanted = graphicle_memory::text::duration_literals(question);
+    if wanted.is_empty() {
+        return;
+    }
+    memories.sort_by_cached_key(|row| {
+        let values = graphicle_memory::text::duration_literals(&format!(
+            "{} {}",
+            s(row, "title"),
+            s(row, "text")
+        ));
+        std::cmp::Reverse(values.intersection(&wanted).count())
+    });
+}
 
 /// The `symbol_links` switch of a query.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -122,6 +143,71 @@ fn links_of<'m>(
     Ok(out)
 }
 
+/// Use every ranked note's live links as prose anchors, or none. Unlinked
+/// notes, old revisions, missing source bytes and incomplete graphs keep the
+/// window-based fallback rather than inferring a scope from partial evidence.
+fn ranked_memory_scope(
+    db: &Connection,
+    repository: &str,
+    question: &str,
+    selected: &[Value],
+    links: &HashMap<String, Vec<Value>>,
+    documents: &HashMap<&str, &Value>,
+) -> Option<BTreeSet<(String, String)>> {
+    if selected.is_empty() {
+        return None;
+    }
+    // One recalled topic must not hide an additional topic requested in prose.
+    // Require complete lexical coverage before inferring any scope; unmatched
+    // wording (including paraphrases) retains the broad expansion. Coverage is
+    // a conservative prerequisite, not a semantic relevance score.
+    let required = crate::notes_first::stems(question);
+    let covered: BTreeSet<_> = selected
+        .iter()
+        .flat_map(|row| {
+            crate::notes_first::stems(&format!("{} {}", s(row, "title"), s(row, "text")))
+        })
+        .collect();
+    if required.is_empty() || !required.is_subset(&covered) {
+        return None;
+    }
+    let mut wanted = BTreeMap::new();
+    for row in selected {
+        if row["memory"]["data"]["symbols"]
+            .as_array()?
+            .iter()
+            .any(|link| link["state"] != "resolved")
+        {
+            return None;
+        }
+        for link in links.get(s(&row["memory"], "id"))? {
+            let revision = s(link, "revision");
+            if wanted
+                .insert(s(link, "stable_id").to_string(), revision)
+                .is_some_and(|previous| previous != revision)
+            {
+                return None;
+            }
+        }
+    }
+    let ids = wanted.keys().cloned().collect();
+    let live = symbols::by_ids(db, repository, &ids).ok()?;
+    if live.len() != wanted.len() {
+        return None;
+    }
+    let mut seeds = BTreeSet::new();
+    for symbol in live {
+        let document = documents.get(format!("file:{}", symbol.identity.relpath).as_str())?;
+        if wanted.get(&symbol.stable_id).copied() != Some(symbol.revision.as_str())
+            || symbol.sha256 != s(document, "sha256")
+        {
+            return None;
+        }
+        seeds.insert((symbol.identity.relpath, symbol.identity.qualified_name));
+    }
+    crate::identifier_arm::linked_memory_scope(db, repository, &seeds, documents)
+}
+
 /// What the `symbol_links` step added to a query.
 pub struct Lifted {
     /// Code windows, as candidates no passage covers.
@@ -157,8 +243,8 @@ struct File<'a> {
 /// query's candidate rows (its memory rows are the memories it may serve),
 /// `sources` and `selected_memories` what the fusion selected, in rank
 /// order, and `candidates` the windows already taken. `memory_candidates` is
-/// the caller's bounded reranking prefix (normally [`MEMORY_LIMIT`]); the query
-/// applies the final [`MEMORY_LIMIT`] after any configured local reranking.
+/// the caller's bounded ranking prefix; the query applies its delivery allowance
+/// after literal matching or configured local reranking.
 #[allow(clippy::too_many_arguments)]
 pub fn lift(
     db: &Connection,
@@ -171,6 +257,7 @@ pub fn lift(
     sources: &[Value],
     selected_memories: &[Value],
     candidates: &[Value],
+    mut trace: Option<&mut crate::memory_diagnostics::Trace>,
 ) -> Result<Lifted> {
     let servable: Vec<&Value> = rows.iter().filter(|row| row["kind"] == "memory").collect();
     let links = if mode == Mode::Off {
@@ -189,9 +276,30 @@ pub fn lift(
     let documents: HashMap<&str, &Value> =
         snapshot.documents.iter().map(|d| (s(d, "id"), d)).collect();
     let literal_value = follow && crate::code_question::asks_for_literal_call_value(question);
-    let scope = (follow && !literal_value)
+    let mut scope = (follow && !literal_value)
         .then(|| crate::identifier_arm::memory_symbol_scope(db, repository, question, &documents))
         .flatten();
+    let mut scope_basis = scope.as_ref().map(|_| "explicit_symbols");
+    if follow
+        && !literal_value
+        && scope.is_none()
+        && !crate::code_question::asks_for_project_decisions(question)
+    {
+        let named = crate::identifier_arm::explicit_names(question);
+        // An unresolved explicit request must not be replaced by an inferred
+        // scope, nor should a project inventory be narrowed to ranked notes.
+        if named.names.is_empty() && named.paths.is_empty() {
+            scope = ranked_memory_scope(
+                db,
+                repository,
+                question,
+                selected_memories,
+                &links,
+                &documents,
+            );
+            scope_basis = scope.as_ref().map(|_| "ranked_memories");
+        }
+    }
     // stable_id → the servable memories linking it, in recall order.
     let mut index: HashMap<&str, Vec<(&Value, &Value)>> = HashMap::new();
     for row in servable.iter().copied() {
@@ -203,6 +311,11 @@ pub fn lift(
         }
     }
     let mut counts = Counts::default();
+    let mut observe = |row: &Value, reason: &str| {
+        if let Some(trace) = trace.as_deref_mut() {
+            trace.link(row, reason);
+        }
+    };
     // A code window: the memories linked to a symbol inside it.
     let mut taken: BTreeSet<String> = selected_memories
         .iter()
@@ -245,6 +358,9 @@ pub fn lift(
             // projection.
             if live.sha256 != sha {
                 counts.pending += linked.len();
+                for (row, _) in linked {
+                    observe(row, "pending_projection");
+                }
                 continue;
             }
             let range = live.range(&file.starts, length);
@@ -255,35 +371,44 @@ pub fn lift(
                 !scope.contains(&(relpath.to_string(), live.identity.qualified_name.clone()))
             }) {
                 counts.outside_scope += linked.len();
+                for (row, _) in linked {
+                    observe(row, "outside_symbol_scope");
+                }
                 continue;
             }
             for (row, link) in linked {
                 counts.considered += 1;
                 if s(link, "revision") != live.revision {
                     counts.changed += 1;
+                    observe(row, "changed_revision");
                     continue;
                 }
                 // Already selected, or lifted through another window.
                 if taken.contains(s(row, "identity")) {
                     counts.covered += 1;
+                    observe(row, "already_seen");
                     continue;
                 }
                 if !follow {
                     counts.withheld += 1;
+                    observe(row, "counted_only");
                     continue;
                 }
                 if literal_value {
                     counts.literal_value += 1;
+                    observe(row, "literal_value_question");
                     continue;
                 }
                 taken.insert(s(row, "identity").to_string());
                 if memories.len() >= memory_candidates {
                     counts.over_limit += 1;
+                    observe(row, "candidate_limit");
                     continue;
                 }
                 // `link`, not `symbol_links`: a memory record with links
                 // already carries its own `symbol_links` summary.
                 let mut lifted = (*row).clone();
+                observe(row, "candidate");
                 lifted["memory"]["via"] = json!("link");
                 lifted["memory"]["link"] = json!({"direction":"code_to_memory","from":hit["identity"],
                     "stable_id":live.stable_id,"revision":live.revision,
@@ -375,6 +500,7 @@ pub fn lift(
         "changed":counts.changed,"unavailable":counts.unavailable,"over_limit":counts.over_limit});
     if follow {
         report["query_symbol_scope"] = json!({"applied":scope.is_some(),
+            "basis":scope_basis,
             "symbols":scope.as_ref().map_or(0, BTreeSet::len),"excluded_links":counts.outside_scope});
         report["literal_call_value"] =
             json!({"applied":literal_value,"withheld_links":counts.literal_value});

@@ -9,6 +9,99 @@ use std::{fs, path::Path};
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
+fn go_calls_resolve_without_a_home_or_user_build_cache() {
+    const CHILD: &str = "GRAPHICLE_GO_NO_HOME_FIXTURE";
+    if std::env::var_os(CHILD).is_none() {
+        // A fresh process is required: the helper is cached in a OnceLock.
+        // Match the query evaluator's minimal environment, without changing
+        // process-global variables underneath concurrent Rust tests.
+        let mut child = std::process::Command::new(std::env::current_exe().unwrap());
+        child
+            .env_clear()
+            .args([
+                "--exact",
+                "go_calls_resolve_without_a_home_or_user_build_cache",
+                "--nocapture",
+            ])
+            .env(CHILD, "1");
+        for key in [
+            "PATH",
+            "SystemRoot",
+            "ComSpec",
+            "PATHEXT",
+            "TMPDIR",
+            "TEMP",
+            "TMP",
+        ] {
+            if let Some(value) = std::env::var_os(key) {
+                child.env(key, value);
+            }
+        }
+        let output = child.output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
+    assert!(std::env::var_os("HOME").is_none());
+    assert!(std::env::var_os("GOCACHE").is_none());
+    for module in [false, true] {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        if module {
+            write(&root, "go.mod", "module example/delivery\ngo 1.23\n");
+        }
+        write(
+            &root,
+            "sender.go",
+            "package delivery\ntype Sender struct{}\nfunc (Sender) Send(n int) int { return Delay(n) }\n",
+        );
+        write(
+            &root,
+            "policy.go",
+            "package delivery\nfunc Delay(n int) int { return n + 1 }\n",
+        );
+        write(
+            &root,
+            "other/other.go",
+            "package other\nfunc Delay(n int) int { return n * 2 }\n",
+        );
+        let graph = extract(
+            &[
+                root.join("sender.go"),
+                root.join("policy.go"),
+                root.join("other/other.go"),
+            ],
+            &ExtractOptions {
+                root: Some(root.clone()),
+                use_cache: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let nodes = graph["nodes"].as_array().unwrap();
+        let calls: Vec<_> = graph["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["relation"] == "calls")
+            .collect();
+        assert_eq!(calls.len(), 1, "module={module}: {graph}");
+        let node = |id: &Value| nodes.iter().find(|n| n["id"] == *id).unwrap();
+        assert_eq!(node(&calls[0]["source"])["source_file"], "sender.go");
+        assert_eq!(node(&calls[0]["target"])["source_file"], "policy.go");
+        assert_eq!(calls[0]["resolution"], "go_types");
+        assert!(
+            graph["unresolved_calls"].as_array().unwrap().is_empty(),
+            "{graph}"
+        );
+    }
+}
+
+#[test]
 fn extracted_callback_candidates_remain_inferred_and_keep_unresolved_dispatch() {
     let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().unwrap();

@@ -125,7 +125,7 @@ const COMMON: [&str; 70] = [
 
 /// The Porter stems of `text`'s words that match: at least three characters
 /// or a digit, without [`COMMON`] words.
-fn stems(text: &str) -> BTreeSet<String> {
+pub(crate) fn stems(text: &str) -> BTreeSet<String> {
     graphicle_memory::text::words(text)
         .into_iter()
         .filter(|w| {

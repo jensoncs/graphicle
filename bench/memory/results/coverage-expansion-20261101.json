@@ -1,0 +1,1688 @@
+{
+  "date": "2026-11-01",
+  "status": "coverage_expanded_with_known_misses",
+  "source_head": "1dc0609afadb18fa2237b99046bb240181cd5558",
+  "runtime_changed": false,
+  "binary_sha256": "6bbeac5d3a5638c7b0a51ffc3f946fa4f714e15b71901390ee78dc29345ee73a",
+  "scope": "Synthetic language regression coverage and replayed historical-source queries. No independently labelled human-query dataset or production-quality claim.",
+  "fixtures_sha256": {
+    "quality_suite.json": "ab7a03228e55e48cd4410ac217ef51b53cbec2167b32f0a78540f6229d548f8e",
+    "quality_language_memories.json": "593920bc990429862224a4e7b81720a7604b8961d3c7b183f23fcbe84ecb0384",
+    "quality_language_sources.json": "515b8c8e2dd25b9efac7506444d10e14ffe94ee27c587c4144241f61b5bed9b9",
+    "quality_real_suite.json": "bb59eaf8638f207b69d6aae8f2de2c51617e6855522b5330583559eaf716f304",
+    "real_query_seed.json": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9"
+  },
+  "evaluator_and_test_sha256": {
+    "bench/memory/tools/quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+    "bench/memory/tools/real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+    "bench/memory/tools/symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+    "bench/memory/tests/test_quality.py": "81f52858087e113cda51b8807d65c98e178345f5c68954648850fa326d7050b0",
+    "bench/memory/tests/test_real_query_eval.py": "bf070bf2bdf136a2fa272800b0fee98aacd1fa0883dce9bf94da87907f90cfb7"
+  },
+  "runtime_source_sha256": {
+    "crates/graphicle/src/identifier_arm.rs": "a41cd7a98e4a268d12a1f5bfa900bd74c0cee8a92bc8ba6838526b08ac4c7db3",
+    "crates/graphicle/src/symbol_links.rs": "0c08a1fa953ff75d3fc9231ebdff278f6e7992287402ebd68fa8e304f5fe4e91",
+    "crates/graphicle/src/notes_first.rs": "62dc5dd6c07601feb2270d86545f11bf1799a290880f41eff8fbff167b023fda",
+    "crates/graphicle/tests/it/symbol_links.rs": "9be2ec6c514b275fdf7a0166d56fc9eb2172c5a75869195aefa0c499494feb03"
+  },
+  "synthetic": {
+    "questions": 110,
+    "memory_questions": 89,
+    "source_questions": 21,
+    "calls": 309,
+    "repeat_calls": 309,
+    "repeat_outcomes_identical": true,
+    "first_report_sha256": "72c10b89969b1f462eaa8cf9b25ee910e9b34a419491c2bd7ea85ba88b1042cd",
+    "repeat_report_sha256": "11d1b76e4bba143ee1689751bfa2e7c26352081384472793adcab284f2c4a0f6",
+    "protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "memory_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "links",
+            "kind": "memory",
+            "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+          },
+          {
+            "id": "exact",
+            "kind": "memory",
+            "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+          },
+          {
+            "id": "pressure",
+            "kind": "memory",
+            "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+          },
+          {
+            "id": "diversity",
+            "kind": "memory",
+            "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+          },
+          {
+            "id": "cutoff",
+            "kind": "memory",
+            "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+          },
+          {
+            "id": "negative",
+            "kind": "memory",
+            "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+          },
+          {
+            "id": "source",
+            "kind": "source",
+            "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+          },
+          {
+            "id": "language-memory",
+            "kind": "memory",
+            "sha256": "593920bc990429862224a4e7b81720a7604b8961d3c7b183f23fcbe84ecb0384"
+          },
+          {
+            "id": "language-source",
+            "kind": "source",
+            "sha256": "515b8c8e2dd25b9efac7506444d10e14ffe94ee27c587c4144241f61b5bed9b9"
+          }
+        ],
+        "case_ids": [
+          "cutoff/pagination-holdout/arithmetic/counted",
+          "cutoff/pagination-holdout/arithmetic/off",
+          "cutoff/pagination-holdout/arithmetic/on",
+          "cutoff/pagination-holdout/change/counted",
+          "cutoff/pagination-holdout/change/off",
+          "cutoff/pagination-holdout/change/on",
+          "cutoff/pagination-holdout/prose/counted",
+          "cutoff/pagination-holdout/prose/off",
+          "cutoff/pagination-holdout/prose/on",
+          "cutoff/pagination-holdout/reason/counted",
+          "cutoff/pagination-holdout/reason/off",
+          "cutoff/pagination-holdout/reason/on",
+          "cutoff/webhooks-holdout/arithmetic/counted",
+          "cutoff/webhooks-holdout/arithmetic/off",
+          "cutoff/webhooks-holdout/arithmetic/on",
+          "cutoff/webhooks-holdout/ceiling/counted",
+          "cutoff/webhooks-holdout/ceiling/off",
+          "cutoff/webhooks-holdout/ceiling/on",
+          "cutoff/webhooks-holdout/string/counted",
+          "cutoff/webhooks-holdout/string/off",
+          "cutoff/webhooks-holdout/string/on",
+          "cutoff/webhooks-holdout/timing/counted",
+          "cutoff/webhooks-holdout/timing/off",
+          "cutoff/webhooks-holdout/timing/on",
+          "diversity/cross-file/cross-file-callee/counted",
+          "diversity/cross-file/cross-file-callee/off",
+          "diversity/cross-file/cross-file-callee/on",
+          "diversity/direct-contracts/all-direct/counted",
+          "diversity/direct-contracts/all-direct/off",
+          "diversity/direct-contracts/all-direct/on",
+          "diversity/transitive/two-hop-callee/counted",
+          "diversity/transitive/two-hop-callee/off",
+          "diversity/transitive/two-hop-callee/on",
+          "exact/callee/callee-rationale/counted",
+          "exact/callee/callee-rationale/off",
+          "exact/callee/callee-rationale/on",
+          "exact/headers/multiple-names/counted",
+          "exact/headers/multiple-names/off",
+          "exact/headers/multiple-names/on",
+          "exact/headers/partly-unresolved/counted",
+          "exact/headers/partly-unresolved/off",
+          "exact/headers/partly-unresolved/on",
+          "exact/headers/prose-only/counted",
+          "exact/headers/prose-only/off",
+          "exact/headers/prose-only/on",
+          "exact/paths/duplicate-path/counted",
+          "exact/paths/duplicate-path/off",
+          "exact/paths/duplicate-path/on",
+          "exact/paths/path-qualified/counted",
+          "exact/paths/path-qualified/off",
+          "exact/paths/path-qualified/on",
+          "exact/qualified/ambiguous-name/counted",
+          "exact/qualified/ambiguous-name/off",
+          "exact/qualified/ambiguous-name/on",
+          "exact/qualified/qualified-name/counted",
+          "exact/qualified/qualified-name/off",
+          "exact/qualified/qualified-name/on",
+          "language-memory/go-delivery/ambiguous-method/counted",
+          "language-memory/go-delivery/ambiguous-method/off",
+          "language-memory/go-delivery/ambiguous-method/on",
+          "language-memory/go-delivery/callee-rationale/counted",
+          "language-memory/go-delivery/callee-rationale/off",
+          "language-memory/go-delivery/callee-rationale/on",
+          "language-memory/go-delivery/literal-result/counted",
+          "language-memory/go-delivery/literal-result/off",
+          "language-memory/go-delivery/literal-result/on",
+          "language-memory/go-delivery/no-answer/counted",
+          "language-memory/go-delivery/no-answer/off",
+          "language-memory/go-delivery/no-answer/on",
+          "language-memory/go-delivery/owner-contract/counted",
+          "language-memory/go-delivery/owner-contract/off",
+          "language-memory/go-delivery/owner-contract/on",
+          "language-memory/go-delivery/prose-contract/counted",
+          "language-memory/go-delivery/prose-contract/off",
+          "language-memory/go-delivery/prose-contract/on",
+          "language-memory/go-delivery/qualified-method/counted",
+          "language-memory/go-delivery/qualified-method/off",
+          "language-memory/go-delivery/qualified-method/on",
+          "language-memory/java-delivery/ambiguous-method/counted",
+          "language-memory/java-delivery/ambiguous-method/off",
+          "language-memory/java-delivery/ambiguous-method/on",
+          "language-memory/java-delivery/callee-rationale/counted",
+          "language-memory/java-delivery/callee-rationale/off",
+          "language-memory/java-delivery/callee-rationale/on",
+          "language-memory/java-delivery/literal-result/counted",
+          "language-memory/java-delivery/literal-result/off",
+          "language-memory/java-delivery/literal-result/on",
+          "language-memory/java-delivery/no-answer/counted",
+          "language-memory/java-delivery/no-answer/off",
+          "language-memory/java-delivery/no-answer/on",
+          "language-memory/java-delivery/owner-contract/counted",
+          "language-memory/java-delivery/owner-contract/off",
+          "language-memory/java-delivery/owner-contract/on",
+          "language-memory/java-delivery/prose-contract/counted",
+          "language-memory/java-delivery/prose-contract/off",
+          "language-memory/java-delivery/prose-contract/on",
+          "language-memory/java-delivery/qualified-method/counted",
+          "language-memory/java-delivery/qualified-method/off",
+          "language-memory/java-delivery/qualified-method/on",
+          "language-memory/kotlin-delivery/ambiguous-method/counted",
+          "language-memory/kotlin-delivery/ambiguous-method/off",
+          "language-memory/kotlin-delivery/ambiguous-method/on",
+          "language-memory/kotlin-delivery/callee-rationale/counted",
+          "language-memory/kotlin-delivery/callee-rationale/off",
+          "language-memory/kotlin-delivery/callee-rationale/on",
+          "language-memory/kotlin-delivery/literal-result/counted",
+          "language-memory/kotlin-delivery/literal-result/off",
+          "language-memory/kotlin-delivery/literal-result/on",
+          "language-memory/kotlin-delivery/no-answer/counted",
+          "language-memory/kotlin-delivery/no-answer/off",
+          "language-memory/kotlin-delivery/no-answer/on",
+          "language-memory/kotlin-delivery/owner-contract/counted",
+          "language-memory/kotlin-delivery/owner-contract/off",
+          "language-memory/kotlin-delivery/owner-contract/on",
+          "language-memory/kotlin-delivery/prose-contract/counted",
+          "language-memory/kotlin-delivery/prose-contract/off",
+          "language-memory/kotlin-delivery/prose-contract/on",
+          "language-memory/kotlin-delivery/qualified-method/counted",
+          "language-memory/kotlin-delivery/qualified-method/off",
+          "language-memory/kotlin-delivery/qualified-method/on",
+          "language-memory/rust-delivery/ambiguous-method/counted",
+          "language-memory/rust-delivery/ambiguous-method/off",
+          "language-memory/rust-delivery/ambiguous-method/on",
+          "language-memory/rust-delivery/callee-rationale/counted",
+          "language-memory/rust-delivery/callee-rationale/off",
+          "language-memory/rust-delivery/callee-rationale/on",
+          "language-memory/rust-delivery/literal-result/counted",
+          "language-memory/rust-delivery/literal-result/off",
+          "language-memory/rust-delivery/literal-result/on",
+          "language-memory/rust-delivery/no-answer/counted",
+          "language-memory/rust-delivery/no-answer/off",
+          "language-memory/rust-delivery/no-answer/on",
+          "language-memory/rust-delivery/owner-contract/counted",
+          "language-memory/rust-delivery/owner-contract/off",
+          "language-memory/rust-delivery/owner-contract/on",
+          "language-memory/rust-delivery/prose-contract/counted",
+          "language-memory/rust-delivery/prose-contract/off",
+          "language-memory/rust-delivery/prose-contract/on",
+          "language-memory/rust-delivery/qualified-method/counted",
+          "language-memory/rust-delivery/qualified-method/off",
+          "language-memory/rust-delivery/qualified-method/on",
+          "language-memory/typescript-delivery/ambiguous-method/counted",
+          "language-memory/typescript-delivery/ambiguous-method/off",
+          "language-memory/typescript-delivery/ambiguous-method/on",
+          "language-memory/typescript-delivery/callee-rationale/counted",
+          "language-memory/typescript-delivery/callee-rationale/off",
+          "language-memory/typescript-delivery/callee-rationale/on",
+          "language-memory/typescript-delivery/literal-result/counted",
+          "language-memory/typescript-delivery/literal-result/off",
+          "language-memory/typescript-delivery/literal-result/on",
+          "language-memory/typescript-delivery/no-answer/counted",
+          "language-memory/typescript-delivery/no-answer/off",
+          "language-memory/typescript-delivery/no-answer/on",
+          "language-memory/typescript-delivery/owner-contract/counted",
+          "language-memory/typescript-delivery/owner-contract/off",
+          "language-memory/typescript-delivery/owner-contract/on",
+          "language-memory/typescript-delivery/prose-contract/counted",
+          "language-memory/typescript-delivery/prose-contract/off",
+          "language-memory/typescript-delivery/prose-contract/on",
+          "language-memory/typescript-delivery/qualified-method/counted",
+          "language-memory/typescript-delivery/qualified-method/off",
+          "language-memory/typescript-delivery/qualified-method/on",
+          "language-source/go-delivery/caller-callee/baseline",
+          "language-source/go-delivery/caller-callee/routed",
+          "language-source/go-delivery/language-construct/baseline",
+          "language-source/go-delivery/language-construct/routed",
+          "language-source/go-delivery/method-branch/baseline",
+          "language-source/go-delivery/method-branch/routed",
+          "language-source/java-delivery/caller-callee/baseline",
+          "language-source/java-delivery/caller-callee/routed",
+          "language-source/java-delivery/language-construct/baseline",
+          "language-source/java-delivery/language-construct/routed",
+          "language-source/java-delivery/method-branch/baseline",
+          "language-source/java-delivery/method-branch/routed",
+          "language-source/kotlin-delivery/caller-callee/baseline",
+          "language-source/kotlin-delivery/caller-callee/routed",
+          "language-source/kotlin-delivery/language-construct/baseline",
+          "language-source/kotlin-delivery/language-construct/routed",
+          "language-source/kotlin-delivery/method-branch/baseline",
+          "language-source/kotlin-delivery/method-branch/routed",
+          "language-source/rust-delivery/caller-callee/baseline",
+          "language-source/rust-delivery/caller-callee/routed",
+          "language-source/rust-delivery/language-construct/baseline",
+          "language-source/rust-delivery/language-construct/routed",
+          "language-source/rust-delivery/method-branch/baseline",
+          "language-source/rust-delivery/method-branch/routed",
+          "language-source/typescript-delivery/caller-callee/baseline",
+          "language-source/typescript-delivery/caller-callee/routed",
+          "language-source/typescript-delivery/language-construct/baseline",
+          "language-source/typescript-delivery/language-construct/routed",
+          "language-source/typescript-delivery/method-branch/baseline",
+          "language-source/typescript-delivery/method-branch/routed",
+          "links/billing/direct-recall/counted",
+          "links/billing/direct-recall/off",
+          "links/billing/direct-recall/on",
+          "links/billing/linked-rationale/counted",
+          "links/billing/linked-rationale/off",
+          "links/billing/linked-rationale/on",
+          "links/billing/narrow-rationale/counted",
+          "links/billing/narrow-rationale/off",
+          "links/billing/narrow-rationale/on",
+          "links/billing/other-symbol/counted",
+          "links/billing/other-symbol/off",
+          "links/billing/other-symbol/on",
+          "links/billing/same-symbol-no-memory/counted",
+          "links/billing/same-symbol-no-memory/off",
+          "links/billing/same-symbol-no-memory/on",
+          "links/billing/unrelated/counted",
+          "links/billing/unrelated/off",
+          "links/billing/unrelated/on",
+          "links/cache/direct-recall/counted",
+          "links/cache/direct-recall/off",
+          "links/cache/direct-recall/on",
+          "links/cache/linked-rationale/counted",
+          "links/cache/linked-rationale/off",
+          "links/cache/linked-rationale/on",
+          "links/cache/narrow-rationale/counted",
+          "links/cache/narrow-rationale/off",
+          "links/cache/narrow-rationale/on",
+          "links/cache/same-symbol-no-memory/counted",
+          "links/cache/same-symbol-no-memory/off",
+          "links/cache/same-symbol-no-memory/on",
+          "links/cache/unrelated/counted",
+          "links/cache/unrelated/off",
+          "links/cache/unrelated/on",
+          "links/retry/direct-recall/counted",
+          "links/retry/direct-recall/off",
+          "links/retry/direct-recall/on",
+          "links/retry/linked-rationale/counted",
+          "links/retry/linked-rationale/off",
+          "links/retry/linked-rationale/on",
+          "links/retry/narrow-rationale/counted",
+          "links/retry/narrow-rationale/off",
+          "links/retry/narrow-rationale/on",
+          "links/retry/same-symbol-no-memory/counted",
+          "links/retry/same-symbol-no-memory/off",
+          "links/retry/same-symbol-no-memory/on",
+          "links/retry/unrelated/counted",
+          "links/retry/unrelated/off",
+          "links/retry/unrelated/on",
+          "links/stale/stale-direct/counted",
+          "links/stale/stale-direct/off",
+          "links/stale/stale-direct/on",
+          "links/stale/stale-symbol/counted",
+          "links/stale/stale-symbol/off",
+          "links/stale/stale-symbol/on",
+          "negative/cross-file/absent-0/counted",
+          "negative/cross-file/absent-0/off",
+          "negative/cross-file/absent-0/on",
+          "negative/cross-file/absent-1/counted",
+          "negative/cross-file/absent-1/off",
+          "negative/cross-file/absent-1/on",
+          "negative/cross-file/absent-2/counted",
+          "negative/cross-file/absent-2/off",
+          "negative/cross-file/absent-2/on",
+          "negative/direct-contracts/absent-0/counted",
+          "negative/direct-contracts/absent-0/off",
+          "negative/direct-contracts/absent-0/on",
+          "negative/direct-contracts/absent-1/counted",
+          "negative/direct-contracts/absent-1/off",
+          "negative/direct-contracts/absent-1/on",
+          "negative/direct-contracts/absent-2/counted",
+          "negative/direct-contracts/absent-2/off",
+          "negative/direct-contracts/absent-2/on",
+          "pressure/callee-pressure/lease-rationale/counted",
+          "pressure/callee-pressure/lease-rationale/off",
+          "pressure/callee-pressure/lease-rationale/on",
+          "pressure/caller-pressure/lease-rationale/counted",
+          "pressure/caller-pressure/lease-rationale/off",
+          "pressure/caller-pressure/lease-rationale/on",
+          "pressure/direct-pressure/direct-0/counted",
+          "pressure/direct-pressure/direct-0/off",
+          "pressure/direct-pressure/direct-0/on",
+          "pressure/direct-pressure/direct-1/counted",
+          "pressure/direct-pressure/direct-1/off",
+          "pressure/direct-pressure/direct-1/on",
+          "pressure/direct-pressure/direct-2/counted",
+          "pressure/direct-pressure/direct-2/off",
+          "pressure/direct-pressure/direct-2/on",
+          "pressure/direct-pressure/direct-3/counted",
+          "pressure/direct-pressure/direct-3/off",
+          "pressure/direct-pressure/direct-3/on",
+          "pressure/direct-pressure/direct-4/counted",
+          "pressure/direct-pressure/direct-4/off",
+          "pressure/direct-pressure/direct-4/on",
+          "pressure/direct-pressure/direct-5/counted",
+          "pressure/direct-pressure/direct-5/off",
+          "pressure/direct-pressure/direct-5/on",
+          "pressure/shared-pressure/prose/counted",
+          "pressure/shared-pressure/prose/off",
+          "pressure/shared-pressure/prose/on",
+          "pressure/shared-pressure/shared-target/counted",
+          "pressure/shared-pressure/shared-target/off",
+          "pressure/shared-pressure/shared-target/on",
+          "pressure/shared-pressure/unresolved/counted",
+          "pressure/shared-pressure/unresolved/off",
+          "pressure/shared-pressure/unresolved/on",
+          "source/payments/caller-callee/baseline",
+          "source/payments/caller-callee/routed",
+          "source/payments/failure-branch/baseline",
+          "source/payments/failure-branch/routed",
+          "source/payments/location/baseline",
+          "source/payments/location/routed",
+          "source/payments/rationale/baseline",
+          "source/payments/rationale/routed",
+          "source/payments/rounding/baseline",
+          "source/payments/rounding/routed",
+          "source/payments/unicode/baseline",
+          "source/payments/unicode/routed"
+        ]
+      },
+      "binary_sha256": "6bbeac5d3a5638c7b0a51ffc3f946fa4f714e15b71901390ee78dc29345ee73a",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "source_roots": {},
+      "memory_debug_candidates": 400,
+      "memory_diagnostics_version": 1,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    },
+    "repeat_protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "memory_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "links",
+            "kind": "memory",
+            "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+          },
+          {
+            "id": "exact",
+            "kind": "memory",
+            "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+          },
+          {
+            "id": "pressure",
+            "kind": "memory",
+            "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+          },
+          {
+            "id": "diversity",
+            "kind": "memory",
+            "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+          },
+          {
+            "id": "cutoff",
+            "kind": "memory",
+            "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+          },
+          {
+            "id": "negative",
+            "kind": "memory",
+            "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+          },
+          {
+            "id": "source",
+            "kind": "source",
+            "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+          },
+          {
+            "id": "language-memory",
+            "kind": "memory",
+            "sha256": "593920bc990429862224a4e7b81720a7604b8961d3c7b183f23fcbe84ecb0384"
+          },
+          {
+            "id": "language-source",
+            "kind": "source",
+            "sha256": "515b8c8e2dd25b9efac7506444d10e14ffe94ee27c587c4144241f61b5bed9b9"
+          }
+        ],
+        "case_ids": [
+          "cutoff/pagination-holdout/arithmetic/counted",
+          "cutoff/pagination-holdout/arithmetic/off",
+          "cutoff/pagination-holdout/arithmetic/on",
+          "cutoff/pagination-holdout/change/counted",
+          "cutoff/pagination-holdout/change/off",
+          "cutoff/pagination-holdout/change/on",
+          "cutoff/pagination-holdout/prose/counted",
+          "cutoff/pagination-holdout/prose/off",
+          "cutoff/pagination-holdout/prose/on",
+          "cutoff/pagination-holdout/reason/counted",
+          "cutoff/pagination-holdout/reason/off",
+          "cutoff/pagination-holdout/reason/on",
+          "cutoff/webhooks-holdout/arithmetic/counted",
+          "cutoff/webhooks-holdout/arithmetic/off",
+          "cutoff/webhooks-holdout/arithmetic/on",
+          "cutoff/webhooks-holdout/ceiling/counted",
+          "cutoff/webhooks-holdout/ceiling/off",
+          "cutoff/webhooks-holdout/ceiling/on",
+          "cutoff/webhooks-holdout/string/counted",
+          "cutoff/webhooks-holdout/string/off",
+          "cutoff/webhooks-holdout/string/on",
+          "cutoff/webhooks-holdout/timing/counted",
+          "cutoff/webhooks-holdout/timing/off",
+          "cutoff/webhooks-holdout/timing/on",
+          "diversity/cross-file/cross-file-callee/counted",
+          "diversity/cross-file/cross-file-callee/off",
+          "diversity/cross-file/cross-file-callee/on",
+          "diversity/direct-contracts/all-direct/counted",
+          "diversity/direct-contracts/all-direct/off",
+          "diversity/direct-contracts/all-direct/on",
+          "diversity/transitive/two-hop-callee/counted",
+          "diversity/transitive/two-hop-callee/off",
+          "diversity/transitive/two-hop-callee/on",
+          "exact/callee/callee-rationale/counted",
+          "exact/callee/callee-rationale/off",
+          "exact/callee/callee-rationale/on",
+          "exact/headers/multiple-names/counted",
+          "exact/headers/multiple-names/off",
+          "exact/headers/multiple-names/on",
+          "exact/headers/partly-unresolved/counted",
+          "exact/headers/partly-unresolved/off",
+          "exact/headers/partly-unresolved/on",
+          "exact/headers/prose-only/counted",
+          "exact/headers/prose-only/off",
+          "exact/headers/prose-only/on",
+          "exact/paths/duplicate-path/counted",
+          "exact/paths/duplicate-path/off",
+          "exact/paths/duplicate-path/on",
+          "exact/paths/path-qualified/counted",
+          "exact/paths/path-qualified/off",
+          "exact/paths/path-qualified/on",
+          "exact/qualified/ambiguous-name/counted",
+          "exact/qualified/ambiguous-name/off",
+          "exact/qualified/ambiguous-name/on",
+          "exact/qualified/qualified-name/counted",
+          "exact/qualified/qualified-name/off",
+          "exact/qualified/qualified-name/on",
+          "language-memory/go-delivery/ambiguous-method/counted",
+          "language-memory/go-delivery/ambiguous-method/off",
+          "language-memory/go-delivery/ambiguous-method/on",
+          "language-memory/go-delivery/callee-rationale/counted",
+          "language-memory/go-delivery/callee-rationale/off",
+          "language-memory/go-delivery/callee-rationale/on",
+          "language-memory/go-delivery/literal-result/counted",
+          "language-memory/go-delivery/literal-result/off",
+          "language-memory/go-delivery/literal-result/on",
+          "language-memory/go-delivery/no-answer/counted",
+          "language-memory/go-delivery/no-answer/off",
+          "language-memory/go-delivery/no-answer/on",
+          "language-memory/go-delivery/owner-contract/counted",
+          "language-memory/go-delivery/owner-contract/off",
+          "language-memory/go-delivery/owner-contract/on",
+          "language-memory/go-delivery/prose-contract/counted",
+          "language-memory/go-delivery/prose-contract/off",
+          "language-memory/go-delivery/prose-contract/on",
+          "language-memory/go-delivery/qualified-method/counted",
+          "language-memory/go-delivery/qualified-method/off",
+          "language-memory/go-delivery/qualified-method/on",
+          "language-memory/java-delivery/ambiguous-method/counted",
+          "language-memory/java-delivery/ambiguous-method/off",
+          "language-memory/java-delivery/ambiguous-method/on",
+          "language-memory/java-delivery/callee-rationale/counted",
+          "language-memory/java-delivery/callee-rationale/off",
+          "language-memory/java-delivery/callee-rationale/on",
+          "language-memory/java-delivery/literal-result/counted",
+          "language-memory/java-delivery/literal-result/off",
+          "language-memory/java-delivery/literal-result/on",
+          "language-memory/java-delivery/no-answer/counted",
+          "language-memory/java-delivery/no-answer/off",
+          "language-memory/java-delivery/no-answer/on",
+          "language-memory/java-delivery/owner-contract/counted",
+          "language-memory/java-delivery/owner-contract/off",
+          "language-memory/java-delivery/owner-contract/on",
+          "language-memory/java-delivery/prose-contract/counted",
+          "language-memory/java-delivery/prose-contract/off",
+          "language-memory/java-delivery/prose-contract/on",
+          "language-memory/java-delivery/qualified-method/counted",
+          "language-memory/java-delivery/qualified-method/off",
+          "language-memory/java-delivery/qualified-method/on",
+          "language-memory/kotlin-delivery/ambiguous-method/counted",
+          "language-memory/kotlin-delivery/ambiguous-method/off",
+          "language-memory/kotlin-delivery/ambiguous-method/on",
+          "language-memory/kotlin-delivery/callee-rationale/counted",
+          "language-memory/kotlin-delivery/callee-rationale/off",
+          "language-memory/kotlin-delivery/callee-rationale/on",
+          "language-memory/kotlin-delivery/literal-result/counted",
+          "language-memory/kotlin-delivery/literal-result/off",
+          "language-memory/kotlin-delivery/literal-result/on",
+          "language-memory/kotlin-delivery/no-answer/counted",
+          "language-memory/kotlin-delivery/no-answer/off",
+          "language-memory/kotlin-delivery/no-answer/on",
+          "language-memory/kotlin-delivery/owner-contract/counted",
+          "language-memory/kotlin-delivery/owner-contract/off",
+          "language-memory/kotlin-delivery/owner-contract/on",
+          "language-memory/kotlin-delivery/prose-contract/counted",
+          "language-memory/kotlin-delivery/prose-contract/off",
+          "language-memory/kotlin-delivery/prose-contract/on",
+          "language-memory/kotlin-delivery/qualified-method/counted",
+          "language-memory/kotlin-delivery/qualified-method/off",
+          "language-memory/kotlin-delivery/qualified-method/on",
+          "language-memory/rust-delivery/ambiguous-method/counted",
+          "language-memory/rust-delivery/ambiguous-method/off",
+          "language-memory/rust-delivery/ambiguous-method/on",
+          "language-memory/rust-delivery/callee-rationale/counted",
+          "language-memory/rust-delivery/callee-rationale/off",
+          "language-memory/rust-delivery/callee-rationale/on",
+          "language-memory/rust-delivery/literal-result/counted",
+          "language-memory/rust-delivery/literal-result/off",
+          "language-memory/rust-delivery/literal-result/on",
+          "language-memory/rust-delivery/no-answer/counted",
+          "language-memory/rust-delivery/no-answer/off",
+          "language-memory/rust-delivery/no-answer/on",
+          "language-memory/rust-delivery/owner-contract/counted",
+          "language-memory/rust-delivery/owner-contract/off",
+          "language-memory/rust-delivery/owner-contract/on",
+          "language-memory/rust-delivery/prose-contract/counted",
+          "language-memory/rust-delivery/prose-contract/off",
+          "language-memory/rust-delivery/prose-contract/on",
+          "language-memory/rust-delivery/qualified-method/counted",
+          "language-memory/rust-delivery/qualified-method/off",
+          "language-memory/rust-delivery/qualified-method/on",
+          "language-memory/typescript-delivery/ambiguous-method/counted",
+          "language-memory/typescript-delivery/ambiguous-method/off",
+          "language-memory/typescript-delivery/ambiguous-method/on",
+          "language-memory/typescript-delivery/callee-rationale/counted",
+          "language-memory/typescript-delivery/callee-rationale/off",
+          "language-memory/typescript-delivery/callee-rationale/on",
+          "language-memory/typescript-delivery/literal-result/counted",
+          "language-memory/typescript-delivery/literal-result/off",
+          "language-memory/typescript-delivery/literal-result/on",
+          "language-memory/typescript-delivery/no-answer/counted",
+          "language-memory/typescript-delivery/no-answer/off",
+          "language-memory/typescript-delivery/no-answer/on",
+          "language-memory/typescript-delivery/owner-contract/counted",
+          "language-memory/typescript-delivery/owner-contract/off",
+          "language-memory/typescript-delivery/owner-contract/on",
+          "language-memory/typescript-delivery/prose-contract/counted",
+          "language-memory/typescript-delivery/prose-contract/off",
+          "language-memory/typescript-delivery/prose-contract/on",
+          "language-memory/typescript-delivery/qualified-method/counted",
+          "language-memory/typescript-delivery/qualified-method/off",
+          "language-memory/typescript-delivery/qualified-method/on",
+          "language-source/go-delivery/caller-callee/baseline",
+          "language-source/go-delivery/caller-callee/routed",
+          "language-source/go-delivery/language-construct/baseline",
+          "language-source/go-delivery/language-construct/routed",
+          "language-source/go-delivery/method-branch/baseline",
+          "language-source/go-delivery/method-branch/routed",
+          "language-source/java-delivery/caller-callee/baseline",
+          "language-source/java-delivery/caller-callee/routed",
+          "language-source/java-delivery/language-construct/baseline",
+          "language-source/java-delivery/language-construct/routed",
+          "language-source/java-delivery/method-branch/baseline",
+          "language-source/java-delivery/method-branch/routed",
+          "language-source/kotlin-delivery/caller-callee/baseline",
+          "language-source/kotlin-delivery/caller-callee/routed",
+          "language-source/kotlin-delivery/language-construct/baseline",
+          "language-source/kotlin-delivery/language-construct/routed",
+          "language-source/kotlin-delivery/method-branch/baseline",
+          "language-source/kotlin-delivery/method-branch/routed",
+          "language-source/rust-delivery/caller-callee/baseline",
+          "language-source/rust-delivery/caller-callee/routed",
+          "language-source/rust-delivery/language-construct/baseline",
+          "language-source/rust-delivery/language-construct/routed",
+          "language-source/rust-delivery/method-branch/baseline",
+          "language-source/rust-delivery/method-branch/routed",
+          "language-source/typescript-delivery/caller-callee/baseline",
+          "language-source/typescript-delivery/caller-callee/routed",
+          "language-source/typescript-delivery/language-construct/baseline",
+          "language-source/typescript-delivery/language-construct/routed",
+          "language-source/typescript-delivery/method-branch/baseline",
+          "language-source/typescript-delivery/method-branch/routed",
+          "links/billing/direct-recall/counted",
+          "links/billing/direct-recall/off",
+          "links/billing/direct-recall/on",
+          "links/billing/linked-rationale/counted",
+          "links/billing/linked-rationale/off",
+          "links/billing/linked-rationale/on",
+          "links/billing/narrow-rationale/counted",
+          "links/billing/narrow-rationale/off",
+          "links/billing/narrow-rationale/on",
+          "links/billing/other-symbol/counted",
+          "links/billing/other-symbol/off",
+          "links/billing/other-symbol/on",
+          "links/billing/same-symbol-no-memory/counted",
+          "links/billing/same-symbol-no-memory/off",
+          "links/billing/same-symbol-no-memory/on",
+          "links/billing/unrelated/counted",
+          "links/billing/unrelated/off",
+          "links/billing/unrelated/on",
+          "links/cache/direct-recall/counted",
+          "links/cache/direct-recall/off",
+          "links/cache/direct-recall/on",
+          "links/cache/linked-rationale/counted",
+          "links/cache/linked-rationale/off",
+          "links/cache/linked-rationale/on",
+          "links/cache/narrow-rationale/counted",
+          "links/cache/narrow-rationale/off",
+          "links/cache/narrow-rationale/on",
+          "links/cache/same-symbol-no-memory/counted",
+          "links/cache/same-symbol-no-memory/off",
+          "links/cache/same-symbol-no-memory/on",
+          "links/cache/unrelated/counted",
+          "links/cache/unrelated/off",
+          "links/cache/unrelated/on",
+          "links/retry/direct-recall/counted",
+          "links/retry/direct-recall/off",
+          "links/retry/direct-recall/on",
+          "links/retry/linked-rationale/counted",
+          "links/retry/linked-rationale/off",
+          "links/retry/linked-rationale/on",
+          "links/retry/narrow-rationale/counted",
+          "links/retry/narrow-rationale/off",
+          "links/retry/narrow-rationale/on",
+          "links/retry/same-symbol-no-memory/counted",
+          "links/retry/same-symbol-no-memory/off",
+          "links/retry/same-symbol-no-memory/on",
+          "links/retry/unrelated/counted",
+          "links/retry/unrelated/off",
+          "links/retry/unrelated/on",
+          "links/stale/stale-direct/counted",
+          "links/stale/stale-direct/off",
+          "links/stale/stale-direct/on",
+          "links/stale/stale-symbol/counted",
+          "links/stale/stale-symbol/off",
+          "links/stale/stale-symbol/on",
+          "negative/cross-file/absent-0/counted",
+          "negative/cross-file/absent-0/off",
+          "negative/cross-file/absent-0/on",
+          "negative/cross-file/absent-1/counted",
+          "negative/cross-file/absent-1/off",
+          "negative/cross-file/absent-1/on",
+          "negative/cross-file/absent-2/counted",
+          "negative/cross-file/absent-2/off",
+          "negative/cross-file/absent-2/on",
+          "negative/direct-contracts/absent-0/counted",
+          "negative/direct-contracts/absent-0/off",
+          "negative/direct-contracts/absent-0/on",
+          "negative/direct-contracts/absent-1/counted",
+          "negative/direct-contracts/absent-1/off",
+          "negative/direct-contracts/absent-1/on",
+          "negative/direct-contracts/absent-2/counted",
+          "negative/direct-contracts/absent-2/off",
+          "negative/direct-contracts/absent-2/on",
+          "pressure/callee-pressure/lease-rationale/counted",
+          "pressure/callee-pressure/lease-rationale/off",
+          "pressure/callee-pressure/lease-rationale/on",
+          "pressure/caller-pressure/lease-rationale/counted",
+          "pressure/caller-pressure/lease-rationale/off",
+          "pressure/caller-pressure/lease-rationale/on",
+          "pressure/direct-pressure/direct-0/counted",
+          "pressure/direct-pressure/direct-0/off",
+          "pressure/direct-pressure/direct-0/on",
+          "pressure/direct-pressure/direct-1/counted",
+          "pressure/direct-pressure/direct-1/off",
+          "pressure/direct-pressure/direct-1/on",
+          "pressure/direct-pressure/direct-2/counted",
+          "pressure/direct-pressure/direct-2/off",
+          "pressure/direct-pressure/direct-2/on",
+          "pressure/direct-pressure/direct-3/counted",
+          "pressure/direct-pressure/direct-3/off",
+          "pressure/direct-pressure/direct-3/on",
+          "pressure/direct-pressure/direct-4/counted",
+          "pressure/direct-pressure/direct-4/off",
+          "pressure/direct-pressure/direct-4/on",
+          "pressure/direct-pressure/direct-5/counted",
+          "pressure/direct-pressure/direct-5/off",
+          "pressure/direct-pressure/direct-5/on",
+          "pressure/shared-pressure/prose/counted",
+          "pressure/shared-pressure/prose/off",
+          "pressure/shared-pressure/prose/on",
+          "pressure/shared-pressure/shared-target/counted",
+          "pressure/shared-pressure/shared-target/off",
+          "pressure/shared-pressure/shared-target/on",
+          "pressure/shared-pressure/unresolved/counted",
+          "pressure/shared-pressure/unresolved/off",
+          "pressure/shared-pressure/unresolved/on",
+          "source/payments/caller-callee/baseline",
+          "source/payments/caller-callee/routed",
+          "source/payments/failure-branch/baseline",
+          "source/payments/failure-branch/routed",
+          "source/payments/location/baseline",
+          "source/payments/location/routed",
+          "source/payments/rationale/baseline",
+          "source/payments/rationale/routed",
+          "source/payments/rounding/baseline",
+          "source/payments/rounding/routed",
+          "source/payments/unicode/baseline",
+          "source/payments/unicode/routed"
+        ]
+      },
+      "binary_sha256": "6bbeac5d3a5638c7b0a51ffc3f946fa4f714e15b71901390ee78dc29345ee73a",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "source_roots": {},
+      "memory_debug_candidates": 400,
+      "memory_diagnostics_version": 1,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    },
+    "summary": {
+      "memory/counted": {
+        "planned": 89,
+        "completed": 89,
+        "errors": 0,
+        "tp": 30,
+        "fp": 25,
+        "fn": 72,
+        "precision_completed": 0.5454545454545454,
+        "recall": 0.29411764705882354,
+        "negative_queries": 27,
+        "empty_memory_accuracy": 0.7407407407407407
+      },
+      "memory/off": {
+        "planned": 89,
+        "completed": 89,
+        "errors": 0,
+        "tp": 30,
+        "fp": 25,
+        "fn": 72,
+        "precision_completed": 0.5454545454545454,
+        "recall": 0.29411764705882354,
+        "negative_queries": 27,
+        "empty_memory_accuracy": 0.7407407407407407
+      },
+      "memory/on": {
+        "planned": 89,
+        "completed": 89,
+        "errors": 0,
+        "tp": 100,
+        "fp": 84,
+        "fn": 2,
+        "precision_completed": 0.5434782608695652,
+        "recall": 0.9803921568627451,
+        "negative_queries": 27,
+        "empty_memory_accuracy": 0.5555555555555556
+      },
+      "source/baseline": {
+        "planned": 21,
+        "completed": 21,
+        "errors": 0,
+        "required": 33,
+        "delivered": 33,
+        "evidence_recall": 1.0,
+        "complete": 21,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 21,
+        "completed": 21,
+        "errors": 0,
+        "required": 33,
+        "delivered": 33,
+        "evidence_recall": 1.0,
+        "complete": 21,
+        "completeness": 1.0
+      }
+    },
+    "by_language": {
+      "go": {
+        "memory/counted": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/off": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/on": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 8,
+          "fp": 6,
+          "fn": 2,
+          "precision_completed": 0.5714285714285714,
+          "recall": 0.8,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "source/baseline": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        }
+      },
+      "java": {
+        "memory/counted": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/off": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/on": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 10,
+          "fp": 8,
+          "fn": 0,
+          "precision_completed": 0.5555555555555556,
+          "recall": 1.0,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "source/baseline": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        }
+      },
+      "javascript": {
+        "memory/counted": {
+          "planned": 4,
+          "completed": 4,
+          "errors": 0,
+          "tp": 1,
+          "fp": 3,
+          "fn": 1,
+          "precision_completed": 0.25,
+          "recall": 0.5,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/off": {
+          "planned": 4,
+          "completed": 4,
+          "errors": 0,
+          "tp": 1,
+          "fp": 3,
+          "fn": 1,
+          "precision_completed": 0.25,
+          "recall": 0.5,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/on": {
+          "planned": 4,
+          "completed": 4,
+          "errors": 0,
+          "tp": 2,
+          "fp": 5,
+          "fn": 0,
+          "precision_completed": 0.2857142857142857,
+          "recall": 1.0,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        }
+      },
+      "kotlin": {
+        "memory/counted": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/off": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/on": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 10,
+          "fp": 8,
+          "fn": 0,
+          "precision_completed": 0.5555555555555556,
+          "recall": 1.0,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "source/baseline": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        }
+      },
+      "python": {
+        "memory/counted": {
+          "planned": 50,
+          "completed": 50,
+          "errors": 0,
+          "tp": 9,
+          "fp": 2,
+          "fn": 41,
+          "precision_completed": 0.8181818181818182,
+          "recall": 0.18,
+          "negative_queries": 15,
+          "empty_memory_accuracy": 0.9333333333333333
+        },
+        "memory/off": {
+          "planned": 50,
+          "completed": 50,
+          "errors": 0,
+          "tp": 9,
+          "fp": 2,
+          "fn": 41,
+          "precision_completed": 0.8181818181818182,
+          "recall": 0.18,
+          "negative_queries": 15,
+          "empty_memory_accuracy": 0.9333333333333333
+        },
+        "memory/on": {
+          "planned": 50,
+          "completed": 50,
+          "errors": 0,
+          "tp": 50,
+          "fp": 41,
+          "fn": 0,
+          "precision_completed": 0.5494505494505495,
+          "recall": 1.0,
+          "negative_queries": 15,
+          "empty_memory_accuracy": 0.6
+        },
+        "source/baseline": {
+          "planned": 6,
+          "completed": 6,
+          "errors": 0,
+          "required": 8,
+          "delivered": 8,
+          "evidence_recall": 1.0,
+          "complete": 6,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 6,
+          "completed": 6,
+          "errors": 0,
+          "required": 8,
+          "delivered": 8,
+          "evidence_recall": 1.0,
+          "complete": 6,
+          "completeness": 1.0
+        }
+      },
+      "rust": {
+        "memory/counted": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/off": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/on": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 10,
+          "fp": 8,
+          "fn": 0,
+          "precision_completed": 0.5555555555555556,
+          "recall": 1.0,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "source/baseline": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        }
+      },
+      "typescript": {
+        "memory/counted": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/off": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 4,
+          "fp": 4,
+          "fn": 6,
+          "precision_completed": 0.5,
+          "recall": 0.4,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "memory/on": {
+          "planned": 7,
+          "completed": 7,
+          "errors": 0,
+          "tp": 10,
+          "fp": 8,
+          "fn": 0,
+          "precision_completed": 0.5555555555555556,
+          "recall": 1.0,
+          "negative_queries": 2,
+          "empty_memory_accuracy": 0.5
+        },
+        "source/baseline": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 3,
+          "completed": 3,
+          "errors": 0,
+          "required": 5,
+          "delivered": 5,
+          "evidence_recall": 1.0,
+          "complete": 3,
+          "completeness": 1.0
+        }
+      }
+    },
+    "original_174_gate": {
+      "gate": {
+        "status": "passed",
+        "findings": []
+      },
+      "calls": 174,
+      "outcomes_unchanged": true
+    },
+    "new_memory_grounding": {
+      "language-memory/typescript-delivery": {
+        "wire": [
+          "resolved"
+        ],
+        "owner": [
+          "resolved"
+        ],
+        "lease": [
+          "resolved"
+        ],
+        "health": [
+          "resolved"
+        ],
+        "alternate": [
+          "resolved"
+        ]
+      },
+      "language-memory/go-delivery": {
+        "wire": [
+          "resolved"
+        ],
+        "owner": [
+          "resolved"
+        ],
+        "lease": [
+          "resolved"
+        ],
+        "health": [
+          "resolved"
+        ],
+        "alternate": [
+          "resolved"
+        ]
+      },
+      "language-memory/java-delivery": {
+        "wire": [
+          "resolved"
+        ],
+        "owner": [
+          "resolved"
+        ],
+        "lease": [
+          "resolved"
+        ],
+        "health": [
+          "resolved"
+        ],
+        "alternate": [
+          "resolved"
+        ]
+      },
+      "language-memory/kotlin-delivery": {
+        "wire": [
+          "resolved"
+        ],
+        "owner": [
+          "resolved"
+        ],
+        "lease": [
+          "resolved"
+        ],
+        "health": [
+          "resolved"
+        ],
+        "alternate": [
+          "resolved"
+        ]
+      },
+      "language-memory/rust-delivery": {
+        "wire": [
+          "resolved"
+        ],
+        "owner": [
+          "resolved"
+        ],
+        "lease": [
+          "resolved"
+        ],
+        "health": [
+          "resolved"
+        ],
+        "alternate": [
+          "resolved"
+        ]
+      }
+    },
+    "new_misses": [
+      {
+        "id": "language-memory/go-delivery/qualified-method/on",
+        "missing": [
+          "lease"
+        ],
+        "observed_stages": [
+          {
+            "id": "lease",
+            "stage": "eligible_not_selected",
+            "link_outcomes": {}
+          }
+        ]
+      },
+      {
+        "id": "language-memory/go-delivery/ambiguous-method/on",
+        "missing": [
+          "lease"
+        ],
+        "observed_stages": [
+          {
+            "id": "lease",
+            "stage": "eligible_not_selected",
+            "link_outcomes": {}
+          }
+        ]
+      }
+    ],
+    "repeat_gate": {
+      "status": "passed",
+      "findings": []
+    }
+  },
+  "historical": {
+    "questions": 11,
+    "captured_diagnostic_tool_queries": 2,
+    "authored_real_source_questions": 9,
+    "independent_human_queries": 0,
+    "calls": 22,
+    "repeat_calls": 22,
+    "repeat_outcomes_identical": true,
+    "first_report_sha256": "f1d65d7c33ec482fe722a34aa631282dc2a79627903b8ab29ba61438731e2fca",
+    "repeat_report_sha256": "f130db547f41de428e17a11eb5192ab32a9418c2569b5204b55d3233e27c9d9c",
+    "protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "memory_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "historical",
+            "kind": "source",
+            "sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9"
+          }
+        ],
+        "case_ids": [
+          "historical/nexus-944-h2/delete-missing/baseline",
+          "historical/nexus-944-h2/delete-missing/routed",
+          "historical/nexus-944-h2/partial-inspection/baseline",
+          "historical/nexus-944-h2/partial-inspection/routed",
+          "historical/nexus-944-h2/uncertain-link/baseline",
+          "historical/nexus-944-h2/uncertain-link/routed",
+          "historical/nexus-944-h2/waypoint-location/baseline",
+          "historical/nexus-944-h2/waypoint-location/routed",
+          "historical/nexus-963-h1/cache-success/baseline",
+          "historical/nexus-963-h1/cache-success/routed",
+          "historical/nexus-963-h1/callee-location/baseline",
+          "historical/nexus-963-h1/callee-location/routed",
+          "historical/nexus-963-h1/caller-callee-failure/baseline",
+          "historical/nexus-963-h1/caller-callee-failure/routed",
+          "historical/nexus-963-h1/captured-gateway/baseline",
+          "historical/nexus-963-h1/captured-gateway/routed",
+          "historical/nexus-963-h1/gateway-owner/baseline",
+          "historical/nexus-963-h1/gateway-owner/routed",
+          "historical/nexus-963-h1/v4-failure/baseline",
+          "historical/nexus-963-h1/v4-failure/routed",
+          "historical/nexus-963-h2/captured-overlap/baseline",
+          "historical/nexus-963-h2/captured-overlap/routed"
+        ]
+      },
+      "binary_sha256": "6bbeac5d3a5638c7b0a51ffc3f946fa4f714e15b71901390ee78dc29345ee73a",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "source_roots": {
+        "historical/nexus-963-h1": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h1-prepared",
+        "historical/nexus-963-h2": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h2-prepared",
+        "historical/nexus-944-h2": "/private/tmp/graphicle-investigation-rca-cohort-20261030/cohort-v2/nexus-944/h2-source"
+      },
+      "memory_debug_candidates": 400,
+      "memory_diagnostics_version": 1,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    },
+    "repeat_protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "memory_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "historical",
+            "kind": "source",
+            "sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9"
+          }
+        ],
+        "case_ids": [
+          "historical/nexus-944-h2/delete-missing/baseline",
+          "historical/nexus-944-h2/delete-missing/routed",
+          "historical/nexus-944-h2/partial-inspection/baseline",
+          "historical/nexus-944-h2/partial-inspection/routed",
+          "historical/nexus-944-h2/uncertain-link/baseline",
+          "historical/nexus-944-h2/uncertain-link/routed",
+          "historical/nexus-944-h2/waypoint-location/baseline",
+          "historical/nexus-944-h2/waypoint-location/routed",
+          "historical/nexus-963-h1/cache-success/baseline",
+          "historical/nexus-963-h1/cache-success/routed",
+          "historical/nexus-963-h1/callee-location/baseline",
+          "historical/nexus-963-h1/callee-location/routed",
+          "historical/nexus-963-h1/caller-callee-failure/baseline",
+          "historical/nexus-963-h1/caller-callee-failure/routed",
+          "historical/nexus-963-h1/captured-gateway/baseline",
+          "historical/nexus-963-h1/captured-gateway/routed",
+          "historical/nexus-963-h1/gateway-owner/baseline",
+          "historical/nexus-963-h1/gateway-owner/routed",
+          "historical/nexus-963-h1/v4-failure/baseline",
+          "historical/nexus-963-h1/v4-failure/routed",
+          "historical/nexus-963-h2/captured-overlap/baseline",
+          "historical/nexus-963-h2/captured-overlap/routed"
+        ]
+      },
+      "binary_sha256": "6bbeac5d3a5638c7b0a51ffc3f946fa4f714e15b71901390ee78dc29345ee73a",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "source_roots": {
+        "historical/nexus-963-h1": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h1-prepared",
+        "historical/nexus-963-h2": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h2-prepared",
+        "historical/nexus-944-h2": "/private/tmp/graphicle-investigation-rca-cohort-20261030/cohort-v2/nexus-944/h2-source"
+      },
+      "memory_debug_candidates": 400,
+      "memory_diagnostics_version": 1,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    },
+    "summary": {
+      "source/baseline": {
+        "planned": 11,
+        "completed": 11,
+        "errors": 0,
+        "required": 17,
+        "delivered": 17,
+        "evidence_recall": 1.0,
+        "complete": 11,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 11,
+        "completed": 11,
+        "errors": 0,
+        "required": 17,
+        "delivered": 17,
+        "evidence_recall": 1.0,
+        "complete": 11,
+        "completeness": 1.0
+      }
+    },
+    "by_origin": {
+      "authored_real_case": {
+        "source/baseline": {
+          "planned": 9,
+          "completed": 9,
+          "errors": 0,
+          "required": 15,
+          "delivered": 15,
+          "evidence_recall": 1.0,
+          "complete": 9,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 9,
+          "completed": 9,
+          "errors": 0,
+          "required": 15,
+          "delivered": 15,
+          "evidence_recall": 1.0,
+          "complete": 9,
+          "completeness": 1.0
+        }
+      },
+      "captured_tool_query": {
+        "source/baseline": {
+          "planned": 2,
+          "completed": 2,
+          "errors": 0,
+          "required": 2,
+          "delivered": 2,
+          "evidence_recall": 1.0,
+          "complete": 2,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 2,
+          "completed": 2,
+          "errors": 0,
+          "required": 2,
+          "delivered": 2,
+          "evidence_recall": 1.0,
+          "complete": 2,
+          "completeness": 1.0
+        }
+      }
+    },
+    "repeat_gate": {
+      "status": "passed",
+      "findings": []
+    }
+  },
+  "validation": {
+    "python_evaluator_tests_passed": 146,
+    "optional_model_tests_skipped": 2,
+    "final_live_cli_strata_and_grounding_test": "passed",
+    "diff_check": "passed"
+  },
+  "limitations": [
+    "Independent human-query captures and independently reviewed relevance labels were not available; the user was asked for an approved source.",
+    "English questions only; seven code languages covered, not every supported language or language construct.",
+    "Two eligible Go callee-note occurrences remain missed. This expansion does not tune runtime retrieval to remove them.",
+    "Captured queries are diagnostic tool calls replayed through context; authored real-source questions remain separately identified.",
+    "Historical checkouts and full capture logs remain external dependencies; no private source bodies are copied into fixtures.",
+    "Changed corpus composition prevents interpreting aggregate metric changes as retrieval improvements. The original 174 outcomes are identical."
+  ],
+  "accepted_baselines": {
+    "previous_synthetic_sha256": "a75c265ff5d7c2a8c8f336fcbf904f8db5b3c22d6e9de0efdd02ed615c11c3c6",
+    "synthetic_sha256": "3dea3e67227ac34500cd0bd5b667438401774c89ea3bd86f743ab2f396e26129",
+    "historical_sha256": "4d1a63aca8a1e382725435201b2ce37208971c96977279ee6852c7c901144579",
+    "review": "Original 174 outcomes are unchanged; 135 new synthetic observations and 22 historical observations were replayed identically. The two new Go misses are retained as known quality gaps."
+  }
+}

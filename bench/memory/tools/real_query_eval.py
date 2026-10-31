@@ -50,6 +50,8 @@ def validate_questions(project, files):
         seen.add(q["id"])
         if q["origin"]["kind"] not in ("captured_tool_query", "authored_real_case", "authored_fixture"):
             raise ValueError("Explicit query provenance required")
+        if q["origin"]["kind"] == "captured_tool_query":
+            validate_capture(q)
         if q["intent"] not in ("location", "behavior", "rationale") or not q["required"]:
             raise ValueError("Intent and nonempty evidence labels required")
         for span in q["required"]:
@@ -63,6 +65,23 @@ def validate_questions(project, files):
                 if (not anchor or raw.count(anchor) != 1
                         or raw.index(quote, raw.index(anchor)) != a):
                     raise ValueError("Repeated evidence needs an unambiguous declaration anchor")
+
+
+def validate_capture(query):
+    """Verify the recorded request, not just a claim that a query was captured."""
+    origin = query["origin"]
+    path = Path(origin["path"])
+    if digest(path) != origin["sha256"]:
+        raise ValueError("Captured query log hash changed")
+    line = origin["line"]
+    records = path.read_text(encoding="utf-8").splitlines()
+    if type(line) is not int or not 1 <= line <= len(records):
+        raise ValueError("Captured query line is invalid")
+    recorded = json.loads(records[line - 1])
+    if (recorded.get("tool") != origin["tool"]
+            or recorded.get("arguments") != origin["arguments"]
+            or recorded["arguments"].get("question") != query["question"]):
+        raise ValueError("Captured query does not match the recorded request")
 
 
 def score(packet, query, files, max_tokens=3000):

@@ -299,6 +299,19 @@ pub fn asks_for_literal_call_value(question: &str) -> bool {
     serde_json::from_str::<Value>(&value).is_ok()
 }
 
+/// An inventory of decisions for a whole project/service, without a narrower
+/// behavior or named declaration. Focused code questions keep their usual cap.
+pub(crate) fn asks_for_project_decisions(question: &str) -> bool {
+    static INVENTORY: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+        r"(?i)^\s*(?:(?:what|which)\s+(?:decisions|constraints|requirements|contracts|invariants)\s+(?:govern|apply to)",
+        r"|(?:list|show|summarize)\s+(?:all\s+)?(?:the\s+)?(?:decisions|constraints|requirements|contracts|invariants)\s+(?:for|in|of))",
+        r"\s+(?:this|the|our)\s+(?:project|repository|service|system|pipeline|module|package)\s*[?.!]?\s*$"
+    )).expect("project decision inventory")
+    });
+    INVENTORY.is_match(question)
+}
+
 /// Whether `text` asks where something is in the code, in plain words: a
 /// file and a function to give ("Give the file and function", "Which file
 /// and functions compute..."), which function, method, class, struct or
@@ -1244,6 +1257,25 @@ mod tests {
             "What value does invoice_total return for [10, 20]; explain the decision?",
         ] {
             assert!(!asks_for_literal_call_value(question), "{question}");
+        }
+    }
+
+    #[test]
+    fn project_inventories_do_not_capture_focused_or_missing_fact_questions() {
+        for question in [
+            "What decisions govern this pipeline?",
+            "List all the constraints for our service.",
+            "Show the contracts in this repository",
+        ] {
+            assert!(asks_for_project_decisions(question), "{question}");
+        }
+        for question in [
+            "Which constraints apply to encode_payload?",
+            "What decisions govern this pipeline's retry timing?",
+            "What is the monthly price for this project?",
+            "Why does retry_delay stop at 60?",
+        ] {
+            assert!(!asks_for_project_decisions(question), "{question}");
         }
     }
 

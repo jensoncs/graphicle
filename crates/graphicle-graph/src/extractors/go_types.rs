@@ -72,6 +72,9 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
                     .arg(&semantic)
                     .current_dir(dir.path())
                     .env("GO111MODULE", "off")
+                    // Helper compilation must also work in service/benchmark
+                    // environments without HOME or a writable user cache.
+                    .env("GOCACHE", dir.path().join("build"))
                     .env("GOOS", host["GOHOSTOS"].as_str()?)
                     .env("GOARCH", host["GOHOSTARCH"].as_str()?),
                 Duration::from_secs(60),

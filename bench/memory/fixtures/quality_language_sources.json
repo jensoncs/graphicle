@@ -1,0 +1,261 @@
+{
+  "format": "graphicle.quality-sources.v1",
+  "provenance": "Authored synthetic language coverage, 2026-11-01. Questions and closed-world labels fixed before retrieval measurement; no independent human-query or production claim. Memory labels describe retained design constraints, not proof of implemented behavior.",
+  "projects": [
+    {
+      "id": "typescript-delivery",
+      "split": "regression",
+      "files": {
+        "sender.ts": "import { retryDelay } from \"./policy\";\nexport interface Sender { send(attempt: number): number; }\nexport class BaseSender { cancel(): void {} }\nexport class JsonSender extends BaseSender implements Sender {\n  send(attempt: number): number { return retryDelay(attempt); }\n  health(): boolean { return true; }\n}\nexport class TextSender implements Sender {\n  send(attempt: number): number { return attempt; }\n}\n",
+        "policy.ts": "export function retryDelay(attempt: number): number {\n  // The peer discards pending deliveries after forty-five seconds.\n  return Math.min(2 ** attempt, 45);\n}\n"
+      },
+      "queries": [
+        {
+          "id": "method-branch",
+          "intent": "behavior",
+          "question": "How does JsonSender.send use the retry policy?",
+          "required": [
+            {
+              "file": "sender.ts",
+              "quote": "return retryDelay(attempt);"
+            }
+          ]
+        },
+        {
+          "id": "caller-callee",
+          "intent": "behavior",
+          "question": "How does JsonSender.send call retryDelay, and what bounds the pause?",
+          "required": [
+            {
+              "file": "sender.ts",
+              "quote": "return retryDelay(attempt);"
+            },
+            {
+              "file": "policy.ts",
+              "quote": "return Math.min(2 ** attempt, 45);"
+            }
+          ]
+        },
+        {
+          "id": "language-construct",
+          "intent": "behavior",
+          "question": "Which base class and interface does JsonSender use, and what operation does Sender require?",
+          "required": [
+            {
+              "file": "sender.ts",
+              "quote": "export class JsonSender extends BaseSender implements Sender {"
+            },
+            {
+              "file": "sender.ts",
+              "quote": "export interface Sender { send(attempt: number): number; }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "go-delivery",
+      "split": "regression",
+      "files": {
+        "sender.go": "package delivery\n\ntype Sender interface { Send(attempt int) int }\ntype JsonSender struct{}\nfunc (s JsonSender) Send(attempt int) int { return RetryDelay(attempt) }\nfunc (s JsonSender) Health() bool { return true }\ntype TextSender struct{}\nfunc (s TextSender) Send(attempt int) int { return attempt }\n",
+        "policy.go": "package delivery\n\nfunc RetryDelay(attempt int) int {\n    delay := 1 << attempt\n    if delay > 45 { return 45 }\n    return delay\n}\n"
+      },
+      "queries": [
+        {
+          "id": "method-branch",
+          "intent": "behavior",
+          "question": "How does JsonSender.Send use the retry policy?",
+          "required": [
+            {
+              "file": "sender.go",
+              "quote": "return RetryDelay(attempt)"
+            }
+          ]
+        },
+        {
+          "id": "caller-callee",
+          "intent": "behavior",
+          "question": "How does JsonSender.Send call RetryDelay, and what bounds the pause?",
+          "required": [
+            {
+              "file": "sender.go",
+              "quote": "return RetryDelay(attempt)"
+            },
+            {
+              "file": "policy.go",
+              "quote": "if delay > 45 { return 45 }"
+            }
+          ]
+        },
+        {
+          "id": "language-construct",
+          "intent": "behavior",
+          "question": "What method does the Sender interface require, and how does the JsonSender receiver implement it?",
+          "required": [
+            {
+              "file": "sender.go",
+              "quote": "type Sender interface { Send(attempt int) int }"
+            },
+            {
+              "file": "sender.go",
+              "quote": "func (s JsonSender) Send(attempt int) int { return RetryDelay(attempt) }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "java-delivery",
+      "split": "regression",
+      "files": {
+        "JsonSender.java": "interface Sender { int send(int attempt); }\nclass BaseSender { public void cancel() {} }\npublic class JsonSender extends BaseSender implements Sender {\n    public int send(int attempt) { return RetryPolicy.retryDelay(attempt); }\n    public boolean health() { return true; }\n}\nclass TextSender implements Sender {\n    public int send(int attempt) { return attempt; }\n    public String encode(int value) { return Integer.toString(value); }\n    public String encode(String value) { return value.trim(); }\n}\n",
+        "RetryPolicy.java": "public class RetryPolicy {\n    public static int retryDelay(int attempt) {\n        return Math.min(1 << attempt, 45);\n    }\n}\n"
+      },
+      "queries": [
+        {
+          "id": "method-branch",
+          "intent": "behavior",
+          "question": "How does JsonSender.send use the retry policy?",
+          "required": [
+            {
+              "file": "JsonSender.java",
+              "quote": "return RetryPolicy.retryDelay(attempt);"
+            }
+          ]
+        },
+        {
+          "id": "caller-callee",
+          "intent": "behavior",
+          "question": "How does JsonSender.send call RetryPolicy.retryDelay, and what bounds the pause?",
+          "required": [
+            {
+              "file": "JsonSender.java",
+              "quote": "return RetryPolicy.retryDelay(attempt);"
+            },
+            {
+              "file": "RetryPolicy.java",
+              "quote": "return Math.min(1 << attempt, 45);"
+            }
+          ]
+        },
+        {
+          "id": "language-construct",
+          "intent": "behavior",
+          "question": "How do the integer and string overloads of TextSender.encode differ?",
+          "required": [
+            {
+              "file": "JsonSender.java",
+              "quote": "public String encode(int value) { return Integer.toString(value); }"
+            },
+            {
+              "file": "JsonSender.java",
+              "quote": "public String encode(String value) { return value.trim(); }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kotlin-delivery",
+      "split": "regression",
+      "files": {
+        "Sender.kt": "interface Sender { fun send(attempt: Int): Int }\nopen class BaseSender { fun cancel() {} }\nclass JsonSender : BaseSender(), Sender {\n    override fun send(attempt: Int): Int = retryDelay(attempt)\n    fun health(): Boolean = true\n}\nclass TextSender : Sender {\n    override fun send(attempt: Int): Int = attempt\n    fun encode(value: Int): String = value.toString()\n    fun encode(value: String): String = value.trim()\n}\n",
+        "Policy.kt": "fun retryDelay(attempt: Int): Int {\n    return minOf(1 shl attempt, 45)\n}\n"
+      },
+      "queries": [
+        {
+          "id": "method-branch",
+          "intent": "behavior",
+          "question": "How does JsonSender.send use the retry policy?",
+          "required": [
+            {
+              "file": "Sender.kt",
+              "quote": "override fun send(attempt: Int): Int = retryDelay(attempt)"
+            }
+          ]
+        },
+        {
+          "id": "caller-callee",
+          "intent": "behavior",
+          "question": "How does JsonSender.send call retryDelay, and what bounds the pause?",
+          "required": [
+            {
+              "file": "Sender.kt",
+              "quote": "override fun send(attempt: Int): Int = retryDelay(attempt)"
+            },
+            {
+              "file": "Policy.kt",
+              "quote": "return minOf(1 shl attempt, 45)"
+            }
+          ]
+        },
+        {
+          "id": "language-construct",
+          "intent": "behavior",
+          "question": "How do the integer and string overloads of TextSender.encode differ?",
+          "required": [
+            {
+              "file": "Sender.kt",
+              "quote": "fun encode(value: Int): String = value.toString()"
+            },
+            {
+              "file": "Sender.kt",
+              "quote": "fun encode(value: String): String = value.trim()"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "rust-delivery",
+      "split": "regression",
+      "files": {
+        "src/lib.rs": "mod policy;\nuse policy::retry_delay;\npub trait Sender { fn send(&self, attempt: u32) -> u32; }\npub struct JsonSender;\nimpl Sender for JsonSender {\n    fn send(&self, attempt: u32) -> u32 { retry_delay(attempt) }\n}\nimpl JsonSender {\n    pub fn health(&self) -> bool { true }\n}\npub struct TextSender;\nimpl Sender for TextSender {\n    fn send(&self, attempt: u32) -> u32 { attempt }\n}\n",
+        "src/policy.rs": "pub fn retry_delay(attempt: u32) -> u32 {\n    (1_u32 << attempt).min(45)\n}\n"
+      },
+      "queries": [
+        {
+          "id": "method-branch",
+          "intent": "behavior",
+          "question": "How does JsonSender.send use the retry policy?",
+          "required": [
+            {
+              "file": "src/lib.rs",
+              "quote": "fn send(&self, attempt: u32) -> u32 { retry_delay(attempt) }"
+            }
+          ]
+        },
+        {
+          "id": "caller-callee",
+          "intent": "behavior",
+          "question": "How does JsonSender.send call retry_delay, and what bounds the pause?",
+          "required": [
+            {
+              "file": "src/lib.rs",
+              "quote": "fn send(&self, attempt: u32) -> u32 { retry_delay(attempt) }"
+            },
+            {
+              "file": "src/policy.rs",
+              "quote": "(1_u32 << attempt).min(45)"
+            }
+          ]
+        },
+        {
+          "id": "language-construct",
+          "intent": "behavior",
+          "question": "What operation does the Sender trait require, and how does JsonSender implement it?",
+          "required": [
+            {
+              "file": "src/lib.rs",
+              "quote": "pub trait Sender { fn send(&self, attempt: u32) -> u32; }"
+            },
+            {
+              "file": "src/lib.rs",
+              "quote": "impl Sender for JsonSender {\n    fn send(&self, attempt: u32) -> u32 { retry_delay(attempt) }\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

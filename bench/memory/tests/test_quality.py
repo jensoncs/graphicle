@@ -11,7 +11,50 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tools"))
 import quality
-from quality_diagnostics import diagnostics
+from quality_diagnostics import diagnostics, memory_diagnostics, summarize_memory_diagnostics
+
+
+def test_memory_diagnostics_separate_caps_filters_packing_and_unknowns():
+    candidates = [
+        {"id": "packed", "pack_rank": 1},
+        {"id": "rank-cap", "link_final_rank": 5},
+        {"id": "prefix-cap", "link_outcomes": {"candidate_limit": 1}},
+        {"id": "filtered", "link_outcomes": {"outside_symbol_scope": 1}},
+        {"id": "unselected", "fusion": {"rank": 3, "score": .1}},
+    ]
+    gold = [c["id"] for c in candidates] + ["unobserved"]
+    packet = {"memories": [{"id": "noise", "via": "link", "link": {"qualified_name": "alpha"}}],
+              "memory_candidates_debug": {"version": 1, "truncated": True,
+                                          "linked_memory_limit": 4, "candidates": candidates}}
+    detail = memory_diagnostics(packet, {k: k for k in gold + ["noise"]}, gold)
+    assert {m["id"]: m["stage"] for m in detail["missing"]} == {
+        "packed": "packing", "rank-cap": "linked_final_cap", "prefix-cap": "linked_candidate_cap",
+        "filtered": "link_withheld", "unselected": "eligible_not_selected",
+        "unobserved": "not_observed_in_candidates"}
+    assert detail["false_positives"][0]["route"] == "symbol_link"
+    assert detail["false_positives"][0]["linked_symbol"] == "alpha"
+    assert detail["observed_candidate_relevant"] == 5
+    assert detail["observed_packing_relevant"] == 1
+    summary = summarize_memory_diagnostics([{"memory_diagnostics": detail}, {"error": "timeout"}])
+    assert summary["planned"] == 2 and summary["traced"] == 1 and summary["unmeasured"] == 1
+    assert summary["truncated_traces"] == 1
+    assert summary["observed_candidate_recall_lower_bound"] == 5 / 6
+
+
+def test_memory_rank_metrics_and_unavailable_diagnostics_are_honest():
+    packet = {"memories": [{"id": "noise"}, {"id": "useful"}]}
+    detail = memory_diagnostics(packet, {k: k for k in ("noise", "useful")}, ["useful", "missing"])
+    assert detail["reciprocal_rank"] == .5
+    assert detail["at_k"]["1"]["precision_returned"] == 0
+    assert detail["at_k"]["4"]["precision_returned"] == .5
+    assert detail["at_k"]["4"]["recall"] == .5
+    assert detail["missing"][0]["stage"] == "diagnostics_unavailable"
+    assert detail["observed_candidate_relevant"] is None
+    assert not detail["trace_available"]
+    empty = memory_diagnostics({"memories": []}, {}, [])
+    assert empty["reciprocal_rank"] is None and empty["at_k"]["1"]["precision_returned"] is None
+    with pytest.raises(KeyError):
+        memory_diagnostics({"memories": [{"id": "unknown"}]}, {}, [])
 
 
 def memory(name="positive", gold=("constraint",), returned=("constraint",)):
@@ -145,8 +188,10 @@ def cli(*args):
 def test_cli_freeze_is_explicit_and_comparison_returns_failure(tmp_path):
     path, baseline = tmp_path / "report.json", tmp_path / "baseline.json"
     candidate = report()
+    candidate["cases"][0]["memory_diagnostics"] = {"debug_only": True}
     path.write_text(json.dumps(candidate))
     assert cli("freeze", "--report", path, "--out", baseline).returncode == 0
+    assert "memory_diagnostics" not in quality.read(baseline)["cases"][0]
     assert cli("freeze", "--report", path, "--out", baseline).returncode == 2
     assert cli("compare", "--report", path, "--baseline", baseline).returncode == 0
     candidate["cases"][0]["retrieved_relevant"] = []
@@ -161,7 +206,66 @@ def test_cli_freeze_is_explicit_and_comparison_returns_failure(tmp_path):
 def test_manifest_is_portable_and_has_both_quality_dimensions():
     entries = quality.load_suite(quality.DEFAULT_SUITE)
     assert {e["kind"] for e in entries} == {"source", "memory"}
-    assert sum(len(p["queries"]) for e in entries for p in e["data"]["projects"]) == 60
+    assert sum(len(p["queries"]) for e in entries for p in e["data"]["projects"]) == 110
+    assert {quality.project_language(p) for e in entries for p in e["data"]["projects"]} == {
+        "python", "javascript", "typescript", "go", "java", "kotlin", "rust"}
+    assert all(e["data"]["format"] != "graphicle.real-query-seed.v1" for e in entries)
+
+
+def test_language_normalization_does_not_double_count_mixed_projects():
+    project = {"id": "mixed", "split": "regression", "files": {"a.go": "", "b.ts": ""},
+               "queries": [{"id": "q", "intent": "location", "required": [{}],
+                            "origin": {"kind": "captured_tool_query"}}]}
+    rows = [{"query": "q", "variants": {"routed": {"tokens": 10, "required_delivered": [True]}}}]
+    cases = quality.normalize({"id": "real", "kind": "source"}, project, rows)
+    assert len(cases) == 1
+    assert cases[0]["language"] == "mixed:go+typescript"
+    assert cases[0]["origin"] == "captured_tool_query"
+    assert quality.project_language({"files": {"unrecognized.xyz": ""}}) == "unknown"
+
+
+def test_aggregate_gain_cannot_hide_a_language_regression():
+    before = report({**memory("python"), "language": "python"},
+                    {**memory("go", ("one", "two"), ("one",)), "language": "go"})
+    after = copy.deepcopy(before)
+    after["cases"][0]["retrieved_relevant"] = []
+    after["cases"][1]["retrieved_relevant"] = ["one", "two"]
+    assert quality.summary(before["cases"])["memory/on"]["tp"] == quality.summary(after["cases"])["memory/on"]["tp"]
+    assert quality.gate(after, before)["status"] == "failed"
+
+
+def test_inline_source_cannot_claim_captured_provenance():
+    data = quality.read(ROOT / "fixtures/quality_sources.json")
+    data["projects"][0]["queries"][0]["origin"] = {"kind": "captured_tool_query"}
+    with pytest.raises(ValueError, match="cannot claim"):
+        quality.validate_source(data)
+
+
+def test_pinned_real_source_is_validated_and_relocatable(tmp_path):
+    import hashlib
+    source_root = tmp_path / "checkout"
+    source_root.mkdir()
+    body = "package p\nfunc Read() int { return 7 }\n"
+    (source_root / "a.go").write_text(body)
+    quote = "return 7"
+    start = body.index(quote)
+    project = {"id": "real", "split": "held_out", "source_root": "missing-checkout",
+               "files": {"a.go": hashlib.sha256(body.encode()).hexdigest()}, "queries": [{
+                   "id": "behavior", "question": "What does Read return?", "intent": "behavior",
+                   "origin": {"kind": "authored_real_case"}, "required": [{"file": "a.go",
+                   "quote": quote, "byte_start": start, "byte_end": start + len(quote), "line": 2}]}]}
+    dataset = {"format": "graphicle.real-query-seed.v1", "provenance": "Test data", "projects": [project]}
+    (tmp_path / "data.json").write_text(json.dumps(dataset))
+    manifest = tmp_path / "suite.json"
+    manifest.write_text(json.dumps({"format": "graphicle.quality-suite.v1", "datasets": [
+        {"id": "pinned", "kind": "source", "file": "data.json"}]}))
+    entries = quality.load_suite(manifest, {"pinned/real": str(source_root)})
+    assert entries[0]["data"]["projects"][0]["source_root"] == str(source_root)
+    with pytest.raises(ValueError, match="Unknown source-root"):
+        quality.load_suite(manifest, {"pinned/real": str(source_root), "pinned/missing": str(source_root)})
+    (source_root / "a.go").write_text(body + "// changed")
+    with pytest.raises(ValueError, match="hash changed"):
+        quality.load_suite(manifest, {"pinned/real": str(source_root)})
 
 
 def test_existing_output_directory_cannot_be_shared_by_runs(tmp_path):
@@ -187,12 +291,25 @@ def test_real_cli_scorecard_diagnostics_and_gate(tmp_path):
     result = quality.read(output / "SCORECARD.json")
     assert len(result["cases"]) == 15
     assert result["integrity_errors"] == []
+    assert result["contract"]["memory_debug_candidates"] == 400
+    for variant in ("off", "counted", "on"):
+        detail = result["summary"]["memory/" + variant]["diagnostics"]
+        assert detail["traced"] == detail["planned"] == 1
     assert result["gate"]["status"] == "unbaselined"
+    assert result["by_language"]["python"] == result["summary"]
+    assert result["by_origin"]["authored_fixture"] == result["summary"]
+    assert set(result["memory_grounding"]["memory/billing"]) == {"settlement", "audit", "receipt", "shipping"}
+    assert all(link["state"] == "resolved" for links in result["memory_grounding"]["memory/billing"].values()
+               for link in links)
     assert set(result["unmeasured"]) == set(quality.UNMEASURED)
     assert (output / "SCORECARD.md").exists()
+    rendered = (output / "SCORECARD.md").read_text()
+    assert "| python | memory/on | 1 / 1 |" in rendered
+    assert "| authored_fixture | source/routed | 6 / 6 |" in rendered
     details = list(output.glob("cases/**/*.diagnostics.json"))
     assert len(details) == 15
     assert any(quality.read(p)["phases"] for p in details)
+    assert any(quality.read(p).get("memory_quality", {}).get("trace_available") for p in details)
     baseline = tmp_path / "baseline.json"
     assert cli("freeze", "--report", output / "SCORECARD.json", "--out", baseline).returncode == 0
     assert cli("compare", "--report", output / "SCORECARD.json", "--baseline", baseline).returncode == 0

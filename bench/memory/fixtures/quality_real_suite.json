@@ -1,0 +1,6 @@
+{
+  "format": "graphicle.quality-suite.v1",
+  "datasets": [
+    {"id": "historical", "kind": "source", "file": "real_query_seed.json"}
+  ]
+}

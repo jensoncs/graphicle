@@ -1,0 +1,470 @@
+{
+  "format": "graphicle.quality.v1",
+  "contract": {
+    "scoring_version": 1,
+    "request": {
+      "max_tokens": 3000,
+      "max_chars": 12000,
+      "limit": 8,
+      "graph_retrieval": true,
+      "memory_retrieval": true,
+      "doc_links": false,
+      "cross_repo": false,
+      "identifier_route": false,
+      "notes_first": false
+    },
+    "memory_variants": {
+      "off": {
+        "symbol_links": false
+      },
+      "counted": {},
+      "on": {
+        "symbol_links": true
+      }
+    },
+    "source_variants": {
+      "baseline": false,
+      "routed": true
+    },
+    "source_debug_candidates": 400,
+    "memory_debug_candidates": 400,
+    "datasets": [
+      {
+        "id": "historical",
+        "kind": "source",
+        "sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9"
+      }
+    ],
+    "case_ids": [
+      "historical/nexus-944-h2/delete-missing/baseline",
+      "historical/nexus-944-h2/delete-missing/routed",
+      "historical/nexus-944-h2/partial-inspection/baseline",
+      "historical/nexus-944-h2/partial-inspection/routed",
+      "historical/nexus-944-h2/uncertain-link/baseline",
+      "historical/nexus-944-h2/uncertain-link/routed",
+      "historical/nexus-944-h2/waypoint-location/baseline",
+      "historical/nexus-944-h2/waypoint-location/routed",
+      "historical/nexus-963-h1/cache-success/baseline",
+      "historical/nexus-963-h1/cache-success/routed",
+      "historical/nexus-963-h1/callee-location/baseline",
+      "historical/nexus-963-h1/callee-location/routed",
+      "historical/nexus-963-h1/caller-callee-failure/baseline",
+      "historical/nexus-963-h1/caller-callee-failure/routed",
+      "historical/nexus-963-h1/captured-gateway/baseline",
+      "historical/nexus-963-h1/captured-gateway/routed",
+      "historical/nexus-963-h1/gateway-owner/baseline",
+      "historical/nexus-963-h1/gateway-owner/routed",
+      "historical/nexus-963-h1/v4-failure/baseline",
+      "historical/nexus-963-h1/v4-failure/routed",
+      "historical/nexus-963-h2/captured-overlap/baseline",
+      "historical/nexus-963-h2/captured-overlap/routed"
+    ]
+  },
+  "provenance": {
+    "report_sha256": "f1d65d7c33ec482fe722a34aa631282dc2a79627903b8ab29ba61438731e2fca",
+    "protocol": {
+      "contract": {
+        "scoring_version": 1,
+        "request": {
+          "max_tokens": 3000,
+          "max_chars": 12000,
+          "limit": 8,
+          "graph_retrieval": true,
+          "memory_retrieval": true,
+          "doc_links": false,
+          "cross_repo": false,
+          "identifier_route": false,
+          "notes_first": false
+        },
+        "memory_variants": {
+          "off": {
+            "symbol_links": false
+          },
+          "counted": {},
+          "on": {
+            "symbol_links": true
+          }
+        },
+        "source_variants": {
+          "baseline": false,
+          "routed": true
+        },
+        "source_debug_candidates": 400,
+        "memory_debug_candidates": 400,
+        "datasets": [
+          {
+            "id": "historical",
+            "kind": "source",
+            "sha256": "d02caa3990efd16c21e7113e7e9d5690fc24c6725c01b1648cbecaf3105dc7f9"
+          }
+        ],
+        "case_ids": [
+          "historical/nexus-944-h2/delete-missing/baseline",
+          "historical/nexus-944-h2/delete-missing/routed",
+          "historical/nexus-944-h2/partial-inspection/baseline",
+          "historical/nexus-944-h2/partial-inspection/routed",
+          "historical/nexus-944-h2/uncertain-link/baseline",
+          "historical/nexus-944-h2/uncertain-link/routed",
+          "historical/nexus-944-h2/waypoint-location/baseline",
+          "historical/nexus-944-h2/waypoint-location/routed",
+          "historical/nexus-963-h1/cache-success/baseline",
+          "historical/nexus-963-h1/cache-success/routed",
+          "historical/nexus-963-h1/callee-location/baseline",
+          "historical/nexus-963-h1/callee-location/routed",
+          "historical/nexus-963-h1/caller-callee-failure/baseline",
+          "historical/nexus-963-h1/caller-callee-failure/routed",
+          "historical/nexus-963-h1/captured-gateway/baseline",
+          "historical/nexus-963-h1/captured-gateway/routed",
+          "historical/nexus-963-h1/gateway-owner/baseline",
+          "historical/nexus-963-h1/gateway-owner/routed",
+          "historical/nexus-963-h1/v4-failure/baseline",
+          "historical/nexus-963-h1/v4-failure/routed",
+          "historical/nexus-963-h2/captured-overlap/baseline",
+          "historical/nexus-963-h2/captured-overlap/routed"
+        ]
+      },
+      "binary_sha256": "6bbeac5d3a5638c7b0a51ffc3f946fa4f714e15b71901390ee78dc29345ee73a",
+      "python": "3.15.1",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "runner_sha256": {
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "models": "none",
+      "phase_timings": true,
+      "source_roots": {
+        "historical/nexus-963-h1": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h1-prepared",
+        "historical/nexus-963-h2": "/var/folders/9h/g7n02chx4bz9q67c_7pw28280000gn/T/paired-rereview-rca-admission-prjbeyly/h2-prepared",
+        "historical/nexus-944-h2": "/private/tmp/graphicle-investigation-rca-cohort-20261030/cohort-v2/nexus-944/h2-source"
+      },
+      "memory_debug_candidates": 400,
+      "memory_diagnostics_version": 1,
+      "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"
+    }
+  },
+  "cases": [
+    {
+      "id": "historical/nexus-963-h1/captured-gateway/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "location",
+      "split": "development",
+      "language": "go",
+      "origin": "captured_tool_query",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/captured-gateway/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "location",
+      "split": "development",
+      "language": "go",
+      "origin": "captured_tool_query",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/gateway-owner/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/gateway-owner/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/caller-callee-failure/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/caller-callee-failure/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/v4-failure/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "rationale",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/v4-failure/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "rationale",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/cache-success/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/cache-success/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/callee-location/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "location",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h1/callee-location/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "location",
+      "split": "development",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h2/captured-overlap/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "location",
+      "split": "regression",
+      "language": "go",
+      "origin": "captured_tool_query",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-963-h2/captured-overlap/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "location",
+      "split": "regression",
+      "language": "go",
+      "origin": "captured_tool_query",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-944-h2/waypoint-location/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "location",
+      "split": "held_out",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-944-h2/waypoint-location/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "location",
+      "split": "held_out",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-944-h2/partial-inspection/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "held_out",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-944-h2/partial-inspection/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "held_out",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-944-h2/uncertain-link/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "rationale",
+      "split": "held_out",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-944-h2/uncertain-link/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "rationale",
+      "split": "held_out",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-944-h2/delete-missing/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "held_out",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "historical/nexus-944-h2/delete-missing/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "held_out",
+      "language": "go",
+      "origin": "authored_real_case",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    }
+  ]
+}

@@ -1,0 +1,661 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance": "Authored synthetic language coverage, 2026-11-01. Questions and closed-world labels fixed before retrieval measurement; no independent human-query or production claim. Memory labels describe retained design constraints, not proof of implemented behavior.",
+  "projects": [
+    {
+      "id": "typescript-delivery",
+      "split": "regression",
+      "files": {
+        "sender.ts": "import { retryDelay } from \"./policy\";\nexport interface Sender { send(attempt: number): number; }\nexport class BaseSender { cancel(): void {} }\nexport class JsonSender extends BaseSender implements Sender {\n  send(attempt: number): number { return retryDelay(attempt); }\n  health(): boolean { return true; }\n}\nexport class TextSender implements Sender {\n  send(attempt: number): number { return attempt; }\n}\n",
+        "policy.ts": "export function retryDelay(attempt: number): number {\n  // The peer discards pending deliveries after forty-five seconds.\n  return Math.min(2 ** attempt, 45);\n}\n"
+      },
+      "memories": [
+        {
+          "id": "wire",
+          "title": "Wire sequence agreement",
+          "body": "Downstream consumers require a stable field sequence in delivery envelopes.",
+          "symbols": [
+            {
+              "path": "sender.ts",
+              "qualified_name": "JsonSender.send"
+            }
+          ]
+        },
+        {
+          "id": "owner",
+          "title": "Sender cancellation contract",
+          "body": "Repeated cancellation must be harmless for every operation on this sender.",
+          "symbols": [
+            {
+              "path": "sender.ts",
+              "qualified_name": "JsonSender"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Peer expiration window",
+          "body": "The peer discards pending deliveries after forty-five seconds. A longer pause loses the notification.",
+          "symbols": [
+            {
+              "path": "policy.ts",
+              "qualified_name": "retryDelay"
+            }
+          ]
+        },
+        {
+          "id": "health",
+          "title": "Health sampling schedule",
+          "body": "Sample diagnostic probes once per thousand successful requests.",
+          "symbols": [
+            {
+              "path": "sender.ts",
+              "qualified_name": "JsonSender.health"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "title": "Text transport compatibility",
+          "body": "Legacy text consumers require the original character encoding.",
+          "symbols": [
+            {
+              "path": "sender.ts",
+              "qualified_name": "TextSender.send"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "qualified-method",
+          "category": "qualified_method",
+          "question": "Which constraints must a change to JsonSender.send preserve?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease"
+          ],
+          "rationale": "Preserve the method contract, its enclosing sender contract and the dependency lifetime; health probes and the alternate sender are unrelated."
+        },
+        {
+          "id": "callee-rationale",
+          "category": "cross_file_dependency",
+          "question": "Why does JsonSender.send cap the waiting interval at forty-five seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The peer lifetime explains the bound. Ordering and cancellation do not explain the interval."
+        },
+        {
+          "id": "owner-contract",
+          "category": "enclosing_contract",
+          "question": "What cancellation contract governs JsonSender?",
+          "relevant_memories": [
+            "owner"
+          ],
+          "rationale": "Only the owner contract specifies cancellation behavior."
+        },
+        {
+          "id": "ambiguous-method",
+          "category": "ambiguous_method",
+          "question": "Which constraints apply to `send` in this project?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease",
+            "alternate"
+          ],
+          "rationale": "Both implementations are in scope; include the sender owner and timing dependency, but not the unrelated health method."
+        },
+        {
+          "id": "prose-contract",
+          "category": "prose",
+          "question": "What is the wire sequence agreement?",
+          "relevant_memories": [
+            "wire"
+          ],
+          "rationale": "Only the field-order agreement answers this focused prose request."
+        },
+        {
+          "id": "no-answer",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation interval is required by JsonSender.send?",
+          "relevant_memories": [],
+          "rationale": "No code or memory specifies an encryption key rotation policy."
+        },
+        {
+          "id": "literal-result",
+          "category": "code_only",
+          "question": "What does retryDelay(2) return?",
+          "relevant_memories": [],
+          "rationale": "The current arithmetic supplies the result without historical decisions."
+        }
+      ]
+    },
+    {
+      "id": "go-delivery",
+      "split": "regression",
+      "files": {
+        "sender.go": "package delivery\n\ntype Sender interface { Send(attempt int) int }\ntype JsonSender struct{}\nfunc (s JsonSender) Send(attempt int) int { return RetryDelay(attempt) }\nfunc (s JsonSender) Health() bool { return true }\ntype TextSender struct{}\nfunc (s TextSender) Send(attempt int) int { return attempt }\n",
+        "policy.go": "package delivery\n\nfunc RetryDelay(attempt int) int {\n    delay := 1 << attempt\n    if delay > 45 { return 45 }\n    return delay\n}\n"
+      },
+      "memories": [
+        {
+          "id": "wire",
+          "title": "Wire sequence agreement",
+          "body": "Downstream consumers require a stable field sequence in delivery envelopes.",
+          "symbols": [
+            {
+              "path": "sender.go",
+              "qualified_name": "JsonSender.Send"
+            }
+          ]
+        },
+        {
+          "id": "owner",
+          "title": "Sender cancellation contract",
+          "body": "Repeated cancellation must be harmless for every operation on this sender.",
+          "symbols": [
+            {
+              "path": "sender.go",
+              "qualified_name": "JsonSender"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Peer expiration window",
+          "body": "The peer discards pending deliveries after forty-five seconds. A longer pause loses the notification.",
+          "symbols": [
+            {
+              "path": "policy.go",
+              "qualified_name": "RetryDelay"
+            }
+          ]
+        },
+        {
+          "id": "health",
+          "title": "Health sampling schedule",
+          "body": "Sample diagnostic probes once per thousand successful requests.",
+          "symbols": [
+            {
+              "path": "sender.go",
+              "qualified_name": "JsonSender.Health"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "title": "Text transport compatibility",
+          "body": "Legacy text consumers require the original character encoding.",
+          "symbols": [
+            {
+              "path": "sender.go",
+              "qualified_name": "TextSender.Send"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "qualified-method",
+          "category": "qualified_method",
+          "question": "Which constraints must a change to JsonSender.Send preserve?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease"
+          ],
+          "rationale": "Preserve the method contract, its enclosing sender contract and the dependency lifetime; health probes and the alternate sender are unrelated."
+        },
+        {
+          "id": "callee-rationale",
+          "category": "cross_file_dependency",
+          "question": "Why does JsonSender.Send cap the waiting interval at forty-five seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The peer lifetime explains the bound. Ordering and cancellation do not explain the interval."
+        },
+        {
+          "id": "owner-contract",
+          "category": "enclosing_contract",
+          "question": "What cancellation contract governs JsonSender?",
+          "relevant_memories": [
+            "owner"
+          ],
+          "rationale": "Only the owner contract specifies cancellation behavior."
+        },
+        {
+          "id": "ambiguous-method",
+          "category": "ambiguous_method",
+          "question": "Which constraints apply to `Send` in this project?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease",
+            "alternate"
+          ],
+          "rationale": "Both implementations are in scope; include the sender owner and timing dependency, but not the unrelated health method."
+        },
+        {
+          "id": "prose-contract",
+          "category": "prose",
+          "question": "What is the wire sequence agreement?",
+          "relevant_memories": [
+            "wire"
+          ],
+          "rationale": "Only the field-order agreement answers this focused prose request."
+        },
+        {
+          "id": "no-answer",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation interval is required by JsonSender.Send?",
+          "relevant_memories": [],
+          "rationale": "No code or memory specifies an encryption key rotation policy."
+        },
+        {
+          "id": "literal-result",
+          "category": "code_only",
+          "question": "What does RetryDelay(2) return?",
+          "relevant_memories": [],
+          "rationale": "The current arithmetic supplies the result without historical decisions."
+        }
+      ]
+    },
+    {
+      "id": "java-delivery",
+      "split": "regression",
+      "files": {
+        "JsonSender.java": "interface Sender { int send(int attempt); }\nclass BaseSender { public void cancel() {} }\npublic class JsonSender extends BaseSender implements Sender {\n    public int send(int attempt) { return RetryPolicy.retryDelay(attempt); }\n    public boolean health() { return true; }\n}\nclass TextSender implements Sender {\n    public int send(int attempt) { return attempt; }\n    public String encode(int value) { return Integer.toString(value); }\n    public String encode(String value) { return value.trim(); }\n}\n",
+        "RetryPolicy.java": "public class RetryPolicy {\n    public static int retryDelay(int attempt) {\n        return Math.min(1 << attempt, 45);\n    }\n}\n"
+      },
+      "memories": [
+        {
+          "id": "wire",
+          "title": "Wire sequence agreement",
+          "body": "Downstream consumers require a stable field sequence in delivery envelopes.",
+          "symbols": [
+            {
+              "path": "JsonSender.java",
+              "qualified_name": "JsonSender.send"
+            }
+          ]
+        },
+        {
+          "id": "owner",
+          "title": "Sender cancellation contract",
+          "body": "Repeated cancellation must be harmless for every operation on this sender.",
+          "symbols": [
+            {
+              "path": "JsonSender.java",
+              "qualified_name": "JsonSender"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Peer expiration window",
+          "body": "The peer discards pending deliveries after forty-five seconds. A longer pause loses the notification.",
+          "symbols": [
+            {
+              "path": "RetryPolicy.java",
+              "qualified_name": "RetryPolicy.retryDelay"
+            }
+          ]
+        },
+        {
+          "id": "health",
+          "title": "Health sampling schedule",
+          "body": "Sample diagnostic probes once per thousand successful requests.",
+          "symbols": [
+            {
+              "path": "JsonSender.java",
+              "qualified_name": "JsonSender.health"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "title": "Text transport compatibility",
+          "body": "Legacy text consumers require the original character encoding.",
+          "symbols": [
+            {
+              "path": "JsonSender.java",
+              "qualified_name": "TextSender.send"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "qualified-method",
+          "category": "qualified_method",
+          "question": "Which constraints must a change to JsonSender.send preserve?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease"
+          ],
+          "rationale": "Preserve the method contract, its enclosing sender contract and the dependency lifetime; health probes and the alternate sender are unrelated."
+        },
+        {
+          "id": "callee-rationale",
+          "category": "cross_file_dependency",
+          "question": "Why does JsonSender.send cap the waiting interval at forty-five seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The peer lifetime explains the bound. Ordering and cancellation do not explain the interval."
+        },
+        {
+          "id": "owner-contract",
+          "category": "enclosing_contract",
+          "question": "What cancellation contract governs JsonSender?",
+          "relevant_memories": [
+            "owner"
+          ],
+          "rationale": "Only the owner contract specifies cancellation behavior."
+        },
+        {
+          "id": "ambiguous-method",
+          "category": "ambiguous_method",
+          "question": "Which constraints apply to `send` in this project?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease",
+            "alternate"
+          ],
+          "rationale": "Both implementations are in scope; include the sender owner and timing dependency, but not the unrelated health method."
+        },
+        {
+          "id": "prose-contract",
+          "category": "prose",
+          "question": "What is the wire sequence agreement?",
+          "relevant_memories": [
+            "wire"
+          ],
+          "rationale": "Only the field-order agreement answers this focused prose request."
+        },
+        {
+          "id": "no-answer",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation interval is required by JsonSender.send?",
+          "relevant_memories": [],
+          "rationale": "No code or memory specifies an encryption key rotation policy."
+        },
+        {
+          "id": "literal-result",
+          "category": "code_only",
+          "question": "What does RetryPolicy.retryDelay(2) return?",
+          "relevant_memories": [],
+          "rationale": "The current arithmetic supplies the result without historical decisions."
+        }
+      ]
+    },
+    {
+      "id": "kotlin-delivery",
+      "split": "regression",
+      "files": {
+        "Sender.kt": "interface Sender { fun send(attempt: Int): Int }\nopen class BaseSender { fun cancel() {} }\nclass JsonSender : BaseSender(), Sender {\n    override fun send(attempt: Int): Int = retryDelay(attempt)\n    fun health(): Boolean = true\n}\nclass TextSender : Sender {\n    override fun send(attempt: Int): Int = attempt\n    fun encode(value: Int): String = value.toString()\n    fun encode(value: String): String = value.trim()\n}\n",
+        "Policy.kt": "fun retryDelay(attempt: Int): Int {\n    return minOf(1 shl attempt, 45)\n}\n"
+      },
+      "memories": [
+        {
+          "id": "wire",
+          "title": "Wire sequence agreement",
+          "body": "Downstream consumers require a stable field sequence in delivery envelopes.",
+          "symbols": [
+            {
+              "path": "Sender.kt",
+              "qualified_name": "JsonSender.send"
+            }
+          ]
+        },
+        {
+          "id": "owner",
+          "title": "Sender cancellation contract",
+          "body": "Repeated cancellation must be harmless for every operation on this sender.",
+          "symbols": [
+            {
+              "path": "Sender.kt",
+              "qualified_name": "JsonSender"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Peer expiration window",
+          "body": "The peer discards pending deliveries after forty-five seconds. A longer pause loses the notification.",
+          "symbols": [
+            {
+              "path": "Policy.kt",
+              "qualified_name": "retryDelay"
+            }
+          ]
+        },
+        {
+          "id": "health",
+          "title": "Health sampling schedule",
+          "body": "Sample diagnostic probes once per thousand successful requests.",
+          "symbols": [
+            {
+              "path": "Sender.kt",
+              "qualified_name": "JsonSender.health"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "title": "Text transport compatibility",
+          "body": "Legacy text consumers require the original character encoding.",
+          "symbols": [
+            {
+              "path": "Sender.kt",
+              "qualified_name": "TextSender.send"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "qualified-method",
+          "category": "qualified_method",
+          "question": "Which constraints must a change to JsonSender.send preserve?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease"
+          ],
+          "rationale": "Preserve the method contract, its enclosing sender contract and the dependency lifetime; health probes and the alternate sender are unrelated."
+        },
+        {
+          "id": "callee-rationale",
+          "category": "cross_file_dependency",
+          "question": "Why does JsonSender.send cap the waiting interval at forty-five seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The peer lifetime explains the bound. Ordering and cancellation do not explain the interval."
+        },
+        {
+          "id": "owner-contract",
+          "category": "enclosing_contract",
+          "question": "What cancellation contract governs JsonSender?",
+          "relevant_memories": [
+            "owner"
+          ],
+          "rationale": "Only the owner contract specifies cancellation behavior."
+        },
+        {
+          "id": "ambiguous-method",
+          "category": "ambiguous_method",
+          "question": "Which constraints apply to `send` in this project?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease",
+            "alternate"
+          ],
+          "rationale": "Both implementations are in scope; include the sender owner and timing dependency, but not the unrelated health method."
+        },
+        {
+          "id": "prose-contract",
+          "category": "prose",
+          "question": "What is the wire sequence agreement?",
+          "relevant_memories": [
+            "wire"
+          ],
+          "rationale": "Only the field-order agreement answers this focused prose request."
+        },
+        {
+          "id": "no-answer",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation interval is required by JsonSender.send?",
+          "relevant_memories": [],
+          "rationale": "No code or memory specifies an encryption key rotation policy."
+        },
+        {
+          "id": "literal-result",
+          "category": "code_only",
+          "question": "What does retryDelay(2) return?",
+          "relevant_memories": [],
+          "rationale": "The current arithmetic supplies the result without historical decisions."
+        }
+      ]
+    },
+    {
+      "id": "rust-delivery",
+      "split": "regression",
+      "files": {
+        "src/lib.rs": "mod policy;\nuse policy::retry_delay;\npub trait Sender { fn send(&self, attempt: u32) -> u32; }\npub struct JsonSender;\nimpl Sender for JsonSender {\n    fn send(&self, attempt: u32) -> u32 { retry_delay(attempt) }\n}\nimpl JsonSender {\n    pub fn health(&self) -> bool { true }\n}\npub struct TextSender;\nimpl Sender for TextSender {\n    fn send(&self, attempt: u32) -> u32 { attempt }\n}\n",
+        "src/policy.rs": "pub fn retry_delay(attempt: u32) -> u32 {\n    (1_u32 << attempt).min(45)\n}\n"
+      },
+      "memories": [
+        {
+          "id": "wire",
+          "title": "Wire sequence agreement",
+          "body": "Downstream consumers require a stable field sequence in delivery envelopes.",
+          "symbols": [
+            {
+              "path": "src/lib.rs",
+              "qualified_name": "JsonSender.send"
+            }
+          ]
+        },
+        {
+          "id": "owner",
+          "title": "Sender cancellation contract",
+          "body": "Repeated cancellation must be harmless for every operation on this sender.",
+          "symbols": [
+            {
+              "path": "src/lib.rs",
+              "qualified_name": "JsonSender"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Peer expiration window",
+          "body": "The peer discards pending deliveries after forty-five seconds. A longer pause loses the notification.",
+          "symbols": [
+            {
+              "path": "src/policy.rs",
+              "qualified_name": "retry_delay"
+            }
+          ]
+        },
+        {
+          "id": "health",
+          "title": "Health sampling schedule",
+          "body": "Sample diagnostic probes once per thousand successful requests.",
+          "symbols": [
+            {
+              "path": "src/lib.rs",
+              "qualified_name": "JsonSender.health"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "title": "Text transport compatibility",
+          "body": "Legacy text consumers require the original character encoding.",
+          "symbols": [
+            {
+              "path": "src/lib.rs",
+              "qualified_name": "TextSender.send"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "qualified-method",
+          "category": "qualified_method",
+          "question": "Which constraints must a change to JsonSender.send preserve?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease"
+          ],
+          "rationale": "Preserve the method contract, its enclosing sender contract and the dependency lifetime; health probes and the alternate sender are unrelated."
+        },
+        {
+          "id": "callee-rationale",
+          "category": "cross_file_dependency",
+          "question": "Why does JsonSender.send cap the waiting interval at forty-five seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "The peer lifetime explains the bound. Ordering and cancellation do not explain the interval."
+        },
+        {
+          "id": "owner-contract",
+          "category": "enclosing_contract",
+          "question": "What cancellation contract governs JsonSender?",
+          "relevant_memories": [
+            "owner"
+          ],
+          "rationale": "Only the owner contract specifies cancellation behavior."
+        },
+        {
+          "id": "ambiguous-method",
+          "category": "ambiguous_method",
+          "question": "Which constraints apply to `send` in this project?",
+          "relevant_memories": [
+            "wire",
+            "owner",
+            "lease",
+            "alternate"
+          ],
+          "rationale": "Both implementations are in scope; include the sender owner and timing dependency, but not the unrelated health method."
+        },
+        {
+          "id": "prose-contract",
+          "category": "prose",
+          "question": "What is the wire sequence agreement?",
+          "relevant_memories": [
+            "wire"
+          ],
+          "rationale": "Only the field-order agreement answers this focused prose request."
+        },
+        {
+          "id": "no-answer",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation interval is required by JsonSender.send?",
+          "relevant_memories": [],
+          "rationale": "No code or memory specifies an encryption key rotation policy."
+        },
+        {
+          "id": "literal-result",
+          "category": "code_only",
+          "question": "What does retry_delay(2) return?",
+          "relevant_memories": [],
+          "rationale": "The current arithmetic supplies the result without historical decisions."
+        }
+      ]
+    }
+  ]
+}

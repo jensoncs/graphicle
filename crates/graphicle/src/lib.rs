@@ -43,6 +43,7 @@ pub mod jobs;
 pub mod json_edit;
 pub mod limits;
 pub mod local;
+pub mod memory_diagnostics;
 pub mod local_inference;
 pub mod maintenance;
 pub mod memory;

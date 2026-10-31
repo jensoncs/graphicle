@@ -442,19 +442,27 @@ impl CodeGraph {
         }
     }
 
-    /// Code dependencies in either direction. Containment is not a dependency:
-    /// sharing a module/class must not connect all its unrelated declarations.
+    /// Code dependencies in either direction, plus enclosing symbols. Nesting
+    /// only follows inward to the owner: keep its contract without traversing
+    /// back out into unrelated sibling declarations.
     fn dependencies(&self, node: usize, remaining: &mut usize) -> Option<BTreeSet<usize>> {
         let mut found = BTreeSet::new();
-        let dependency =
-            |relation: Option<&str>| !matches!(relation, Some("contains" | "defines" | "imports"));
+        let eligible = |relation: Option<&str>, target: usize| {
+            if relation
+                .is_some_and(|r| graphicle_memory::graph::identity::NESTING_RELATIONS.contains(&r))
+            {
+                target == node
+            } else {
+                !matches!(relation, Some("defines" | "imports"))
+            }
+        };
         match &self.symbols {
             Symbols::Resident { handle, .. } => {
                 let edges = handle.out_edges(node);
                 let incoming = handle.in_edges(node);
                 *remaining = remaining.checked_sub(edges.len() + incoming.len())?;
                 for (a, b, edge) in edges.into_iter().chain(incoming) {
-                    if dependency(edge.attributes.get("relation").and_then(Value::as_str)) {
+                    if eligible(edge.attributes.get("relation").and_then(Value::as_str), b) {
                         found.insert(if a == node { b } else { a });
                     }
                 }
@@ -463,7 +471,7 @@ impl CodeGraph {
                 let ids: Vec<u32> = file.adjacency(node).ok()?.all().into_iter().collect();
                 *remaining = remaining.checked_sub(ids.len())?;
                 for edge in file.edges(&ids).ok()? {
-                    if dependency(edge.relation.as_ref().and_then(Value::as_str)) {
+                    if eligible(edge.relation.as_ref().and_then(Value::as_str), edge.target) {
                         found.insert(if edge.source == node {
                             edge.target
                         } else {
@@ -568,8 +576,9 @@ impl CodeGraph {
 /// Resolve explicit names and their connected code dependencies before narrowing
 /// code-to-memory expansion. A neighbouring declaration alone is not relevance.
 /// Keep callers, callees and transitive dependencies; no new source or memory is
-/// retrieved here. Ambiguity, unavailable/stale code, corruption or a traversal
-/// bound leaves the original authorized window-based expansion in place.
+/// retrieved here. Keep every possible definition of an ambiguous name instead
+/// of choosing one. Unresolved names, unavailable/stale code, corruption or a
+/// traversal bound leave the original authorized window-based expansion in place.
 pub(crate) fn memory_symbol_scope(
     db: &Connection,
     repository: &str,
@@ -595,11 +604,54 @@ pub(crate) fn memory_symbol_scope(
                         .any(|p| path == p || path.ends_with(&format!("/{p}")))
             })
             .collect();
-        let [symbol] = found.as_slice() else {
+        if found.is_empty() {
             return None;
-        };
-        pending.insert(graph.node_index(*symbol)?);
+        }
+        for symbol in found {
+            pending.insert(graph.node_index(symbol)?);
+        }
     }
+    memory_dependency_scope(&graph, pending, documents)
+}
+
+/// A prose question can be anchored by the current symbol links of ranked
+/// memories. Resolve their exact identities, then use the same dependency
+/// closure as explicit names. A partial or unavailable graph never narrows.
+pub(crate) fn linked_memory_scope(
+    db: &Connection,
+    repository: &str,
+    symbols: &BTreeSet<(String, String)>,
+    documents: &HashMap<&str, &Value>,
+) -> Option<BTreeSet<(String, String)>> {
+    if symbols.is_empty() || symbols.len() > MAX_NAMES {
+        return None;
+    }
+    let graph = code_graph(db, repository, true)?;
+    let mut pending = BTreeSet::new();
+    for (path, name) in symbols {
+        let found: Vec<_> = graph
+            .definitions(name)
+            .into_iter()
+            .filter(|&i| {
+                let (defined, file) = graph.symbol(i);
+                defined == name && file == path
+            })
+            .collect();
+        if found.is_empty() {
+            return None;
+        }
+        for symbol in found {
+            pending.insert(graph.node_index(symbol)?);
+        }
+    }
+    memory_dependency_scope(&graph, pending, documents)
+}
+
+fn memory_dependency_scope(
+    graph: &CodeGraph,
+    mut pending: BTreeSet<usize>,
+    documents: &HashMap<&str, &Value>,
+) -> Option<BTreeSet<(String, String)>> {
     let mut visited = BTreeSet::new();
     let mut scope = BTreeSet::new();
     // Bounds protect large dependency components; exceeding either disables

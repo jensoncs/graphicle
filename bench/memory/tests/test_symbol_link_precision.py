@@ -96,13 +96,29 @@ def test_shallow_source_rerank_keeps_the_four_linked_memory_slots(tmp_path, eval
                            "question": "What decisions govern this pipeline?",
                            "relevant_memories": [m["id"] for m in project["memories"]],
                            "rationale": "All stage contracts apply to the whole pipeline."}]
-    case = evaluation.evaluate_project(project, BINARY, tmp_path, local)[0]
+    case = evaluation.evaluate_project(project, BINARY, tmp_path / "debug", local, diagnose=True)[0]
     assert case["counted_preserves_content"]
     assert all("error" not in variant for variant in case["variants"].values())
     report = case["variants"]["on"]["symbol_links"]
     assert report["reranker"]["candidates"] == 4
     assert report["lifted_memories"] == 4
     assert report["over_limit"] == 2
+    trace = json.loads((tmp_path / "debug" / project["id"] / "all-stages" / "on.packet.json").read_text())["memory_candidates_debug"]
+    rescored = [c for c in trace["candidates"] if c["reranker"] is not None]
+    assert len(rescored) == 4
+    assert all(isinstance(c["reranker"]["score"], (int, float)) for c in rescored)
+    assert all(isinstance(c["reranker"]["input_truncated"], bool) for c in rescored)
+    plain = evaluation.evaluate_project(project, BINARY, tmp_path / "plain", local)[0]
+    for variant in evaluation.VARIANTS:
+        assert plain["variants"][variant]["returned"] == case["variants"][variant]["returned"]
+    # A deeper candidate prefix distinguishes the final four-note cap from the
+    # pre-reranker prefix cap exercised above.
+    local["request"]["rerank_depth"] = 8
+    deep = evaluation.evaluate_project(project, BINARY, tmp_path / "deep", local, diagnose=True)[0]
+    assert deep["counted_preserves_content"]
+    detail = deep["variants"]["on"]["memory_diagnostics"]
+    assert len(detail["missing"]) == 2
+    assert all(m["stage"] == "linked_final_cap" for m in detail["missing"])
 
 
 def test_setup_failure_records_every_planned_variant(tmp_path, monkeypatch, evaluation):

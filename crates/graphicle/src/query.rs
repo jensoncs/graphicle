@@ -1542,6 +1542,8 @@ fn context_impl(
         fields.remove("rankings_debug");
     }
     let mut strength = ranked["evidence_strength"].clone();
+    let mut memory_trace = (debug_candidates > 0)
+        .then(|| crate::memory_diagnostics::Trace::new(debug_candidates, &rows, &ranked));
     // `rank` was asked for EXTRA_SOURCES more; the packet's limit is the call's.
     if !rescoring {
         strength["limit"] = json!(limit);
@@ -1819,6 +1821,11 @@ fn context_impl(
     }});
     let mut linked_memories = Vec::new();
     let mut linked_reranker_usage = Value::Null;
+    let memory_limit = if crate::code_question::asks_for_project_decisions(query) {
+        limit.clamp(crate::symbol_links::MEMORY_LIMIT, crate::symbol_links::MEMORY_CANDIDATES)
+    } else {
+        crate::symbol_links::MEMORY_LIMIT
+    };
     if symbol_links != crate::symbol_links::Mode::Off
         && let Some(lookup) = doc_links
     {
@@ -1828,22 +1835,26 @@ fn context_impl(
             symbol_links,
             query,
             if rescoring {
-                // A shallow source rerank must not shrink the existing linked
-                // memory allowance before its own final four-item cap.
-                rerank_depth.max(crate::symbol_links::MEMORY_LIMIT)
+                // A shallow source rerank must not shrink the linked-memory
+                // delivery allowance before the linked-note selection pass.
+                rerank_depth.max(memory_limit)
             } else {
-                crate::symbol_links::MEMORY_LIMIT
+                crate::symbol_links::MEMORY_CANDIDATES
             },
             snapshot,
             &rows,
             &sources,
             &selected_memories,
             &candidates,
+            memory_trace.as_mut(),
         ) {
             Ok(lifted) => {
                 candidates.extend(lifted.windows);
                 linked_memories = lifted.memories;
                 symbol_links_report = lifted.report;
+                if let Some(trace) = memory_trace.as_mut() {
+                    trace.linked_candidates(&linked_memories);
+                }
                 if let Some(reranker) = reranker.filter(|_| !linked_memories.is_empty()) {
                     let texts: Vec<String> = linked_memories
                         .iter()
@@ -1852,11 +1863,17 @@ fn context_impl(
                     let started = std::time::Instant::now();
                     let mut scores = Vec::with_capacity(texts.len());
                     let mut tokens = 0;
-                    for chunk in texts.chunks(32) {
-                        let (part, used) =
-                            crate::local_inference::rerank_counted(reranker, query, chunk)?;
-                        scores.extend(part);
-                        tokens += used;
+                    for (batch, chunk) in texts.chunks(32).enumerate() {
+                        let result = crate::local_inference::rerank_visible(reranker, query, chunk)?;
+                        if let Some(trace) = memory_trace.as_mut() {
+                            for (offset, ranges) in result.passage_ranges.iter().enumerate() {
+                                let end = ranges.iter().map(|r| r.1).max().unwrap_or(0);
+                                trace.reranked(&linked_memories[batch * 32 + offset],
+                                    result.scores[offset], end < chunk[offset].trim_end().len());
+                            }
+                        }
+                        scores.extend(result.scores);
+                        tokens += result.tokens;
                     }
                     let mode = args["rerank_mode"].as_str().unwrap_or("blend");
                     let order = match mode {
@@ -1871,12 +1888,21 @@ fn context_impl(
                         .map(|i| linked_memories[i].clone())
                         .collect();
                     symbol_links_report["reranker"] = linked_reranker_usage.clone();
+                } else {
+                    crate::symbol_links::prioritize_literals(query, &mut linked_memories);
+                }
+                if symbol_links.enabled() && symbol_links_report.get("considered").is_some() {
+                    symbol_links_report["memory_limit"] = json!(memory_limit);
+                    symbol_links_report["candidate_memories"] = json!(linked_memories.len());
+                }
+                if let Some(trace) = memory_trace.as_mut() {
+                    trace.linked_order(&linked_memories, memory_limit);
                 }
                 let omitted = linked_memories
                     .len()
-                    .saturating_sub(crate::symbol_links::MEMORY_LIMIT);
+                    .saturating_sub(memory_limit);
                 if omitted > 0 {
-                    linked_memories.truncate(crate::symbol_links::MEMORY_LIMIT);
+                    linked_memories.truncate(memory_limit);
                     symbol_links_report["over_limit"] = json!(
                         symbol_links_report["over_limit"].as_u64().unwrap_or(0) + omitted as u64
                     );
@@ -1963,6 +1989,9 @@ fn context_impl(
     };
     // Memories lifted through links follow the selected ones.
     let pack_memories: Vec<&Value> = selected_memories.iter().chain(&linked_memories).collect();
+    if let Some(trace) = memory_trace.as_mut() {
+        trace.offered(&selected_memories, &linked_memories);
+    }
     // The packer centres excerpts on the query's words; the packet names the
     // question (below).
     let mut pack_request = json!({"repo":snapshot.repository,"question":query,"hits":hits,"memories":pack_memories,
@@ -2185,6 +2214,9 @@ fn context_impl(
     // Diagnostics for recall harnesses: fused candidate passages before
     // selection and packing. Not served evidence and never cited.
     if debug_candidates > 0 {
+        if let Some(trace) = memory_trace {
+            packet["memory_candidates_debug"] = trace.finish(&packet);
+        }
         packet["reranker_inputs_debug"] = json!(reranker_inputs);
         packet["candidates_debug"] = json!(
             ranked["fused"]

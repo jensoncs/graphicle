@@ -42,6 +42,25 @@ fn lexical_retrieval_rejects_duplicate_identities_and_unknown_modes() {
 }
 
 #[test]
+fn memory_fusion_diagnostics_are_bounded_and_preserve_selection() {
+    let rows: Vec<_> = (0..3).map(|i| json!({"identity":format!("note{i}"),
+        "kind":"memory", "origin":"memory", "title":"Retention policy",
+        "text":format!("Retain fiscal records for {} years", i + 1)})).collect();
+    let mut request = json!({"scope":"memory-debug-contract","rows":rows,
+        "question":"fiscal retention policy","limit":2});
+    let plain = retrieval::rank(&request).unwrap();
+    assert!(plain.get("memory_fused_debug").is_none());
+    request["debug_fused"] = json!(2);
+    let debug = retrieval::rank(&request).unwrap();
+    assert_eq!(debug["sources"], plain["sources"]);
+    assert_eq!(debug["memories"], plain["memories"]);
+    let entries = debug["memory_fused_debug"].as_array().unwrap();
+    assert_eq!(entries.len(), 2);
+    assert_eq!(entries[0]["rank"], 1);
+    assert!(entries[0]["score"].as_f64().unwrap() > 0.0);
+}
+
+#[test]
 fn diversity_selection_preserves_origin_caps_duplicate_suppression_and_need_coverage() {
     let rows: Vec<_> = [
         (

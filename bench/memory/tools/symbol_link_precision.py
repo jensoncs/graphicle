@@ -189,10 +189,16 @@ def evaluate_project(project, binary, output, local=None, variants=None, diagnos
         try:
             sync(project["files"])
             known = {}
+            grounding = {}
             for memory in project.get("memories", []):
                 args = {k: memory[k] for k in ("title", "body", "symbols") if k in memory}
                 saved = call("note", {"kind": "decision", **args})
                 known[saved["id"]] = memory["id"]
+                if diagnose:
+                    grounding[memory["id"]] = saved.get("data", {}).get("symbols", [])
+            if diagnose and cases:
+                cases[0]["memory_grounding"] = grounding
+                save(output / project["id"] / "memory-links.json", grounding)
             if project.get("updates"):
                 sync(project["updates"])
         except Exception as error:
@@ -209,6 +215,8 @@ def evaluate_project(project, binary, output, local=None, variants=None, diagnos
                 request = {**REQUEST, **variants[variant], "question": case["question"]}
                 if local:
                     request.update(local["request"])
+                if diagnose:
+                    request["debug_candidates"] = 400
                 destination = output / project["id"] / case["id"]
                 save(destination / f"{variant}.request.json", request)
                 started = time.monotonic()
@@ -220,8 +228,11 @@ def evaluate_project(project, binary, output, local=None, variants=None, diagnos
                                                   "seconds": round(elapsed, 4)}
                     packets[variant] = packet
                     if diagnose:
-                        from quality_diagnostics import diagnostics
-                        save(destination / f"{variant}.diagnostics.json", diagnostics(packet, last_stderr))
+                        from quality_diagnostics import diagnostics, memory_diagnostics
+                        memory_detail = memory_diagnostics(packet, known, case["relevant_memories"])
+                        case["variants"][variant]["memory_diagnostics"] = memory_detail
+                        save(destination / f"{variant}.diagnostics.json",
+                             {**diagnostics(packet, last_stderr), "memory_quality": memory_detail})
                 except Exception as error:
                     case["variants"][variant] = {"error": str(error),
                                                   "seconds": time.monotonic() - started}
