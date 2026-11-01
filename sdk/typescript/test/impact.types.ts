@@ -7,7 +7,7 @@ void boundaries; void event; void invalidBoundary;
 declare const project: Project;
 const pin: SnapshotPin = {repository_id: "repo", directory: "service", commit: "a".repeat(40), snapshot: "b".repeat(64), policy_sha256: "c".repeat(64)};
 const profile: ReviewProfile = {goos: "linux", goarch: "amd64", tests: true};
-const report: Promise<ReviewPacket> = project.impact([pin], [pin], {profile, max_tokens: 16000, previous_packet_id: "d".repeat(64)}, {timeoutMs: 120000});
+const report: Promise<ReviewPacket> = project.impact([pin], [pin], {profile, max_tokens: 16000, compact_provenance: true, previous_packet_id: "d".repeat(64)}, {timeoutMs: 120000});
 project.impact([pin], [pin], {profile, business_context: {history: [{
   format: "graphicle.business-history.v1", pin, shallow: false,
   evolution: {format: "graphicle.history-analysis.v1", anchor_time: 1700000000, units: [], functions: [], omissions: {}},

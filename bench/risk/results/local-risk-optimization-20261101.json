@@ -1,0 +1,434 @@
+{
+  "format": "graphicle.risk-optimization-receipt.v1",
+  "date": "2026-11-01",
+  "scope": "Authored synthetic evidence delivery; not Sentinel risk-verdict accuracy",
+  "contract": {
+    "format": "graphicle.risk-evidence-pilot.v2",
+    "fixtures_sha256": "26d90ba3aa1d52792c0cf925ac7a895a91bfbe52547bc857858e77d65fc6cecf",
+    "budgets": [
+      4000,
+      32000,
+      64000
+    ],
+    "profile": {
+      "goos": "linux",
+      "goarch": "amd64",
+      "tests": false,
+      "tags": [],
+      "workspace": ""
+    },
+    "max_depth": 16
+  },
+  "request_option": {
+    "compact_provenance": true
+  },
+  "comparison": "Exact saved seed stores and evidence requests; only compact_provenance may differ",
+  "baseline": {
+    "summary_sha256": "13adbe7b5b4de38ec38c6e2d493b6e8cf5f20dae27bf15e797ddb013103a60bb",
+    "binary_sha256": "800a4788aec8f5b6ababa817513ff400ce0c2649b586095944be782c837d94fe"
+  },
+  "default_caller_fix": {
+    "status": "passed",
+    "requests": 49,
+    "summary_sha256": "fe62157017ebdb1630e105a243177a9173cbb662e00cc425c79aa0438b989507",
+    "paired_regressions": [],
+    "binary_sha256": "7327dce60d7830cb7814c90a42899d61ae8181e431570e84e5ddc2f23ea0b63e"
+  },
+  "optimized": {
+    "status": "passed",
+    "requests": 49,
+    "completed": 49,
+    "summary_sha256": "507e0ecb6ee51d93cc2b5735ddaa6af1d1fb9921c4706c4db0a8fc5ef2d5d205",
+    "binary_sha256": "4a724a55e5e86ab2b72c31cfc188bdad32503a113009e614154879f7e9f181e8",
+    "runner_sha256": "ca063944dd127897e135ee63bb54913039a44d0002edfa64969f0e86ae860cdd",
+    "controls": 160,
+    "failed_controls": [],
+    "paired_regressions": []
+  },
+  "suite_first_request_coverage": [
+    {
+      "variant": "static/4000/first",
+      "required_labels": 26,
+      "baseline_delivered": 10,
+      "optimized_delivered": 10
+    },
+    {
+      "variant": "history/4000/first",
+      "required_labels": 26,
+      "baseline_delivered": 9,
+      "optimized_delivered": 10
+    },
+    {
+      "variant": "static/32000/first",
+      "required_labels": 26,
+      "baseline_delivered": 23,
+      "optimized_delivered": 25
+    },
+    {
+      "variant": "history/32000/first",
+      "required_labels": 26,
+      "baseline_delivered": 24,
+      "optimized_delivered": 26
+    },
+    {
+      "variant": "static/64000/first",
+      "required_labels": 26,
+      "baseline_delivered": 25,
+      "optimized_delivered": 25
+    },
+    {
+      "variant": "history/64000/first",
+      "required_labels": 26,
+      "baseline_delivered": 26,
+      "optimized_delivered": 26
+    }
+  ],
+  "service_chain": [
+    {
+      "variant": "static",
+      "budget": 4000,
+      "baseline": {
+        "delivered_labels": [
+          2
+        ],
+        "required_labels": 7,
+        "tokens": 3462,
+        "selected_entries": 1,
+        "budget_omitted": 20,
+        "coverage_complete": false,
+        "encoding": "inline",
+        "reason_bytes": 102,
+        "boundary_bytes": 0,
+        "shared_table_bytes": 0,
+        "shared_definitions": 0,
+        "packing_phase_ms": {
+          "review_pack": 186
+        }
+      },
+      "optimized": {
+        "delivered_labels": [
+          2
+        ],
+        "required_labels": 7,
+        "tokens": 3462,
+        "selected_entries": 1,
+        "budget_omitted": 20,
+        "coverage_complete": false,
+        "encoding": "inline",
+        "reason_bytes": 102,
+        "boundary_bytes": 0,
+        "shared_table_bytes": 0,
+        "shared_definitions": 0,
+        "packing_phase_ms": {
+          "review_compact_provenance": 260,
+          "review_pack_compact": 288,
+          "review_pack_inline": 60,
+          "review_pack": 349
+        }
+      }
+    },
+    {
+      "variant": "static",
+      "budget": 32000,
+      "baseline": {
+        "delivered_labels": [
+          1,
+          2,
+          3,
+          5,
+          6
+        ],
+        "required_labels": 7,
+        "tokens": 30106,
+        "selected_entries": 7,
+        "budget_omitted": 13,
+        "coverage_complete": false,
+        "encoding": "inline",
+        "reason_bytes": 30507,
+        "boundary_bytes": 13876,
+        "shared_table_bytes": 0,
+        "shared_definitions": 0,
+        "packing_phase_ms": {
+          "review_pack": 301
+        }
+      },
+      "optimized": {
+        "delivered_labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "required_labels": 7,
+        "tokens": 31026,
+        "selected_entries": 13,
+        "budget_omitted": 7,
+        "coverage_complete": false,
+        "encoding": "shared",
+        "reason_bytes": 9859,
+        "boundary_bytes": 6038,
+        "shared_table_bytes": 23519,
+        "shared_definitions": 13,
+        "packing_phase_ms": {
+          "review_compact_provenance": 257,
+          "review_pack_compact": 397,
+          "review_pack_inline": 185,
+          "review_pack": 583
+        }
+      }
+    },
+    {
+      "variant": "static",
+      "budget": 64000,
+      "baseline": {
+        "delivered_labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "required_labels": 7,
+        "tokens": 62242,
+        "selected_entries": 14,
+        "budget_omitted": 6,
+        "coverage_complete": false,
+        "encoding": "inline",
+        "reason_bytes": 81439,
+        "boundary_bytes": 23071,
+        "shared_table_bytes": 0,
+        "shared_definitions": 0,
+        "packing_phase_ms": {
+          "review_pack": 479
+        }
+      },
+      "optimized": {
+        "delivered_labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "required_labels": 7,
+        "tokens": 46019,
+        "selected_entries": 20,
+        "budget_omitted": 0,
+        "coverage_complete": false,
+        "encoding": "shared",
+        "reason_bytes": 18086,
+        "boundary_bytes": 11246,
+        "shared_table_bytes": 31616,
+        "shared_definitions": 18,
+        "packing_phase_ms": {
+          "review_compact_provenance": 260,
+          "review_pack_compact": 485,
+          "review_pack_inline": 368,
+          "review_pack": 853
+        }
+      }
+    },
+    {
+      "variant": "history",
+      "budget": 4000,
+      "baseline": {
+        "delivered_labels": [
+          2
+        ],
+        "required_labels": 7,
+        "tokens": 3615,
+        "selected_entries": 1,
+        "budget_omitted": 20,
+        "coverage_complete": false,
+        "encoding": "inline",
+        "reason_bytes": 102,
+        "boundary_bytes": 0,
+        "shared_table_bytes": 0,
+        "shared_definitions": 0,
+        "packing_phase_ms": {
+          "review_pack": 69
+        }
+      },
+      "optimized": {
+        "delivered_labels": [
+          2
+        ],
+        "required_labels": 7,
+        "tokens": 3615,
+        "selected_entries": 1,
+        "budget_omitted": 20,
+        "coverage_complete": false,
+        "encoding": "inline",
+        "reason_bytes": 102,
+        "boundary_bytes": 0,
+        "shared_table_bytes": 0,
+        "shared_definitions": 0,
+        "packing_phase_ms": {
+          "review_compact_provenance": 134,
+          "review_pack_compact": 170,
+          "review_pack_inline": 71,
+          "review_pack": 242
+        }
+      }
+    },
+    {
+      "variant": "history",
+      "budget": 32000,
+      "baseline": {
+        "delivered_labels": [
+          1,
+          2,
+          3,
+          5,
+          6
+        ],
+        "required_labels": 7,
+        "tokens": 31389,
+        "selected_entries": 7,
+        "budget_omitted": 13,
+        "coverage_complete": false,
+        "encoding": "inline",
+        "reason_bytes": 25274,
+        "boundary_bytes": 12800,
+        "shared_table_bytes": 0,
+        "shared_definitions": 0,
+        "packing_phase_ms": {
+          "review_pack": 250
+        }
+      },
+      "optimized": {
+        "delivered_labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "required_labels": 7,
+        "tokens": 31254,
+        "selected_entries": 12,
+        "budget_omitted": 8,
+        "coverage_complete": false,
+        "encoding": "shared",
+        "reason_bytes": 9281,
+        "boundary_bytes": 4561,
+        "shared_table_bytes": 21108,
+        "shared_definitions": 12,
+        "packing_phase_ms": {
+          "review_compact_provenance": 134,
+          "review_pack_compact": 327,
+          "review_pack_inline": 262,
+          "review_pack": 590
+        }
+      }
+    },
+    {
+      "variant": "history",
+      "budget": 64000,
+      "baseline": {
+        "delivered_labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "required_labels": 7,
+        "tokens": 63068,
+        "selected_entries": 13,
+        "budget_omitted": 7,
+        "coverage_complete": false,
+        "encoding": "inline",
+        "reason_bytes": 76104,
+        "boundary_bytes": 19646,
+        "shared_table_bytes": 0,
+        "shared_definitions": 0,
+        "packing_phase_ms": {
+          "review_pack": 492
+        }
+      },
+      "optimized": {
+        "delivered_labels": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "required_labels": 7,
+        "tokens": 57700,
+        "selected_entries": 20,
+        "budget_omitted": 0,
+        "coverage_complete": false,
+        "encoding": "shared",
+        "reason_bytes": 18086,
+        "boundary_bytes": 11246,
+        "shared_table_bytes": 31616,
+        "shared_definitions": 18,
+        "packing_phase_ms": {
+          "review_compact_provenance": 135,
+          "review_pack_compact": 487,
+          "review_pack_inline": 514,
+          "review_pack": 1002
+        }
+      }
+    }
+  ],
+  "code_only_equivalence": {
+    "packets": 40,
+    "mismatches": 0,
+    "compared_against": "default_caller_fix",
+    "ignored_fields": [
+      "analysis_cache",
+      "tokens"
+    ]
+  },
+  "sdk_interoperability": {
+    "packets": [
+      "service-chain/history-32000-first",
+      "service-chain/history-64000-first"
+    ],
+    "checks": [
+      "Python and TypeScript full materialized views identical",
+      "Boundary citations and manifests restored"
+    ],
+    "passed": true
+  },
+  "validation": {
+    "rust_toolchain": "1.94.1",
+    "rust_review_unit_tests": 50,
+    "pinned_review_integration_tests": 35,
+    "final_service_and_api_integration_tests": 5,
+    "typescript_tests": 17,
+    "typescript_type_check": "passed",
+    "python_provenance_tests": 3,
+    "pilot_measurement_tests": 12,
+    "dependency_policy": {
+      "advisories": "failed: pre-existing libz-sys 1.1.29 / RUSTSEC-2026-0418",
+      "bans": "passed",
+      "licenses": "passed",
+      "sources": "passed",
+      "lockfiles_changed": false
+    }
+  },
+  "limitations": [
+    "Labels are synthetic evidence requirements, not independent risk labels.",
+    "Configured service paths remain static assertions; incomplete coverage is preserved.",
+    "Latency samples are descriptive local debug-build observations, not a production performance guarantee.",
+    "Automatic format selection adds packing work; phases expose its cost.",
+    "Sentinel adapter and end-to-end risk scoring were not exercised."
+  ]
+}

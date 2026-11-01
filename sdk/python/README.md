@@ -118,6 +118,15 @@ delta = project.impact([base_pin], [next_head_pin], profile=profile,
 view = apply_review_delta(view, delta)
 ```
 
+Use `compact_provenance=True` in `project.impact(...)` to enable automatic
+deduplication of repeated configured service assertions. The default stays inline;
+code-only reviews need no special handling. `apply_review_delta` validates the
+packet's complete shared table and restores inline `step["provenance"]`, including
+for unchanged entries. `materialize_service_provenance(packet)` does the same for
+a full packet. Keep the raw compact packet when building a token-bounded model
+prompt: expansion increases its size and removes the wire `tokens` count.
+See the [reference format](../../docs/pinned-review.md).
+
 The helper checks the prior receipt, body hashes, invalidations, and exact
 `context_order`. Updated bindings remain current even when bytes are reused.
 Conflicts require explicit recovery with a full packet. Global `coverage.complete`

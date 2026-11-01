@@ -20,6 +20,8 @@ export interface ReviewOptions {
   profile: ReviewProfile; max_depth?: number; max_tokens?: number; previous_packet_id?: string;
   business_context?: BusinessContextOptions;
   reuse_text?: boolean;
+  /** Share repeated pinned service assertions automatically when beneficial. */
+  compact_provenance?: boolean;
   reviewed_entries?: readonly string[];
 }
 /** Source-backed deployment assertions in the admitted graphicle-services.json. */
@@ -76,7 +78,9 @@ export interface ReviewPacket extends Result {
   changes: Result & {count: number}; coverage: Result & {complete: boolean; budget_omitted: number};
   entries: Result[]; diffs: Result[]; invalidated: Result[]; unchanged: string[]; tokens: number;
   context_order: string[];
+  service_provenance?: {format: "graphicle.service-provenance.v1"; definitions: Record<string, Result>};
 }
+export function materializeServiceProvenance(packet: Result): Promise<Result>;
 export function applyReviewDelta(previous: Result | null, packet: ReviewPacket): Promise<Result>;
 export class GraphicleError extends Error {
   status: number; body?: unknown; retryAfterSeconds?: number;

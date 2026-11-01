@@ -153,6 +153,50 @@ assertions are bound to exact pins and source hashes, share the packet budget,
 and participate in delta invalidation. See [business context](business-context.md)
 for collection, provenance limits and the review-value fixture.
 
+Set `"compact_provenance": true` once in the review request when the consumer
+supports service references. Graphicle automatically shares configured service
+assertions when their repetition saves tokens across the candidate evidence.
+Code-only reviews and small, unshared assertions keep the inline representation;
+there is no per-service or per-language configuration. Omitting the option keeps
+the existing inline response format. The option applies to `graph.impact`,
+`impact.report`, MCP `review_changes`, CLI `review --request`, and both SDKs.
+Consumers can discover support through
+`build.info.review_compact_provenance == "graphicle.service-provenance.v1"`.
+Omit the request field entirely when connecting to older servers that do not
+advertise support.
+
+Compact steps carry `provenance_ref` instead of `provenance`. Resolve that hash
+in `service_provenance.definitions` (format `graphicle.service-provenance.v1`).
+A cross-service definition can contain `source_ref` and `target_ref`, pointing to
+leaf binding assertions in the same table. Keys are SHA-256 of compact UTF-8 JSON
+with recursively sorted object keys. The full table needed by the selected view
+is sent on every packet, including deltas with unchanged entries. Definitions
+count toward `max_tokens`; changes to citations change references and revisions.
+Pinned hashes, spans, authority and `runtime_observed=false` are preserved.
+Boundary entries also use `service_boundary.provenance_ref` for their repeated
+`citations` and `manifest`. Their identity, transport, authority and resolution
+remain inline; SDK materialization restores the two citation fields and checks
+the boundary identity against the referenced assertion.
+When sharing is possible, the packer compares inline and compact selections:
+it prefers more changed-head declarations, then callee contracts, then immediate
+callers, then total selected entries/diffs, and finally lower canonical packing
+cost. A tight budget can therefore automatically fall back to inline output.
+This decision is independent of prior receipts and delta wire size.
+
+Python `apply_review_delta` and TypeScript `applyReviewDelta` validate and expand
+these references automatically. For full packets, `materialize_service_provenance`
+and `materializeServiceProvenance` provide the same citation expansion. Expansion
+retains reference IDs for later delta validation and removes the wire token count:
+the expanded view is larger. Sentinel should retain the compact table in its
+model prompt to keep the savings, and expand only for citation consumers that
+need the inline view. An unresolved or corrupt reference is an error, never
+evidence of low risk.
+
+Packing reserves immediate current-head callers alongside changed declarations
+and discarded-error callee contracts before optional history. `coverage.callers`
+reports required/selected counts and completeness when such callers exist;
+oversized callers still produce explicit omissions.
+
 A local Go toolchain must be installed. Each consumer gets its own native
 `go list`/`go/types` resolution world. Build tags, platform, module versions,
 workspace/local replacements, and test variants determine the selected source

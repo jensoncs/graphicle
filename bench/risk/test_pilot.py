@@ -1,8 +1,10 @@
 import copy
+from pathlib import Path
+import tempfile
 import unittest
 
 from fixtures import suite
-from pilot import compare, diagnose, digest, phases, rollup, verify_packet
+from pilot import compare, diagnose, digest, evidence_request_hash, phases, planned_runs, rollup, seed_digest, treatment_comparisons, verify_packet
 
 
 class MeasurementTests(unittest.TestCase):
@@ -41,6 +43,8 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual(result["labels"][1]["status"], "not_delivered_stage_unknown")
         self.assertFalse(result["may_lower_sentinel_risk"])
         self.assertEqual(result["risk_verdict"], "unmeasured")
+        self.assertGreater(result["entry_field_bytes"]["text"], 0)
+        self.assertEqual(result["entry_field_bytes"]["business_context"], 0)
         self.assertIsNone(diagnose(packet, [], {"r": "repo"}, False)["recall"])
 
     def test_label_repository_and_side_cannot_match_wrong_evidence(self):
@@ -58,6 +62,15 @@ class MeasurementTests(unittest.TestCase):
         self.assertEqual((result["planned"], result["errors"], result["recall"]), (2, 1, 0.5))
         self.assertEqual(result["latency_ms_completed"], {"samples": 1, "median": 10})
 
+    def test_setup_failure_does_not_remove_unattempted_cases_from_denominators(self):
+        rows = planned_runs(suite()["cases"], [4000, 32000])
+        self.assertEqual(len(rows), 37)
+        self.assertEqual(len({r["id"] for r in rows}), 37)
+        results = rollup(rows)
+        self.assertEqual(results["history/32000/first"]["planned"], 6)
+        self.assertEqual(results["history/32000/first"]["recall"], 0)
+        self.assertEqual(results["history/32000/first"]["errors"], 6)
+
     def test_comparison_catches_losses_errors_and_missing_runs(self):
         old = {"contract": {"fixtures": "same"}, "runs": [{"id": "a", "status": "ok",
                "delivered_labels": [0, 1], "forbidden_hits": 0}]}
@@ -72,12 +85,58 @@ class MeasurementTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             compare(new, old)
 
+    def test_new_repository_ids_cannot_be_compared_as_identical_inputs(self):
+        old = {"contract": {}, "runs": [{"id": "a", "status": "ok", "request_sha256": "old",
+               "delivered_labels": [0], "forbidden_hits": 0}]}
+        new = copy.deepcopy(old)
+        new["runs"][0]["request_sha256"] = "new"
+        with self.assertRaisesRegex(ValueError, "Paired requests differ"):
+            compare(new, old)
+
+    def test_seed_integrity_and_symlink_rejection(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            (root / "store.db").write_bytes(b"initial")
+            initial = seed_digest(root)
+            (root / "store.db").write_bytes(b"changed")
+            self.assertNotEqual(initial, seed_digest(root))
+            (root / "alias").symlink_to(root / "store.db")
+            with self.assertRaises(ValueError):
+                seed_digest(root)
+
+    def test_serialization_comparison_allows_only_the_explicit_capability(self):
+        request = {"head": [{"snapshot": "same"}], "max_tokens": 4000}
+        compact = {**request, "compact_provenance": True}
+        self.assertEqual(evidence_request_hash(request), evidence_request_hash(compact))
+        old = {"contract": {}, "runs": [{"id": "a", "status": "ok", "request_sha256": "old",
+            "evidence_request_sha256": evidence_request_hash(request), "delivered_labels": [0], "forbidden_hits": 0}]}
+        new = copy.deepcopy(old)
+        new["runs"][0]["request_sha256"] = "new"
+        with self.assertRaises(ValueError):
+            compare(new, old)
+        new["comparison"] = "allow_compact_provenance_only"
+        self.assertEqual(compare(new, old), [])
+        for key, value in (("max_tokens", 8000), ("head", []), ("max_depth", 0), ("business_context", {})):
+            new["runs"][0]["evidence_request_sha256"] = evidence_request_hash({**compact, key: value})
+            with self.assertRaises(ValueError):
+                compare(new, old)
+
     def test_phase_trace_preserves_samples_without_summing_nested_wall_time(self):
         parsed = phases("phase=review_pack ms=15 rss_mb=10.2 peak_rss_mb=12.0\n"
                         "phase=review_pack ms=2 rss_mb=11.0 peak_rss_mb=12.0\n"
                         "phase=marker ms=0 count=3\nunrelated output\n")
         self.assertEqual([p["ms"] for p in parsed], [15, 2])
         self.assertEqual(parsed[0]["process_peak_rss_mb"], 12.0)
+
+    def test_history_gain_cannot_hide_lost_source_context(self):
+        labels = [{"kind": "source"}, {"kind": "history"}]
+        row = {"case": "c", "budget": 4000, "sample": "first", "status": "ok", "tokens": 100}
+        rows = [{**row, "variant": "static", "delivered_labels": [0]},
+                {**row, "variant": "history", "delivered_labels": [1]}]
+        result = treatment_comparisons(rows, [{"id": "c", "labels": labels}])[0]
+        self.assertEqual(result["lost_labels"], [0])
+        self.assertEqual(result["gained_labels"], [1])
+        self.assertEqual(result["by_kind"]["source"], {"required": 1, "before": 1, "after": 0})
 
     def test_source_labels_bind_to_fixture_bytes_and_negative_controls_exist(self):
         data = suite()

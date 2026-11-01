@@ -1115,7 +1115,10 @@ fn review_api_and_mcp_preserve_project_confinement() {
     );
     let mut args = request(&repo, vec![pin.clone()], vec![pin.clone()]);
     args["business_context"] = json!({});
+    args["compact_provenance"] = json!(true);
     let app = api::App::new(f.store.clone(), model::Config::default(), vec![]).unwrap();
+    let capabilities = api::command(&app, &f.workspace, &f.token, "build.info", &json!({})).unwrap();
+    assert_eq!(capabilities["review_compact_provenance"], "graphicle.service-provenance.v1");
     let packet = api::command(&app, &f.workspace, &f.token, "graph.impact", &args).unwrap();
     assert_eq!(packet["impact"], "no_changes_in_scope");
     let mut mcp_args = args;

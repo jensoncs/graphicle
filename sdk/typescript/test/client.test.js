@@ -113,7 +113,7 @@ test("impact sends pinned snapshots, build profile and revision-safe delta optio
   const base = [{repository_id: "anchor", directory: "fixture", commit: "a".repeat(40), snapshot: "b".repeat(64), policy_sha256: "c".repeat(64), modules: ["."]}];
   const head = [{...base[0], commit: "d".repeat(40), snapshot: "e".repeat(64)}];
   const profile = {goos: "linux", goarch: "amd64", tests: false, tags: ["pilot"]};
-  const args = {profile, max_depth: 0, max_tokens: 4000, previous_packet_id: "f".repeat(64), business_context: {history: []}};
+  const args = {profile, max_depth: 0, max_tokens: 4000, compact_provenance: true, previous_packet_id: "f".repeat(64), business_context: {history: []}};
   const packet = await p.impact(base, head, args, {timeoutMs: 10000});
   assert.equal(packet.format, "graphicle.review.v1");
   assert.deepEqual(calls, [{path: "/v1/workspaces/workspace-1/repos/anchor/commands", body: {operation: "impact.report", arguments: {...args, base, head}}}]);

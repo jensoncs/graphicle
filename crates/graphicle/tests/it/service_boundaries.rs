@@ -51,6 +51,15 @@ fn issue(packet: &Value, reason: &str) -> bool {
 
 #[test]
 fn service_boundaries_mixed_protocol_review_and_delta_invalidation() {
+    mixed_protocol_review_and_delta_invalidation(false);
+}
+
+#[test]
+fn compact_service_provenance_preserves_paths_and_delta_invalidation() {
+    mixed_protocol_review_and_delta_invalidation(true);
+}
+
+fn mixed_protocol_review_and_delta_invalidation(compact: bool) {
     let f = Fixture::new();
     let repos: Vec<_> = ["checkout", "orders", "pricing", "billing"]
         .iter()
@@ -93,7 +102,19 @@ fn service_boundaries_mixed_protocol_review_and_delta_invalidation() {
     let mut args = request(&repos[2], base.clone(), head.clone());
     args["max_depth"] = json!(16);
     args["max_tokens"] = json!(64000);
+    if compact { args["compact_provenance"] = json!(true); }
     let first = f.run(&args);
+    if compact {
+        assert_eq!(first["service_provenance"]["format"], "graphicle.service-provenance.v1");
+        let mut repeated = args.clone();
+        repeated["previous_packet_id"] = first["packet_id"].clone();
+        let delta = f.run(&repeated);
+        assert!(delta["entries"].as_array().unwrap().is_empty());
+        assert_eq!(delta["service_provenance"], first["service_provenance"]);
+        assert_eq!(delta["context_order"], first["context_order"]);
+    } else {
+        assert!(first.get("service_provenance").is_none());
+    }
     if let Ok(directory) = std::env::var("GRAPHICLE_SERVICE_EVIDENCE_DIR") {
         let directory = std::path::Path::new(&directory);
         std::fs::create_dir_all(directory).unwrap();
@@ -137,12 +158,17 @@ fn service_boundaries_mixed_protocol_review_and_delta_invalidation() {
             .iter()
             .filter(|e| e.get("service_boundary").is_some())
             .all(
-                |e| e["service_boundary"]["authority"] == "pinned_configuration_assertion"
-                    && e["service_boundary"]["citations"]
+                |e| {
+                    let boundary = &e["service_boundary"];
+                    let assertion = boundary["provenance_ref"].as_str()
+                        .map(|id| &first["service_provenance"]["definitions"][id]).unwrap_or(boundary);
+                    boundary["authority"] == "pinned_configuration_assertion"
+                    && assertion["citations"]
                         .as_array()
                         .unwrap()
                         .iter()
                         .all(|c| c["snapshot"].is_string() && c["commit"].is_string())
+                }
             )
     );
     assert!(

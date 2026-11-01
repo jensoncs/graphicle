@@ -1,4 +1,61 @@
 /** Dependency-free client. Requests never follow redirects or retry mutations. */
+/** Expand packet-local configured assertions, verifying content hashes. */
+export async function materializeServiceProvenance(packet) {
+  const refuse = () => {throw new TypeError("Invalid service provenance; request a full packet");};
+  const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
+  const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(",")}]`
+    : object(value) ? `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${canonical(value[k])}`).join(",")}}` : JSON.stringify(value);
+  const table = packet.service_provenance;
+  let definitions = {};
+  if (table != null) {
+    if (!object(table) || table.format !== "graphicle.service-provenance.v1" || !object(table.definitions)) refuse();
+    definitions = table.definitions;
+    for (const [key, value] of Object.entries(definitions)) {
+      if (!object(value)) refuse();
+      const sha = Array.from(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(canonical(value)))), b => b.toString(16).padStart(2, "0")).join("");
+      if (key !== sha) refuse();
+    }
+  }
+  const expanded = new Map();
+  const expand = (key, depth = 0) => {
+    if (typeof key !== "string" || !Object.hasOwn(definitions, key) || depth > 1) refuse();
+    if (depth && ["source_ref", "target_ref"].some(f => Object.hasOwn(definitions[key], f))) refuse();
+    if (expanded.has(key)) return expanded.get(key);
+    const value = structuredClone(definitions[key]);
+    for (const field of ["source", "target"]) {
+      if (Object.hasOwn(value, `${field}_ref`)) {
+        if (Object.hasOwn(value, field)) refuse();
+        value[field] = expand(value[`${field}_ref`], depth + 1);
+        delete value[`${field}_ref`];
+      }
+    }
+    expanded.set(key, value);
+    return value;
+  };
+  for (const key of Object.keys(definitions)) expand(key);
+  const result = structuredClone(packet);
+  for (const entry of result.entries ?? []) {
+    const boundary = entry.service_boundary;
+    if (object(boundary) && Object.hasOwn(boundary, "provenance_ref")) {
+      const assertion = expand(boundary.provenance_ref);
+      if (!Object.hasOwn(assertion, "citations") || !Object.hasOwn(assertion, "manifest")) refuse();
+      for (const [key, value] of Object.entries(assertion)) {
+        if (!["citations", "manifest"].includes(key) && canonical(boundary[key]) !== canonical(value)) refuse();
+      }
+      boundary.citations = structuredClone(assertion.citations);
+      boundary.manifest = structuredClone(assertion.manifest);
+    }
+    for (const reason of entry.reasons ?? []) for (const step of reason.steps ?? []) {
+      if (Object.hasOwn(step, "provenance_ref")) {
+        if (step.evidence !== "configured_static") refuse();
+        step.provenance = structuredClone(expand(step.provenance_ref));
+      }
+    }
+  }
+  delete result.tokens;
+  return result;
+}
+
 /** Materialize the server's bounded selection from one full packet or delta. */
 export async function applyReviewDelta(previous, packet) {
   const refuse = () => {throw new TypeError("Invalid review delta; request a full packet");};
@@ -42,7 +99,7 @@ export async function applyReviewDelta(previous, packet) {
   for (const c of ["entries", "diffs"]) result[c] = order.filter(id => current.get(id)[0] === c).map(id => structuredClone(current.get(id)[1]));
   result.unchanged = []; result.invalidated = [];
   delete result.tokens;
-  return result;
+  return materializeServiceProvenance(result);
 }
 
 export class GraphicleError extends Error {

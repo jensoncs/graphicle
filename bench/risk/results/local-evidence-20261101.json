@@ -1,0 +1,385 @@
+{
+  "format": "graphicle.risk-pilot-receipt.v1",
+  "date": "2026-11-01",
+  "scope": "authored synthetic local evidence regression; not Sentinel verdict accuracy",
+  "contract": {
+    "format": "graphicle.risk-evidence-pilot.v2",
+    "fixtures_sha256": "26d90ba3aa1d52792c0cf925ac7a895a91bfbe52547bc857858e77d65fc6cecf",
+    "budgets": [
+      4000,
+      32000,
+      64000
+    ],
+    "profile": {
+      "goos": "linux",
+      "goarch": "amd64",
+      "tests": false,
+      "tags": [],
+      "workspace": ""
+    },
+    "max_depth": 16
+  },
+  "binary_sha256": "800a4788aec8f5b6ababa817513ff400ce0c2649b586095944be782c837d94fe",
+  "runner_sha256": "15e87f4637f48d0e0c17e86799fa991dff47e76ca54e89b7ddcee37690ba5074",
+  "baseline_summary_sha256": "d0a3f96cd5f96ff9754d67af8b000acc8c12d6367dcf62f54fc08cb58d90a557",
+  "replay_summary_sha256": "13adbe7b5b4de38ec38c6e2d493b6e8cf5f20dae27bf15e797ddb013103a60bb",
+  "status": "passed",
+  "planned": 49,
+  "completed": 49,
+  "control_checks": 160,
+  "failed_controls": [],
+  "paired_regressions": [],
+  "metrics": {
+    "static/4000/first": {
+      "planned": 6,
+      "completed": 6,
+      "errors": 0,
+      "required": 26,
+      "delivered": 10,
+      "recall": 0.38461538461538464,
+      "forbidden_hits": 0,
+      "tokens_completed": 16819,
+      "latency_ms_completed": {
+        "samples": 6,
+        "median": 5367.623312456999
+      },
+      "phase_ms_sum": {
+        "review_load_base": 14,
+        "review_load_head": 13,
+        "review_native_facts": 29490,
+        "review_analyze_base": 27136,
+        "review_analyze_head": 2694,
+        "review_compare": 43,
+        "review_execution_coverage": 17,
+        "review_pack": 889,
+        "review_service_links_base": 1,
+        "review_service_links_head": 1
+      }
+    },
+    "history/4000/first": {
+      "planned": 6,
+      "completed": 6,
+      "errors": 0,
+      "required": 26,
+      "delivered": 9,
+      "recall": 0.34615384615384615,
+      "forbidden_hits": 0,
+      "tokens_completed": 18272,
+      "latency_ms_completed": {
+        "samples": 6,
+        "median": 654.9216249841265
+      },
+      "phase_ms_sum": {
+        "review_load_base": 13,
+        "review_load_head": 13,
+        "review_compare": 43,
+        "review_execution_coverage": 14,
+        "review_business_context": 791,
+        "review_pack": 364,
+        "review_history_candidates": 6,
+        "review_analyze_base": 1,
+        "review_analyze_head": 1,
+        "review_service_links_base": 1,
+        "review_service_links_head": 1
+      }
+    },
+    "static/32000/first": {
+      "planned": 6,
+      "completed": 6,
+      "errors": 0,
+      "required": 26,
+      "delivered": 23,
+      "recall": 0.8846153846153846,
+      "forbidden_hits": 0,
+      "tokens_completed": 70481,
+      "latency_ms_completed": {
+        "samples": 6,
+        "median": 582.7207705006003
+      },
+      "phase_ms_sum": {
+        "review_load_base": 14,
+        "review_load_head": 14,
+        "review_compare": 42,
+        "review_execution_coverage": 15,
+        "review_pack": 1092,
+        "review_analyze_base": 1,
+        "review_service_links_base": 1,
+        "review_service_links_head": 1
+      }
+    },
+    "history/32000/first": {
+      "planned": 6,
+      "completed": 6,
+      "errors": 0,
+      "required": 26,
+      "delivered": 24,
+      "recall": 0.9230769230769231,
+      "forbidden_hits": 0,
+      "tokens_completed": 89303,
+      "latency_ms_completed": {
+        "samples": 6,
+        "median": 707.9328749678098
+      },
+      "phase_ms_sum": {
+        "review_load_base": 15,
+        "review_load_head": 13,
+        "review_compare": 41,
+        "review_execution_coverage": 16,
+        "review_business_context": 803,
+        "review_pack": 822,
+        "review_history_candidates": 6,
+        "review_analyze_base": 1,
+        "review_service_links_base": 1,
+        "review_service_links_head": 1
+      }
+    },
+    "static/64000/first": {
+      "planned": 6,
+      "completed": 6,
+      "errors": 0,
+      "required": 26,
+      "delivered": 25,
+      "recall": 0.9615384615384616,
+      "forbidden_hits": 0,
+      "tokens_completed": 102620,
+      "latency_ms_completed": {
+        "samples": 6,
+        "median": 631.1510835075751
+      },
+      "phase_ms_sum": {
+        "review_load_base": 13,
+        "review_load_head": 13,
+        "review_compare": 41,
+        "review_execution_coverage": 13,
+        "review_pack": 1271,
+        "review_analyze_base": 1,
+        "review_service_links_base": 1,
+        "review_service_links_head": 1
+      }
+    },
+    "history/64000/first": {
+      "planned": 6,
+      "completed": 6,
+      "errors": 0,
+      "required": 26,
+      "delivered": 26,
+      "recall": 1.0,
+      "forbidden_hits": 0,
+      "tokens_completed": 130193,
+      "latency_ms_completed": {
+        "samples": 6,
+        "median": 709.8567085340619
+      },
+      "phase_ms_sum": {
+        "review_load_base": 15,
+        "review_load_head": 15,
+        "review_compare": 41,
+        "review_execution_coverage": 15,
+        "review_business_context": 802,
+        "review_pack": 1079,
+        "review_history_candidates": 6,
+        "review_analyze_base": 1,
+        "review_service_links_base": 1,
+        "review_service_links_head": 1
+      }
+    },
+    "history/64000/warm": {
+      "planned": 6,
+      "completed": 6,
+      "errors": 0,
+      "required": 26,
+      "delivered": 26,
+      "recall": 1.0,
+      "forbidden_hits": 0,
+      "tokens_completed": 130193,
+      "latency_ms_completed": {
+        "samples": 6,
+        "median": 715.8190209884197
+      },
+      "phase_ms_sum": {
+        "review_load_base": 15,
+        "review_load_head": 15,
+        "review_compare": 41,
+        "review_execution_coverage": 16,
+        "review_business_context": 806,
+        "review_pack": 1086,
+        "review_history_candidates": 6,
+        "review_analyze_base": 1,
+        "review_service_links_base": 1,
+        "review_service_links_head": 1
+      }
+    },
+    "history/64000/timing-off": {
+      "planned": 6,
+      "completed": 6,
+      "errors": 0,
+      "required": 26,
+      "delivered": 26,
+      "recall": 1.0,
+      "forbidden_hits": 0,
+      "tokens_completed": 130193,
+      "latency_ms_completed": {
+        "samples": 6,
+        "median": 703.7065210170113
+      },
+      "phase_ms_sum": {}
+    },
+    "history/64000/depth-zero": {
+      "planned": 1,
+      "completed": 1,
+      "errors": 0,
+      "required": 7,
+      "delivered": 1,
+      "recall": 0.14285714285714285,
+      "forbidden_hits": 0,
+      "tokens_completed": 18358,
+      "latency_ms_completed": {
+        "samples": 1,
+        "median": 786.2088750116527
+      },
+      "phase_ms_sum": {
+        "review_load_base": 3,
+        "review_load_head": 3,
+        "review_analyze_base": 1,
+        "review_service_links_base": 1,
+        "review_service_links_head": 1,
+        "review_compare": 2,
+        "review_execution_coverage": 2,
+        "review_business_context": 130,
+        "review_pack": 102
+      }
+    }
+  },
+  "history_treatment": [
+    {
+      "case": "tenant-guard",
+      "budget": 4000,
+      "status": "measured",
+      "gained_labels": [],
+      "lost_labels": [
+        1
+      ],
+      "token_delta": 36,
+      "by_kind": {
+        "history": {
+          "required": 1,
+          "before": 0,
+          "after": 0
+        },
+        "observation": {
+          "required": 1,
+          "before": 1,
+          "after": 1
+        },
+        "source": {
+          "required": 2,
+          "before": 2,
+          "after": 1
+        }
+      }
+    },
+    {
+      "case": "tenant-guard",
+      "budget": 32000,
+      "status": "measured",
+      "gained_labels": [
+        2
+      ],
+      "lost_labels": [],
+      "token_delta": 4359,
+      "by_kind": {
+        "history": {
+          "required": 1,
+          "before": 0,
+          "after": 1
+        },
+        "observation": {
+          "required": 1,
+          "before": 1,
+          "after": 1
+        },
+        "source": {
+          "required": 2,
+          "before": 2,
+          "after": 2
+        }
+      }
+    },
+    {
+      "case": "tenant-guard",
+      "budget": 64000,
+      "status": "measured",
+      "gained_labels": [
+        2
+      ],
+      "lost_labels": [],
+      "token_delta": 4361,
+      "by_kind": {
+        "history": {
+          "required": 1,
+          "before": 0,
+          "after": 1
+        },
+        "observation": {
+          "required": 1,
+          "before": 1,
+          "after": 1
+        },
+        "source": {
+          "required": 2,
+          "before": 2,
+          "after": 2
+        }
+      }
+    }
+  ],
+  "service_packet_bytes": {
+    "4000": {
+      "text": 32,
+      "reasons": 102,
+      "business_context": 0,
+      "service_boundary": 0,
+      "execution_observations": 0
+    },
+    "32000": {
+      "text": 114,
+      "reasons": 25274,
+      "business_context": 10923,
+      "service_boundary": 12800,
+      "execution_observations": 0
+    },
+    "64000": {
+      "text": 262,
+      "reasons": 76104,
+      "business_context": 15321,
+      "service_boundary": 19646,
+      "execution_observations": 0
+    }
+  },
+  "unmeasured": [
+    "sentinel_risk_accuracy",
+    "production_hotness",
+    "business_criticality",
+    "real_query_quality",
+    "model_tokens",
+    "production_latency"
+  ],
+  "validation": {
+    "measurement_unit_tests": 11,
+    "pinned_review_integration_tests": 34,
+    "dependency_policy": {
+      "licenses": "passed",
+      "bans": "passed",
+      "sources": "passed",
+      "advisories": "failed",
+      "unchanged_lockfile_finding": "libz-sys 1.1.29: RUSTSEC-2026-0418"
+    }
+  },
+  "interpretation": [
+    "All 26 labelled evidence items were delivered by the history arm at 64000 tokens on these authored fixtures.",
+    "History at 4000 tokens lost one required caller without delivering the labelled historical assertion.",
+    "Service inclusion reasons dominate source-text bytes; byte counts are compact JSON field values, not token attribution.",
+    "No Sentinel R0-R3 verdict or real-world risk-prediction accuracy was evaluated."
+  ],
+  "privacy": "Raw outputs and private seed stores remain local and are not included in this receipt."
+}

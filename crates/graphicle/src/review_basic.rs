@@ -534,6 +534,7 @@ mod tests {
     }
     fn report(base: &Input, head: &Input) -> Value {
         let request = Request {
+            compact_provenance: false,
             repository_id: "repo".into(),
             base: vec![],
             head: vec![],

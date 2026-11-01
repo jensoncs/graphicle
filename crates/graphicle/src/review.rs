@@ -23,6 +23,8 @@ mod services;
 mod flows;
 #[path = "review_basic.rs"]
 mod basic;
+#[path = "review_provenance.rs"]
+mod provenance;
 
 const FORMAT: &str = "graphicle.review.v1";
 const MAX_SOURCE_BYTES: usize = 64 * 1024 * 1024;
@@ -80,6 +82,9 @@ pub struct Request {
     /// Request-local historical assertions and conservative static domain cues.
     #[serde(default)]
     pub business_context: Option<crate::business_context::Options>,
+    /// Share repeated configured-service assertions within this packet.
+    #[serde(default)]
+    pub compact_provenance: bool,
     /// Opt in to source bodies referenced from the previous validated receipt.
     #[serde(default)]
     pub reuse_text: bool,
@@ -1263,7 +1268,69 @@ fn pack(
     previous: Option<&Value>,
     scopes: Option<&reuse::Scopes>,
 ) -> Result<(Value, Value)> {
+    let compact = report.as_object_mut().unwrap().remove("_compact_provenance") == Some(json!(true));
+    let has_service_steps = compact && report["entries"].as_array().into_iter().flatten().any(|e| {
+        e["reasons"].as_array().into_iter().flatten().any(|r| {
+            r["steps"].as_array().into_iter().flatten().any(|step| step.get("provenance").is_some() && step["evidence"] == "configured_static")
+        })
+    });
+    if !compact || !has_service_steps {
+        return pack_encoding(report, max_tokens, previous, scopes, false).map(|(p, r, _)| (p, r));
+    }
+    let shared = crate::phase::phase("review_pack_compact", || {
+        pack_encoding(report.clone(), max_tokens, None, scopes, true)
+    });
+    if shared.as_ref().is_ok_and(|(packet, _, _)| packet.get("service_provenance").is_none()) {
+        if previous.is_some() {
+            return pack_encoding(report, max_tokens, previous, scopes, false).map(|(p, r, _)| (p, r));
+        }
+        return shared.map(|(p, r, _)| (p, r));
+    }
+    // A table can save globally while costing too much for the few entries that
+    // fit a small budget. Compare bounded selections, independent of the prior
+    // receipt or delta wire size, and automatically keep the more useful format.
+    let inline = crate::phase::phase("review_pack_inline", || {
+        pack_encoding(report.clone(), max_tokens, None, scopes, false)
+    });
+    let quality = |packet: &Value, receipt: &Value| (
+        packet["coverage"]["current_head"]["selected"].as_u64().unwrap_or(0),
+        packet["coverage"]["call_contracts"]["selected"].as_u64().unwrap_or(0),
+        packet["coverage"]["callers"]["selected"].as_u64().unwrap_or(0),
+        receipt["entries"].as_array().unwrap().len(),
+    );
+    let (chosen, shared_encoding) = match (shared, inline) {
+        (Ok(shared), Ok(inline)) => {
+            let a = quality(&shared.0, &shared.1);
+            let b = quality(&inline.0, &inline.1);
+            if a > b || (a == b && shared.2 < inline.2) { (shared, true) } else { (inline, false) }
+        }
+        (Ok(shared), Err(_)) => (shared, true),
+        (_, Ok(inline)) => (inline, false),
+        (Err(error), Err(_)) => return Err(error),
+    };
+    if previous.is_some() {
+        // Delta controls must fit this same selection. If they do not, return
+        // the usual full-packet error instead of switching representations.
+        return crate::phase::phase("review_pack_delta", || {
+            pack_encoding(report, max_tokens, previous, scopes, shared_encoding)
+                .map(|(p, r, _)| (p, r))
+        });
+    }
+    Ok((chosen.0, chosen.1))
+}
+
+fn pack_encoding(
+    mut report: Value,
+    max_tokens: usize,
+    previous: Option<&Value>,
+    scopes: Option<&reuse::Scopes>,
+    compact: bool,
+) -> Result<(Value, Value, usize)> {
     let mut entries = std::mem::take(report["entries"].as_array_mut().unwrap());
+    let provenance = if compact {
+        crate::phase::phase("review_compact_provenance", || provenance::Catalog::prepare(&mut entries))
+    } else { provenance::Catalog::default() };
+    provenance.emit(&mut report, &BTreeSet::new());
     // Optional annotations are upgrades to code, never part of the cost that
     // decides whether a required current declaration fits.
     let mut business = BTreeMap::new();
@@ -1304,6 +1371,7 @@ fn pack(
     });
     let required_head = entries.iter().filter(|e| is_head_change(e)).count();
     let required_contracts = entries.iter().filter(|e| is_call_contract(e)).count();
+    let required_callers = entries.iter().filter(|e| is_call_consumer(e)).count();
     report["coverage"]["required_entries"] = json!(entries.len());
     report["coverage"]["required_diffs"] = json!(diffs.len());
     let total = entries.len() + diffs.len();
@@ -1330,6 +1398,9 @@ fn pack(
     report["coverage"]["current_head"] =
         json!({"required":required_head,"selected":0,"usable":required_head==0});
     report["coverage"]["call_contracts"] = json!({"required":required_contracts,"selected":0,"complete":required_contracts==0,"scope":"immediate pinned targets of discarded-error calls; may_call targets are candidates"});
+    if required_callers > 0 {
+        report["coverage"]["callers"] = json!({"required":required_callers,"selected":0,"complete":false,"scope":"immediate current-head invocation consumers; candidates are not proven runtime callers"});
+    }
     // The canonical full selection is independent of the prior receipt. A delta
     // describes this same bounded view; it cannot accumulate an unbounded view
     // of cheap, previously shown entries. Round-robin gives base/deletions and
@@ -1337,9 +1408,14 @@ fn pack(
     let mut buckets: [std::collections::VecDeque<Value>; 8] =
         std::array::from_fn(|_| std::collections::VecDeque::new());
     let mut contracts = vec![];
+    let mut callers = vec![];
     for entry in entries {
         if is_call_contract(&entry) {
             contracts.push(entry);
+            continue;
+        }
+        if is_call_consumer(&entry) {
+            callers.push(entry);
             continue;
         }
         let reasons = entry["reasons"].as_array();
@@ -1373,6 +1449,7 @@ fn pack(
     // round-robin turn. Reserve a soft hunk allowance before filling context.
     candidates.extend(buckets[0].drain(..).map(|e| ("entries", e)));
     candidates.extend(contracts.into_iter().map(|e| ("entries", e)));
+    candidates.extend(callers.into_iter().map(|e| ("entries", e)));
     candidates.extend(diffs.into_iter().map(|d| ("diffs", d)));
     while buckets[1..6].iter().any(|b| !b.is_empty()) {
         for bucket in &mut buckets[1..6] {
@@ -1391,26 +1468,32 @@ fn pack(
     let mut candidates: Vec<_> = candidates
         .into_iter()
         .map(|(collection, entry)| {
-            let cost = if collection == "diffs" || is_head_change(&entry) || is_call_contract(&entry) {
+            let cost = if collection == "diffs" || is_required_code(&entry) {
                 PackingCost::measured(&entry)
             } else { PackingCost::default() };
             (collection, entry, cost)
         })
         .collect();
     report["execution_flows"] = json!({"paths":[],"coverage":{"complete":false,"observed_execution_available":false,"selection":"selected_invocation_segments","omitted":0,"max_paths":16}});
-    let required_cost = |entries: &[(&str, Value, PackingCost)]| entries.iter().filter(|(_, e, _)| is_head_change(e) || is_call_contract(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
+    let required_cost = |entries: &[(&str, Value, PackingCost)]| entries.iter().filter(|(_, e, _)| is_required_code(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
+    let required_refs = |entries: &[(&str, Value, PackingCost)]| entries.iter()
+        .filter(|(_, e, _)| is_required_code(e))
+        .flat_map(|(_, e, _)| provenance.references(e, flow_annotations.get(s(e, "id"))))
+        .collect::<BTreeSet<_>>();
     let metadata_cost = text::count(&report.to_string()) + 384;
     // Reserve room for whole history blocks when requested, before spending
     // tokens on repeated change/path examples. This never removes source text.
     let history_reserve = if business.is_empty() { 0 } else { max_tokens / 8 };
-    if metadata_cost + required_cost(&candidates) + history_reserve > max_tokens {
+    if metadata_cost + required_cost(&candidates) + provenance.cost(&required_refs(&candidates)) + history_reserve > max_tokens {
         compact_required_metadata(&mut report, &mut candidates);
     }
     let mut used = text::count(&report.to_string()) + 384;
     let requested_diff_reserve = candidates.iter().filter(|(c, _, _)| *c == "diffs").map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>().min(max_tokens / 4);
     let head_cost = candidates.iter().filter(|(_, e, _)| is_head_change(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
     let contract_cost = candidates.iter().filter(|(_, e, _)| is_call_contract(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
-    let optional_capacity = max_tokens.saturating_sub(used).saturating_sub(head_cost).saturating_sub(contract_cost);
+    let caller_cost = candidates.iter().filter(|(_, e, _)| is_call_consumer(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
+    let required_provenance_cost = provenance.cost(&required_refs(&candidates));
+    let optional_capacity = max_tokens.saturating_sub(used).saturating_sub(head_cost).saturating_sub(contract_cost).saturating_sub(caller_cost).saturating_sub(required_provenance_cost);
     // Required declarations and call contracts are reserved first. Preserve an
     // affordable complete hunk before spending optional capacity on history.
     // A fixed half-budget split needlessly excludes whole history blocks; no
@@ -1435,6 +1518,8 @@ fn pack(
         max_tokens
             .saturating_sub(minimum_head_tokens)
             .saturating_sub(contract_cost)
+            .saturating_sub(caller_cost)
+            .saturating_sub(required_provenance_cost)
             .saturating_sub(business_used)
             .min(max_tokens / 16)
     } else {
@@ -1448,7 +1533,11 @@ fn pack(
     let mut selected = vec![];
     let mut diff_used = 0;
     let mut deferred = vec![];
+    let mut selected_refs = BTreeSet::new();
     for (collection, entry, mut cost) in candidates {
+        let refs = provenance.references(&entry, flow_annotations.get(s(&entry, "id")));
+        let added: BTreeSet<_> = refs.difference(&selected_refs).cloned().collect();
+        let shared_cost = provenance.cost(&added);
         let limit = if is_head_change(&entry) {
             max_tokens.saturating_sub(diff_reserve)
         } else {
@@ -1457,12 +1546,13 @@ fn pack(
         let allowance = limit.saturating_sub(used).min(if collection == "diffs" {
             diff_reserve.saturating_sub(diff_used)
         } else { usize::MAX });
-        let Some(measured) = cost.within(&entry, allowance) else {
+        let Some(measured) = cost.within(&entry, allowance.saturating_sub(shared_cost)) else {
             deferred.push((collection, entry, cost));
             continue;
         };
         let cost = measured;
-        used += cost;
+        used += cost + shared_cost;
+        selected_refs.extend(refs);
         if collection == "diffs" {
             diff_used += cost;
         }
@@ -1470,13 +1560,17 @@ fn pack(
     }
     // Reclaim unused reservations in priority order, without re-tokenizing.
     for (collection, entry, mut cost) in deferred {
+        let refs = provenance.references(&entry, flow_annotations.get(s(&entry, "id")));
+        let added: BTreeSet<_> = refs.difference(&selected_refs).cloned().collect();
+        let shared_cost = provenance.cost(&added);
         let limit = if is_head_change(&entry) {
             max_tokens
         } else {
             max_tokens.saturating_sub(flow_reserve)
         };
-        if let Some(cost) = cost.within(&entry, limit.saturating_sub(used)) {
-            used += cost;
+        if let Some(cost) = cost.within(&entry, limit.saturating_sub(used).saturating_sub(shared_cost)) {
+            used += cost + shared_cost;
+            selected_refs.extend(refs);
             selected.push((collection, entry));
         }
     }
@@ -1488,6 +1582,11 @@ fn pack(
     let contracts_selected = selected.iter().filter(|(_, e)| is_call_contract(e)).count();
     report["coverage"]["call_contracts"]["selected"] = json!(contracts_selected);
     report["coverage"]["call_contracts"]["complete"] = json!(contracts_selected == required_contracts);
+    if required_callers > 0 {
+        let selected_callers = selected.iter().filter(|(_, e)| is_call_consumer(e)).count();
+        report["coverage"]["callers"]["selected"] = json!(selected_callers);
+        report["coverage"]["callers"]["complete"] = json!(selected_callers == required_callers);
+    }
     report["coverage"]["budget_omitted"] = json!(total - selected.len());
     if total != selected.len() {
         report["coverage"]["complete"] = json!(false);
@@ -1540,7 +1639,12 @@ fn pack(
         report["business_context"]["packing"]["omitted_entries"] = json!(business.len() - retained);
         report["business_context"]["packing"]["refill_tokens"] = json!(refilled);
         report["business_context"]["packing"]["used_tokens"] = json!(retained_business + refilled);
+        used += refilled;
     }
+    // Include the complete table for this bounded view, including unchanged
+    // delta entries. No definition depends on a prior packet's hidden state.
+    let actual_refs = selected.iter().flat_map(|(_, e)| provenance.references(e, None)).collect();
+    provenance.emit(&mut report, &actual_refs);
     report["context_order"] = json!(
         selected
             .iter()
@@ -1601,7 +1705,7 @@ fn pack(
         ));
     }
     let receipt = json!({"packet_id":report["packet_id"],"entries":receipts,"base":report["base"],"head":report["head"],"profile":report["profile"],"coverage_complete":report["coverage"]["complete"],"review_context_sha256":report["review_reuse"]["context_sha256"]});
-    Ok((report, receipt))
+    Ok((report, receipt, used + flow_used))
 }
 
 fn is_call_contract(entry: &Value) -> bool {
@@ -1610,6 +1714,20 @@ fn is_call_contract(entry: &Value) -> bool {
             && r["path"].as_array().is_some_and(|p| p.len() == 2)
             && r["steps"].as_array().is_some_and(|steps| steps.iter().any(|s| s["discarded_error"] == true && matches!(s["relation"].as_str(), Some("calls" | "may_call")))))
     })
+}
+
+fn is_call_consumer(entry: &Value) -> bool {
+    entry["side"] == "head" && !is_head_change(entry) && !is_call_contract(entry)
+        && entry["reasons"].as_array().is_some_and(|reasons| reasons.iter().any(|r| {
+            r["reason"] == "potential_consumer" && r["uncertain_scope"] != true
+                && r["path"].as_array().is_some_and(|p| p.len() == 2)
+                && r["steps"].as_array().is_some_and(|steps| steps.len() == 1
+                    && matches!(steps[0]["relation"].as_str(), Some("calls" | "may_call")))
+        }))
+}
+
+fn is_required_code(entry: &Value) -> bool {
+    is_head_change(entry) || is_call_contract(entry) || is_call_consumer(entry)
 }
 
 fn is_head_change(entry: &Value) -> bool {
@@ -1930,6 +2048,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     });
     report["review_reuse"] = json!({"eligible":reusable,"requested":r.reviewed_entries.len(),"context_sha256":context_sha,"not_a_review_verdict":true,"policy":"resolved_component_with_complete_context_v1"});
     report["text_reuse"] = json!(r.reuse_text);
+    if r.compact_provenance { report["_compact_provenance"] = json!(true); }
     let (mut report, receipt) = crate::phase::phase("review_pack", || {
         pack(report, r.max_tokens, previous.as_ref(), Some(&scopes))
     })?;
@@ -2019,7 +2138,7 @@ pub(crate) fn pin_schema() -> Value {
 }
 pub fn properties() -> Value {
     let pin = pin_schema();
-    json!({"base":{"type":"array","items":pin,"minItems":1,"maxItems":64},"head":{"type":"array","items":pin,"minItems":1,"maxItems":64},"profile":{"type":"object","properties":{"goos":{"type":"string"},"goarch":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}},"tests":{"type":"boolean"},"workspace":{"type":"string"}},"required":["goos","goarch"],"additionalProperties":false},"max_depth":{"type":"integer","minimum":0,"maximum":32},"max_tokens":{"type":"integer","minimum":512,"maximum":64000},"previous_packet_id":{"type":"string"},"reuse_text":{"type":"boolean"},"reviewed_entries":{"type":"array","maxItems":1000,"items":{"type":"string"}},"business_context":crate::business_context::schema(),"repo":{"type":"string"}})
+    json!({"base":{"type":"array","items":pin,"minItems":1,"maxItems":64},"head":{"type":"array","items":pin,"minItems":1,"maxItems":64},"profile":{"type":"object","properties":{"goos":{"type":"string"},"goarch":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}},"tests":{"type":"boolean"},"workspace":{"type":"string"}},"required":["goos","goarch"],"additionalProperties":false},"max_depth":{"type":"integer","minimum":0,"maximum":32},"max_tokens":{"type":"integer","minimum":512,"maximum":64000},"previous_packet_id":{"type":"string"},"reuse_text":{"type":"boolean"},"compact_provenance":{"type":"boolean","description":"Share repeated pinned service assertions when beneficial; clients must support service_provenance references"},"reviewed_entries":{"type":"array","maxItems":1000,"items":{"type":"string"}},"business_context":crate::business_context::schema(),"repo":{"type":"string"}})
 }
 
 #[cfg(test)]
@@ -2035,6 +2154,26 @@ mod tests {
         assert_eq!(lazy.within(&entry, 20), None);
         assert_eq!(lazy.within(&entry, expected), Some(expected));
         assert_eq!(lazy.within(&entry, expected - 1), None);
+    }
+
+    #[test]
+    fn immediate_caller_precedes_optional_history_and_reports_omissions() {
+        let changed = json!({"id":"changed","side":"head","revision":"r","text":"func Check() bool { return false }",
+            "reasons":[{"reason":"change_seed"}],
+            "business_context":{"historical_assertions":[{"subject":"Past behavior ".repeat(400)}]}});
+        let caller = json!({"id":"caller","side":"head","revision":"r","text":"func Handler() { if Check() { publish() } }",
+            "reasons":[{"reason":"potential_consumer","path":["changed","caller"],"steps":[{"relation":"calls"}]}]});
+        let report = json!({"entries":[changed,caller],"diffs":[],"changes":[],"business_context":{},
+            "package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]}});
+        let (packet, _) = pack(report.clone(), 2048, None, None).unwrap();
+        assert_eq!(packet["coverage"]["current_head"]["complete"], true);
+        assert_eq!(packet["coverage"]["callers"]["complete"], true);
+        assert!(packet["entries"].as_array().unwrap().iter().any(|e| e["id"] == "caller"));
+        let mut huge = report;
+        huge["entries"][1]["text"] = json!("large body ".repeat(8000));
+        let (packet, _) = pack(huge, 2048, None, None).unwrap();
+        assert_eq!(packet["coverage"]["callers"]["complete"], false);
+        assert_eq!(packet["coverage"]["complete"], false);
     }
 
     #[test]

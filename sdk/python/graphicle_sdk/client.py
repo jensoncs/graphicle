@@ -432,6 +432,7 @@ class Project:
                previous_packet_id: Optional[str] = None,
                business_context: Optional[Mapping[str, Any]] = None,
                reuse_text: Optional[bool] = None,
+               compact_provenance: Optional[bool] = None,
                reviewed_entries: Optional[Sequence[str]] = None) -> Dict[str, Any]:
         """Review pinned snapshot sets using an explicit Go build profile.
 
@@ -441,6 +442,8 @@ class Project:
         Episode-only extension contracts remain accessible through command().
         business_context={} adds static domain candidates; its optional history
         array carries pinned, caller-attested Git assertions from review-history.
+        compact_provenance=True lets the server share repeated service assertions
+        automatically. apply_review_delta restores the inline citation view.
         """
         for pins in (base, head):
             if (isinstance(pins, (str, bytes)) or not isinstance(pins, Sequence)
@@ -453,6 +456,7 @@ class Project:
                             **_present({"max_depth": max_depth, "max_tokens": max_tokens,
                                         "previous_packet_id": previous_packet_id,
                                         "business_context": business_context, "reuse_text": reuse_text,
+                                        "compact_provenance": compact_provenance,
                                         "reviewed_entries": reviewed_entries}))
 
     def export_memories(self) -> Dict[str, Any]:

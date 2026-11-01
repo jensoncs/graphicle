@@ -1,6 +1,71 @@
 """Materialize one bounded review view without requesting a second full packet."""
 import copy
 import hashlib
+import json
+
+
+def materialize_service_provenance(packet):
+    """Expand verified packet-local service references without changing the input.
+
+    Keep provenance_ref so an unchanged delta entry is revalidated against the
+    new packet's complete table. Expanded prompt size differs from wire tokens.
+    """
+    def refuse():
+        raise ValueError("Invalid service provenance; request a full packet")
+
+    table = packet.get("service_provenance")
+    definitions = {}
+    if table is not None:
+        if not isinstance(table, dict) or table.get("format") != "graphicle.service-provenance.v1":
+            refuse()
+        definitions = table.get("definitions")
+        if not isinstance(definitions, dict):
+            refuse()
+        for key, value in definitions.items():
+            if (not isinstance(value, dict) or hashlib.sha256(json.dumps(value, sort_keys=True,
+                    separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode()).hexdigest() != key):
+                refuse()
+    expanded = {}
+
+    def expand(key, depth=0):
+        if not isinstance(key, str) or key not in definitions or depth > 1:
+            refuse()
+        if depth and any(field in definitions[key] for field in ("source_ref", "target_ref")):
+            refuse()
+        if key in expanded:
+            return expanded[key]
+        value = copy.deepcopy(definitions[key])
+        for field in ("source", "target"):
+            if field + "_ref" in value:
+                ref = value.pop(field + "_ref")
+                if field in value:
+                    refuse()
+                value[field] = expand(ref, depth + 1)
+        expanded[key] = value
+        return value
+
+    for key in definitions:
+        expand(key)
+    result = copy.deepcopy(packet)
+    for entry in result.get("entries", []):
+        boundary = entry.get("service_boundary")
+        if isinstance(boundary, dict) and "provenance_ref" in boundary:
+            assertion = expand(boundary["provenance_ref"])
+            if "citations" not in assertion or "manifest" not in assertion:
+                refuse()
+            for key, value in assertion.items():
+                if key not in ("citations", "manifest") and boundary.get(key) != value:
+                    refuse()
+            boundary["citations"] = copy.deepcopy(assertion["citations"])
+            boundary["manifest"] = copy.deepcopy(assertion["manifest"])
+        for reason in entry.get("reasons") or []:
+            for step in reason.get("steps") or []:
+                if "provenance_ref" in step:
+                    if step.get("evidence") != "configured_static":
+                        refuse()
+                    step["provenance"] = copy.deepcopy(expand(step["provenance_ref"]))
+    result.pop("tokens", None)
+    return result
 
 
 def apply_review_delta(previous, packet):
@@ -67,4 +132,4 @@ def apply_review_delta(previous, packet):
         result[collection] = [copy.deepcopy(current[key][1]) for key in order if current[key][0] == collection]
     result["unchanged"], result["invalidated"] = [], []
     result.pop("tokens", None)  # Wire token count is not the reconstructed prompt's cost.
-    return result
+    return materialize_service_provenance(result)

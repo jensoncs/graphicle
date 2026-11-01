@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import platform
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -18,10 +19,10 @@ from fixtures import suite
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "sdk/python"))
-from graphicle_sdk import LocalServer
+from graphicle_sdk import LocalServer, materialize_service_provenance
 
 PROFILE = {"goos": "linux", "goarch": "amd64", "tests": False, "tags": [], "workspace": ""}
-FORMAT = "graphicle.risk-evidence-pilot.v1"
+FORMAT = "graphicle.risk-evidence-pilot.v2"
 PHASE = re.compile(r"^phase=(\w+) ms=(\d+)(?: rss_mb=([\d.]+) peak_rss_mb=([\d.]+))?$")
 
 
@@ -35,6 +36,18 @@ def digest(value):
 
 def save(path, value):
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+
+
+def seed_digest(path):
+    files = []
+    if not path.is_dir() or path.is_symlink():
+        raise ValueError("Missing or linked seed store")
+    for item in sorted(path.rglob("*")):
+        if item.is_symlink():
+            raise ValueError("Seed stores cannot contain links")
+        if item.is_file():
+            files.append([item.relative_to(path).as_posix(), digest(item.read_bytes())])
+    return digest(encoded(files))
 
 
 def phases(stderr):
@@ -58,6 +71,7 @@ def verify_packet(packet, request, sources):
         raise ValueError("Pilot scores full packets only")
     if type(packet.get("tokens")) is not int or not 0 <= packet["tokens"] <= request["max_tokens"]:
         raise ValueError("Invalid packet token count")
+    materialize_service_provenance(packet)  # Reject corrupt, missing or cyclic references.
     for entry in packet["entries"]:
         if entry.get("service_boundary"):
             continue  # Boundary assertions are scored separately, not as source excerpts.
@@ -104,10 +118,32 @@ def diagnose(packet, labels, repositories, history_requested):
             "execution_flows": packet.get("execution_flows", {}).get("coverage"),
             "service_graph": packet.get("service_graph"),
             "selected_entries": len(packet["entries"]),
+            "service_provenance_bytes": len(encoded(packet["service_provenance"])) if "service_provenance" in packet else 0,
+            "service_provenance_definitions": len(packet.get("service_provenance", {}).get("definitions", {})),
+            "entry_field_bytes": {field: sum(len(encoded(e[field])) for e in packet["entries"] if field in e)
+                for field in ("text", "reasons", "business_context", "service_boundary", "execution_observations")},
+            "byte_accounting": "Compact JSON field values; excludes keys/envelope. Not additive token attribution.",
             "selected_by_reason": dict(Counter(r.get("reason", "unknown")
                 for e in packet["entries"] for r in e.get("reasons", []))),
             "business_criticality": "unassessed", "production_hotness": "unassessed",
             "risk_verdict": "unmeasured", "may_lower_sentinel_risk": False}
+
+
+def evidence_request_hash(request):
+    return digest(encoded({k: v for k, v in request.items() if k != "compact_provenance"}))
+
+
+def load_baseline(path):
+    """Verify saved exact requests before enabling a serialization-only comparison."""
+    summary = json.loads(path.read_text())
+    for row in summary["runs"]:
+        if row["status"] != "ok":
+            continue
+        request = json.loads((path.parent / row["id"] / "request.json").read_text())
+        if digest(encoded(request)) != row["request_sha256"]:
+            raise ValueError("Baseline request integrity failed")
+        row["evidence_request_sha256"] = evidence_request_hash(request)
+    return summary
 
 
 def compare(current, previous):
@@ -120,6 +156,11 @@ def compare(current, previous):
         if new is None or (old["status"] == "ok" and new["status"] != "ok"):
             findings.append({"id": old["id"], "reason": "missing_or_failed_run"})
         elif old["status"] == "ok" and new["status"] == "ok":
+            if old.get("request_sha256") != new.get("request_sha256"):
+                if (current.get("comparison") != "allow_compact_provenance_only"
+                        or not old.get("evidence_request_sha256")
+                        or old["evidence_request_sha256"] != new.get("evidence_request_sha256")):
+                    raise ValueError("Paired requests differ; replay the same seed stores and pins")
             lost = sorted(set(old["delivered_labels"]) - set(new["delivered_labels"]))
             if lost:
                 findings.append({"id": old["id"], "reason": "evidence_lost", "labels": lost})
@@ -149,9 +190,45 @@ def rollup(runs):
     return result
 
 
+def treatment_comparisons(runs, cases):
+    """Equal-budget paired evidence changes, separate from cross-binary regressions."""
+    index = {(r["case"], r["budget"], r["variant"]): r for r in runs if r["sample"] == "first"}
+    labels = {c["id"]: c["labels"] for c in cases}
+    result = []
+    for case, budget in sorted({(r["case"], r["budget"]) for r in runs if r["sample"] == "first"}):
+        before, after = index.get((case, budget, "static")), index.get((case, budget, "history"))
+        row = {"case": case, "budget": budget, "status": "unavailable"}
+        if before and after and before["status"] == after["status"] == "ok":
+            a, b = set(before["delivered_labels"]), set(after["delivered_labels"])
+            row.update(status="measured", gained_labels=sorted(b - a), lost_labels=sorted(a - b),
+                token_delta=after["tokens"] - before["tokens"],
+                by_kind={kind: {"required": sum(l["kind"] == kind for l in labels[case]),
+                    "before": sum(labels[case][i]["kind"] == kind for i in a),
+                    "after": sum(labels[case][i]["kind"] == kind for i in b)}
+                    for kind in sorted({l["kind"] for l in labels[case]})})
+        result.append(row)
+    return result
+
+
+def planned_runs(cases, budgets):
+    rows = []
+    for case in cases:
+        cells = [(variant, budget, "first") for budget in budgets for variant in ("static", "history")]
+        cells += [("history", max(budgets), sample) for sample in ("warm", "timing-off")]
+        if case["id"] == "service-chain":
+            cells.append(("history", max(budgets), "depth-zero"))
+        for variant, budget, sample in cells:
+            rows.append({"id": f'{case["id"]}/{variant}-{budget}-{sample}', "case": case["id"],
+                "variant": variant, "budget": budget, "sample": sample, "required": len(case["labels"]),
+                "status": "not_run", "delivered_labels": [], "forbidden_hits": 0})
+    return rows
+
+
 class Pilot:
-    def __init__(self, binary, output, budgets, timeout):
+    def __init__(self, binary, output, budgets, timeout, baseline=None, compact_provenance=False):
         self.binary, self.output, self.budgets, self.timeout = binary, output, budgets, timeout
+        self.baseline = baseline.resolve(strict=True) if baseline else None
+        self.compact_provenance = compact_provenance
         self.env = {k: v for k, v in os.environ.items() if k in
                     ("PATH", "TMPDIR", "TEMP", "TMP", "SystemRoot", "ComSpec", "PATHEXT", "SDKROOT")}
         self.env.update(GRAPHICLE_NO_UPDATE_NOTIFIER="1", GOPROXY="off", GOSUMDB="off",
@@ -163,8 +240,10 @@ class Pilot:
             "contract": {"format": FORMAT, "fixtures_sha256": digest(encoded(data)), "budgets": budgets,
                          "profile": PROFILE, "max_depth": 16},
             "binary_sha256": digest(binary.read_bytes()), "runner_sha256": digest(Path(__file__).read_bytes()),
+            "serialization": {"compact_provenance": compact_provenance},
+            "comparison": "allow_compact_provenance_only" if compact_provenance else "exact_request",
             "platform": platform.platform(), "python": platform.python_version(),
-            "runs": [], "checks": [], "unmeasured": ["sentinel_risk_accuracy", "production_hotness",
+            "runs": planned_runs(self.cases, budgets), "checks": [], "unmeasured": ["sentinel_risk_accuracy", "production_hotness",
                 "business_criticality", "real_query_quality", "model_tokens", "production_latency"]}
 
     def command(self, args, timing=False):
@@ -174,6 +253,75 @@ class Pilot:
                            text=True, timeout=self.timeout)
         return p, (time.monotonic() - started) * 1000
 
+    def prepare(self, case, out, root, config, store):
+        base, head, repositories, sources, histories = [], [], {}, {}, []
+        setup_started = time.monotonic()
+        with LocalServer(self.binary, store, config, env=self.env, timeout=self.timeout) as client:
+            for spec in case["repositories"]:
+                project = client.project(spec["name"])
+                repositories[spec["name"]] = project.id
+                checkout = root / spec["name"]
+                checkout.mkdir()
+
+                def git(*args):
+                    return subprocess.check_output(["git", "-C", str(checkout), "-c", "user.name=Pilot",
+                        "-c", "user.email=pilot@example.invalid", "-c", "core.hooksPath=/dev/null",
+                        "-c", "commit.gpgsign=false", *args], env={**self.env,
+                        "GIT_AUTHOR_DATE": "2001-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2001-01-01T00:00:00Z"},
+                        stderr=subprocess.PIPE, timeout=self.timeout).decode().strip()
+
+                git("init", "-q")
+                for side, pins in (("base", base), ("head", head)):
+                    files = spec[side]
+                    for old in set(spec["base"]) - set(files):
+                        (checkout / old).unlink(missing_ok=True)
+                    for name, body in files.items():
+                        path = checkout / name
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        path.write_text(body, encoding="utf-8")
+                        sources[(side, project.id, name)] = body
+                    git("add", "--all")
+                    subject = spec.get("base_subject", "Initial pilot behavior") if side == "base" else "Proposed pilot change"
+                    git("commit", "--allow-empty", "-qm", subject + "\n\nCo-authored-by: Codex <noreply@openai.com>")
+                    policy = digest(b"complete authored synthetic fixture inventory v1")
+                    commit = git("rev-parse", "HEAD")
+                    begin = project.command("sync.prepare", expected_snapshot=project.status()["repository"]["snapshot"],
+                        metadata={"commit": commit, "policy_sha256": policy, "scope_complete": True},
+                        manifest=[{"path": p, "sha256": digest(c.encode()), "bytes": len(c.encode())} for p, c in files.items()])
+                    if begin.get("sync_id"):
+                        project.command("sync.upload", sync_id=begin["sync_id"],
+                                        files=[{"path": p, "content": c} for p, c in files.items()])
+                        project.command("sync.commit", sync_id=begin["sync_id"])
+                    pin = {"repository_id": project.id, "directory": spec["name"], "commit": commit,
+                           "snapshot": begin["snapshot"], "policy_sha256": policy, "modules": ["."]}
+                    pins.append(pin)
+                    pin_path = root / f'{spec["name"]}-{side}.json'
+                    save(pin_path, pin)
+                    history_args = ["review-history", "--path", str(checkout), "--pin", str(pin_path), "--analyze"]
+                    for name in files:
+                        if name.endswith(".go"):
+                            history_args += ["--file", name]
+                    p, ms = self.command(history_args, timing=True)
+                    if p.returncode:
+                        raise RuntimeError(f"History collection exited {p.returncode}")
+                    history = json.loads(p.stdout)
+                    histories.append(history)
+                    save(out / f'{spec["name"]}-{side}-history.json', history)
+                    save(out / f'{spec["name"]}-{side}-history-timing.json', {"elapsed_ms": ms, "phases": phases(p.stderr)})
+            observation = case.get("observation")
+            if observation:
+                target = next(p for p in head if p["directory"] == observation["repository"])
+                receipt = client.command("coverage.upload", **{"repository_id": target["repository_id"],
+                    "format": "graphicle.coverage.v1", **{k: target[k] for k in ("commit", "snapshot", "policy_sha256")},
+                    "profile": PROFILE, "environment": "synthetic-ci-not-production",
+                    "ranges": [{k: observation[k] for k in ("path", "line_start", "line_end")}]})
+                save(out / "coverage-upload.json", receipt)
+            self.summary["checks"].append({"case": case["id"], "check": "no_model_calls",
+                "passed": client.usage()["model_usage"]["calls"] == 0})
+        save(out / "setup.json", {"elapsed_ms": (time.monotonic() - setup_started) * 1000,
+            "repositories": repositories, "base": base, "head": head})
+        return base, head, repositories, sources, histories
+
     def case(self, case):
         out = self.output / case["id"]
         out.mkdir()
@@ -181,78 +329,39 @@ class Pilot:
             root = Path(tmp)
             config, store = root / "models.json", root / "store"
             save(config, {"models": {}})
-            base, head, repositories, sources, histories = [], [], {}, {}, []
-            setup_started = time.monotonic()
-            with LocalServer(self.binary, store, config, env=self.env, timeout=self.timeout) as client:
-                for spec in case["repositories"]:
-                    project = client.project(spec["name"])
-                    repositories[spec["name"]] = project.id
-                    checkout = root / spec["name"]
-                    checkout.mkdir()
-
-                    def git(*args):
-                        return subprocess.check_output(["git", "-C", str(checkout), "-c", "user.name=Pilot",
-                            "-c", "user.email=pilot@example.invalid", "-c", "core.hooksPath=/dev/null",
-                            "-c", "commit.gpgsign=false", *args], env={**self.env,
-                            "GIT_AUTHOR_DATE": "2001-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2001-01-01T00:00:00Z"},
-                            stderr=subprocess.PIPE, timeout=self.timeout).decode().strip()
-
-                    git("init", "-q")
-                    for side, pins in (("base", base), ("head", head)):
-                        files = spec[side]
-                        for old in set(spec["base"]) - set(files):
-                            (checkout / old).unlink(missing_ok=True)
-                        for name, body in files.items():
-                            path = checkout / name
-                            path.parent.mkdir(parents=True, exist_ok=True)
-                            path.write_text(body, encoding="utf-8")
-                            sources[(side, project.id, name)] = body
-                        git("add", "--all")
-                        subject = spec.get("base_subject", "Initial pilot behavior") if side == "base" else "Proposed pilot change"
-                        git("commit", "--allow-empty", "-qm", subject + "\n\nCo-authored-by: Codex <noreply@openai.com>")
-                        policy = digest(b"complete authored synthetic fixture inventory v1")
-                        commit = git("rev-parse", "HEAD")
-                        begin = project.command("sync.prepare", expected_snapshot=project.status()["repository"]["snapshot"],
-                            metadata={"commit": commit, "policy_sha256": policy, "scope_complete": True},
-                            manifest=[{"path": p, "sha256": digest(c.encode()), "bytes": len(c.encode())} for p, c in files.items()])
-                        if begin.get("sync_id"):
-                            project.command("sync.upload", sync_id=begin["sync_id"],
-                                            files=[{"path": p, "content": c} for p, c in files.items()])
-                            project.command("sync.commit", sync_id=begin["sync_id"])
-                        pin = {"repository_id": project.id, "directory": spec["name"], "commit": commit,
-                               "snapshot": begin["snapshot"], "policy_sha256": policy, "modules": ["."]}
-                        pins.append(pin)
-                        pin_path = root / f'{spec["name"]}-{side}.json'
-                        save(pin_path, pin)
-                        history_args = ["review-history", "--path", str(checkout), "--pin", str(pin_path), "--analyze"]
-                        for name in files:
-                            if name.endswith(".go"):
-                                history_args += ["--file", name]
-                        p, ms = self.command(history_args, timing=True)
-                        if p.returncode:
-                            raise RuntimeError(f"History collection exited {p.returncode}")
-                        history = json.loads(p.stdout)
+            if self.baseline is None:
+                base, head, repositories, sources, histories = self.prepare(case, out, root, config, store)
+            else:
+                prior = self.baseline.parent / case["id"]
+                setup = json.loads((prior / "setup.json").read_text())
+                if seed_digest(prior / "seed-store") != setup["seed_sha256"]:
+                    raise ValueError("Baseline seed store changed")
+                base, head, repositories = setup["base"], setup["head"], setup["repositories"]
+                sources = {(side, repositories[r["name"]], name): body for r in case["repositories"]
+                           for side in ("base", "head") for name, body in r[side].items()}
+                histories = []
+                for r in case["repositories"]:
+                    for side in ("base", "head"):
+                        name = f'{r["name"]}-{side}-history.json'
+                        history = json.loads((prior / name).read_text())
                         histories.append(history)
-                        save(out / f'{spec["name"]}-{side}-history.json', history)
-                        save(out / f'{spec["name"]}-{side}-history-timing.json', {"elapsed_ms": ms, "phases": phases(p.stderr)})
-                observation = case.get("observation")
-                if observation:
-                    target = next(p for p in head if p["directory"] == observation["repository"])
-                    receipt = client.command("coverage.upload", **{"repository_id": target["repository_id"],
-                        "format": "graphicle.coverage.v1", **{k: target[k] for k in ("commit", "snapshot", "policy_sha256")},
-                        "profile": PROFILE, "environment": "synthetic-ci-not-production",
-                        "ranges": [{k: observation[k] for k in ("path", "line_start", "line_end")}]})
-                    save(out / "coverage-upload.json", receipt)
-                self.summary["checks"].append({"case": case["id"], "check": "no_model_calls",
-                    "passed": client.usage()["model_usage"]["calls"] == 0})
-            save(out / "setup.json", {"elapsed_ms": (time.monotonic() - setup_started) * 1000,
-                "repositories": repositories, "base": base, "head": head})
+                        save(out / name, history)
+                started = time.monotonic()
+                shutil.copytree(prior / "seed-store", store)
+                save(out / "setup.json", {**setup, "replayed_seed": True,
+                     "elapsed_ms": (time.monotonic() - started) * 1000})
+            # Copy after server shutdown, before any review populates compiler caches.
+            shutil.copytree(store, out / "seed-store")
+            setup = json.loads((out / "setup.json").read_text())
+            save(out / "setup.json", {**setup, "seed_sha256": seed_digest(out / "seed-store")})
             original = {"repository_id": repositories[case.get("anchor", case["repositories"][0]["name"])],
                         "base": base, "head": head, "profile": PROFILE, "max_depth": 16}
             last = None
             for budget in self.budgets:
                 for variant in ("static", "history"):
                     request = {**original, "max_tokens": budget}
+                    if self.compact_provenance:
+                        request["compact_provenance"] = True
                     if variant == "history":
                         request["business_context"] = {"history": histories}
                     last = self.review(case, out, store, config, request, sources, repositories, variant, "first")
@@ -271,10 +380,11 @@ class Pilot:
         folder = out / name
         folder.mkdir()
         save(folder / "request.json", request)  # Evaluator labels are never sent.
-        row = {"id": case["id"] + "/" + name, "case": case["id"], "variant": variant,
-               "budget": request["max_tokens"], "sample": sample, "required": len(case["labels"]),
-               "status": "error", "delivered_labels": [], "forbidden_hits": 0}
-        self.summary["runs"].append(row)
+        row = next(r for r in self.summary["runs"] if r["id"] == case["id"] + "/" + name)
+        row["status"] = "error"
+        row["request_sha256"] = digest(encoded(request))
+        row["evidence_request_sha256"] = evidence_request_hash(request)
+        row["compact_provenance"] = request.get("compact_provenance", False)
         started = time.monotonic()
         try:
             p, ms = self.command(["--data-dir", str(store), "--config", str(config),
@@ -293,6 +403,8 @@ class Pilot:
                 "note": "Nested phases overlap; RSS is process memory, not phase allocation."}
             save(folder / "diagnostics.json", diagnostics)
             row.update(status="ok", tokens=packet["tokens"],
+                provenance_encoding="shared" if "service_provenance" in packet else "inline",
+                wire_bytes=len(encoded(packet)),
                 delivered_labels=[r["label"] for r in diagnostics["labels"] if r["status"] == "delivered"],
                 forbidden_hits=sum(delivered(l, packet, repositories) for l in case["forbidden"]),
                 phase_ms=dict(sum((Counter({r["name"]: r["ms"]}) for r in phase_rows), Counter())),
@@ -309,8 +421,15 @@ class Pilot:
             normalized.pop("analysis_cache", None)
             normalized.pop("tokens", None)
             return normalized
-        except (ValueError, KeyError, RuntimeError, subprocess.TimeoutExpired) as e:
-            row.update(status="error", error=type(e).__name__, elapsed_ms=(time.monotonic() - started) * 1000)
+        except (ValueError, KeyError, TypeError, RuntimeError, subprocess.TimeoutExpired) as e:
+            row.update(status="error", error=type(e).__name__, message=str(e)[:500],
+                       elapsed_ms=(time.monotonic() - started) * 1000)
+            if isinstance(e, subprocess.TimeoutExpired):
+                stderr = e.stderr or b""
+                if isinstance(stderr, bytes):
+                    stderr = stderr.decode("utf-8", errors="replace")
+                (folder / "stderr.log").write_text(stderr, encoding="utf-8")
+                save(folder / "partial-timing.json", {"phases": phases(stderr), "complete": False})
             save(folder / "error.json", row)
             return None
         finally:
@@ -324,13 +443,19 @@ def main():
     parser.add_argument("--budgets", nargs="+", type=int, default=[4000, 32000])
     parser.add_argument("--timeout", type=float, default=180)
     parser.add_argument("--baseline", type=Path)
+    parser.add_argument("--compact-provenance", action="store_true",
+                        help="Enable automatic service compaction; allow only this representation difference against baseline")
     args = parser.parse_args()
     if any(not 512 <= b <= 64000 for b in args.budgets) or args.timeout <= 0:
         parser.error("Budgets must be 512–64000 tokens; timeout must be positive")
     args.output = args.output.resolve()
     args.output.mkdir(parents=True, exist_ok=False, mode=0o700)
-    pilot = Pilot(args.binary.resolve(strict=True), args.output, sorted(set(args.budgets)), args.timeout)
+    pilot = Pilot(args.binary.resolve(strict=True), args.output, sorted(set(args.budgets)), args.timeout, args.baseline, args.compact_provenance)
     try:
+        if args.baseline:
+            previous = load_baseline(args.baseline)
+            if previous["contract"] != pilot.summary["contract"]:
+                raise ValueError("Baseline needs the same fixtures and protocol, including private seed stores")
         for case in pilot.cases:
             print(f'Running {case["id"]}', flush=True)
             pilot.case(case)
@@ -338,10 +463,11 @@ def main():
     except Exception as e:
         pilot.summary["setup_error"] = {"type": type(e).__name__, "message": str(e)[:300]}
     pilot.summary["metrics"] = rollup(pilot.summary["runs"])
+    pilot.summary["history_treatment"] = treatment_comparisons(pilot.summary["runs"], pilot.cases)
     pilot.summary["regressions"] = []
     if args.baseline:
         try:
-            pilot.summary["regressions"] = compare(pilot.summary, json.loads(args.baseline.read_text()))
+            pilot.summary["regressions"] = compare(pilot.summary, load_baseline(args.baseline))
         except ValueError as e:
             pilot.summary["comparison_error"] = str(e)
     passed = (not pilot.summary.get("setup_error") and not pilot.summary.get("comparison_error")

@@ -40,6 +40,7 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
         "execution_flows": "potential-static-cited-paths-v1",
         "configured_service_boundaries": ["http", "grpc", "event"],
         "configured_service_boundaries_authority": "pinned_configuration_assertions",
+        "review_compact_provenance": "graphicle.service-provenance.v1",
         "change_impact_scope": "pinned-go-snapshot-sets-v1",
         "basic_change_impact": {"languages":["terraform","helm","bash","python","rust"],"granularity":"file-module-chart","compiler_resolution":false},
         "business_context": true,
