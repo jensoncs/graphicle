@@ -30,6 +30,7 @@ pub mod evidence;
 pub mod fortran;
 pub mod go;
 pub mod go_types;
+pub mod helm;
 pub mod json_config;
 pub mod julia;
 pub mod markdown;

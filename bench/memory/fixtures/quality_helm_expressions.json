@@ -1,0 +1,157 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance": "Authored synthetic Helm expression regression cases, 2026-11-01. Closed-world labels fixed before running either binary. Branch queries preserve both possible helper contracts; runtime value overrides are not evaluated. No Helm rendering or independent human-query claim.",
+  "projects": [
+    {
+      "id": "helm-expressions",
+      "coverage_group": "helm",
+      "split": "regression",
+      "files": {
+        "Chart.yaml": "apiVersion: v2\nname: parcel\nversion: 0.1.0\n",
+        "values.yaml": "service:\n  port: 8080\nreplicaCount: 2\nmodern: true\nhelper: parcel.labels\n",
+        "templates/_helpers.tpl": "{{ define \"parcel.labels\" }}\napp: {{ .Release.Name }}\n{{ end }}\n{{ define \"parcel.modern\" }}\nversion: v2\n{{ end }}\n",
+        "templates/computed.yaml": "{{ include (printf \"%s.labels\" \"parcel\") . }}\n",
+        "templates/alias.yaml": "{{ $name := \"parcel.labels\" }}\n{{ include $name . }}\n",
+        "templates/index.yaml": "port: {{ index .Values \"service\" \"port\" }}\n",
+        "templates/get.yaml": "port: {{ get .Values.service \"port\" }}\n",
+        "templates/dig.yaml": "port: {{ .Values | dig \"service\" \"port\" 80 }}\n",
+        "templates/branch.yaml": "{{ include (ternary \"parcel.labels\" \"parcel.modern\" .Values.modern) . }}\n",
+        "templates/scoped.yaml": "{{ $root := . }}\n{{ with .Values.service }}\nport: {{ .port }}\n{{ include \"parcel.labels\" $root }}\n{{ end }}\n",
+        "templates/tpl.yaml": "{{ tpl \"{{ include \\\"parcel.labels\\\" . }}\" . }}\n",
+        "templates/runtime.yaml": "{{ include .Values.helper . }}\n"
+      },
+      "memories": [
+        {
+          "id": "labels",
+          "title": "Release isolation",
+          "body": "Selectors must preserve tenant boundaries.",
+          "symbols": [
+            {
+              "path": "templates/_helpers.tpl",
+              "qualified_name": "parcel.labels"
+            }
+          ]
+        },
+        {
+          "id": "modern",
+          "title": "Protocol marker",
+          "body": "Version labels must preserve compatibility with new consumers.",
+          "symbols": [
+            {
+              "path": "templates/_helpers.tpl",
+              "qualified_name": "parcel.modern"
+            }
+          ]
+        },
+        {
+          "id": "port",
+          "title": "Listener compatibility",
+          "body": "The target must agree with the container listener.",
+          "symbols": [
+            {
+              "path": "values.yaml",
+              "qualified_name": "Values.service.port"
+            }
+          ]
+        },
+        {
+          "id": "replicas",
+          "title": "Replacement room",
+          "body": "Replicas must preserve availability during rotation.",
+          "symbols": [
+            {
+              "path": "values.yaml",
+              "qualified_name": "Values.replicaCount"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "computed",
+          "category": "dynamic_reference",
+          "question": "Which constraints must a change to templates/computed.yaml preserve?",
+          "relevant_memories": [
+            "labels"
+          ],
+          "rationale": "The literal printf expression yields parcel.labels; no other helper or value is used."
+        },
+        {
+          "id": "alias",
+          "category": "dynamic_reference",
+          "question": "Which constraints must a change to templates/alias.yaml preserve?",
+          "relevant_memories": [
+            "labels"
+          ],
+          "rationale": "The local immutable name binds parcel.labels."
+        },
+        {
+          "id": "index",
+          "category": "dynamic_reference",
+          "question": "Which constraints must a change to templates/index.yaml preserve?",
+          "relevant_memories": [
+            "port"
+          ],
+          "rationale": "Literal index keys address service.port, not its sibling values."
+        },
+        {
+          "id": "get",
+          "category": "dynamic_reference",
+          "question": "Which constraints must a change to templates/get.yaml preserve?",
+          "relevant_memories": [
+            "port"
+          ],
+          "rationale": "A literal get key addresses service.port."
+        },
+        {
+          "id": "dig",
+          "category": "dynamic_reference",
+          "question": "Which constraints must a change to templates/dig.yaml preserve?",
+          "relevant_memories": [
+            "port"
+          ],
+          "rationale": "The piped dictionary and literal dig keys address service.port."
+        },
+        {
+          "id": "branch",
+          "category": "dynamic_reference",
+          "question": "Which constraints must a change to templates/branch.yaml preserve?",
+          "relevant_memories": [
+            "labels",
+            "modern"
+          ],
+          "rationale": "Either declared helper can be selected by an overridden flag, so both constraints apply. No default branch is assumed."
+        },
+        {
+          "id": "scoped",
+          "category": "dynamic_reference",
+          "question": "Which constraints must a change to templates/scoped.yaml preserve?",
+          "relevant_memories": [
+            "labels",
+            "port"
+          ],
+          "rationale": "with changes dot to the service map; the captured root supplies the labels helper."
+        },
+        {
+          "id": "tpl",
+          "category": "dynamic_reference",
+          "question": "Which constraints must a change to templates/tpl.yaml preserve?",
+          "relevant_memories": [
+            "labels"
+          ],
+          "rationale": "The literal tpl fragment includes parcel.labels using the chart root."
+        },
+        {
+          "id": "runtime",
+          "category": "dynamic_fallback",
+          "question": "Which constraints must a change to templates/runtime.yaml preserve?",
+          "relevant_memories": [
+            "labels",
+            "modern"
+          ],
+          "rationale": "The runtime helper name may select either declared helper. The default value is not treated as effective configuration; broad fallback may over-return unrelated values."
+        }
+      ]
+    }
+  ]
+}

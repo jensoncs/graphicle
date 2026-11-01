@@ -1728,7 +1728,104 @@ fn context_impl(
             source["source"][crate::code_graph_arm::ARM] = facts.clone();
         }
     }
-    let selected_memories = selected("memories");
+    // In model-free factual attribute questions, an identifier match alone
+    // does not support the requested topic. Any topical overlap in authorized
+    // candidate notes OR source text preserves retrieval and dependency recall.
+    // Semantic ranks, rerankers and caller-supplied needs/rephrasings may carry
+    // nonlexical evidence, so this guard must not override them.
+    let lexical_only = !rescoring
+        && extra_rankings.get("semantic").is_none()
+        && rank_request["query_variants"]
+            .as_array()
+            .is_none_or(Vec::is_empty)
+        && rank_request["needs"].as_array().is_none_or(Vec::is_empty);
+    let topic = lexical_only
+    .then(|| crate::code_question::requested_memory_topic(query))
+    .flatten();
+    let mut memory_topic_report = Value::Null;
+    let unsupported_topic = topic.is_some_and(|topic| {
+        let matched: BTreeSet<_> = rows
+            .iter()
+            .flat_map(|row| {
+                crate::notes_first::stems(&format!("{} {}", s(row, "title"), s(row, "text")))
+                    .intersection(&topic)
+                    .cloned()
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+        memory_topic_report = json!({"basis":"lexical_candidate_support",
+            "topic_terms":topic,"matched_terms":matched,
+            "status":if matched.is_empty() {"unsupported_in_candidates"} else {"supported"},
+            "withheld_ranked":0,"withheld_linked":0});
+        matched.is_empty()
+    });
+    let mut selected_memories = selected("memories");
+    let mut memory_scope_report = Value::Null;
+    let mut configuration_scope = None;
+    if lexical_only && let Some(lookup) = doc_links {
+        let documents = snapshot.documents.iter().map(|d| (s(d, "id"), d)).collect();
+        let scope = crate::identifier_arm::configuration_owner_scope(lookup.db(), lookup.repository(), query, &documents)
+            .map(|scope| (scope, "configuration_input", "outside_configuration_input"))
+            .or_else(|| symbol_links.enabled().then(|| crate::identifier_arm::helm_memory_scope(lookup.db(), lookup.repository(), query, &documents))
+                .flatten().map(|scope| (scope, "helm_dependencies", "outside_helm_scope")));
+        if let Some((scope, basis, reason)) = scope {
+            let before = selected_memories.len();
+            selected_memories.retain(|row| {
+                if !crate::symbol_links::outside_scope(row, &scope, &documents) { return true; }
+                if let Some(trace) = memory_trace.as_mut() { trace.withheld(row, reason); }
+                false
+            });
+            memory_scope_report = json!({"basis":basis,"symbols":scope.len(),
+                "withheld_ranked":before-selected_memories.len()});
+            if basis == "configuration_input" { configuration_scope = Some(scope); }
+        }
+    }
+    let rationale = lexical_only.then(|| crate::symbol_links::NoteFocus::new(query, &selected_memories, &rows)).flatten();
+    let mut rationale_report = Value::Null;
+    if let Some(focus) = &rationale {
+        let before = selected_memories.len();
+        selected_memories.retain(|row| {
+            if focus.keep(row) { return true; }
+            if let Some(trace) = memory_trace.as_mut() { trace.withheld(row, focus.filter_reason()); }
+            false
+        });
+        rationale_report = json!({"basis":focus.basis,"anchors":focus.anchors(),
+            "withheld_ranked":before-selected_memories.len(),"withheld_linked":0});
+    }
+    let configuration_value = lexical_only
+        .then(|| crate::code_question::configuration_value_request(query)).flatten()
+        .filter(|(path, key)| sources.iter().any(|row| {
+            s(row, "origin").strip_prefix("file:").is_some_and(|origin|
+                origin == path || origin.ends_with(&format!("/{path}")))
+                && s(row, "text").split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.')
+                    .any(|word| word == key)
+        })).or_else(|| lexical_only.then(|| sources.iter().find_map(|row| {
+            let path = s(row, "origin").strip_prefix("file:")?;
+            crate::code_question::configuration_count_request(query, path, s(row,"text"))
+        })).flatten());
+    let mut memory_value_report = configuration_value.as_ref().map(|(path, key)|
+        json!({"basis":"configuration_value_request","path":path,"key":key,
+            "withheld_ranked":0,"withheld_linked":0}));
+    let memory_filter = if configuration_value.is_some() {
+        Some("configuration_value_request")
+    } else if unsupported_topic {
+        Some("unsupported_topic")
+    } else {
+        None
+    };
+    if let Some(reason) = memory_filter {
+        if let Some(report) = memory_value_report.as_mut() {
+            report["withheld_ranked"] = json!(selected_memories.len());
+        } else {
+            memory_topic_report["withheld_ranked"] = json!(selected_memories.len());
+        }
+        if let Some(trace) = memory_trace.as_mut() {
+            for row in &selected_memories {
+                trace.withheld(row, reason);
+            }
+        }
+        selected_memories.clear();
+    }
     let linked = crate::memory_evidence::gather_with_memories(
         snapshot,
         &selected_memories,
@@ -1855,6 +1952,20 @@ fn context_impl(
                 if let Some(trace) = memory_trace.as_mut() {
                     trace.linked_candidates(&linked_memories);
                 }
+                if let Some(reason) = memory_filter {
+                    if let Some(report) = memory_value_report.as_mut() {
+                        report["withheld_linked"] = json!(linked_memories.len());
+                    } else {
+                        memory_topic_report["withheld_linked"] = json!(linked_memories.len());
+                    }
+                    if let Some(trace) = memory_trace.as_mut() {
+                        for row in &linked_memories {
+                            trace.withheld(row, reason);
+                        }
+                    }
+                    linked_memories.clear();
+                    symbol_links_report["lifted_memories"] = json!(0);
+                }
                 if let Some(reranker) = reranker.filter(|_| !linked_memories.is_empty()) {
                     let texts: Vec<String> = linked_memories
                         .iter()
@@ -1890,6 +2001,27 @@ fn context_impl(
                     symbol_links_report["reranker"] = linked_reranker_usage.clone();
                 } else {
                     crate::symbol_links::prioritize_literals(query, &mut linked_memories);
+                }
+                if let Some(scope) = &configuration_scope {
+                    let documents = snapshot.documents.iter().map(|d| (s(d,"id"), d)).collect();
+                    let before = linked_memories.len();
+                    linked_memories.retain(|row| {
+                        if !crate::symbol_links::outside_scope(row, scope, &documents) { return true; }
+                        if let Some(trace) = memory_trace.as_mut() { trace.withheld(row,"outside_configuration_input"); }
+                        false
+                    });
+                    memory_scope_report["withheld_linked"] = json!(before-linked_memories.len());
+                    symbol_links_report["lifted_memories"] = json!(linked_memories.len());
+                }
+                if let Some(focus) = &rationale {
+                    let before = linked_memories.len();
+                    linked_memories.retain(|row| {
+                        if focus.keep(row) { return true; }
+                        if let Some(trace) = memory_trace.as_mut() { trace.withheld(row, focus.filter_reason()); }
+                        false
+                    });
+                    rationale_report["withheld_linked"] = json!(before-linked_memories.len());
+                    symbol_links_report["lifted_memories"] = json!(linked_memories.len());
                 }
                 if symbol_links.enabled() && symbol_links_report.get("considered").is_some() {
                     symbol_links_report["memory_limit"] = json!(memory_limit);
@@ -2187,6 +2319,17 @@ fn context_impl(
     packet["evidence"] = json!(evidence);
     packet["source_state"] = json!(snapshot.state);
     packet["evidence_strength"] = strength;
+    if !memory_topic_report.is_null() {
+        packet["memory_topic_support"] = memory_topic_report;
+    }
+    if let Some(report) = memory_value_report {
+        packet["memory_value_request"] = report;
+    }
+    if !memory_scope_report.is_null() { packet["memory_scope_support"] = memory_scope_report; }
+    if !rationale_report.is_null() {
+        let field = if rationale_report["basis"] == "exact_note_title" { "memory_prose_support" } else { "memory_rationale_support" };
+        packet[field] = rationale_report;
+    }
     packet["depth"] = json!({"limit":limit,"max_tokens":max_tokens});
     packet["arm_weights"] = arm_weights;
     packet["retrieval_defaults"] = json!(defaulted);

@@ -73,6 +73,21 @@
         "id": "language-source",
         "kind": "source",
         "sha256": "515b8c8e2dd25b9efac7506444d10e14ffe94ee27c587c4144241f61b5bed9b9"
+      },
+      {
+        "id": "infrastructure-memory",
+        "kind": "memory",
+        "sha256": "2075b4406235fcc8750104e318f8816775844d39fcd994eb5338d30f9b565baa"
+      },
+      {
+        "id": "infrastructure-source",
+        "kind": "source",
+        "sha256": "e616fd1c7deeb0e3cf01d9ea3ce89f984b83fd50477a3f0850d50c1f8fa73cc7"
+      },
+      {
+        "id": "helm-expression-memory",
+        "kind": "memory",
+        "sha256": "1a5b0bed6a77bf97f41f660634e3891a23bc4bc14cc1d41b644e7e75559c99e5"
       }
     ],
     "case_ids": [
@@ -133,6 +148,163 @@
       "exact/qualified/qualified-name/counted",
       "exact/qualified/qualified-name/off",
       "exact/qualified/qualified-name/on",
+      "helm-expression-memory/helm-expressions/alias/counted",
+      "helm-expression-memory/helm-expressions/alias/off",
+      "helm-expression-memory/helm-expressions/alias/on",
+      "helm-expression-memory/helm-expressions/branch/counted",
+      "helm-expression-memory/helm-expressions/branch/off",
+      "helm-expression-memory/helm-expressions/branch/on",
+      "helm-expression-memory/helm-expressions/computed/counted",
+      "helm-expression-memory/helm-expressions/computed/off",
+      "helm-expression-memory/helm-expressions/computed/on",
+      "helm-expression-memory/helm-expressions/dig/counted",
+      "helm-expression-memory/helm-expressions/dig/off",
+      "helm-expression-memory/helm-expressions/dig/on",
+      "helm-expression-memory/helm-expressions/get/counted",
+      "helm-expression-memory/helm-expressions/get/off",
+      "helm-expression-memory/helm-expressions/get/on",
+      "helm-expression-memory/helm-expressions/index/counted",
+      "helm-expression-memory/helm-expressions/index/off",
+      "helm-expression-memory/helm-expressions/index/on",
+      "helm-expression-memory/helm-expressions/runtime/counted",
+      "helm-expression-memory/helm-expressions/runtime/off",
+      "helm-expression-memory/helm-expressions/runtime/on",
+      "helm-expression-memory/helm-expressions/scoped/counted",
+      "helm-expression-memory/helm-expressions/scoped/off",
+      "helm-expression-memory/helm-expressions/scoped/on",
+      "helm-expression-memory/helm-expressions/tpl/counted",
+      "helm-expression-memory/helm-expressions/tpl/off",
+      "helm-expression-memory/helm-expressions/tpl/on",
+      "infrastructure-memory/bash-delivery/ambiguous-function/counted",
+      "infrastructure-memory/bash-delivery/ambiguous-function/off",
+      "infrastructure-memory/bash-delivery/ambiguous-function/on",
+      "infrastructure-memory/bash-delivery/delay-reason/counted",
+      "infrastructure-memory/bash-delivery/delay-reason/off",
+      "infrastructure-memory/bash-delivery/delay-reason/on",
+      "infrastructure-memory/bash-delivery/delivery-change/counted",
+      "infrastructure-memory/bash-delivery/delivery-change/off",
+      "infrastructure-memory/bash-delivery/delivery-change/on",
+      "infrastructure-memory/bash-delivery/direct-prose/counted",
+      "infrastructure-memory/bash-delivery/direct-prose/off",
+      "infrastructure-memory/bash-delivery/direct-prose/on",
+      "infrastructure-memory/bash-delivery/literal-cap/counted",
+      "infrastructure-memory/bash-delivery/literal-cap/off",
+      "infrastructure-memory/bash-delivery/literal-cap/on",
+      "infrastructure-memory/bash-delivery/unsupported/counted",
+      "infrastructure-memory/bash-delivery/unsupported/off",
+      "infrastructure-memory/bash-delivery/unsupported/on",
+      "infrastructure-memory/hcl-worker/direct-prose/counted",
+      "infrastructure-memory/hcl-worker/direct-prose/off",
+      "infrastructure-memory/hcl-worker/direct-prose/on",
+      "infrastructure-memory/hcl-worker/drain-reason/counted",
+      "infrastructure-memory/hcl-worker/drain-reason/off",
+      "infrastructure-memory/hcl-worker/drain-reason/on",
+      "infrastructure-memory/hcl-worker/job-change/counted",
+      "infrastructure-memory/hcl-worker/job-change/off",
+      "infrastructure-memory/hcl-worker/job-change/on",
+      "infrastructure-memory/hcl-worker/literal-count/counted",
+      "infrastructure-memory/hcl-worker/literal-count/off",
+      "infrastructure-memory/hcl-worker/literal-count/on",
+      "infrastructure-memory/hcl-worker/unsupported/counted",
+      "infrastructure-memory/hcl-worker/unsupported/off",
+      "infrastructure-memory/hcl-worker/unsupported/on",
+      "infrastructure-memory/hcl-worker/variable-change/counted",
+      "infrastructure-memory/hcl-worker/variable-change/off",
+      "infrastructure-memory/hcl-worker/variable-change/on",
+      "infrastructure-memory/helm-parcel/direct-prose/counted",
+      "infrastructure-memory/helm-parcel/direct-prose/off",
+      "infrastructure-memory/helm-parcel/direct-prose/on",
+      "infrastructure-memory/helm-parcel/helper-change/counted",
+      "infrastructure-memory/helm-parcel/helper-change/off",
+      "infrastructure-memory/helm-parcel/helper-change/on",
+      "infrastructure-memory/helm-parcel/literal-override/counted",
+      "infrastructure-memory/helm-parcel/literal-override/off",
+      "infrastructure-memory/helm-parcel/literal-override/on",
+      "infrastructure-memory/helm-parcel/replica-floor/counted",
+      "infrastructure-memory/helm-parcel/replica-floor/off",
+      "infrastructure-memory/helm-parcel/replica-floor/on",
+      "infrastructure-memory/helm-parcel/service-change/counted",
+      "infrastructure-memory/helm-parcel/service-change/off",
+      "infrastructure-memory/helm-parcel/service-change/on",
+      "infrastructure-memory/helm-parcel/unsupported/counted",
+      "infrastructure-memory/helm-parcel/unsupported/off",
+      "infrastructure-memory/helm-parcel/unsupported/on",
+      "infrastructure-memory/kubernetes-worker/direct-prose/counted",
+      "infrastructure-memory/kubernetes-worker/direct-prose/off",
+      "infrastructure-memory/kubernetes-worker/direct-prose/on",
+      "infrastructure-memory/kubernetes-worker/drain-reason/counted",
+      "infrastructure-memory/kubernetes-worker/drain-reason/off",
+      "infrastructure-memory/kubernetes-worker/drain-reason/on",
+      "infrastructure-memory/kubernetes-worker/literal-override/counted",
+      "infrastructure-memory/kubernetes-worker/literal-override/off",
+      "infrastructure-memory/kubernetes-worker/literal-override/on",
+      "infrastructure-memory/kubernetes-worker/selector-contract/counted",
+      "infrastructure-memory/kubernetes-worker/selector-contract/off",
+      "infrastructure-memory/kubernetes-worker/selector-contract/on",
+      "infrastructure-memory/kubernetes-worker/service-change/counted",
+      "infrastructure-memory/kubernetes-worker/service-change/off",
+      "infrastructure-memory/kubernetes-worker/service-change/on",
+      "infrastructure-memory/kubernetes-worker/unsupported/counted",
+      "infrastructure-memory/kubernetes-worker/unsupported/off",
+      "infrastructure-memory/kubernetes-worker/unsupported/on",
+      "infrastructure-memory/terraform-queue/cap-reason/counted",
+      "infrastructure-memory/terraform-queue/cap-reason/off",
+      "infrastructure-memory/terraform-queue/cap-reason/on",
+      "infrastructure-memory/terraform-queue/direct-prose/counted",
+      "infrastructure-memory/terraform-queue/direct-prose/off",
+      "infrastructure-memory/terraform-queue/direct-prose/on",
+      "infrastructure-memory/terraform-queue/input-change/counted",
+      "infrastructure-memory/terraform-queue/input-change/off",
+      "infrastructure-memory/terraform-queue/input-change/on",
+      "infrastructure-memory/terraform-queue/literal-default/counted",
+      "infrastructure-memory/terraform-queue/literal-default/off",
+      "infrastructure-memory/terraform-queue/literal-default/on",
+      "infrastructure-memory/terraform-queue/module-change/counted",
+      "infrastructure-memory/terraform-queue/module-change/off",
+      "infrastructure-memory/terraform-queue/module-change/on",
+      "infrastructure-memory/terraform-queue/unsupported/counted",
+      "infrastructure-memory/terraform-queue/unsupported/off",
+      "infrastructure-memory/terraform-queue/unsupported/on",
+      "infrastructure-source/bash-delivery/bound/baseline",
+      "infrastructure-source/bash-delivery/bound/routed",
+      "infrastructure-source/bash-delivery/failure/baseline",
+      "infrastructure-source/bash-delivery/failure/routed",
+      "infrastructure-source/bash-delivery/quoting/baseline",
+      "infrastructure-source/bash-delivery/quoting/routed",
+      "infrastructure-source/bash-delivery/source-call/baseline",
+      "infrastructure-source/bash-delivery/source-call/routed",
+      "infrastructure-source/hcl-worker/job-group/baseline",
+      "infrastructure-source/hcl-worker/job-group/routed",
+      "infrastructure-source/hcl-worker/resources/baseline",
+      "infrastructure-source/hcl-worker/resources/routed",
+      "infrastructure-source/hcl-worker/separate-job/baseline",
+      "infrastructure-source/hcl-worker/separate-job/routed",
+      "infrastructure-source/hcl-worker/shutdown-variable/baseline",
+      "infrastructure-source/hcl-worker/shutdown-variable/routed",
+      "infrastructure-source/helm-parcel/helper-includes/baseline",
+      "infrastructure-source/helm-parcel/helper-includes/routed",
+      "infrastructure-source/helm-parcel/image/baseline",
+      "infrastructure-source/helm-parcel/image/routed",
+      "infrastructure-source/helm-parcel/override/baseline",
+      "infrastructure-source/helm-parcel/override/routed",
+      "infrastructure-source/helm-parcel/port-wiring/baseline",
+      "infrastructure-source/helm-parcel/port-wiring/routed",
+      "infrastructure-source/kubernetes-worker/config-reference/baseline",
+      "infrastructure-source/kubernetes-worker/config-reference/routed",
+      "infrastructure-source/kubernetes-worker/overlay/baseline",
+      "infrastructure-source/kubernetes-worker/overlay/routed",
+      "infrastructure-source/kubernetes-worker/port-match/baseline",
+      "infrastructure-source/kubernetes-worker/port-match/routed",
+      "infrastructure-source/kubernetes-worker/selector-match/baseline",
+      "infrastructure-source/kubernetes-worker/selector-match/routed",
+      "infrastructure-source/terraform-queue/module-wiring/baseline",
+      "infrastructure-source/terraform-queue/module-wiring/routed",
+      "infrastructure-source/terraform-queue/output/baseline",
+      "infrastructure-source/terraform-queue/output/routed",
+      "infrastructure-source/terraform-queue/override/baseline",
+      "infrastructure-source/terraform-queue/override/routed",
+      "infrastructure-source/terraform-queue/validation-cap/baseline",
+      "infrastructure-source/terraform-queue/validation-cap/routed",
       "language-memory/go-delivery/ambiguous-method/counted",
       "language-memory/go-delivery/ambiguous-method/off",
       "language-memory/go-delivery/ambiguous-method/on",
@@ -388,7 +560,7 @@
     ]
   },
   "provenance": {
-    "report_sha256": "72c10b89969b1f462eaa8cf9b25ee910e9b34a419491c2bd7ea85ba88b1042cd",
+    "report_sha256": "2cc55e9d0b2c3e792a739c30f62b31a3339b7136152bd36e98f46d0006c3be58",
     "protocol": {
       "contract": {
         "scoring_version": 1,
@@ -463,6 +635,21 @@
             "id": "language-source",
             "kind": "source",
             "sha256": "515b8c8e2dd25b9efac7506444d10e14ffe94ee27c587c4144241f61b5bed9b9"
+          },
+          {
+            "id": "infrastructure-memory",
+            "kind": "memory",
+            "sha256": "2075b4406235fcc8750104e318f8816775844d39fcd994eb5338d30f9b565baa"
+          },
+          {
+            "id": "infrastructure-source",
+            "kind": "source",
+            "sha256": "e616fd1c7deeb0e3cf01d9ea3ce89f984b83fd50477a3f0850d50c1f8fa73cc7"
+          },
+          {
+            "id": "helm-expression-memory",
+            "kind": "memory",
+            "sha256": "1a5b0bed6a77bf97f41f660634e3891a23bc4bc14cc1d41b644e7e75559c99e5"
           }
         ],
         "case_ids": [
@@ -523,6 +710,163 @@
           "exact/qualified/qualified-name/counted",
           "exact/qualified/qualified-name/off",
           "exact/qualified/qualified-name/on",
+          "helm-expression-memory/helm-expressions/alias/counted",
+          "helm-expression-memory/helm-expressions/alias/off",
+          "helm-expression-memory/helm-expressions/alias/on",
+          "helm-expression-memory/helm-expressions/branch/counted",
+          "helm-expression-memory/helm-expressions/branch/off",
+          "helm-expression-memory/helm-expressions/branch/on",
+          "helm-expression-memory/helm-expressions/computed/counted",
+          "helm-expression-memory/helm-expressions/computed/off",
+          "helm-expression-memory/helm-expressions/computed/on",
+          "helm-expression-memory/helm-expressions/dig/counted",
+          "helm-expression-memory/helm-expressions/dig/off",
+          "helm-expression-memory/helm-expressions/dig/on",
+          "helm-expression-memory/helm-expressions/get/counted",
+          "helm-expression-memory/helm-expressions/get/off",
+          "helm-expression-memory/helm-expressions/get/on",
+          "helm-expression-memory/helm-expressions/index/counted",
+          "helm-expression-memory/helm-expressions/index/off",
+          "helm-expression-memory/helm-expressions/index/on",
+          "helm-expression-memory/helm-expressions/runtime/counted",
+          "helm-expression-memory/helm-expressions/runtime/off",
+          "helm-expression-memory/helm-expressions/runtime/on",
+          "helm-expression-memory/helm-expressions/scoped/counted",
+          "helm-expression-memory/helm-expressions/scoped/off",
+          "helm-expression-memory/helm-expressions/scoped/on",
+          "helm-expression-memory/helm-expressions/tpl/counted",
+          "helm-expression-memory/helm-expressions/tpl/off",
+          "helm-expression-memory/helm-expressions/tpl/on",
+          "infrastructure-memory/bash-delivery/ambiguous-function/counted",
+          "infrastructure-memory/bash-delivery/ambiguous-function/off",
+          "infrastructure-memory/bash-delivery/ambiguous-function/on",
+          "infrastructure-memory/bash-delivery/delay-reason/counted",
+          "infrastructure-memory/bash-delivery/delay-reason/off",
+          "infrastructure-memory/bash-delivery/delay-reason/on",
+          "infrastructure-memory/bash-delivery/delivery-change/counted",
+          "infrastructure-memory/bash-delivery/delivery-change/off",
+          "infrastructure-memory/bash-delivery/delivery-change/on",
+          "infrastructure-memory/bash-delivery/direct-prose/counted",
+          "infrastructure-memory/bash-delivery/direct-prose/off",
+          "infrastructure-memory/bash-delivery/direct-prose/on",
+          "infrastructure-memory/bash-delivery/literal-cap/counted",
+          "infrastructure-memory/bash-delivery/literal-cap/off",
+          "infrastructure-memory/bash-delivery/literal-cap/on",
+          "infrastructure-memory/bash-delivery/unsupported/counted",
+          "infrastructure-memory/bash-delivery/unsupported/off",
+          "infrastructure-memory/bash-delivery/unsupported/on",
+          "infrastructure-memory/hcl-worker/direct-prose/counted",
+          "infrastructure-memory/hcl-worker/direct-prose/off",
+          "infrastructure-memory/hcl-worker/direct-prose/on",
+          "infrastructure-memory/hcl-worker/drain-reason/counted",
+          "infrastructure-memory/hcl-worker/drain-reason/off",
+          "infrastructure-memory/hcl-worker/drain-reason/on",
+          "infrastructure-memory/hcl-worker/job-change/counted",
+          "infrastructure-memory/hcl-worker/job-change/off",
+          "infrastructure-memory/hcl-worker/job-change/on",
+          "infrastructure-memory/hcl-worker/literal-count/counted",
+          "infrastructure-memory/hcl-worker/literal-count/off",
+          "infrastructure-memory/hcl-worker/literal-count/on",
+          "infrastructure-memory/hcl-worker/unsupported/counted",
+          "infrastructure-memory/hcl-worker/unsupported/off",
+          "infrastructure-memory/hcl-worker/unsupported/on",
+          "infrastructure-memory/hcl-worker/variable-change/counted",
+          "infrastructure-memory/hcl-worker/variable-change/off",
+          "infrastructure-memory/hcl-worker/variable-change/on",
+          "infrastructure-memory/helm-parcel/direct-prose/counted",
+          "infrastructure-memory/helm-parcel/direct-prose/off",
+          "infrastructure-memory/helm-parcel/direct-prose/on",
+          "infrastructure-memory/helm-parcel/helper-change/counted",
+          "infrastructure-memory/helm-parcel/helper-change/off",
+          "infrastructure-memory/helm-parcel/helper-change/on",
+          "infrastructure-memory/helm-parcel/literal-override/counted",
+          "infrastructure-memory/helm-parcel/literal-override/off",
+          "infrastructure-memory/helm-parcel/literal-override/on",
+          "infrastructure-memory/helm-parcel/replica-floor/counted",
+          "infrastructure-memory/helm-parcel/replica-floor/off",
+          "infrastructure-memory/helm-parcel/replica-floor/on",
+          "infrastructure-memory/helm-parcel/service-change/counted",
+          "infrastructure-memory/helm-parcel/service-change/off",
+          "infrastructure-memory/helm-parcel/service-change/on",
+          "infrastructure-memory/helm-parcel/unsupported/counted",
+          "infrastructure-memory/helm-parcel/unsupported/off",
+          "infrastructure-memory/helm-parcel/unsupported/on",
+          "infrastructure-memory/kubernetes-worker/direct-prose/counted",
+          "infrastructure-memory/kubernetes-worker/direct-prose/off",
+          "infrastructure-memory/kubernetes-worker/direct-prose/on",
+          "infrastructure-memory/kubernetes-worker/drain-reason/counted",
+          "infrastructure-memory/kubernetes-worker/drain-reason/off",
+          "infrastructure-memory/kubernetes-worker/drain-reason/on",
+          "infrastructure-memory/kubernetes-worker/literal-override/counted",
+          "infrastructure-memory/kubernetes-worker/literal-override/off",
+          "infrastructure-memory/kubernetes-worker/literal-override/on",
+          "infrastructure-memory/kubernetes-worker/selector-contract/counted",
+          "infrastructure-memory/kubernetes-worker/selector-contract/off",
+          "infrastructure-memory/kubernetes-worker/selector-contract/on",
+          "infrastructure-memory/kubernetes-worker/service-change/counted",
+          "infrastructure-memory/kubernetes-worker/service-change/off",
+          "infrastructure-memory/kubernetes-worker/service-change/on",
+          "infrastructure-memory/kubernetes-worker/unsupported/counted",
+          "infrastructure-memory/kubernetes-worker/unsupported/off",
+          "infrastructure-memory/kubernetes-worker/unsupported/on",
+          "infrastructure-memory/terraform-queue/cap-reason/counted",
+          "infrastructure-memory/terraform-queue/cap-reason/off",
+          "infrastructure-memory/terraform-queue/cap-reason/on",
+          "infrastructure-memory/terraform-queue/direct-prose/counted",
+          "infrastructure-memory/terraform-queue/direct-prose/off",
+          "infrastructure-memory/terraform-queue/direct-prose/on",
+          "infrastructure-memory/terraform-queue/input-change/counted",
+          "infrastructure-memory/terraform-queue/input-change/off",
+          "infrastructure-memory/terraform-queue/input-change/on",
+          "infrastructure-memory/terraform-queue/literal-default/counted",
+          "infrastructure-memory/terraform-queue/literal-default/off",
+          "infrastructure-memory/terraform-queue/literal-default/on",
+          "infrastructure-memory/terraform-queue/module-change/counted",
+          "infrastructure-memory/terraform-queue/module-change/off",
+          "infrastructure-memory/terraform-queue/module-change/on",
+          "infrastructure-memory/terraform-queue/unsupported/counted",
+          "infrastructure-memory/terraform-queue/unsupported/off",
+          "infrastructure-memory/terraform-queue/unsupported/on",
+          "infrastructure-source/bash-delivery/bound/baseline",
+          "infrastructure-source/bash-delivery/bound/routed",
+          "infrastructure-source/bash-delivery/failure/baseline",
+          "infrastructure-source/bash-delivery/failure/routed",
+          "infrastructure-source/bash-delivery/quoting/baseline",
+          "infrastructure-source/bash-delivery/quoting/routed",
+          "infrastructure-source/bash-delivery/source-call/baseline",
+          "infrastructure-source/bash-delivery/source-call/routed",
+          "infrastructure-source/hcl-worker/job-group/baseline",
+          "infrastructure-source/hcl-worker/job-group/routed",
+          "infrastructure-source/hcl-worker/resources/baseline",
+          "infrastructure-source/hcl-worker/resources/routed",
+          "infrastructure-source/hcl-worker/separate-job/baseline",
+          "infrastructure-source/hcl-worker/separate-job/routed",
+          "infrastructure-source/hcl-worker/shutdown-variable/baseline",
+          "infrastructure-source/hcl-worker/shutdown-variable/routed",
+          "infrastructure-source/helm-parcel/helper-includes/baseline",
+          "infrastructure-source/helm-parcel/helper-includes/routed",
+          "infrastructure-source/helm-parcel/image/baseline",
+          "infrastructure-source/helm-parcel/image/routed",
+          "infrastructure-source/helm-parcel/override/baseline",
+          "infrastructure-source/helm-parcel/override/routed",
+          "infrastructure-source/helm-parcel/port-wiring/baseline",
+          "infrastructure-source/helm-parcel/port-wiring/routed",
+          "infrastructure-source/kubernetes-worker/config-reference/baseline",
+          "infrastructure-source/kubernetes-worker/config-reference/routed",
+          "infrastructure-source/kubernetes-worker/overlay/baseline",
+          "infrastructure-source/kubernetes-worker/overlay/routed",
+          "infrastructure-source/kubernetes-worker/port-match/baseline",
+          "infrastructure-source/kubernetes-worker/port-match/routed",
+          "infrastructure-source/kubernetes-worker/selector-match/baseline",
+          "infrastructure-source/kubernetes-worker/selector-match/routed",
+          "infrastructure-source/terraform-queue/module-wiring/baseline",
+          "infrastructure-source/terraform-queue/module-wiring/routed",
+          "infrastructure-source/terraform-queue/output/baseline",
+          "infrastructure-source/terraform-queue/output/routed",
+          "infrastructure-source/terraform-queue/override/baseline",
+          "infrastructure-source/terraform-queue/override/routed",
+          "infrastructure-source/terraform-queue/validation-cap/baseline",
+          "infrastructure-source/terraform-queue/validation-cap/routed",
           "language-memory/go-delivery/ambiguous-method/counted",
           "language-memory/go-delivery/ambiguous-method/off",
           "language-memory/go-delivery/ambiguous-method/on",
@@ -777,13 +1121,13 @@
           "source/payments/unicode/routed"
         ]
       },
-      "binary_sha256": "6bbeac5d3a5638c7b0a51ffc3f946fa4f714e15b71901390ee78dc29345ee73a",
+      "binary_sha256": "7604e7edb9291138d66c394992f9b065ce5f994699e76c97f228a723f1ebec23",
       "python": "3.15.1",
       "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
       "runner_sha256": {
-        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
-        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
-        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "quality.py": "86ce791b3151bd56855ccd540ff6ffc5ac2f52327591bfddcefca6815148e95e",
+        "quality_diagnostics.py": "4da654b8e81ad28ac541655efbcc8b086dd916911c5f7114294771f86f04e962",
+        "symbol_link_precision.py": "c3033b52382a3789f83f0ff2cae3af73cae926b6a0fff6b3b9d4e6d2550430ac",
         "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
         "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
       },
@@ -803,6 +1147,7 @@
       "category": "linked_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -822,6 +1167,7 @@
       "category": "linked_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -841,6 +1187,7 @@
       "category": "linked_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -861,6 +1208,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -881,6 +1229,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -902,6 +1251,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -922,6 +1272,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -936,6 +1287,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -950,6 +1302,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -964,6 +1317,7 @@
       "category": "same_symbol_distractor",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -982,6 +1336,7 @@
       "category": "same_symbol_distractor",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1000,6 +1355,7 @@
       "category": "same_symbol_distractor",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1020,6 +1376,7 @@
       "category": "no_answer",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1034,6 +1391,7 @@
       "category": "no_answer",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1048,6 +1406,7 @@
       "category": "no_answer",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1062,6 +1421,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1080,6 +1440,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1098,6 +1459,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1116,6 +1478,7 @@
       "category": "linked_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1133,6 +1496,7 @@
       "category": "linked_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1150,6 +1514,7 @@
       "category": "linked_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1170,6 +1535,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1188,6 +1554,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1208,6 +1575,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1226,6 +1594,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1240,6 +1609,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1254,6 +1624,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1268,6 +1639,7 @@
       "category": "same_symbol_distractor",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1284,6 +1656,7 @@
       "category": "same_symbol_distractor",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1300,6 +1673,7 @@
       "category": "same_symbol_distractor",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1320,6 +1694,7 @@
       "category": "no_answer",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1334,6 +1709,7 @@
       "category": "no_answer",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1348,6 +1724,7 @@
       "category": "no_answer",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1362,6 +1739,7 @@
       "category": "linked_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1379,6 +1757,7 @@
       "category": "linked_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1396,6 +1775,7 @@
       "category": "linked_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1416,6 +1796,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1434,6 +1815,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1452,6 +1834,7 @@
       "category": "lexical_relevant",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1470,6 +1853,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1484,6 +1868,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1498,6 +1883,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1512,6 +1898,7 @@
       "category": "same_symbol_distractor",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1528,6 +1915,7 @@
       "category": "same_symbol_distractor",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1544,6 +1932,7 @@
       "category": "same_symbol_distractor",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1564,6 +1953,7 @@
       "category": "no_answer",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1578,6 +1968,7 @@
       "category": "no_answer",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1592,6 +1983,7 @@
       "category": "no_answer",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1606,6 +1998,7 @@
       "category": "stale",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1620,6 +2013,7 @@
       "category": "stale",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1634,6 +2028,7 @@
       "category": "stale",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1648,6 +2043,7 @@
       "category": "stale",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1662,6 +2058,7 @@
       "category": "stale",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1676,6 +2073,7 @@
       "category": "stale",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1690,6 +2088,7 @@
       "category": "qualified_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1706,6 +2105,7 @@
       "category": "qualified_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1722,6 +2122,7 @@
       "category": "qualified_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1740,6 +2141,7 @@
       "category": "ambiguous_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1757,6 +2159,7 @@
       "category": "ambiguous_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1777,6 +2180,7 @@
       "category": "ambiguous_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1794,6 +2198,7 @@
       "category": "path_qualified",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1810,6 +2215,7 @@
       "category": "path_qualified",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1826,6 +2232,7 @@
       "category": "path_qualified",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1844,6 +2251,7 @@
       "category": "ambiguous_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1861,6 +2269,7 @@
       "category": "ambiguous_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1881,6 +2290,7 @@
       "category": "ambiguous_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1898,6 +2308,7 @@
       "category": "multiple_symbols",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1915,6 +2326,7 @@
       "category": "multiple_symbols",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1932,6 +2344,7 @@
       "category": "multiple_symbols",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1952,6 +2365,7 @@
       "category": "unresolved_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1968,6 +2382,7 @@
       "category": "unresolved_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -1989,6 +2404,7 @@
       "category": "unresolved_symbol",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2005,6 +2421,7 @@
       "category": "prose",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2027,6 +2444,7 @@
       "category": "prose",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2047,6 +2465,7 @@
       "category": "prose",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2067,6 +2486,7 @@
       "category": "callee_memory",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2083,6 +2503,7 @@
       "category": "callee_memory",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2099,6 +2520,7 @@
       "category": "callee_memory",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2117,6 +2539,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2133,6 +2556,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2149,6 +2573,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2167,6 +2592,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2183,6 +2609,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2201,6 +2628,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2217,6 +2645,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2235,6 +2664,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2251,6 +2681,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2267,6 +2698,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2283,6 +2715,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2299,6 +2732,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2317,6 +2751,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2333,6 +2768,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2351,6 +2787,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2367,6 +2804,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2385,6 +2823,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2401,6 +2840,7 @@
       "category": "direct_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2417,6 +2857,7 @@
       "category": "callee_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2433,6 +2874,7 @@
       "category": "callee_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2449,6 +2891,7 @@
       "category": "callee_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2471,6 +2914,7 @@
       "category": "caller_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2487,6 +2931,7 @@
       "category": "caller_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2503,6 +2948,7 @@
       "category": "caller_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2525,6 +2971,7 @@
       "category": "multiple_links",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2541,6 +2988,7 @@
       "category": "multiple_links",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2557,6 +3005,7 @@
       "category": "multiple_links",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2575,6 +3024,7 @@
       "category": "unresolved_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2591,6 +3041,7 @@
       "category": "unresolved_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2613,6 +3064,7 @@
       "category": "unresolved_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2629,6 +3081,7 @@
       "category": "prose_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2657,6 +3110,7 @@
       "category": "prose_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2678,6 +3132,7 @@
       "category": "prose_capacity",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2699,6 +3154,7 @@
       "category": "relevant_direct_competes_with_irrelevant_callee",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2718,6 +3174,7 @@
       "category": "relevant_direct_competes_with_irrelevant_callee",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2737,6 +3194,7 @@
       "category": "relevant_direct_competes_with_irrelevant_callee",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2761,6 +3219,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2777,6 +3236,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2793,6 +3253,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2813,6 +3274,7 @@
       "category": "transitive_dependency",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2829,6 +3291,7 @@
       "category": "transitive_dependency",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2845,6 +3308,7 @@
       "category": "transitive_dependency",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2866,6 +3330,7 @@
       "category": "linked_relevant",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2882,6 +3347,7 @@
       "category": "linked_relevant",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2898,6 +3364,7 @@
       "category": "linked_relevant",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2916,6 +3383,7 @@
       "category": "linked_relevant",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2932,6 +3400,7 @@
       "category": "linked_relevant",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2950,6 +3419,7 @@
       "category": "linked_relevant",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2966,6 +3436,7 @@
       "category": "code_only",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2980,6 +3451,7 @@
       "category": "code_only",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -2994,6 +3466,7 @@
       "category": "code_only",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3008,6 +3481,7 @@
       "category": "lexical_relevant",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3026,6 +3500,7 @@
       "category": "lexical_relevant",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3044,6 +3519,7 @@
       "category": "lexical_relevant",
       "split": "held_out",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3064,6 +3540,7 @@
       "category": "callee_rationale",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3082,6 +3559,7 @@
       "category": "callee_rationale",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3100,6 +3578,7 @@
       "category": "callee_rationale",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3121,6 +3600,7 @@
       "category": "callee_rationale",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3141,6 +3621,7 @@
       "category": "callee_rationale",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3162,6 +3643,7 @@
       "category": "callee_rationale",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3182,6 +3664,7 @@
       "category": "code_only",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3196,6 +3679,7 @@
       "category": "code_only",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3210,6 +3694,7 @@
       "category": "code_only",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3224,6 +3709,7 @@
       "category": "code_only",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3240,6 +3726,7 @@
       "category": "code_only",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3256,6 +3743,7 @@
       "category": "code_only",
       "split": "held_out",
       "language": "javascript",
+      "coverage": "javascript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3272,14 +3760,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "delimiter"
-      ]
+      "irrelevant": []
     },
     {
       "id": "negative/direct-contracts/absent-0/counted",
@@ -3288,14 +3775,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "delimiter"
-      ]
+      "irrelevant": []
     },
     {
       "id": "negative/direct-contracts/absent-0/on",
@@ -3304,18 +3790,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "delimiter",
-        "escaping",
-        "null",
-        "ordering",
-        "sampling"
-      ]
+      "irrelevant": []
     },
     {
       "id": "negative/direct-contracts/absent-1/counted",
@@ -3324,6 +3805,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3338,17 +3820,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "delimiter",
-        "escaping",
-        "null",
-        "ordering"
-      ]
+      "irrelevant": []
     },
     {
       "id": "negative/direct-contracts/absent-1/off",
@@ -3357,6 +3835,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3371,17 +3850,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "delimiter",
-        "escaping",
-        "null",
-        "ordering"
-      ]
+      "irrelevant": []
     },
     {
       "id": "negative/direct-contracts/absent-2/off",
@@ -3390,6 +3865,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3404,6 +3880,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3418,6 +3895,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3432,6 +3910,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3446,15 +3925,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "audit",
-        "lease"
-      ]
+      "irrelevant": []
     },
     {
       "id": "negative/cross-file/absent-1/counted",
@@ -3463,6 +3940,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3477,15 +3955,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "audit",
-        "lease"
-      ]
+      "irrelevant": []
     },
     {
       "id": "negative/cross-file/absent-1/off",
@@ -3494,6 +3970,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3508,15 +3985,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "audit",
-        "lease"
-      ]
+      "irrelevant": []
     },
     {
       "id": "negative/cross-file/absent-2/off",
@@ -3525,6 +4000,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3539,6 +4015,7 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3553,6 +4030,7 @@
       "category": "location",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3567,6 +4045,7 @@
       "category": "location",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3581,6 +4060,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3595,6 +4075,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3609,6 +4090,7 @@
       "category": "rationale",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3624,6 +4106,7 @@
       "category": "rationale",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3639,6 +4122,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3653,6 +4137,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3667,6 +4152,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3682,6 +4168,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3697,6 +4184,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3711,6 +4199,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "python",
+      "coverage": "python",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -3725,6 +4214,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3745,6 +4235,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3765,6 +4256,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3787,6 +4279,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3796,9 +4289,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/typescript-delivery/callee-rationale/on",
@@ -3807,6 +4298,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3816,10 +4308,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/typescript-delivery/callee-rationale/off",
@@ -3828,6 +4317,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3837,9 +4327,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/typescript-delivery/owner-contract/on",
@@ -3848,6 +4336,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3866,6 +4355,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3884,6 +4374,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3902,6 +4393,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3921,6 +4413,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3940,6 +4433,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3964,6 +4458,7 @@
       "category": "prose",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3982,6 +4477,7 @@
       "category": "prose",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -3991,10 +4487,7 @@
       "retrieved_relevant": [
         "wire"
       ],
-      "irrelevant": [
-        "lease",
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/typescript-delivery/prose-contract/off",
@@ -4003,6 +4496,7 @@
       "category": "prose",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4021,17 +4515,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "lease",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/typescript-delivery/no-answer/off",
@@ -4040,16 +4530,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/typescript-delivery/no-answer/counted",
@@ -4058,16 +4545,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/typescript-delivery/literal-result/off",
@@ -4076,6 +4560,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4090,6 +4575,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4104,6 +4590,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4118,6 +4605,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4138,6 +4626,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4158,6 +4647,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4167,6 +4657,7 @@
         "wire"
       ],
       "retrieved_relevant": [
+        "lease",
         "owner",
         "wire"
       ],
@@ -4179,6 +4670,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4188,9 +4680,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/go-delivery/callee-rationale/on",
@@ -4199,6 +4689,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4208,10 +4699,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/go-delivery/callee-rationale/off",
@@ -4220,6 +4708,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4229,9 +4718,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/go-delivery/owner-contract/on",
@@ -4240,6 +4727,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4258,6 +4746,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4276,6 +4765,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4294,6 +4784,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4313,6 +4804,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4332,6 +4824,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4343,6 +4836,7 @@
       ],
       "retrieved_relevant": [
         "alternate",
+        "lease",
         "owner",
         "wire"
       ],
@@ -4355,6 +4849,7 @@
       "category": "prose",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4373,6 +4868,7 @@
       "category": "prose",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4382,9 +4878,7 @@
       "retrieved_relevant": [
         "wire"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/go-delivery/prose-contract/off",
@@ -4393,6 +4887,7 @@
       "category": "prose",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4411,16 +4906,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/go-delivery/no-answer/off",
@@ -4429,16 +4921,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/go-delivery/no-answer/counted",
@@ -4447,16 +4936,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/go-delivery/literal-result/off",
@@ -4465,6 +4951,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4479,6 +4966,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4493,6 +4981,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4507,6 +4996,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4527,6 +5017,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4547,6 +5038,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4569,6 +5061,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4578,9 +5071,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/java-delivery/callee-rationale/on",
@@ -4589,6 +5080,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4598,10 +5090,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/java-delivery/callee-rationale/off",
@@ -4610,6 +5099,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4619,9 +5109,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/java-delivery/owner-contract/on",
@@ -4630,6 +5118,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4648,6 +5137,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4666,6 +5156,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4684,6 +5175,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4703,6 +5195,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4722,6 +5215,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4746,6 +5240,7 @@
       "category": "prose",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4764,6 +5259,7 @@
       "category": "prose",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4773,10 +5269,7 @@
       "retrieved_relevant": [
         "wire"
       ],
-      "irrelevant": [
-        "lease",
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/java-delivery/prose-contract/off",
@@ -4785,6 +5278,7 @@
       "category": "prose",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4803,17 +5297,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "lease",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/java-delivery/no-answer/off",
@@ -4822,16 +5312,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/java-delivery/no-answer/counted",
@@ -4840,16 +5327,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/java-delivery/literal-result/off",
@@ -4858,6 +5342,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4872,6 +5357,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4886,6 +5372,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4900,6 +5387,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4920,6 +5408,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4940,6 +5429,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4962,6 +5452,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4971,9 +5462,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/kotlin-delivery/callee-rationale/on",
@@ -4982,6 +5471,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -4991,10 +5481,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/kotlin-delivery/callee-rationale/off",
@@ -5003,6 +5490,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5012,9 +5500,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/kotlin-delivery/owner-contract/on",
@@ -5023,6 +5509,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5041,6 +5528,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5059,6 +5547,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5077,6 +5566,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5096,6 +5586,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5115,6 +5606,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5139,6 +5631,7 @@
       "category": "prose",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5157,6 +5650,7 @@
       "category": "prose",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5166,10 +5660,7 @@
       "retrieved_relevant": [
         "wire"
       ],
-      "irrelevant": [
-        "lease",
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/kotlin-delivery/prose-contract/off",
@@ -5178,6 +5669,7 @@
       "category": "prose",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5196,17 +5688,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "lease",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/kotlin-delivery/no-answer/off",
@@ -5215,16 +5703,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/kotlin-delivery/no-answer/counted",
@@ -5233,16 +5718,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/kotlin-delivery/literal-result/off",
@@ -5251,6 +5733,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5265,6 +5748,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5279,6 +5763,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5293,6 +5778,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5313,6 +5799,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5333,6 +5820,7 @@
       "category": "qualified_method",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5355,6 +5843,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5364,9 +5853,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/rust-delivery/callee-rationale/on",
@@ -5375,6 +5862,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5384,10 +5872,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/rust-delivery/callee-rationale/off",
@@ -5396,6 +5881,7 @@
       "category": "cross_file_dependency",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5405,9 +5891,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/rust-delivery/owner-contract/on",
@@ -5416,6 +5900,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5434,6 +5919,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5452,6 +5938,7 @@
       "category": "enclosing_contract",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5470,6 +5957,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5489,6 +5977,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5508,6 +5997,7 @@
       "category": "ambiguous_method",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5532,6 +6022,7 @@
       "category": "prose",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5550,6 +6041,7 @@
       "category": "prose",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5559,10 +6051,7 @@
       "retrieved_relevant": [
         "wire"
       ],
-      "irrelevant": [
-        "lease",
-        "owner"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/rust-delivery/prose-contract/off",
@@ -5571,6 +6060,7 @@
       "category": "prose",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5589,17 +6079,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "lease",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/rust-delivery/no-answer/off",
@@ -5608,16 +6094,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/rust-delivery/no-answer/counted",
@@ -5626,16 +6109,13 @@
       "category": "no_answer_control",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "alternate",
-        "owner",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "language-memory/rust-delivery/literal-result/off",
@@ -5644,6 +6124,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5658,6 +6139,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5672,6 +6154,7 @@
       "category": "code_only",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": true,
@@ -5686,6 +6169,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5700,6 +6184,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5714,6 +6199,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5729,6 +6215,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5744,6 +6231,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5759,6 +6247,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "typescript",
+      "coverage": "typescript",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5774,6 +6263,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5788,6 +6278,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5802,6 +6293,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5817,6 +6309,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5832,6 +6325,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5847,6 +6341,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "go",
+      "coverage": "go",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5862,6 +6357,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5876,6 +6372,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5890,6 +6387,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5905,6 +6403,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5920,6 +6419,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5935,6 +6435,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "java",
+      "coverage": "java",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5950,6 +6451,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5964,6 +6466,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5978,6 +6481,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -5993,6 +6497,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -6008,6 +6513,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -6023,6 +6529,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "kotlin",
+      "coverage": "kotlin",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -6038,6 +6545,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -6052,6 +6560,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -6066,6 +6575,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -6081,6 +6591,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -6096,6 +6607,7 @@
       "category": "behavior",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
@@ -6111,12 +6623,2929 @@
       "category": "behavior",
       "split": "regression",
       "language": "rust",
+      "coverage": "rust",
       "origin": "authored_fixture",
       "error": null,
       "content_preserved": null,
       "delivered": [
         true,
         true
+      ]
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/module-change/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dependency",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling",
+        "floor",
+        "interface"
+      ],
+      "retrieved_relevant": [
+        "ceiling",
+        "interface"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/module-change/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dependency",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling",
+        "floor",
+        "interface"
+      ],
+      "retrieved_relevant": [
+        "ceiling",
+        "interface"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/module-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling",
+        "floor",
+        "interface"
+      ],
+      "retrieved_relevant": [
+        "ceiling",
+        "floor",
+        "interface"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/cap-reason/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "rationale",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/cap-reason/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/cap-reason/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "rationale",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "interface"
+      ],
+      "retrieved_relevant": [
+        "interface"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/direct-prose/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "interface"
+      ],
+      "retrieved_relevant": [
+        "interface"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/direct-prose/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "interface"
+      ],
+      "retrieved_relevant": [
+        "interface"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/input-change/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "floor"
+      ],
+      "retrieved_relevant": [
+        "floor"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/input-change/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "floor"
+      ],
+      "retrieved_relevant": [
+        "floor"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/input-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "floor"
+      ],
+      "retrieved_relevant": [
+        "floor"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/unsupported/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/unsupported/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/literal-default/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/literal-default/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/literal-default/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/job-change/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dependency",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain",
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/job-change/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dependency",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain",
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/job-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain",
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "drain",
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/drain-reason/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "rationale",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/drain-reason/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/drain-reason/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "rationale",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/direct-prose/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/direct-prose/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/variable-change/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/variable-change/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/variable-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/unsupported/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/unsupported/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/literal-count/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/literal-count/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/literal-count/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/helper-change/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": [
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/helper-change/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": [
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/helper-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/service-change/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dependency",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "port"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "port"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/service-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "port"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "port"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/service-change/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dependency",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "port"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "port"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/replica-floor/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "availability"
+      ],
+      "retrieved_relevant": [
+        "availability"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/replica-floor/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "rationale",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "availability"
+      ],
+      "retrieved_relevant": [
+        "availability"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/replica-floor/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "rationale",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "availability"
+      ],
+      "retrieved_relevant": [
+        "availability"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/direct-prose/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/direct-prose/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/unsupported/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/unsupported/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/literal-override/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/literal-override/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/literal-override/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/service-change/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dependency",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port",
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "port",
+        "selector"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/service-change/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dependency",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port",
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "port",
+        "selector"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/service-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port",
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "port",
+        "selector"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/drain-reason/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "rationale",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/drain-reason/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/drain-reason/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "rationale",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/selector-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "selector"
+      ],
+      "irrelevant": [
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/selector-contract/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "selector"
+      ],
+      "irrelevant": [
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/selector-contract/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "selector"
+      ],
+      "irrelevant": [
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/direct-prose/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "selector"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/direct-prose/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "selector"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "selector"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/unsupported/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "drain",
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "drain",
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/unsupported/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "drain",
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/literal-override/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/literal-override/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/literal-override/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/delivery-change/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dependency",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "pipeline",
+        "wire"
+      ],
+      "irrelevant": [
+        "alternate"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/delivery-change/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dependency",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "pipeline",
+        "wire"
+      ],
+      "irrelevant": [
+        "alternate"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/delivery-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "irrelevant": [
+        "alternate"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/delay-reason/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "rationale",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/delay-reason/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/delay-reason/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "rationale",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/ambiguous-function/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "alternate",
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/ambiguous-function/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/ambiguous-function/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/direct-prose/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "prose",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/direct-prose/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "prose",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/unsupported/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/unsupported/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/literal-cap/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "lease",
+        "noise",
+        "pipeline",
+        "wire"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/literal-cap/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "code_only",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/literal-cap/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "code_only",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-source/terraform-queue/module-wiring/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/terraform-queue/module-wiring/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/terraform-queue/override/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/terraform-queue/override/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/terraform-queue/validation-cap/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/terraform-queue/validation-cap/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/terraform-queue/output/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/terraform-queue/output/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "terraform",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/hcl-worker/shutdown-variable/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/hcl-worker/shutdown-variable/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/hcl-worker/job-group/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/hcl-worker/job-group/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/hcl-worker/separate-job/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/hcl-worker/separate-job/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/hcl-worker/resources/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/hcl-worker/resources/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "hcl",
+      "coverage": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/helm-parcel/helper-includes/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/helm-parcel/helper-includes/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/helm-parcel/override/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/helm-parcel/override/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/helm-parcel/port-wiring/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/helm-parcel/port-wiring/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/helm-parcel/image/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/helm-parcel/image/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/kubernetes-worker/selector-match/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/kubernetes-worker/selector-match/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/kubernetes-worker/config-reference/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/kubernetes-worker/config-reference/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/kubernetes-worker/overlay/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/kubernetes-worker/overlay/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/kubernetes-worker/port-match/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/kubernetes-worker/port-match/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "yaml",
+      "coverage": "kubernetes",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/bash-delivery/source-call/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/bash-delivery/source-call/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/bash-delivery/quoting/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/bash-delivery/quoting/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/bash-delivery/failure/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/bash-delivery/failure/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/bash-delivery/bound/routed",
+      "kind": "source",
+      "variant": "routed",
+      "category": "behavior",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "infrastructure-source/bash-delivery/bound/baseline",
+      "kind": "source",
+      "variant": "baseline",
+      "category": "behavior",
+      "split": "regression",
+      "language": "bash",
+      "coverage": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": null,
+      "delivered": [
+        true,
+        true
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/computed/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": [
+        "modern",
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/computed/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": [
+        "modern",
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/computed/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/alias/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": [
+        "modern",
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/alias/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/alias/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": [
+        "modern",
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/index/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port"
+      ],
+      "retrieved_relevant": [
+        "port"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/index/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port"
+      ],
+      "retrieved_relevant": [
+        "port"
+      ],
+      "irrelevant": [
+        "labels",
+        "modern",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/index/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port"
+      ],
+      "retrieved_relevant": [
+        "port"
+      ],
+      "irrelevant": [
+        "labels",
+        "modern",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/get/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port"
+      ],
+      "retrieved_relevant": [
+        "port"
+      ],
+      "irrelevant": [
+        "labels",
+        "modern",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/get/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port"
+      ],
+      "retrieved_relevant": [
+        "port"
+      ],
+      "irrelevant": [
+        "labels",
+        "modern",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/get/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port"
+      ],
+      "retrieved_relevant": [
+        "port"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/dig/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port"
+      ],
+      "retrieved_relevant": [
+        "port"
+      ],
+      "irrelevant": [
+        "labels",
+        "modern",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/dig/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port"
+      ],
+      "retrieved_relevant": [
+        "port"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/dig/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port"
+      ],
+      "retrieved_relevant": [
+        "port"
+      ],
+      "irrelevant": [
+        "labels",
+        "modern",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/branch/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "modern"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "modern"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/branch/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "modern"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "modern"
+      ],
+      "irrelevant": [
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/branch/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "modern"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "modern"
+      ],
+      "irrelevant": [
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/scoped/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "port"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "port"
+      ],
+      "irrelevant": [
+        "modern",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/scoped/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "port"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "port"
+      ],
+      "irrelevant": [
+        "modern",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/scoped/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "port"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "port"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/tpl/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": [
+        "modern",
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/tpl/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/tpl/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dynamic_reference",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": [
+        "modern",
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/runtime/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dynamic_fallback",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "modern"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "modern"
+      ],
+      "irrelevant": [
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/runtime/off",
+      "kind": "memory",
+      "variant": "off",
+      "category": "dynamic_fallback",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "modern"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "modern"
+      ],
+      "irrelevant": [
+        "port",
+        "replicas"
+      ]
+    },
+    {
+      "id": "helm-expression-memory/helm-expressions/runtime/counted",
+      "kind": "memory",
+      "variant": "counted",
+      "category": "dynamic_fallback",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "coverage": "helm",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "modern"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "modern"
+      ],
+      "irrelevant": [
+        "port",
+        "replicas"
       ]
     }
   ]

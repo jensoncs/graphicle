@@ -1,0 +1,539 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance": "Authored synthetic infrastructure and shell regression coverage, 2026-11-01. Questions and closed-world relevance labels fixed before retrieval measurement. Source checks concern supplied text only: no Terraform plan/apply, Helm rendering, Kubernetes reconciliation or shell execution is performed. No independent human-query or production-quality claim.",
+  "projects": [
+    {
+      "id": "terraform-queue",
+      "coverage_group": "terraform",
+      "split": "regression",
+      "files": {
+        "main.tf": "module \"queue\" {\n  source = \"./modules/queue\"\n  retention_seconds = var.retention_seconds\n}\nresource \"terraform_data\" \"dispatch\" {\n  input = module.queue.limit\n}\noutput \"dispatch_limit\" {\n  value = terraform_data.dispatch.output\n}\n",
+        "variables.tf": "variable \"retention_seconds\" {\n  type = number\n  default = 60\n  validation {\n    condition = var.retention_seconds >= 60 && var.retention_seconds <= 900\n    error_message = \"Retention must be between 60 and 900 seconds.\"\n  }\n}\n",
+        "production.tfvars": "retention_seconds = 120\n",
+        "modules/queue/main.tf": "variable \"retention_seconds\" { type = number }\nlocals {\n  bounded_retention = min(var.retention_seconds, 300)\n}\noutput \"limit\" {\n  value = local.bounded_retention\n}\n",
+        "metrics.tf": "resource \"terraform_data\" \"metrics\" {\n  input = \"sampled\"\n}\n"
+      },
+      "memories": [
+        {
+          "id": "interface",
+          "title": "Queue handoff contract",
+          "body": "Consumers rely on the limit output remaining expressed in seconds.",
+          "symbols": [
+            {
+              "path": "main.tf",
+              "qualified_name": "module.queue"
+            }
+          ]
+        },
+        {
+          "id": "floor",
+          "title": "Replay horizon",
+          "body": "Delayed consumers can reconnect after a minute; shorter retention loses their pending records.",
+          "symbols": [
+            {
+              "path": "variables.tf",
+              "qualified_name": "var.retention_seconds"
+            }
+          ]
+        },
+        {
+          "id": "ceiling",
+          "title": "Storage reservation",
+          "body": "The reserved queue capacity covers at most five minutes of backlog.",
+          "symbols": [
+            {
+              "path": "modules/queue/main.tf",
+              "qualified_name": "Terraform module: modules/queue.queue/main.tf.output.limit"
+            }
+          ]
+        },
+        {
+          "id": "noise",
+          "title": "Telemetry sampling",
+          "body": "Emit one diagnostic sample per thousand observations.",
+          "symbols": [
+            {
+              "path": "metrics.tf",
+              "qualified_name": "terraform_data.metrics"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "module-change",
+          "category": "dependency",
+          "question": "Which constraints must a change to module.queue preserve?",
+          "relevant_memories": [
+            "interface",
+            "floor",
+            "ceiling"
+          ],
+          "rationale": "The module must preserve its seconds interface, caller retention floor and bounded backlog; telemetry is unrelated."
+        },
+        {
+          "id": "cap-reason",
+          "category": "rationale",
+          "question": "Why does the queue module cap retention at five minutes?",
+          "relevant_memories": [
+            "ceiling"
+          ],
+          "rationale": "Only the reservation explains the upper bound."
+        },
+        {
+          "id": "direct-prose",
+          "category": "prose",
+          "question": "What is the queue handoff contract?",
+          "relevant_memories": [
+            "interface"
+          ],
+          "rationale": "The question asks only for the output interface."
+        },
+        {
+          "id": "input-change",
+          "category": "direct_symbol",
+          "question": "Which constraint governs var.retention_seconds in variables.tf?",
+          "relevant_memories": [
+            "floor"
+          ],
+          "rationale": "This variable owns the minimum replay horizon; the module ceiling and interface are separate constraints."
+        },
+        {
+          "id": "unsupported",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation period is required by module.queue?",
+          "relevant_memories": [],
+          "rationale": "No source or note specifies key rotation."
+        },
+        {
+          "id": "literal-default",
+          "category": "code_only",
+          "question": "What default value does variables.tf assign to retention_seconds?",
+          "relevant_memories": [],
+          "rationale": "The source contains the default; no retained design decision is needed."
+        }
+      ],
+      "grounding_provenance": "Symbol links use the current projected qualified names; the module output name includes its enclosing module identity."
+    },
+    {
+      "id": "hcl-worker",
+      "coverage_group": "hcl",
+      "split": "regression",
+      "files": {
+        "worker.nomad.hcl": "job \"worker\" {\n  datacenters = [\"dc1\"]\n  type = \"service\"\n  group \"processors\" {\n    count = 2\n    shutdown_delay = \"${var.drain_seconds}s\"\n    task \"consumer\" {\n      driver = \"docker\"\n      config { image = \"example.invalid/worker:1.2\" }\n      resources { cpu = 200 }\n    }\n  }\n}\n",
+        "variables.hcl": "variable \"drain_seconds\" {\n  type = number\n  default = 45\n}\n",
+        "metrics.nomad.hcl": "job \"metrics\" {\n  datacenters = [\"dc1\"]\n  type = \"batch\"\n  group \"reporters\" {\n    task \"report\" {\n      driver = \"raw_exec\"\n      config { command = \"/bin/true\" }\n    }\n  }\n}\n"
+      },
+      "memories": [
+        {
+          "id": "owner",
+          "title": "Worker handoff agreement",
+          "body": "A rolling replacement must leave at least one consumer accepting work.",
+          "dependencies": [
+            "worker.nomad.hcl"
+          ]
+        },
+        {
+          "id": "drain",
+          "title": "Checkpoint completion window",
+          "body": "A consumer needs forty-five seconds to persist its outstanding checkpoint before termination.",
+          "symbols": [
+            {
+              "path": "variables.hcl",
+              "qualified_name": "var.drain_seconds"
+            }
+          ]
+        },
+        {
+          "id": "noise",
+          "title": "Report cadence",
+          "body": "Batch reports run once per hour.",
+          "dependencies": [
+            "metrics.nomad.hcl"
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "job-change",
+          "category": "dependency",
+          "question": "Which constraints must a change to job.worker preserve?",
+          "relevant_memories": [
+            "owner",
+            "drain"
+          ],
+          "rationale": "A worker replacement needs availability and sufficient shutdown delay; the metrics job is separate."
+        },
+        {
+          "id": "drain-reason",
+          "category": "rationale",
+          "question": "Why does the worker shutdown delay allow forty-five seconds?",
+          "relevant_memories": [
+            "drain"
+          ],
+          "rationale": "Only checkpoint completion explains the delay."
+        },
+        {
+          "id": "direct-prose",
+          "category": "prose",
+          "question": "What is the worker handoff agreement?",
+          "relevant_memories": [
+            "owner"
+          ],
+          "rationale": "Only the availability agreement answers this topic."
+        },
+        {
+          "id": "variable-change",
+          "category": "direct_symbol",
+          "question": "Which constraint applies to var.drain_seconds in variables.hcl?",
+          "relevant_memories": [
+            "drain"
+          ],
+          "rationale": "This variable represents the checkpoint completion window."
+        },
+        {
+          "id": "unsupported",
+          "category": "no_answer_control",
+          "question": "Which backup storage region is required by job.worker?",
+          "relevant_memories": [],
+          "rationale": "No backup storage region is specified."
+        },
+        {
+          "id": "literal-count",
+          "category": "code_only",
+          "question": "What count is assigned to the processors group in worker.nomad.hcl?",
+          "relevant_memories": [],
+          "rationale": "The literal replica count is available from source."
+        }
+      ],
+      "grounding_provenance": "HCL variable uses a projected symbol; generic job blocks use explicit file dependencies because job symbols are unavailable."
+    },
+    {
+      "id": "helm-parcel",
+      "coverage_group": "helm",
+      "split": "regression",
+      "files": {
+        "Chart.yaml": "apiVersion: v2\nname: parcel\nversion: 0.1.0\ntype: application\n",
+        "values.yaml": "replicaCount: 2\nimage:\n  repository: example.invalid/parcel\n  tag: \"1.2\"\nservice:\n  port: 8080\nresources:\n  requests:\n    cpu: 100m\n",
+        "values-production.yaml": "replicaCount: 3\nservice:\n  port: 9090\n",
+        "templates/_helpers.tpl": "{{- define \"parcel.labels\" -}}\napp.kubernetes.io/name: {{ .Chart.Name | quote }}\napp.kubernetes.io/instance: {{ .Release.Name | quote }}\n{{- end -}}\n",
+        "templates/deployment.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ .Release.Name }}\nspec:\n  replicas: {{ .Values.replicaCount }}\n  selector:\n    matchLabels:\n      {{- include \"parcel.labels\" . | nindent 6 }}\n  template:\n    metadata:\n      labels:\n        {{- include \"parcel.labels\" . | nindent 8 }}\n    spec:\n      containers:\n        - name: parcel\n          image: \"{{ .Values.image.repository }}:{{ .Values.image.tag }}\"\n          ports:\n            - containerPort: {{ .Values.service.port }}\n",
+        "templates/service.yaml": "apiVersion: v1\nkind: Service\nmetadata:\n  name: {{ .Release.Name }}\nspec:\n  selector:\n    {{- include \"parcel.labels\" . | nindent 4 }}\n  ports:\n    - port: {{ .Values.service.port }}\n      targetPort: {{ .Values.service.port }}\n"
+      },
+      "memories": [
+        {
+          "id": "labels",
+          "title": "Release isolation agreement",
+          "body": "Selectors must include the release identity so adjacent installations cannot receive each other's traffic.",
+          "dependencies": [
+            "templates/_helpers.tpl"
+          ]
+        },
+        {
+          "id": "availability",
+          "title": "Rolling availability floor",
+          "body": "Keep at least two live replicas during normal operation.",
+          "dependencies": [
+            "values.yaml"
+          ]
+        },
+        {
+          "id": "port",
+          "title": "Listener compatibility",
+          "body": "The service target and the container listener must use the same port.",
+          "dependencies": [
+            "values.yaml"
+          ]
+        },
+        {
+          "id": "noise",
+          "title": "CPU reservation",
+          "body": "The shared pool budgets one tenth of a core per replica.",
+          "dependencies": [
+            "values.yaml"
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "helper-change",
+          "category": "direct_symbol",
+          "question": "Which constraint must a change to parcel.labels preserve?",
+          "relevant_memories": [
+            "labels"
+          ],
+          "rationale": "The helper owns release isolation; resources and replicas are separate concerns."
+        },
+        {
+          "id": "service-change",
+          "category": "dependency",
+          "question": "Which constraints must a change to templates/service.yaml preserve?",
+          "relevant_memories": [
+            "labels",
+            "port"
+          ],
+          "rationale": "Service routing depends on the shared labels and matching listener port."
+        },
+        {
+          "id": "replica-floor",
+          "category": "rationale",
+          "question": "Why must the chart keep at least two live replicas?",
+          "relevant_memories": [
+            "availability"
+          ],
+          "rationale": "The availability note explains the floor."
+        },
+        {
+          "id": "direct-prose",
+          "category": "prose",
+          "question": "What is the release isolation agreement?",
+          "relevant_memories": [
+            "labels"
+          ],
+          "rationale": "This is the selector isolation topic only."
+        },
+        {
+          "id": "unsupported",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation interval is required by parcel.labels?",
+          "relevant_memories": [],
+          "rationale": "Neither values nor notes define encryption key rotation."
+        },
+        {
+          "id": "literal-override",
+          "category": "code_only",
+          "question": "With values-production.yaml supplied last, what replicaCount value wins?",
+          "relevant_memories": [],
+          "rationale": "Values precedence and the supplied literal determine the result; a design note is not required."
+        }
+      ],
+      "grounding_provenance": "Explicit file dependencies, not symbol links: this runtime projects no live symbol identities for these templates/manifests."
+    },
+    {
+      "id": "kubernetes-worker",
+      "coverage_group": "kubernetes",
+      "split": "regression",
+      "files": {
+        "base/deployment.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: parcel-worker\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: parcel-worker\n  template:\n    metadata:\n      labels:\n        app: parcel-worker\n    spec:\n      terminationGracePeriodSeconds: 45\n      containers:\n        - name: worker\n          image: example.invalid/worker:1.2\n          ports:\n            - containerPort: 8080\n          envFrom:\n            - configMapRef:\n                name: parcel-settings\n",
+        "base/service.yaml": "apiVersion: v1\nkind: Service\nmetadata:\n  name: parcel-worker\nspec:\n  selector:\n    app: parcel-worker\n  ports:\n    - port: 80\n      targetPort: 8080\n",
+        "base/configmap.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: parcel-settings\ndata:\n  LOG_LEVEL: info\n",
+        "base/kustomization.yaml": "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n  - deployment.yaml\n  - service.yaml\n  - configmap.yaml\n",
+        "overlays/production/kustomization.yaml": "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n  - ../../base\npatches:\n  - path: replicas.yaml\n",
+        "overlays/production/replicas.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: parcel-worker\nspec:\n  replicas: 3\n"
+      },
+      "memories": [
+        {
+          "id": "selector",
+          "title": "Traffic membership agreement",
+          "body": "The Service selector must match pod labels; unrelated workloads must never receive these requests.",
+          "dependencies": [
+            "base/service.yaml"
+          ]
+        },
+        {
+          "id": "drain",
+          "title": "Checkpoint completion window",
+          "body": "Workers need forty-five seconds to persist their final checkpoint before termination.",
+          "dependencies": [
+            "base/deployment.yaml"
+          ]
+        },
+        {
+          "id": "port",
+          "title": "Listener compatibility",
+          "body": "The Service target port must match the worker container listener.",
+          "dependencies": [
+            "base/service.yaml"
+          ]
+        },
+        {
+          "id": "noise",
+          "title": "Logging convention",
+          "body": "Default operational logs use informational severity.",
+          "dependencies": [
+            "base/configmap.yaml"
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "service-change",
+          "category": "dependency",
+          "question": "Which constraints must a change to base/service.yaml preserve?",
+          "relevant_memories": [
+            "selector",
+            "port"
+          ],
+          "rationale": "This Service owns traffic membership and listener compatibility, not shutdown or log defaults."
+        },
+        {
+          "id": "drain-reason",
+          "category": "rationale",
+          "question": "Why is terminationGracePeriodSeconds forty-five seconds for the worker?",
+          "relevant_memories": [
+            "drain"
+          ],
+          "rationale": "Only the checkpoint window explains shutdown grace."
+        },
+        {
+          "id": "selector-contract",
+          "category": "direct_symbol",
+          "question": "Which constraint governs selector in base/service.yaml?",
+          "relevant_memories": [
+            "selector"
+          ],
+          "rationale": "The selector decides traffic membership."
+        },
+        {
+          "id": "direct-prose",
+          "category": "prose",
+          "question": "What is the traffic membership agreement?",
+          "relevant_memories": [
+            "selector"
+          ],
+          "rationale": "The question asks only about matching the intended workload."
+        },
+        {
+          "id": "unsupported",
+          "category": "no_answer_control",
+          "question": "Which backup storage region is required for the parcel-worker deployment?",
+          "relevant_memories": [],
+          "rationale": "No manifest or note defines a backup region."
+        },
+        {
+          "id": "literal-override",
+          "category": "code_only",
+          "question": "What replicas count does overlays/production/replicas.yaml specify?",
+          "relevant_memories": [],
+          "rationale": "The patch contains the literal count."
+        }
+      ],
+      "grounding_provenance": "Explicit file dependencies, not symbol links: this runtime projects no live symbol identities for these templates/manifests."
+    },
+    {
+      "id": "bash-delivery",
+      "coverage_group": "bash",
+      "split": "regression",
+      "files": {
+        "deliver.sh": "#!/usr/bin/env bash\nset -euo pipefail\nsource \"./lib/policy.sh\"\ndeliver_payload() {\n  local payload=\"$1\"\n  local attempt=\"$2\"\n  local delay\n  delay=$(retry_delay \"$attempt\")\n  sleep \"$delay\"\n  printf '%s\\n' \"$payload\" | consume_payload\n}\nconsume_payload() {\n  cat\n}\nhealth_probe() {\n  printf '%s\\n' ok\n}\n",
+        "lib/policy.sh": "#!/usr/bin/env bash\nretry_delay() {\n  local attempt=\"$1\"\n  local delay=$((1 << attempt))\n  if (( delay > 45 )); then\n    delay=45\n  fi\n  printf '%s\\n' \"$delay\"\n}\n",
+        "scripts/preview.sh": "#!/usr/bin/env bash\ndeliver_payload() {\n  printf '%s\\n' \"preview:$1\"\n}\n"
+      },
+      "memories": [
+        {
+          "id": "wire",
+          "title": "Payload boundary agreement",
+          "body": "Preserve whitespace and wildcard characters as literal payload bytes; each record ends with one newline.",
+          "symbols": [
+            {
+              "path": "deliver.sh",
+              "qualified_name": "deliver_payload"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Peer expiration window",
+          "body": "The peer discards a pending delivery after forty-five seconds; a longer pause loses the message.",
+          "symbols": [
+            {
+              "path": "lib/policy.sh",
+              "qualified_name": "retry_delay"
+            }
+          ]
+        },
+        {
+          "id": "pipeline",
+          "title": "Pipeline failure contract",
+          "body": "A failed consumer must cause delivery to report failure rather than success.",
+          "symbols": [
+            {
+              "path": "deliver.sh",
+              "qualified_name": "consume_payload"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "title": "Preview compatibility",
+          "body": "The preview command must retain its preview prefix for operator tools.",
+          "symbols": [
+            {
+              "path": "scripts/preview.sh",
+              "qualified_name": "deliver_payload"
+            }
+          ]
+        },
+        {
+          "id": "noise",
+          "title": "Health sampling schedule",
+          "body": "Sample health probes once per thousand completed deliveries.",
+          "symbols": [
+            {
+              "path": "deliver.sh",
+              "qualified_name": "health_probe"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "delivery-change",
+          "category": "dependency",
+          "question": "Which constraints must a change to deliver_payload in deliver.sh preserve?",
+          "relevant_memories": [
+            "wire",
+            "lease",
+            "pipeline"
+          ],
+          "rationale": "Delivery needs byte boundaries, the delay lifetime, and propagation of consumer failure; the preview implementation and probe are unrelated."
+        },
+        {
+          "id": "delay-reason",
+          "category": "rationale",
+          "question": "Why does deliver_payload cap its waiting interval at forty-five seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "Only the peer window explains the cap."
+        },
+        {
+          "id": "ambiguous-function",
+          "category": "ambiguous_symbol",
+          "question": "Which constraints apply to `deliver_payload` in this project?",
+          "relevant_memories": [
+            "wire",
+            "lease",
+            "pipeline",
+            "alternate"
+          ],
+          "rationale": "Both implementations are requested, together with dependencies of real delivery."
+        },
+        {
+          "id": "direct-prose",
+          "category": "prose",
+          "question": "What is the payload boundary agreement?",
+          "relevant_memories": [
+            "wire"
+          ],
+          "rationale": "Only payload quoting and record boundaries answer the topic."
+        },
+        {
+          "id": "unsupported",
+          "category": "no_answer_control",
+          "question": "Which encryption key rotation period is required by deliver_payload()?",
+          "relevant_memories": [],
+          "rationale": "No script or note defines encryption key rotation."
+        },
+        {
+          "id": "literal-cap",
+          "category": "code_only",
+          "question": "What cap value does lib/policy.sh assign to delay?",
+          "relevant_memories": [],
+          "rationale": "The arithmetic branch supplies the cap without a retained decision."
+        }
+      ],
+      "grounding_provenance": "Projected Bash function symbols, including the sourced helper and same-named alternate implementation."
+    }
+  ]
+}

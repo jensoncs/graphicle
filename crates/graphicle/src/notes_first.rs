@@ -82,12 +82,14 @@ pub fn names_code(question: &str) -> bool {
             r"|\b[A-Z][a-z0-9]+(?:[A-Z][a-z0-9]+){2,}\b",
             r"|\b[A-Za-z_][A-Za-z0-9_]*::[A-Za-z_]",
             r"|\b[A-Za-z_][A-Za-z0-9_.]*\([^()\n]{0,80}\)",
-            r"|\b[A-Za-z0-9_-]+\.(?:rs|py|pyi|go|java|kt|c|h|cc|cpp|hpp|rb|swift|cs|php|scala|sh)\b",
+            r"|\b[A-Za-z0-9_-]+\.(?:rs|py|pyi|go|java|kt|c|h|cc|cpp|hpp|rb|swift|cs|php|scala|sh|tf|tfvars|hcl|yaml|yml|tpl|gotmpl)\b",
             r"|[A-Za-z0-9_.-]*/[A-Za-z0-9_./-]*\.(?:ts|tsx|js|jsx|mjs|cjs|vue|svelte)\b",
         ))
         .expect("the names-code rule")
     });
     CODE.is_match(question)
+        || crate::identifier_arm::explicit_names(question)
+            .names.iter().any(|name| crate::identifier_arm::configuration_address(name))
 }
 
 /// A note or document by its file name: Markdown, plain text,

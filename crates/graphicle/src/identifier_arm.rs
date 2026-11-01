@@ -52,7 +52,17 @@ pub struct Named {
 const PATH_EXTENSIONS: &str = "c h cc cpp cxx hpp hh hxx inl ipp tpp cu cuh rs java kt kts \
     scala cs fs vb js jsx mjs cjs ts tsx mts cts go py pyi pyx rb php swift m mm lua ex exs \
     erl hs ml mli dart jl r clj cljs zig vue svelte groovy pl pm sh bash ps1 sql proto toml \
-    json yaml yml xml gradle cmake csproj props ini cfg conf md rst txt html css scss less";
+    json yaml yml xml gradle cmake csproj props ini cfg conf md rst txt html css scss less \
+    tf tfvars hcl tpl gotmpl";
+
+/// Conventional HCL address namespaces remain code even when every component
+/// is lowercase. Ordinary dotted prose and host names keep their old treatment.
+pub(crate) fn configuration_address(token: &str) -> bool {
+    token.split_once('.').is_some_and(|(namespace, name)| {
+        matches!(namespace, "var" | "local" | "module" | "data" | "output" | "provider" | "job")
+            && !name.is_empty()
+    })
+}
 
 /// Common English words and keywords of programming languages: a word of a
 /// code block or span that is one of these is not a name.
@@ -202,7 +212,7 @@ fn read_named(text: &str, expand_parts: bool) -> Named {
                 && !parts
                     .iter()
                     .all(|p| p.chars().all(|c| c.is_ascii_lowercase()));
-            if !(in_code || shows_code) {
+            if !(in_code || shows_code || configuration_address(token)) {
                 return;
             }
             if !file {
@@ -445,9 +455,10 @@ impl CodeGraph {
     /// Code dependencies in either direction, plus enclosing symbols. Nesting
     /// only follows inward to the owner: keep its contract without traversing
     /// back out into unrelated sibling declarations.
-    fn dependencies(&self, node: usize, remaining: &mut usize) -> Option<BTreeSet<usize>> {
+    fn dependencies(&self, node: usize, remaining: &mut usize, outgoing_only: bool) -> Option<BTreeSet<usize>> {
         let mut found = BTreeSet::new();
-        let eligible = |relation: Option<&str>, target: usize| {
+        let eligible = |relation: Option<&str>, source: usize, target: usize| {
+            if outgoing_only { return source == node && relation == Some("references"); }
             if relation
                 .is_some_and(|r| graphicle_memory::graph::identity::NESTING_RELATIONS.contains(&r))
             {
@@ -462,7 +473,7 @@ impl CodeGraph {
                 let incoming = handle.in_edges(node);
                 *remaining = remaining.checked_sub(edges.len() + incoming.len())?;
                 for (a, b, edge) in edges.into_iter().chain(incoming) {
-                    if eligible(edge.attributes.get("relation").and_then(Value::as_str), b) {
+                    if eligible(edge.attributes.get("relation").and_then(Value::as_str), a, b) {
                         found.insert(if a == node { b } else { a });
                     }
                 }
@@ -471,7 +482,7 @@ impl CodeGraph {
                 let ids: Vec<u32> = file.adjacency(node).ok()?.all().into_iter().collect();
                 *remaining = remaining.checked_sub(ids.len())?;
                 for edge in file.edges(&ids).ok()? {
-                    if eligible(edge.relation.as_ref().and_then(Value::as_str), edge.target) {
+                    if eligible(edge.relation.as_ref().and_then(Value::as_str), edge.source, edge.target) {
                         found.insert(if edge.source == node {
                             edge.target
                         } else {
@@ -585,6 +596,9 @@ pub(crate) fn memory_symbol_scope(
     question: &str,
     documents: &HashMap<&str, &Value>,
 ) -> Option<BTreeSet<(String, String)>> {
+    if let Some(scope) = helm_memory_scope(db, repository, question, documents) {
+        return Some(scope);
+    }
     let named = explicit_names(question);
     if named.names.is_empty() || named.names.len() > MAX_NAMES {
         return None;
@@ -608,49 +622,89 @@ pub(crate) fn memory_symbol_scope(
             return None;
         }
         for symbol in found {
-            pending.insert(graph.node_index(symbol)?);
+            let node = graph.node_index(symbol)?;
+            // Helm already attempted its directed, completeness-checked scope.
+            // Do not retry an incomplete Helm graph as an ordinary call graph.
+            if graph.attributes(node)?.get("_helm_kind").is_some() {
+                return None;
+            }
+            pending.insert(node);
         }
     }
-    memory_dependency_scope(&graph, pending, documents)
+    memory_dependency_scope(&graph, pending, documents, ScopeTraversal::Related)
 }
 
-/// A prose question can be anchored by the current symbol links of ranked
-/// memories. Resolve their exact identities, then use the same dependency
-/// closure as explicit names. A partial or unavailable graph never narrows.
-pub(crate) fn linked_memory_scope(
+/// Resolve Helm helpers (including lowercase names) or a named chart template.
+/// Ordinary prose, missing/ambiguous graph evidence and non-Helm declarations
+/// do not acquire a configuration scope by lexical resemblance alone.
+pub(crate) fn helm_memory_scope(
     db: &Connection,
     repository: &str,
-    symbols: &BTreeSet<(String, String)>,
+    question: &str,
     documents: &HashMap<&str, &Value>,
 ) -> Option<BTreeSet<(String, String)>> {
-    if symbols.is_empty() || symbols.len() > MAX_NAMES {
-        return None;
-    }
+    let named = explicit_names(question);
+    let names = if named.names.is_empty() && named.paths.is_empty() {
+        match crate::identifier_route::classify(question) {
+            crate::identifier_route::Shape::Lookup(names) | crate::identifier_route::Shape::AsksMore(names) => names,
+            _ => return None,
+        }
+    } else { named.names };
+    if names.is_empty() && named.paths.is_empty() { return None; }
     let graph = code_graph(db, repository, true)?;
     let mut pending = BTreeSet::new();
-    for (path, name) in symbols {
-        let found: Vec<_> = graph
-            .definitions(name)
-            .into_iter()
-            .filter(|&i| {
-                let (defined, file) = graph.symbol(i);
-                defined == name && file == path
-            })
-            .collect();
-        if found.is_empty() {
-            return None;
+    if names.is_empty() {
+        // Template roots are genuine code symbols; this does not turn an
+        // arbitrary file path into a request for every declaration in it.
+        for path in &named.paths {
+            let mut found = false;
+            for symbol in graph.definitions(path.rsplit('.').next()?) {
+                let (_, file) = graph.symbol(symbol);
+                if file != path && !file.ends_with(&format!("/{path}")) { continue; }
+                let node = graph.node_index(symbol)?;
+                if graph.attributes(node)?["_helm_kind"] == "render" {
+                    pending.insert(node); found = true;
+                }
+            }
+            if !found { return None; }
         }
-        for symbol in found {
-            pending.insert(graph.node_index(symbol)?);
+    } else {
+        for name in names {
+            let found: Vec<_> = graph.definitions(&name).into_iter().filter(|&symbol| {
+                let (_, file) = graph.symbol(symbol);
+                named.paths.is_empty() || named.paths.iter().any(|p| file == p || file.ends_with(&format!("/{p}")))
+            }).collect();
+            if found.is_empty() { return None; }
+            for symbol in found {
+                let node = graph.node_index(symbol)?;
+                if graph.attributes(node)?.get("_helm_kind").is_none() { return None; }
+                pending.insert(node);
+            }
         }
     }
-    memory_dependency_scope(&graph, pending, documents)
+    memory_dependency_scope(&graph, pending, documents, ScopeTraversal::References)
 }
+
+pub(crate) fn configuration_owner_scope(
+    db: &Connection, repository: &str, question: &str, documents: &HashMap<&str, &Value>,
+) -> Option<BTreeSet<(String, String)>> {
+    let (path, name) = crate::code_question::configuration_owner_request(question)?;
+    let graph = code_graph(db, repository, true)?;
+    let pending: Option<BTreeSet<_>> = graph.definitions(&name).into_iter().filter(|&symbol| {
+        let (_, file) = graph.symbol(symbol);
+        file == path || file.ends_with(&format!("/{path}"))
+    }).map(|symbol| graph.node_index(symbol)).collect();
+    memory_dependency_scope(&graph, pending?, documents, ScopeTraversal::Declarations)
+}
+
+#[derive(Clone, Copy, PartialEq)]
+enum ScopeTraversal { Related, References, Declarations }
 
 fn memory_dependency_scope(
     graph: &CodeGraph,
     mut pending: BTreeSet<usize>,
     documents: &HashMap<&str, &Value>,
+    traversal: ScopeTraversal,
 ) -> Option<BTreeSet<(String, String)>> {
     let mut visited = BTreeSet::new();
     let mut scope = BTreeSet::new();
@@ -678,7 +732,15 @@ fn memory_dependency_scope(
             return None;
         }
         scope.insert((path, crate::identifier_route::symbol_name(&fields)?));
-        pending.extend(graph.dependencies(node, &mut remaining_edges)?);
+        // Incomplete Helm syntax or unresolved references cannot prove that
+        // an omitted note lies outside the template's dependency scope.
+        if traversal == ScopeTraversal::References && ["_helm_issues", "_helm_unresolved"].iter().any(|key|
+            fields.get(*key).and_then(Value::as_array).is_some_and(|v| !v.is_empty())) {
+            return None;
+        }
+        if traversal != ScopeTraversal::Declarations {
+            pending.extend(graph.dependencies(node, &mut remaining_edges, traversal == ScopeTraversal::References)?);
+        }
     }
     (!graph.corrupt() && !scope.is_empty()).then_some(scope)
 }
@@ -1265,6 +1327,14 @@ fn defining_outside_source(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lowercase_configuration_addresses_and_paths_are_explicit() {
+        let names = explicit_names("Change module.queue and job.worker using variables.tf and worker.nomad.hcl");
+        assert_eq!(names.names, ["module.queue", "job.worker"]);
+        assert_eq!(names.paths, ["variables.tf", "worker.nomad.hcl"]);
+        assert!(explicit_names("Read example.com and e.g. the docs").names.is_empty());
+    }
 
     #[test]
     fn explicit_references_do_not_reserve_qualifier_parts_or_unrelated_methods() {

@@ -26,7 +26,7 @@ impl Trace {
                     "retrieval_arms":ranked["reasons"].get(s(row,"identity")).cloned().unwrap_or(json!([])),
                     "link_outcomes":{}, "link_candidate_rank":null,
                     "link_final_rank":null, "reranker":null,
-                    "selected_by_rank":false, "pack_rank":null,
+                    "selected_by_rank":false, "selection_filter":null, "pack_rank":null,
                     "delivered":false, "delivery_route":null}),
                 );
             }
@@ -60,6 +60,12 @@ impl Trace {
             if let Some(entry) = self.entries.get_mut(s(row, "identity")) {
                 entry["link_candidate_rank"] = json!(rank + 1);
             }
+        }
+    }
+
+    pub fn withheld(&mut self, row: &Value, reason: &str) {
+        if let Some(entry) = self.entries.get_mut(s(row, "identity")) {
+            entry["selection_filter"] = json!(reason);
         }
     }
 

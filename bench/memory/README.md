@@ -6,9 +6,17 @@ fixtures and exact-source checks, preserves per-case diagnostics, and compares
 against an explicitly frozen baseline without treating synthetic cases as
 real-user accuracy.
 
-The CI scorecard covers 110 authored questions (309 context calls) across Python,
-JavaScript, TypeScript, Go, Java, Kotlin and Rust, with per-language and
-query-origin breakdowns. The separate `fixtures/quality_real_suite.json` replays
+The CI scorecard covers 169 authored questions (466 context calls) across Python,
+JavaScript, TypeScript, Go, Java, Kotlin, Rust, HCL/Terraform, Helm templates,
+Kubernetes YAML and Bash, with syntax, coverage-group and query-origin breakdowns.
+The infrastructure fixtures distinguish symbol-linked notes from explicit
+file-dependency notes; source-text coverage does not establish template rendering,
+deployment correctness or complete symbol support. See the quality guide for
+known recall and precision gaps. Nine additional Helm cases cover bounded computed
+references and a runtime-value fallback; they are measured separately from the
+unchanged earlier cases. The [configuration/expression receipt](results/configuration-expression-improvement-20261101.json)
+records zero remaining Terraform/HCL target-case false positives, the computed
+Helm gains, and the unresolved runtime-value control. The separate `fixtures/quality_real_suite.json` replays
 11 pinned historical-source questions against `quality-real-baseline.json` when
 the external checkouts and capture logs are available. Its two captured tool
 queries and nine authored real-source questions are not independent human

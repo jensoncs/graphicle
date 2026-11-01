@@ -499,7 +499,7 @@ impl Extractor<'_> {
         }
         Ok(attrs)
     }
-    fn extract(&mut self, root: Node<'_>, tf: bool) -> Result<()> {
+    fn extract(&mut self, root: Node<'_>, tf: bool, generic_hcl: bool) -> Result<()> {
         let body = children(root).find(|n| n.kind() == "body").unwrap_or(root);
         for block in children(body).filter(|n| n.kind() == "block") {
             let (kind, labels) = self.block_parts(block);
@@ -521,6 +521,12 @@ impl Extractor<'_> {
                         }
                     }
                     continue;
+                }
+                // HCL is also used by Nomad, Packer and other configuration
+                // tools. Preserve labelled root blocks and their nested
+                // references without interpreting them as Terraform resources.
+                Some(kind) if generic_hcl && !labels.is_empty() => {
+                    format!("{kind}.{}", labels.join("."))
                 }
                 _ => continue,
             };
@@ -581,6 +587,43 @@ impl Extractor<'_> {
     }
 }
 
+/// Whether exactly one named block has exactly one literal integer count.
+/// Used for source-backed value questions; comments, expressions, duplicate
+/// blocks, and incomplete excerpts cannot justify suppressing design notes.
+pub fn has_literal_block_count(source: &str, kind: &str, label: &str) -> bool {
+    if source.len() > 1_048_576 { return false; }
+    let mut parser = tree_sitter::Parser::new();
+    if parser.set_language(&graphicle_tree_sitter_hcl::LANGUAGE.into()).is_err() { return false; }
+    let Some(tree) = parser.parse(source, None) else { return false; };
+    if tree.root_node().has_error() { return false; }
+    let bytes = source.as_bytes();
+    let mut pending = vec![tree.root_node()];
+    let mut matched = 0;
+    let mut literal = false;
+    let mut visits = 0;
+    while let Some(node) = pending.pop() {
+        visits += 1;
+        if visits > 4096 { return false; }
+        if node.kind() == "block" {
+            let head: Vec<_> = named(node).filter(|n| matches!(n.kind(), "identifier" | "string_lit"))
+                .map(|n| read_text(n, bytes).trim_matches('"').to_string()).collect();
+            if head == [kind, label] {
+                matched += 1;
+                let attrs: Vec<_> = named(node).filter(|n| n.kind() == "body")
+                    .flat_map(named).filter(|n| n.kind() == "attribute")
+                    .filter(|n| n.named_child(0).is_some_and(|key| read_text(key, bytes) == "count"))
+                    .collect();
+                literal = attrs.len() == 1 && attrs[0].named_child(1).is_some_and(|value| {
+                    let raw = read_text(value, bytes);
+                    !raw.is_empty() && raw.bytes().all(|b| b.is_ascii_digit()) && raw.parse::<u64>().is_ok()
+                });
+            }
+        }
+        pending.extend(named(node));
+    }
+    matched == 1 && literal
+}
+
 pub fn extract_terraform(path: &Path) -> Result<Value> {
     let source = match super::base::read_source_bytes(path, true) {
         Ok(source) => source,
@@ -610,7 +653,8 @@ pub fn extract_terraform(path: &Path) -> Result<Value> {
         by_id: HashMap::from([(file_id, 0)]),
         seen_edges: HashSet::new(),
     };
-    extractor.extract(tree.root_node(), path_syntax::suffix(name) == ".tf")?;
+    let suffix = path_syntax::suffix(name);
+    extractor.extract(tree.root_node(), suffix == ".tf", suffix == ".hcl")?;
     Ok(json!({"nodes":extractor.nodes,"edges":extractor.edges}))
 }
 
@@ -661,6 +705,36 @@ pub fn dispatch(request: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
+
+    #[test]
+    fn generic_hcl_blocks_keep_nested_variable_references() {
+        let dir = tempfile::tempdir().unwrap();
+        let source = r#"
+job "worker" {
+  group "processors" {
+    shutdown_delay = "${var.drain_seconds}s"
+  }
+}
+job "metrics" { type = "batch" }
+variable "drain_seconds" { default = 45 }
+"#;
+        let path = dir.path().join("worker.hcl");
+        std::fs::write(&path, source).unwrap();
+        let graph = super::extract_terraform(&path).unwrap();
+        let nodes = graph["nodes"].as_array().unwrap();
+        let id = |label| &nodes.iter().find(|n| n["label"] == label).unwrap()["id"];
+        assert!(graph["edges"].as_array().unwrap().iter().any(|edge|
+            &edge["source"] == id("job.worker")
+                && &edge["target"] == id("var.drain_seconds")
+                && edge["relation"] == "references"));
+        assert!(!graph["edges"].as_array().unwrap().iter().any(|edge|
+            &edge["source"] == id("job.metrics") && edge["relation"] == "references"));
+        // Unknown Terraform blocks do not acquire generic HCL semantics.
+        let path = dir.path().join("main.tf");
+        std::fs::write(&path, source).unwrap();
+        let graph = super::extract_terraform(&path).unwrap();
+        assert!(!graph["nodes"].as_array().unwrap().iter().any(|n| n["label"] == "job.worker"));
+    }
 
     #[test]
     fn secret_names_protect_paired_values_and_block_defaults() {

@@ -52,6 +52,30 @@ def test_unknown_returned_memory_is_an_error_not_dropped(evaluation):
         evaluation.score(packet("unknown"), {}, [])
 
 
+@pytest.mark.parametrize("dependencies", ["codec.py", ["../outside"], ["absent.yaml"],
+                                          ["base/service.yaml", "base/service.yaml"], [{}]])
+def test_file_dependencies_must_belong_to_the_fixture(evaluation, dependencies):
+    dataset = json.loads((ROOT / "fixtures/quality_infrastructure_memories.json").read_text())
+    dataset["projects"] = [next(p for p in dataset["projects"] if p["id"] == "kubernetes-worker")]
+    dataset["projects"][0]["memories"][0]["dependencies"] = dependencies
+    with pytest.raises(ValueError, match="unique fixture file paths"):
+        evaluation.validate(dataset)
+
+
+@pytest.mark.skipif(not BINARY.exists(), reason="build the graphicle binary first")
+def test_file_grounded_notes_record_their_hashes_without_claiming_symbols(tmp_path, evaluation):
+    dataset = json.loads((ROOT / "fixtures/quality_infrastructure_memories.json").read_text())
+    project = next(p for p in dataset["projects"] if p["id"] == "kubernetes-worker")
+    project["queries"] = [next(q for q in project["queries"] if q["id"] == "direct-prose")]
+    case = evaluation.evaluate_project(project, BINARY, tmp_path, diagnose=True)[0]
+    assert case["counted_preserves_content"]
+    assert all(not v.get("error") and "selector" in v["returned"] for v in case["variants"].values())
+    assert case["memory_grounding"]["selector"] == []
+    path = "base/service.yaml"
+    assert case["memory_file_grounding"]["selector"][path] == hashlib.sha256(project["files"][path].encode()).hexdigest()
+    assert json.loads((tmp_path / project["id"] / "memory-files.json").read_text()) == case["memory_file_grounding"]
+
+
 def test_local_inference_requires_explicit_opt_in_and_accounting(evaluation):
     local = {**packet("a"), "model_calls": 1,
              "local_reranker": {"model_key": "pinned", "input_tokens": 12}}

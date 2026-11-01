@@ -22,6 +22,8 @@ def memory_diagnostics(packet, known, relevant):
             stage = "not_observed_in_candidates"
         elif candidate.get("pack_rank") is not None:
             stage = "packing"
+        elif candidate.get("selection_filter"):
+            stage = "relevance_withheld"
         elif (candidate.get("link_final_rank") or 0) > trace["linked_memory_limit"]:
             stage = "linked_final_cap"
         elif reasons.get("candidate_limit"):
@@ -97,7 +99,7 @@ def diagnostics(packet, stderr, required=()):
     result = {"phases": phases}
     for key in ("route", "mechanisms", "omitted", "source_state", "source_age",
                 "local_reranker", "symbol_links", "code_graph", "retrieval_defaults",
-                "memory_candidates_debug"):
+                "memory_candidates_debug", "memory_topic_support"):
         if key in packet:
             result[key] = packet[key]
     if required:

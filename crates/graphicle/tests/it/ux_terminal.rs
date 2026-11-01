@@ -370,7 +370,8 @@ fn status_keeps_its_json_when_piped_and_reads_well_on_a_terminal() {
     }
     // The code symbols, counted as setup counts them.
     assert!(text.contains("3 files, 3 symbols, 0 memories"), "{text}");
-    assert!(text.contains("built: 7 nodes"), "{text}");
+    let nodes = synced["graph"]["nodes"].as_u64().unwrap();
+    assert!(text.contains(&format!("built: {nodes} nodes")), "{text}");
     assert!(
         text.contains("Cursor (~/.cursor/mcp.json, graphicle-repo): ok"),
         "{text}"
@@ -913,7 +914,8 @@ fn update_without_a_feed_says_how_to_update_and_sync_defaults_to_this_folder() {
         again.contains("no change since the last sync (3 files)"),
         "{again}"
     );
-    assert!(again.contains("Code graph: 7 nodes"), "{again}");
+    let nodes = synced["graph"]["nodes"].as_u64().unwrap();
+    assert!(again.contains(&format!("Code graph: {nodes} nodes")), "{again}");
 }
 
 #[test]

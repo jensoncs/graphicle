@@ -12,7 +12,7 @@
 //! test ([`names_tests`]).
 use crate::{Error, Result};
 use serde_json::{Map, Value, json};
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::LazyLock;
 
 /// What a project file holds, by its path ([`path_class`]).
@@ -297,6 +297,99 @@ pub fn asks_for_literal_call_value(question: &str) -> bool {
         value.into_owned()
     };
     serde_json::from_str::<Value>(&value).is_ok()
+}
+
+/// A narrow request to read a setting or apply a stated last-file override.
+/// Return the file and setting so retrieval can require matching source before
+/// withholding design memories. Rationale and compound requests stay broad.
+pub(crate) fn configuration_value_request(question: &str) -> Option<(String, String)> {
+    static VALUE: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+            r"(?i)^\s*what\s+(?:default\s+)?value\s+does\s+`?",
+            r"(?P<path>[a-z0-9_./-]+\.(?:tf|tfvars|hcl|yaml|yml))`?\s+",
+            r"(?:assign\s+to|set\s+for|specify\s+for)\s+`?",
+            r"(?P<key>[a-z_][a-z0-9_.]*)`?\s*\??\s*$"
+        )).expect("configuration value question")
+    });
+    static OVERRIDE: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+            r"(?i)^\s*with\s+`?(?P<path>[a-z0-9_./-]+\.(?:tfvars|yaml|yml))`?\s+",
+            r"(?:supplied|loaded|applied)\s+last,?\s+what\s+`?",
+            r"(?P<key>[a-z_][a-z0-9_.]*)`?\s+value\s+(?:wins|is\s+used)\s*\??\s*$"
+        )).expect("configuration override question")
+    });
+    let captures = VALUE.captures(question).or_else(|| OVERRIDE.captures(question))?;
+    Some((captures["path"].to_string(), captures["key"].to_string()))
+}
+
+/// A request for the constraint owned by one configuration input, not its
+/// consumers or the impact of changing it. An explicit file disambiguates it.
+pub(crate) fn configuration_owner_request(question: &str) -> Option<(String, String)> {
+    static OWNER: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(concat!(
+        r"(?i)^\s*(?:what|which)\s+constraints?\s+(?:governs?|appl(?:y|ies)\s+to)\s+`?",
+        r"(?P<name>var\.[a-z_][a-z0-9_]*)`?\s+in\s+`?",
+        r"(?P<path>[a-z0-9_./-]+\.(?:tf|hcl))`?\s*\??\s*$"
+    )).expect("configuration input owner question"));
+    let c = OWNER.captures(question)?;
+    Some((c["path"].into(), c["name"].into()))
+}
+
+/// Named HCL block counts need AST evidence, not a shared word in a comment,
+/// another block, or a variable expression.
+pub(crate) fn configuration_count_request(question: &str, path: &str, source: &str) -> Option<(String, String)> {
+    static COUNT: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(concat!(
+        r"(?i)^\s*what\s+count\s+is\s+(?:assigned|set)\s+to\s+(?:the\s+)?`?",
+        r"(?P<label>[a-z0-9_-]+)`?\s+(?P<block>group|job|task)\s+in\s+`?",
+        r"(?P<path>[a-z0-9_./-]+\.hcl)`?\s*\??\s*$"
+    )).expect("literal configuration count question"));
+    let c = COUNT.captures(question)?;
+    if path != &c["path"] && !path.ends_with(&format!("/{}", &c["path"])) { return None; }
+    graphicle::extractors::terraform::has_literal_block_count(source, &c["block"], &c["label"])
+        .then(|| (c["path"].into(), "count".into()))
+}
+
+/// The attribute in a narrowly phrased factual question about an explicit code
+/// name. This is a lexical support check, not a general intent classifier:
+/// rationale, inventories, compound requests and unfamiliar forms stay broad.
+/// Keeping the subject separate prevents a symbol-name match from being
+/// mistaken for evidence of the requested attribute.
+pub(crate) fn requested_memory_topic(question: &str) -> Option<BTreeSet<String>> {
+    static ATTRIBUTE: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+            r"(?i)^\s*(?:what|which)\s+(?:is\s+(?:the\s+)?)?",
+            r"(?P<topic>[a-z][a-z -]*?)\s+",
+            r"(?:(?:is|are)\s+(?:required|mandatory|approved)\s+(?:by|for)|for|of|governs?)\s+",
+            r"(?P<target>`?[a-z_][a-z0-9_.:]*(?:\(\))?`?)\s*\??\s*$"
+        ))
+        .expect("the memory attribute question rule")
+    });
+    let captures = ATTRIBUTE.captures(question)?;
+    let topic = &captures["topic"];
+    let target = &captures["target"];
+    if crate::identifier_arm::explicit_names(target)
+        .names
+        .is_empty()
+        || !crate::identifier_arm::explicit_names(topic)
+            .names
+            .is_empty()
+        || topic.split_whitespace().any(|word| {
+            matches!(
+                word.to_ascii_lowercase().as_str(),
+                "and" | "or" | "why" | "how"
+            )
+        })
+    {
+        return None;
+    }
+    let target_terms = crate::notes_first::stems(target);
+    let terms: BTreeSet<_> = crate::notes_first::stems(topic)
+        .difference(&target_terms)
+        .cloned()
+        .collect();
+    let inventory = crate::notes_first::stems("decision constraint requirement contract invariant");
+    // Even modified inventories ("compatibility constraints") can require
+    // notes whose wording differs entirely from the question.
+    (!terms.is_empty() && terms.is_disjoint(&inventory)).then_some(terms)
 }
 
 /// An inventory of decisions for a whole project/service, without a narrower
@@ -1234,6 +1327,42 @@ mod tests {
             &short[short.len() - 80..]
         );
         assert_eq!(short.matches("parse_config").count(), 1);
+    }
+
+    #[test]
+    fn literal_counts_require_the_named_block_and_a_literal() {
+        let q = "What count is assigned to the processors group in worker.hcl?";
+        let good = "job \"worker\" {\n group \"processors\" {\n count = 2\n }\n}\n";
+        assert!(configuration_count_request(q,"worker.hcl",good).is_some());
+        for source in [good.replace("processors","other"), good.replace("count = 2","count = var.size"),
+            good.replace("count = 2","# count = 2"), format!("{good}{good}"), good.replace("count = 2","count = 2\n count = 3")] {
+            assert!(configuration_count_request(q,"worker.hcl",&source).is_none(), "{source}");
+        }
+        assert!(configuration_count_request(q,"missing.hcl",good).is_none());
+        assert!(configuration_count_request(&format!("{} and why?",q.trim_end_matches('?')),"worker.hcl",good).is_none());
+        assert!(configuration_owner_request("Which constraints must a change to var.size in settings.tf preserve?").is_none());
+    }
+
+    #[test]
+    fn configuration_values_leave_rationale_and_compound_questions_broad() {
+        for (question, path, key) in [
+            ("What default value does variables.tf assign to retention_seconds?", "variables.tf", "retention_seconds"),
+            ("What value does settings.hcl set for timeout?", "settings.hcl", "timeout"),
+            ("With values-production.yaml supplied last, what replicaCount value wins?", "values-production.yaml", "replicaCount"),
+            ("With prod.yml loaded last, what cpu value is used?", "prod.yml", "cpu"),
+        ] {
+            assert_eq!(configuration_value_request(question), Some((path.into(), key.into())), "{question}");
+        }
+        for question in [
+            "Why does variables.tf assign retention_seconds?",
+            "What default value does variables.tf assign to retention_seconds and why?",
+            "What value should settings.hcl set for timeout?",
+            "What value does settings.hcl set for timeout, and which constraints govern it?",
+            "With prod.yml supplied last, what cpu value wins and why?",
+            "What default value does policy.md assign to retention_seconds?",
+        ] {
+            assert!(configuration_value_request(question).is_none(), "{question}");
+        }
     }
 
     #[test]

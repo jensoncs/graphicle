@@ -478,7 +478,7 @@ pub fn save_manifest(
         let prev =
             normalized_entry(existing.get(&key).unwrap_or(&Value::Null)).unwrap_or(json!({}));
         // Computed here: hash workers do not see this thread's overrides.
-        let current_lang = crate::rcfile::cache_salt(&p);
+        let current_lang = crate::extract::cache_salt(&p);
         let lang_changed = prev.get("language").filter(|v| !v.is_null()).cloned()
             != current_lang.clone().map(Value::String);
         let ast = if matches!(kind, "ast" | "both") {
@@ -596,7 +596,7 @@ pub fn incremental_from_full(
             // rows (0.9.87, #2961).
             let stored_lang = stored.get("language").filter(|v| !v.is_null()).cloned();
             let changed = if !stored.is_null()
-                && crate::rcfile::cache_salt(p).map(Value::String) != stored_lang
+                && crate::extract::cache_salt(p).map(Value::String) != stored_lang
             {
                 true
             } else if let Some(n) = numeric(stored) {

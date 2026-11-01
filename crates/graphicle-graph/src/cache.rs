@@ -15,7 +15,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 /// Bump when AST cache-key semantics change independently of the package
-/// version; 14 rebuilds Go resolution previously degraded by a missing user
+/// version; 16 adds bounded Helm expression references.
+/// 15 adds static Helm helper/value references and chart cache scope.
+/// 14 rebuilds Go resolution previously degraded by a missing user
 /// build cache. 13 adds structured declaration metadata.
 /// 12 adds compiler-backed Go test-package resolution.
 /// 11 removes Go same-name guesses on top of the merged schema 10.
@@ -42,7 +44,7 @@ use std::{
 /// resolved to; 7 invalidated records whose source paths leaked a walked
 /// directory alias when the extraction root was canonicalized (6 added
 /// receiver shadows).
-pub const AST_CACHE_SCHEMA: i64 = 14;
+pub const AST_CACHE_SCHEMA: i64 = 16;
 /// Where an AST entry lists the `target_file` stamps that named an existing
 /// file when it was written; a hit whose target is gone is a miss (#4185).
 pub const CACHED_TARGETS_KEY: &str = "_cached_target_files";

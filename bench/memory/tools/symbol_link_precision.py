@@ -57,6 +57,11 @@ def validate(dataset):
         for memory in memories:
             if not memory.get("title") or not memory.get("body"):
                 raise ValueError("Memories need title and body")
+            dependencies = memory.get("dependencies", [])
+            if (not isinstance(dependencies, list)
+                    or any(not isinstance(p, str) or p not in project["files"] for p in dependencies)
+                    or len(dependencies) != len(set(dependencies))):
+                raise ValueError("Memory dependencies must be unique fixture file paths")
             for symbol in memory.get("symbols", []):
                 if symbol.get("path") not in project["files"] or not symbol.get("qualified_name"):
                     raise ValueError("Symbols must name a fixture file and declaration")
@@ -190,15 +195,19 @@ def evaluate_project(project, binary, output, local=None, variants=None, diagnos
             sync(project["files"])
             known = {}
             grounding = {}
+            file_grounding = {}
             for memory in project.get("memories", []):
-                args = {k: memory[k] for k in ("title", "body", "symbols") if k in memory}
+                args = {k: memory[k] for k in ("title", "body", "symbols", "dependencies") if k in memory}
                 saved = call("note", {"kind": "decision", **args})
                 known[saved["id"]] = memory["id"]
                 if diagnose:
                     grounding[memory["id"]] = saved.get("data", {}).get("symbols", [])
+                    file_grounding[memory["id"]] = saved.get("data", {}).get("dependencies", {})
             if diagnose and cases:
                 cases[0]["memory_grounding"] = grounding
                 save(output / project["id"] / "memory-links.json", grounding)
+                cases[0]["memory_file_grounding"] = file_grounding
+                save(output / project["id"] / "memory-files.json", file_grounding)
             if project.get("updates"):
                 sync(project["updates"])
         except Exception as error:

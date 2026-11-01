@@ -57,6 +57,24 @@ def test_memory_rank_metrics_and_unavailable_diagnostics_are_honest():
         memory_diagnostics({"memories": [{"id": "unknown"}]}, {}, [])
 
 
+def test_relevance_filter_is_reported_without_hiding_a_recall_miss():
+    packet = {"memories": [],
+              "memory_topic_support": {"status": "unsupported_in_candidates"},
+              "memory_candidates_debug": {"version": 1, "truncated": False,
+                  "linked_memory_limit": 4, "candidates": [
+                      {"id": "useful", "selection_filter": "unsupported_topic",
+                       "link_candidate_rank": 1, "link_outcomes": {"candidate": 1}}]}}
+    detail = memory_diagnostics(packet, {"useful": "useful"}, ["useful"])
+    assert detail["missing"][0]["stage"] == "relevance_withheld"
+    assert detail["missing"][0]["candidate"]["selection_filter"] == "unsupported_topic"
+    assert detail["at_k"]["8"]["recall"] == 0
+    assert diagnostics(packet, "")["memory_topic_support"] == packet["memory_topic_support"]
+    baseline = report(memory(gold=("useful",), returned=("useful",)))
+    candidate = report(memory(gold=("useful",), returned=()))
+    candidate["cases"][0]["memory_diagnostics"] = detail
+    assert quality.gate(candidate, baseline)["status"] == "failed"
+
+
 def memory(name="positive", gold=("constraint",), returned=("constraint",)):
     return {"id": name, "kind": "memory", "variant": "on", "category": "test", "split": "regression",
             "error": None, "content_preserved": True, "seconds": .1, "tokens": 100,
@@ -206,9 +224,13 @@ def test_cli_freeze_is_explicit_and_comparison_returns_failure(tmp_path):
 def test_manifest_is_portable_and_has_both_quality_dimensions():
     entries = quality.load_suite(quality.DEFAULT_SUITE)
     assert {e["kind"] for e in entries} == {"source", "memory"}
-    assert sum(len(p["queries"]) for e in entries for p in e["data"]["projects"]) == 110
+    assert sum(len(p["queries"]) for e in entries for p in e["data"]["projects"]) == 169
     assert {quality.project_language(p) for e in entries for p in e["data"]["projects"]} == {
-        "python", "javascript", "typescript", "go", "java", "kotlin", "rust"}
+        "python", "javascript", "typescript", "go", "java", "kotlin", "rust",
+        "hcl", "yaml", "mixed:gotemplate+yaml", "bash"}
+    infrastructure = [e for e in entries if e["id"].startswith("infrastructure-")]
+    assert {quality.project_coverage(p) for e in infrastructure for p in e["data"]["projects"]} == {
+        "hcl", "terraform", "helm", "kubernetes", "bash"}
     assert all(e["data"]["format"] != "graphicle.real-query-seed.v1" for e in entries)
 
 
@@ -222,6 +244,26 @@ def test_language_normalization_does_not_double_count_mixed_projects():
     assert cases[0]["language"] == "mixed:go+typescript"
     assert cases[0]["origin"] == "captured_tool_query"
     assert quality.project_language({"files": {"unrecognized.xyz": ""}}) == "unknown"
+
+
+def test_infrastructure_coverage_does_not_override_syntax_or_double_count():
+    helm = {"coverage_group": "helm", "files": {"Chart.YAML": "", "templates/_helpers.tpl": ""}}
+    assert quality.project_language(helm) == "mixed:gotemplate+yaml"
+    assert quality.project_coverage(helm) == "helm"
+    assert quality.project_language({"files": {"main.tf": "", "production.tfvars": ""}}) == "hcl"
+    assert quality.project_language({"files": {"run.sh": "", "lib.bash": ""}}) == "bash"
+    for group in ("", "helm|yaml", "../helm", ["helm"], 1):
+        with pytest.raises(ValueError, match="Coverage groups"):
+            quality.project_coverage({**helm, "coverage_group": group})
+
+
+def test_helm_gain_cannot_hide_a_kubernetes_regression():
+    before = report({**memory("helm", ("one", "two"), ("one",)), "coverage": "helm"},
+                    {**memory("k8s"), "coverage": "kubernetes"})
+    after = copy.deepcopy(before)
+    after["cases"][0]["retrieved_relevant"] = ["one", "two"]
+    after["cases"][1]["retrieved_relevant"] = []
+    assert quality.gate(after, before)["status"] == "failed"
 
 
 def test_aggregate_gain_cannot_hide_a_language_regression():

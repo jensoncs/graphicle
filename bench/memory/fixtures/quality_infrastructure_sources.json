@@ -1,0 +1,390 @@
+{
+  "format": "graphicle.quality-sources.v1",
+  "provenance": "Authored synthetic infrastructure and shell regression coverage, 2026-11-01. Questions and closed-world relevance labels fixed before retrieval measurement. Source checks concern supplied text only: no Terraform plan/apply, Helm rendering, Kubernetes reconciliation or shell execution is performed. No independent human-query or production-quality claim.",
+  "projects": [
+    {
+      "id": "terraform-queue",
+      "coverage_group": "terraform",
+      "split": "regression",
+      "files": {
+        "main.tf": "module \"queue\" {\n  source = \"./modules/queue\"\n  retention_seconds = var.retention_seconds\n}\nresource \"terraform_data\" \"dispatch\" {\n  input = module.queue.limit\n}\noutput \"dispatch_limit\" {\n  value = terraform_data.dispatch.output\n}\n",
+        "variables.tf": "variable \"retention_seconds\" {\n  type = number\n  default = 60\n  validation {\n    condition = var.retention_seconds >= 60 && var.retention_seconds <= 900\n    error_message = \"Retention must be between 60 and 900 seconds.\"\n  }\n}\n",
+        "production.tfvars": "retention_seconds = 120\n",
+        "modules/queue/main.tf": "variable \"retention_seconds\" { type = number }\nlocals {\n  bounded_retention = min(var.retention_seconds, 300)\n}\noutput \"limit\" {\n  value = local.bounded_retention\n}\n",
+        "metrics.tf": "resource \"terraform_data\" \"metrics\" {\n  input = \"sampled\"\n}\n"
+      },
+      "queries": [
+        {
+          "id": "module-wiring",
+          "intent": "behavior",
+          "question": "How does terraform_data.dispatch receive the queue module limit?",
+          "required": [
+            {
+              "file": "main.tf",
+              "quote": "input = module.queue.limit"
+            },
+            {
+              "file": "main.tf",
+              "quote": "source = \"./modules/queue\""
+            },
+            {
+              "file": "modules/queue/main.tf",
+              "quote": "value = local.bounded_retention"
+            }
+          ]
+        },
+        {
+          "id": "override",
+          "intent": "behavior",
+          "question": "When production.tfvars is supplied with -var-file, how does retention_seconds differ from its default?",
+          "required": [
+            {
+              "file": "variables.tf",
+              "quote": "default = 60"
+            },
+            {
+              "file": "production.tfvars",
+              "quote": "retention_seconds = 120"
+            }
+          ]
+        },
+        {
+          "id": "validation-cap",
+          "intent": "behavior",
+          "question": "How do root input validation and the child queue module bound retention_seconds?",
+          "required": [
+            {
+              "file": "variables.tf",
+              "quote": "condition = var.retention_seconds >= 60 && var.retention_seconds <= 900"
+            },
+            {
+              "file": "modules/queue/main.tf",
+              "quote": "bounded_retention = min(var.retention_seconds, 300)"
+            }
+          ]
+        },
+        {
+          "id": "output",
+          "intent": "behavior",
+          "question": "Where is the dispatch_limit output obtained?",
+          "required": [
+            {
+              "file": "main.tf",
+              "quote": "value = terraform_data.dispatch.output"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "hcl-worker",
+      "coverage_group": "hcl",
+      "split": "regression",
+      "files": {
+        "worker.nomad.hcl": "job \"worker\" {\n  datacenters = [\"dc1\"]\n  type = \"service\"\n  group \"processors\" {\n    count = 2\n    shutdown_delay = \"${var.drain_seconds}s\"\n    task \"consumer\" {\n      driver = \"docker\"\n      config { image = \"example.invalid/worker:1.2\" }\n      resources { cpu = 200 }\n    }\n  }\n}\n",
+        "variables.hcl": "variable \"drain_seconds\" {\n  type = number\n  default = 45\n}\n",
+        "metrics.nomad.hcl": "job \"metrics\" {\n  datacenters = [\"dc1\"]\n  type = \"batch\"\n  group \"reporters\" {\n    task \"report\" {\n      driver = \"raw_exec\"\n      config { command = \"/bin/true\" }\n    }\n  }\n}\n"
+      },
+      "queries": [
+        {
+          "id": "shutdown-variable",
+          "intent": "behavior",
+          "question": "How does worker.nomad.hcl obtain its shutdown delay from variables.hcl?",
+          "required": [
+            {
+              "file": "worker.nomad.hcl",
+              "quote": "shutdown_delay = \"${var.drain_seconds}s\""
+            },
+            {
+              "file": "variables.hcl",
+              "quote": "default = 45"
+            }
+          ]
+        },
+        {
+          "id": "job-group",
+          "intent": "behavior",
+          "question": "What job type, group count and container image are configured for the worker?",
+          "required": [
+            {
+              "file": "worker.nomad.hcl",
+              "quote": "type = \"service\""
+            },
+            {
+              "file": "worker.nomad.hcl",
+              "quote": "count = 2"
+            },
+            {
+              "file": "worker.nomad.hcl",
+              "quote": "config { image = \"example.invalid/worker:1.2\" }"
+            }
+          ]
+        },
+        {
+          "id": "separate-job",
+          "intent": "behavior",
+          "question": "How does the metrics job differ from the worker job?",
+          "required": [
+            {
+              "file": "metrics.nomad.hcl",
+              "quote": "type = \"batch\""
+            },
+            {
+              "file": "worker.nomad.hcl",
+              "quote": "type = \"service\""
+            }
+          ]
+        },
+        {
+          "id": "resources",
+          "intent": "behavior",
+          "question": "What CPU allocation does the worker consumer task request?",
+          "required": [
+            {
+              "file": "worker.nomad.hcl",
+              "quote": "resources { cpu = 200 }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "helm-parcel",
+      "coverage_group": "helm",
+      "split": "regression",
+      "files": {
+        "Chart.yaml": "apiVersion: v2\nname: parcel\nversion: 0.1.0\ntype: application\n",
+        "values.yaml": "replicaCount: 2\nimage:\n  repository: example.invalid/parcel\n  tag: \"1.2\"\nservice:\n  port: 8080\nresources:\n  requests:\n    cpu: 100m\n",
+        "values-production.yaml": "replicaCount: 3\nservice:\n  port: 9090\n",
+        "templates/_helpers.tpl": "{{- define \"parcel.labels\" -}}\napp.kubernetes.io/name: {{ .Chart.Name | quote }}\napp.kubernetes.io/instance: {{ .Release.Name | quote }}\n{{- end -}}\n",
+        "templates/deployment.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: {{ .Release.Name }}\nspec:\n  replicas: {{ .Values.replicaCount }}\n  selector:\n    matchLabels:\n      {{- include \"parcel.labels\" . | nindent 6 }}\n  template:\n    metadata:\n      labels:\n        {{- include \"parcel.labels\" . | nindent 8 }}\n    spec:\n      containers:\n        - name: parcel\n          image: \"{{ .Values.image.repository }}:{{ .Values.image.tag }}\"\n          ports:\n            - containerPort: {{ .Values.service.port }}\n",
+        "templates/service.yaml": "apiVersion: v1\nkind: Service\nmetadata:\n  name: {{ .Release.Name }}\nspec:\n  selector:\n    {{- include \"parcel.labels\" . | nindent 4 }}\n  ports:\n    - port: {{ .Values.service.port }}\n      targetPort: {{ .Values.service.port }}\n"
+      },
+      "queries": [
+        {
+          "id": "helper-includes",
+          "intent": "behavior",
+          "question": "How does templates/service.yaml use parcel.labels from templates/_helpers.tpl?",
+          "required": [
+            {
+              "file": "templates/service.yaml",
+              "quote": "{{- include \"parcel.labels\" . | nindent 4 }}"
+            },
+            {
+              "file": "templates/_helpers.tpl",
+              "quote": "app.kubernetes.io/instance: {{ .Release.Name | quote }}"
+            }
+          ]
+        },
+        {
+          "id": "override",
+          "intent": "behavior",
+          "question": "With values-production.yaml supplied after values.yaml, which replica count overrides the default and where is it consumed?",
+          "required": [
+            {
+              "file": "values.yaml",
+              "quote": "replicaCount: 2"
+            },
+            {
+              "file": "values-production.yaml",
+              "quote": "replicaCount: 3"
+            },
+            {
+              "file": "templates/deployment.yaml",
+              "quote": "replicas: {{ .Values.replicaCount }}"
+            }
+          ]
+        },
+        {
+          "id": "port-wiring",
+          "intent": "behavior",
+          "question": "How is service.port wired into the Service and Deployment templates?",
+          "required": [
+            {
+              "file": "templates/service.yaml",
+              "quote": "targetPort: {{ .Values.service.port }}"
+            },
+            {
+              "file": "templates/deployment.yaml",
+              "quote": "containerPort: {{ .Values.service.port }}"
+            },
+            {
+              "file": "values.yaml",
+              "quote": "port: 8080"
+            }
+          ]
+        },
+        {
+          "id": "image",
+          "intent": "behavior",
+          "question": "How are the container image repository and tag combined?",
+          "required": [
+            {
+              "file": "templates/deployment.yaml",
+              "quote": "image: \"{{ .Values.image.repository }}:{{ .Values.image.tag }}\""
+            },
+            {
+              "file": "values.yaml",
+              "quote": "repository: example.invalid/parcel"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "kubernetes-worker",
+      "coverage_group": "kubernetes",
+      "split": "regression",
+      "files": {
+        "base/deployment.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: parcel-worker\nspec:\n  replicas: 2\n  selector:\n    matchLabels:\n      app: parcel-worker\n  template:\n    metadata:\n      labels:\n        app: parcel-worker\n    spec:\n      terminationGracePeriodSeconds: 45\n      containers:\n        - name: worker\n          image: example.invalid/worker:1.2\n          ports:\n            - containerPort: 8080\n          envFrom:\n            - configMapRef:\n                name: parcel-settings\n",
+        "base/service.yaml": "apiVersion: v1\nkind: Service\nmetadata:\n  name: parcel-worker\nspec:\n  selector:\n    app: parcel-worker\n  ports:\n    - port: 80\n      targetPort: 8080\n",
+        "base/configmap.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: parcel-settings\ndata:\n  LOG_LEVEL: info\n",
+        "base/kustomization.yaml": "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n  - deployment.yaml\n  - service.yaml\n  - configmap.yaml\n",
+        "overlays/production/kustomization.yaml": "apiVersion: kustomize.config.k8s.io/v1beta1\nkind: Kustomization\nresources:\n  - ../../base\npatches:\n  - path: replicas.yaml\n",
+        "overlays/production/replicas.yaml": "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: parcel-worker\nspec:\n  replicas: 3\n"
+      },
+      "queries": [
+        {
+          "id": "selector-match",
+          "intent": "behavior",
+          "question": "How does base/service.yaml select the pods of base/deployment.yaml?",
+          "required": [
+            {
+              "file": "base/service.yaml",
+              "quote": "selector:\n    app: parcel-worker"
+            },
+            {
+              "file": "base/deployment.yaml",
+              "quote": "labels:\n        app: parcel-worker"
+            }
+          ]
+        },
+        {
+          "id": "config-reference",
+          "intent": "behavior",
+          "question": "Where does the worker obtain its envFrom configuration and what LOG_LEVEL is supplied?",
+          "required": [
+            {
+              "file": "base/deployment.yaml",
+              "quote": "configMapRef:\n                name: parcel-settings"
+            },
+            {
+              "file": "base/configmap.yaml",
+              "quote": "LOG_LEVEL: info"
+            }
+          ]
+        },
+        {
+          "id": "overlay",
+          "intent": "behavior",
+          "question": "How does the production Kustomization include the base and change parcel-worker replicas?",
+          "required": [
+            {
+              "file": "overlays/production/kustomization.yaml",
+              "quote": "- ../../base"
+            },
+            {
+              "file": "overlays/production/kustomization.yaml",
+              "quote": "- path: replicas.yaml"
+            },
+            {
+              "file": "overlays/production/replicas.yaml",
+              "quote": "replicas: 3"
+            }
+          ]
+        },
+        {
+          "id": "port-match",
+          "intent": "behavior",
+          "question": "How does the Service target port match the worker container port?",
+          "required": [
+            {
+              "file": "base/service.yaml",
+              "quote": "targetPort: 8080"
+            },
+            {
+              "file": "base/deployment.yaml",
+              "quote": "containerPort: 8080"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "bash-delivery",
+      "coverage_group": "bash",
+      "split": "regression",
+      "files": {
+        "deliver.sh": "#!/usr/bin/env bash\nset -euo pipefail\nsource \"./lib/policy.sh\"\ndeliver_payload() {\n  local payload=\"$1\"\n  local attempt=\"$2\"\n  local delay\n  delay=$(retry_delay \"$attempt\")\n  sleep \"$delay\"\n  printf '%s\\n' \"$payload\" | consume_payload\n}\nconsume_payload() {\n  cat\n}\nhealth_probe() {\n  printf '%s\\n' ok\n}\n",
+        "lib/policy.sh": "#!/usr/bin/env bash\nretry_delay() {\n  local attempt=\"$1\"\n  local delay=$((1 << attempt))\n  if (( delay > 45 )); then\n    delay=45\n  fi\n  printf '%s\\n' \"$delay\"\n}\n",
+        "scripts/preview.sh": "#!/usr/bin/env bash\ndeliver_payload() {\n  printf '%s\\n' \"preview:$1\"\n}\n"
+      },
+      "queries": [
+        {
+          "id": "source-call",
+          "intent": "behavior",
+          "question": "How does deliver.sh source lib/policy.sh and invoke retry_delay?",
+          "required": [
+            {
+              "file": "deliver.sh",
+              "quote": "source \"./lib/policy.sh\""
+            },
+            {
+              "file": "deliver.sh",
+              "quote": "delay=$(retry_delay \"$attempt\")"
+            },
+            {
+              "file": "lib/policy.sh",
+              "quote": "retry_delay() {"
+            }
+          ]
+        },
+        {
+          "id": "quoting",
+          "intent": "behavior",
+          "question": "How does deliver_payload preserve whitespace and wildcard characters in the payload?",
+          "required": [
+            {
+              "file": "deliver.sh",
+              "quote": "local payload=\"$1\""
+            },
+            {
+              "file": "deliver.sh",
+              "quote": "printf '%s\\n' \"$payload\" | consume_payload"
+            }
+          ]
+        },
+        {
+          "id": "failure",
+          "intent": "behavior",
+          "question": "What makes a failed consume_payload pipeline fail the delivery script?",
+          "required": [
+            {
+              "file": "deliver.sh",
+              "quote": "set -euo pipefail"
+            },
+            {
+              "file": "deliver.sh",
+              "quote": "printf '%s\\n' \"$payload\" | consume_payload"
+            }
+          ]
+        },
+        {
+          "id": "bound",
+          "intent": "behavior",
+          "question": "How does retry_delay clamp an exponential delay?",
+          "required": [
+            {
+              "file": "lib/policy.sh",
+              "quote": "local delay=$((1 << attempt))"
+            },
+            {
+              "file": "lib/policy.sh",
+              "quote": "if (( delay > 45 )); then\n    delay=45"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

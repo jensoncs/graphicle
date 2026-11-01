@@ -1,0 +1,2499 @@
+{
+  "date": "2026-11-01",
+  "status": "passed",
+  "source_head": "90b7d371753e346bcb7da1741da265815ce71d31",
+  "scope": "Paired synthetic regression measurements with unchanged labels/requests. Historical-source and optional local-reranker checks are separate populations; no independent human-query, generated-answer, production-quality or latency claim.",
+  "changes": {
+    "step1": "For prose fully covered by ranked notes, limit inferred scope to verified live anchor symbols, without dependency/owner closure. Preserve explicit-symbol dependency expansion and incomplete-coverage fallback.",
+    "step2": "For narrowly parsed model-free attribute questions, withhold ranked and linked notes when topic stems excluding the code name have no support in authorized candidate notes or source text. Retain broad constraints, rationale, compound/unrecognized forms, explicit needs/rephrasings, semantic ranks and rerankers.",
+    "diagnostics": "memory_topic_support reports lexical candidate support and withheld counts; candidate selection_filter records unsupported_topic, and relevance_withheld is a reported recall failure stage without changing the gate."
+  },
+  "datasets": [
+    {
+      "id": "links",
+      "kind": "memory",
+      "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+    },
+    {
+      "id": "exact",
+      "kind": "memory",
+      "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+    },
+    {
+      "id": "pressure",
+      "kind": "memory",
+      "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+    },
+    {
+      "id": "diversity",
+      "kind": "memory",
+      "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+    },
+    {
+      "id": "cutoff",
+      "kind": "memory",
+      "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+    },
+    {
+      "id": "negative",
+      "kind": "memory",
+      "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+    },
+    {
+      "id": "source",
+      "kind": "source",
+      "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+    },
+    {
+      "id": "language-memory",
+      "kind": "memory",
+      "sha256": "593920bc990429862224a4e7b81720a7604b8961d3c7b183f23fcbe84ecb0384"
+    },
+    {
+      "id": "language-source",
+      "kind": "source",
+      "sha256": "515b8c8e2dd25b9efac7506444d10e14ffe94ee27c587c4144241f61b5bed9b9"
+    }
+  ],
+  "baseline": {
+    "unchanged": true,
+    "synthetic_sha256": "3dea3e67227ac34500cd0bd5b667438401774c89ea3bd86f743ab2f396e26129",
+    "historical_sha256": "4d1a63aca8a1e382725435201b2ce37208971c96977279ee6852c7c901144579"
+  },
+  "steps": {
+    "start": {
+      "report_sha256": "0d91e46afeaad62ee9e3c114220633b363673bb00d665450afb2c4a75b6ca512",
+      "report_path": "/private/tmp/graphicle-go-fixed-eval-20261101/SCORECARD.json",
+      "binary_sha256": "8486c2205b8e8691500ca0d41adbb886a15506f1afaa2127ac10afabfb60966b",
+      "evaluator_sha256": {
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "calls": 309,
+      "summary": {
+        "memory/counted": {
+          "planned": 89,
+          "completed": 89,
+          "errors": 0,
+          "error_rate": 0.0,
+          "tp": 30,
+          "fp": 25,
+          "fn": 72,
+          "precision_completed": 0.5454545454545454,
+          "recall": 0.29411764705882354,
+          "macro_recall": 0.40591397849462363,
+          "negative_queries": 27,
+          "empty_memory_accuracy": 0.7407407407407407
+        },
+        "memory/off": {
+          "planned": 89,
+          "completed": 89,
+          "errors": 0,
+          "error_rate": 0.0,
+          "tp": 30,
+          "fp": 25,
+          "fn": 72,
+          "precision_completed": 0.5454545454545454,
+          "recall": 0.29411764705882354,
+          "macro_recall": 0.40591397849462363,
+          "negative_queries": 27,
+          "empty_memory_accuracy": 0.7407407407407407
+        },
+        "memory/on": {
+          "planned": 89,
+          "completed": 89,
+          "errors": 0,
+          "error_rate": 0.0,
+          "tp": 102,
+          "fp": 86,
+          "fn": 0,
+          "precision_completed": 0.5425531914893617,
+          "recall": 1.0,
+          "macro_recall": 1.0,
+          "negative_queries": 27,
+          "empty_memory_accuracy": 0.5555555555555556
+        },
+        "source/baseline": {
+          "planned": 21,
+          "completed": 21,
+          "errors": 0,
+          "error_rate": 0.0,
+          "required": 33,
+          "delivered": 33,
+          "evidence_recall": 1.0,
+          "complete": 21,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 21,
+          "completed": 21,
+          "errors": 0,
+          "error_rate": 0.0,
+          "required": 33,
+          "delivered": 33,
+          "evidence_recall": 1.0,
+          "complete": 21,
+          "completeness": 1.0
+        }
+      },
+      "by_language": {
+        "go": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 8,
+            "fn": 0,
+            "precision_completed": 0.5555555555555556,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "java": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 8,
+            "fn": 0,
+            "precision_completed": 0.5555555555555556,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "javascript": {
+          "memory/counted": {
+            "planned": 4,
+            "completed": 4,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 1,
+            "fp": 3,
+            "fn": 1,
+            "precision_completed": 0.25,
+            "recall": 0.5,
+            "macro_recall": 0.5,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 4,
+            "completed": 4,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 1,
+            "fp": 3,
+            "fn": 1,
+            "precision_completed": 0.25,
+            "recall": 0.5,
+            "macro_recall": 0.5,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 4,
+            "completed": 4,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 2,
+            "fp": 5,
+            "fn": 0,
+            "precision_completed": 0.2857142857142857,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          }
+        },
+        "kotlin": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 8,
+            "fn": 0,
+            "precision_completed": 0.5555555555555556,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "python": {
+          "memory/counted": {
+            "planned": 50,
+            "completed": 50,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 9,
+            "fp": 2,
+            "fn": 41,
+            "precision_completed": 0.8181818181818182,
+            "recall": 0.18,
+            "macro_recall": 0.21428571428571427,
+            "negative_queries": 15,
+            "empty_memory_accuracy": 0.9333333333333333
+          },
+          "memory/off": {
+            "planned": 50,
+            "completed": 50,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 9,
+            "fp": 2,
+            "fn": 41,
+            "precision_completed": 0.8181818181818182,
+            "recall": 0.18,
+            "macro_recall": 0.21428571428571427,
+            "negative_queries": 15,
+            "empty_memory_accuracy": 0.9333333333333333
+          },
+          "memory/on": {
+            "planned": 50,
+            "completed": 50,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 50,
+            "fp": 41,
+            "fn": 0,
+            "precision_completed": 0.5494505494505495,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 15,
+            "empty_memory_accuracy": 0.6
+          },
+          "source/baseline": {
+            "planned": 6,
+            "completed": 6,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 8,
+            "delivered": 8,
+            "evidence_recall": 1.0,
+            "complete": 6,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 6,
+            "completed": 6,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 8,
+            "delivered": 8,
+            "evidence_recall": 1.0,
+            "complete": 6,
+            "completeness": 1.0
+          }
+        },
+        "rust": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 8,
+            "fn": 0,
+            "precision_completed": 0.5555555555555556,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "typescript": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 8,
+            "fn": 0,
+            "precision_completed": 0.5555555555555556,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        }
+      },
+      "recorded_gate": {
+        "status": "failed",
+        "findings": [
+          {
+            "case": "language-memory/go-delivery/no-answer/on",
+            "reason": "Added irrelevant memories",
+            "ids": [
+              "lease"
+            ]
+          },
+          {
+            "case": "language-memory/go-delivery/prose-contract/on",
+            "reason": "Added irrelevant memories",
+            "ids": [
+              "lease"
+            ]
+          }
+        ]
+      }
+    },
+    "step1": {
+      "report_sha256": "31b601c23e98dbb0c55744ddb8eb9dfe2fe5ddfe975939c9a5854d747e6e9222",
+      "report_path": "/private/tmp/graphicle-precision-step1-eval-20261101/SCORECARD.json",
+      "binary_sha256": "12c8c0bd270ac366bffc53f19c03b405983e4c7fad527940f40029359aa6f964",
+      "evaluator_sha256": {
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "c26b1cc56529ce852290125df1c8c237db2385f1a7882a0d6ed266190551b459",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "calls": 309,
+      "summary": {
+        "memory/counted": {
+          "planned": 89,
+          "completed": 89,
+          "errors": 0,
+          "error_rate": 0.0,
+          "tp": 30,
+          "fp": 25,
+          "fn": 72,
+          "precision_completed": 0.5454545454545454,
+          "recall": 0.29411764705882354,
+          "macro_recall": 0.40591397849462363,
+          "negative_queries": 27,
+          "empty_memory_accuracy": 0.7407407407407407
+        },
+        "memory/off": {
+          "planned": 89,
+          "completed": 89,
+          "errors": 0,
+          "error_rate": 0.0,
+          "tp": 30,
+          "fp": 25,
+          "fn": 72,
+          "precision_completed": 0.5454545454545454,
+          "recall": 0.29411764705882354,
+          "macro_recall": 0.40591397849462363,
+          "negative_queries": 27,
+          "empty_memory_accuracy": 0.7407407407407407
+        },
+        "memory/on": {
+          "planned": 89,
+          "completed": 89,
+          "errors": 0,
+          "error_rate": 0.0,
+          "tp": 102,
+          "fp": 76,
+          "fn": 0,
+          "precision_completed": 0.5730337078651685,
+          "recall": 1.0,
+          "macro_recall": 1.0,
+          "negative_queries": 27,
+          "empty_memory_accuracy": 0.5555555555555556
+        },
+        "source/baseline": {
+          "planned": 21,
+          "completed": 21,
+          "errors": 0,
+          "error_rate": 0.0,
+          "required": 33,
+          "delivered": 33,
+          "evidence_recall": 1.0,
+          "complete": 21,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 21,
+          "completed": 21,
+          "errors": 0,
+          "error_rate": 0.0,
+          "required": 33,
+          "delivered": 33,
+          "evidence_recall": 1.0,
+          "complete": 21,
+          "completeness": 1.0
+        }
+      },
+      "by_language": {
+        "go": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 6,
+            "fn": 0,
+            "precision_completed": 0.625,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "java": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 6,
+            "fn": 0,
+            "precision_completed": 0.625,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "javascript": {
+          "memory/counted": {
+            "planned": 4,
+            "completed": 4,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 1,
+            "fp": 3,
+            "fn": 1,
+            "precision_completed": 0.25,
+            "recall": 0.5,
+            "macro_recall": 0.5,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 4,
+            "completed": 4,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 1,
+            "fp": 3,
+            "fn": 1,
+            "precision_completed": 0.25,
+            "recall": 0.5,
+            "macro_recall": 0.5,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 4,
+            "completed": 4,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 2,
+            "fp": 5,
+            "fn": 0,
+            "precision_completed": 0.2857142857142857,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          }
+        },
+        "kotlin": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 6,
+            "fn": 0,
+            "precision_completed": 0.625,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "python": {
+          "memory/counted": {
+            "planned": 50,
+            "completed": 50,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 9,
+            "fp": 2,
+            "fn": 41,
+            "precision_completed": 0.8181818181818182,
+            "recall": 0.18,
+            "macro_recall": 0.21428571428571427,
+            "negative_queries": 15,
+            "empty_memory_accuracy": 0.9333333333333333
+          },
+          "memory/off": {
+            "planned": 50,
+            "completed": 50,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 9,
+            "fp": 2,
+            "fn": 41,
+            "precision_completed": 0.8181818181818182,
+            "recall": 0.18,
+            "macro_recall": 0.21428571428571427,
+            "negative_queries": 15,
+            "empty_memory_accuracy": 0.9333333333333333
+          },
+          "memory/on": {
+            "planned": 50,
+            "completed": 50,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 50,
+            "fp": 41,
+            "fn": 0,
+            "precision_completed": 0.5494505494505495,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 15,
+            "empty_memory_accuracy": 0.6
+          },
+          "source/baseline": {
+            "planned": 6,
+            "completed": 6,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 8,
+            "delivered": 8,
+            "evidence_recall": 1.0,
+            "complete": 6,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 6,
+            "completed": 6,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 8,
+            "delivered": 8,
+            "evidence_recall": 1.0,
+            "complete": 6,
+            "completeness": 1.0
+          }
+        },
+        "rust": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 6,
+            "fn": 0,
+            "precision_completed": 0.625,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "typescript": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 4,
+            "fn": 6,
+            "precision_completed": 0.5,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 6,
+            "fn": 0,
+            "precision_completed": 0.625,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        }
+      },
+      "recorded_gate": {
+        "status": "failed",
+        "findings": [
+          {
+            "case": "language-memory/go-delivery/no-answer/on",
+            "reason": "Added irrelevant memories",
+            "ids": [
+              "lease"
+            ]
+          }
+        ]
+      }
+    },
+    "step2": {
+      "report_sha256": "c71bd0c323ccfa3fc579acdf14bbfb454ad168eeeba203aa45a710f09eb7bd4d",
+      "report_path": "/private/tmp/graphicle-precision-step2-eval-20261101/SCORECARD.json",
+      "binary_sha256": "cc916efc5bc358ef0df8a2d65250849af56424da38d767fd1f6228a72a72edeb",
+      "evaluator_sha256": {
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "4da654b8e81ad28ac541655efbcc8b086dd916911c5f7114294771f86f04e962",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "calls": 309,
+      "summary": {
+        "memory/counted": {
+          "planned": 89,
+          "completed": 89,
+          "errors": 0,
+          "error_rate": 0.0,
+          "tp": 30,
+          "fp": 9,
+          "fn": 72,
+          "precision_completed": 0.7692307692307693,
+          "recall": 0.29411764705882354,
+          "macro_recall": 0.40591397849462363,
+          "negative_queries": 27,
+          "empty_memory_accuracy": 0.9629629629629629
+        },
+        "memory/off": {
+          "planned": 89,
+          "completed": 89,
+          "errors": 0,
+          "error_rate": 0.0,
+          "tp": 30,
+          "fp": 9,
+          "fn": 72,
+          "precision_completed": 0.7692307692307693,
+          "recall": 0.29411764705882354,
+          "macro_recall": 0.40591397849462363,
+          "negative_queries": 27,
+          "empty_memory_accuracy": 0.9629629629629629
+        },
+        "memory/on": {
+          "planned": 89,
+          "completed": 89,
+          "errors": 0,
+          "error_rate": 0.0,
+          "tp": 102,
+          "fp": 37,
+          "fn": 0,
+          "precision_completed": 0.7338129496402878,
+          "recall": 1.0,
+          "macro_recall": 1.0,
+          "negative_queries": 27,
+          "empty_memory_accuracy": 0.9629629629629629
+        },
+        "source/baseline": {
+          "planned": 21,
+          "completed": 21,
+          "errors": 0,
+          "error_rate": 0.0,
+          "required": 33,
+          "delivered": 33,
+          "evidence_recall": 1.0,
+          "complete": 21,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 21,
+          "completed": 21,
+          "errors": 0,
+          "error_rate": 0.0,
+          "required": 33,
+          "delivered": 33,
+          "evidence_recall": 1.0,
+          "complete": 21,
+          "completeness": 1.0
+        }
+      },
+      "by_language": {
+        "go": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 2,
+            "fn": 0,
+            "precision_completed": 0.8333333333333334,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "java": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 2,
+            "fn": 0,
+            "precision_completed": 0.8333333333333334,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "javascript": {
+          "memory/counted": {
+            "planned": 4,
+            "completed": 4,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 1,
+            "fp": 3,
+            "fn": 1,
+            "precision_completed": 0.25,
+            "recall": 0.5,
+            "macro_recall": 0.5,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/off": {
+            "planned": 4,
+            "completed": 4,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 1,
+            "fp": 3,
+            "fn": 1,
+            "precision_completed": 0.25,
+            "recall": 0.5,
+            "macro_recall": 0.5,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          },
+          "memory/on": {
+            "planned": 4,
+            "completed": 4,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 2,
+            "fp": 5,
+            "fn": 0,
+            "precision_completed": 0.2857142857142857,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 0.5
+          }
+        },
+        "kotlin": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 2,
+            "fn": 0,
+            "precision_completed": 0.8333333333333334,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "python": {
+          "memory/counted": {
+            "planned": 50,
+            "completed": 50,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 9,
+            "fp": 1,
+            "fn": 41,
+            "precision_completed": 0.9,
+            "recall": 0.18,
+            "macro_recall": 0.21428571428571427,
+            "negative_queries": 15,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/off": {
+            "planned": 50,
+            "completed": 50,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 9,
+            "fp": 1,
+            "fn": 41,
+            "precision_completed": 0.9,
+            "recall": 0.18,
+            "macro_recall": 0.21428571428571427,
+            "negative_queries": 15,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/on": {
+            "planned": 50,
+            "completed": 50,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 50,
+            "fp": 22,
+            "fn": 0,
+            "precision_completed": 0.6944444444444444,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 15,
+            "empty_memory_accuracy": 1.0
+          },
+          "source/baseline": {
+            "planned": 6,
+            "completed": 6,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 8,
+            "delivered": 8,
+            "evidence_recall": 1.0,
+            "complete": 6,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 6,
+            "completed": 6,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 8,
+            "delivered": 8,
+            "evidence_recall": 1.0,
+            "complete": 6,
+            "completeness": 1.0
+          }
+        },
+        "rust": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 2,
+            "fn": 0,
+            "precision_completed": 0.8333333333333334,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        },
+        "typescript": {
+          "memory/counted": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/off": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 4,
+            "fp": 1,
+            "fn": 6,
+            "precision_completed": 0.8,
+            "recall": 0.4,
+            "macro_recall": 0.6666666666666666,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "memory/on": {
+            "planned": 7,
+            "completed": 7,
+            "errors": 0,
+            "error_rate": 0.0,
+            "tp": 10,
+            "fp": 2,
+            "fn": 0,
+            "precision_completed": 0.8333333333333334,
+            "recall": 1.0,
+            "macro_recall": 1.0,
+            "negative_queries": 2,
+            "empty_memory_accuracy": 1.0
+          },
+          "source/baseline": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 3,
+            "completed": 3,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 5,
+            "delivered": 5,
+            "evidence_recall": 1.0,
+            "complete": 3,
+            "completeness": 1.0
+          }
+        }
+      },
+      "recorded_gate": {
+        "status": "passed",
+        "findings": []
+      }
+    },
+    "historical": {
+      "report_sha256": "86642b1dc6de02527ea9e5e50bba0f0303d851db9f71f70bf3dfc9c1174c9f0e",
+      "report_path": "/private/tmp/graphicle-precision-step2-real-eval-20261101/SCORECARD.json",
+      "binary_sha256": "cc916efc5bc358ef0df8a2d65250849af56424da38d767fd1f6228a72a72edeb",
+      "evaluator_sha256": {
+        "quality.py": "40e35f0da412923c68cff4f0c3118534c1d431e5a30b1a06fd89fc3ccb34bd61",
+        "quality_diagnostics.py": "4da654b8e81ad28ac541655efbcc8b086dd916911c5f7114294771f86f04e962",
+        "symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+        "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "calls": 22,
+      "summary": {
+        "source/baseline": {
+          "planned": 11,
+          "completed": 11,
+          "errors": 0,
+          "error_rate": 0.0,
+          "required": 17,
+          "delivered": 17,
+          "evidence_recall": 1.0,
+          "complete": 11,
+          "completeness": 1.0
+        },
+        "source/routed": {
+          "planned": 11,
+          "completed": 11,
+          "errors": 0,
+          "error_rate": 0.0,
+          "required": 17,
+          "delivered": 17,
+          "evidence_recall": 1.0,
+          "complete": 11,
+          "completeness": 1.0
+        }
+      },
+      "by_language": {
+        "go": {
+          "source/baseline": {
+            "planned": 11,
+            "completed": 11,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 17,
+            "delivered": 17,
+            "evidence_recall": 1.0,
+            "complete": 11,
+            "completeness": 1.0
+          },
+          "source/routed": {
+            "planned": 11,
+            "completed": 11,
+            "errors": 0,
+            "error_rate": 0.0,
+            "required": 17,
+            "delivered": 17,
+            "evidence_recall": 1.0,
+            "complete": 11,
+            "completeness": 1.0
+          }
+        }
+      },
+      "recorded_gate": {
+        "status": "passed",
+        "findings": []
+      }
+    }
+  },
+  "comparisons": {
+    "step1_vs_start": {
+      "status": "passed",
+      "findings": []
+    },
+    "step2_vs_start": {
+      "status": "passed",
+      "findings": []
+    },
+    "step2_vs_step1": {
+      "status": "passed",
+      "findings": []
+    },
+    "step2_vs_frozen": {
+      "status": "passed",
+      "findings": []
+    },
+    "historical_vs_frozen": {
+      "status": "passed",
+      "findings": []
+    }
+  },
+  "changed_outcomes": {
+    "step1_vs_start": [
+      {
+        "case": "language-memory/typescript-delivery/prose-contract/on",
+        "before": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [
+            "lease",
+            "owner"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/go-delivery/prose-contract/on",
+        "before": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [
+            "lease",
+            "owner"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/java-delivery/prose-contract/on",
+        "before": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [
+            "lease",
+            "owner"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/kotlin-delivery/prose-contract/on",
+        "before": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [
+            "lease",
+            "owner"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/rust-delivery/prose-contract/on",
+        "before": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [
+            "lease",
+            "owner"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [
+            "wire"
+          ],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      }
+    ],
+    "step2_vs_step1": [
+      {
+        "case": "negative/direct-contracts/absent-0/off",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "delimiter"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "negative/direct-contracts/absent-0/counted",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "delimiter"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "negative/direct-contracts/absent-0/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "delimiter",
+            "escaping",
+            "null",
+            "ordering",
+            "sampling"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "negative/direct-contracts/absent-1/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "delimiter",
+            "escaping",
+            "null",
+            "ordering"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "negative/direct-contracts/absent-2/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "delimiter",
+            "escaping",
+            "null",
+            "ordering"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "negative/cross-file/absent-0/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "audit",
+            "lease"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "negative/cross-file/absent-1/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "audit",
+            "lease"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "negative/cross-file/absent-2/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "audit",
+            "lease"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/typescript-delivery/no-answer/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "lease",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/typescript-delivery/no-answer/off",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/typescript-delivery/no-answer/counted",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/go-delivery/no-answer/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "lease",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/go-delivery/no-answer/off",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/go-delivery/no-answer/counted",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/java-delivery/no-answer/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "lease",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/java-delivery/no-answer/off",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/java-delivery/no-answer/counted",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/kotlin-delivery/no-answer/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "lease",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/kotlin-delivery/no-answer/off",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/kotlin-delivery/no-answer/counted",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/rust-delivery/no-answer/on",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "lease",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/rust-delivery/no-answer/off",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      },
+      {
+        "case": "language-memory/rust-delivery/no-answer/counted",
+        "before": {
+          "retrieved_relevant": [],
+          "irrelevant": [
+            "alternate",
+            "owner",
+            "wire"
+          ],
+          "error": null,
+          "content_preserved": true
+        },
+        "after": {
+          "retrieved_relevant": [],
+          "irrelevant": [],
+          "error": null,
+          "content_preserved": true
+        }
+      }
+    ]
+  },
+  "local_reranker": {
+    "calls": 162,
+    "report_sha256": "69c4abde058d04b6c7f02716571be1451a2ba00ecba70a45384e793ae97e792d",
+    "report_path": "/private/tmp/graphicle-precision-final-local-eval-20261101/RESULTS.json",
+    "protocol": {
+      "inputs": {
+        "/private/tmp/graphicle-precision-final-local-20261101": "108e50fde81edf5982697c2139f1c48c9def7bf8a12cc633db4b494568ce21e0",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_precision.json": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_exact_scope.json": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_priority.json": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_diversity.json": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/symbol_link_cutoff_holdout.json": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/fixtures/note_no_answer_controls.json": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/symbol_link_precision.py": "5810324a812c08a073ddc8a560194ad8e086785b50047563b8af672337a9bfc1",
+        "/Users/jensoncs/sharechat/graphicle/bench/memory/tools/retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+      },
+      "local_reranker": {
+        "profile": {
+          "protocol": "local_onnx",
+          "base_url": "file:///private/tmp/graphicle-symbol-semantic-trial/model/",
+          "model": "cross-encoder/ms-marco-MiniLM-L6-v2",
+          "input_limit": 1000
+        },
+        "ort": "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib",
+        "assets": {
+          "/private/tmp/graphicle-symbol-semantic-trial/model/MODEL.json": "86d38e50cf6f759ce07d834ecb0eb17c9d9dd6602aea45ca3eb0f177fff58977",
+          "/private/tmp/graphicle-symbol-semantic-trial/libonnxruntime.dylib": "637c0aed2688fe886ea69adbb260bbad8af9bdd40ea45b879f692d0bd0c1e459",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/model.onnx": "3573b6b9593cb2f75987a31815d409ca3dd8808629118fd20451bb1a5d90cec7",
+          "/private/tmp/graphicle-symbol-semantic-trial/model/tokenizer.json": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+        },
+        "request": {
+          "local_reranker_profile": "reranker",
+          "rerank_mode": "blend"
+        }
+      },
+      "request": {
+        "max_tokens": 3000,
+        "max_chars": 12000,
+        "limit": 8,
+        "graph_retrieval": true,
+        "memory_retrieval": true,
+        "doc_links": false,
+        "cross_repo": false,
+        "identifier_route": false,
+        "notes_first": false
+      },
+      "variants": {
+        "off": {
+          "symbol_links": false
+        },
+        "counted": {},
+        "on": {
+          "symbol_links": true
+        }
+      },
+      "before_report_sha256": "697cb1359fbcd55e6918e8c1dd46019b637b9be6c1d0f3de0fe6e953dc6e9783"
+    },
+    "summary": {
+      "variants": {
+        "off": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 310.9259259259259
+        },
+        "counted": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.6666666666666666,
+          "macro_recall": 0.22972972972972974,
+          "empty_memory_accuracy": 0.8823529411764706,
+          "false_positive_memories": 5,
+          "mean_tokens_completed": 310.9259259259259
+        },
+        "on": {
+          "planned": 54,
+          "completed": 54,
+          "failed": 0,
+          "answerable_queries": 37,
+          "empty_memory_queries": 17,
+          "micro_precision_completed": 0.5306122448979592,
+          "macro_recall": 1.0,
+          "empty_memory_accuracy": 0.5882352941176471,
+          "false_positive_memories": 46,
+          "mean_tokens_completed": 381.98148148148147
+        }
+      },
+      "on_minus_off": {
+        "paired": 54,
+        "excluded": 0,
+        "mean_tp_delta": 0.7777777777777778,
+        "mean_fp_delta": 0.7592592592592593,
+        "mean_tokens_delta": 71.05555555555556
+      }
+    },
+    "gate": {
+      "status": "passed",
+      "findings": []
+    },
+    "changed_outcomes": [],
+    "attribute_filter_bypassed": true
+  },
+  "validation": {
+    "focused_symbol_link_tests": {
+      "passed": 18
+    },
+    "python_quality_symbol_real_tests": {
+      "passed": 69,
+      "skipped": 1,
+      "skip": "Optional local-model test; subsequently run with explicit model assets."
+    },
+    "python_symbol_link_tests_with_local_model": {
+      "passed": 21
+    },
+    "runtime_integration_initial": {
+      "passed": 528,
+      "failed": 2,
+      "ignored": 3,
+      "failure": "Two pre-existing terminal-display assertions hard-coded 7 nodes. Starting and candidate binaries both produce the identical 8-node/10-edge graph."
+    },
+    "terminal_test_repair": "Compare rendered node count with the structured sync result; preserve symbol/file count assertions.",
+    "terminal_tests_after_repair": {
+      "passed": 11
+    },
+    "node_count_before_after": {
+      "before": {
+        "status": "built",
+        "episode": "386818b996f6191bcc76caba06445acdef92a5d94a06250fd5835ae32e57a0ef",
+        "nodes": 8,
+        "edges": 10,
+        "saved_graph": {
+          "status": "written",
+          "episode": "386818b996f6191bcc76caba06445acdef92a5d94a06250fd5835ae32e57a0ef",
+          "bytes": 12800,
+          "query_file": "written",
+          "seconds": 0.0
+        }
+      },
+      "after": {
+        "status": "built",
+        "episode": "386818b996f6191bcc76caba06445acdef92a5d94a06250fd5835ae32e57a0ef",
+        "nodes": 8,
+        "edges": 10,
+        "saved_graph": {
+          "status": "written",
+          "episode": "386818b996f6191bcc76caba06445acdef92a5d94a06250fd5835ae32e57a0ef",
+          "bytes": 12800,
+          "query_file": "written",
+          "seconds": 0.0
+        }
+      }
+    },
+    "clippy_runtime": "passed with --no-deps -- -D warnings",
+    "diff_check": "passed"
+  },
+  "remaining": {
+    "false_positive_occurrences": 37,
+    "negative_cases_not_empty": [
+      {
+        "case": "cutoff/webhooks-holdout/string/on",
+        "irrelevant": [
+          "tracing"
+        ]
+      }
+    ],
+    "limitations": [
+      "Synonym-only attribute requests without lexical support may lose useful notes in model-free mode. Independent real-user coverage is still required.",
+      "The attribute recognizer is deliberately limited to English question forms; other forms retain existing behavior.",
+      "The optional reranker deliberately bypasses the new lexical filter; model-free precision gains are not claimed for the reranker.",
+      "No accepted baseline refresh, deployment, commit or PR was performed."
+    ]
+  },
+  "source_sha256": {
+    "crates/graphicle/src/code_question.rs": "d8371ce5342c243e6c215e915ebf3d7250028bfb84c29c35eb751eec88a3f303",
+    "crates/graphicle/src/identifier_arm.rs": "7dbb09651ab80f3899754e2770f02d340373cde71078a6d929acf2625e54ad92",
+    "crates/graphicle/src/query.rs": "d5f047e00125f08e25e80a7c59c211edf2e867b6f9b0f9e0eab421c33d6b415e",
+    "crates/graphicle/src/symbol_links.rs": "fb9df539db9b213490be5bbc299ad1eea02a44465869123498fad734338629e7",
+    "crates/graphicle/src/memory_diagnostics.rs": "97709c1b9d3523f4a007607bdde88b14182d3936f0cda4731d5ff2c2b9d7d87c",
+    "crates/graphicle/tests/it/symbol_links.rs": "cbb92d0a3356962b5556c15f18e3acf8305fbf0ce6192f1a197d35cba84cba2f",
+    "crates/graphicle/tests/it/ux_terminal.rs": "1b3c6e2a8559ae9e7afb4fa8147d9cd40e50fd383f0ecab521454677aefc05c9",
+    "bench/memory/tools/quality_diagnostics.py": "4da654b8e81ad28ac541655efbcc8b086dd916911c5f7114294771f86f04e962",
+    "bench/memory/tests/test_quality.py": "3240533654793a08807a67d707def2c79bab771082a75b7080ad288267133d56"
+  }
+}

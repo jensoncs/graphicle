@@ -68,6 +68,121 @@ pub(crate) fn prioritize_literals(question: &str, memories: &mut [Value]) {
     });
 }
 
+/// An explicitly grounded note outside a complete Helm dependency scope is
+/// not evidence about that helper/template. Unanchored or stale grounds cannot
+/// justify exclusion. Values-file notes retain their declared file granularity.
+pub(crate) fn outside_scope(row: &Value, scope: &BTreeSet<(String, String)>, documents: &HashMap<&str, &Value>) -> bool {
+    let data = &row["memory"]["data"];
+    let Some(dependencies) = data["dependencies"].as_object().filter(|v| !v.is_empty()) else { return false; };
+    if dependencies.iter().any(|(path, sha)| documents.get(format!("file:{path}").as_str())
+        .is_none_or(|doc| sha != &doc["sha256"])) { return false; }
+    if let Some(links) = data["symbols"].as_array().filter(|v| !v.is_empty()) {
+        if links.iter().any(|link| link["state"] != "resolved") { return false; }
+        return links.iter().all(|link| !scope.contains(&(
+            s(&link["identity"], "relpath").to_string(), s(&link["identity"], "qualified_name").to_string())));
+    }
+    dependencies.keys().all(|path| !scope.iter().any(|(file, _)| file == path))
+}
+
+/// A model-free note focus backed by an already retrieved note which names
+/// the requested topic or repeats a rationale question's premise. It is deliberately narrower than relevance
+/// classification: unmatched paraphrases and multi-part questions stay broad.
+/// Notes on the same symbol can supply additional reasons without repeating the
+/// premise, and ungrounded notes cannot be excluded through this rule.
+pub(crate) struct NoteFocus {
+    anchors: BTreeSet<String>,
+    symbols: BTreeSet<(String, String)>,
+    pub basis: &'static str,
+}
+
+fn note_symbols(row: &Value) -> BTreeSet<(String, String)> {
+    row["memory"]["data"]["symbols"].as_array().into_iter().flatten()
+        .filter(|link| link["state"] == "resolved")
+        .map(|link| (s(&link["identity"], "relpath").into(), s(&link["identity"], "qualified_name").into()))
+        .collect()
+}
+
+fn content_sequence(text: &str) -> Vec<String> {
+    graphicle_memory::text::words(text).iter().flat_map(|word| {
+        // Counts and negation belong to a premise even though ordinary note
+        // ranking treats some of them as stop words.
+        if matches!(word.as_str(), "one" | "two" | "not" | "no" | "never") {
+            BTreeSet::from([word.clone()])
+        } else { crate::notes_first::stems(word) }
+    }).collect()
+}
+
+impl NoteFocus {
+    /// Exact named-topic requests can use the same grounded-note focus as
+    /// rationale questions. Unlinked ranked evidence leaves prose scope broad.
+    fn title(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
+        let lower = question.trim().trim_end_matches('?').to_ascii_lowercase();
+        let topic = lower.strip_prefix("what is the ").or_else(|| lower.strip_prefix("what is "))?;
+        if topic.split_whitespace().any(|w| matches!(w, "and" | "or" | "also"))
+            || question.contains([';', '\n']) { return None; }
+        let named = crate::identifier_arm::explicit_names(question);
+        if !named.names.is_empty() || !named.paths.is_empty() { return None; }
+        if selected.iter().any(|r| r["memory"]["data"]["dependencies"].as_object().is_none_or(|d| d.is_empty())
+            || r["memory"]["data"]["symbols"].as_array().is_some_and(|links| links.iter().any(|l| l["state"] != "resolved"))) {
+            return None;
+        }
+        let terms = crate::notes_first::stems(topic);
+        if terms.len() < 2 { return None; }
+        let matching: Vec<_> = candidates.iter().filter(|r| r["kind"] == "memory"
+            && crate::notes_first::stems(s(r, "title")) == terms).collect();
+        let anchors: BTreeSet<String> = matching.iter().map(|r| s(r,"identity").into()).collect();
+        let symbols = matching.iter().flat_map(|r| note_symbols(r)).collect();
+        selected.iter().any(|r| anchors.contains(s(r,"identity")))
+            .then_some(Self { anchors, symbols, basis: "exact_note_title" })
+    }
+
+    pub fn filter_reason(&self) -> &'static str {
+        if self.basis == "exact_note_title" { "note_title_mismatch" } else { "rationale_premise_mismatch" }
+    }
+
+    pub fn new(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
+        if let Some(focus) = Self::title(question, selected, candidates) { return Some(focus); }
+        let words = graphicle_memory::text::words(question);
+        if words.first().map(String::as_str) != Some("why")
+            || words.iter().any(|word| matches!(word.as_str(), "and" | "or" | "also"))
+            || question.matches('?').count() > 1 || question.contains([';', '\n']) {
+            return None;
+        }
+        let durations = graphicle_memory::text::duration_literals(question);
+        if durations.len() > 1 { return None; }
+        let premise = content_sequence(question);
+        let mut anchors = BTreeSet::new();
+        let mut symbols = BTreeSet::new();
+        for row in candidates.iter().filter(|row| row["kind"] == "memory") {
+            let text = format!("{} {}", s(row, "title"), s(row, "text"));
+            let supported = if !durations.is_empty() {
+                !graphicle_memory::text::duration_literals(&text).is_disjoint(&durations)
+            } else {
+                let terms = content_sequence(&text);
+                // Three consecutive content words are evidence of the same
+                // premise; shared words such as "must" or "replica" are not.
+                premise.windows(3).any(|phrase| terms.windows(3).any(|other| other == phrase))
+            };
+            if supported {
+                anchors.insert(s(row, "identity").into());
+                symbols.extend(note_symbols(row));
+            }
+        }
+        selected.iter().any(|row| anchors.contains(s(row, "identity"))).then_some(Self { anchors, symbols,
+            basis: if durations.is_empty() { "rationale_premise_phrase" } else { "rationale_duration_agreement" } })
+    }
+
+    pub fn keep(&self, row: &Value) -> bool {
+        self.anchors.contains(s(row, "identity"))
+            || !note_symbols(row).is_disjoint(&self.symbols)
+            || row["memory"]["data"]["dependencies"].as_object().is_none_or(|d| d.is_empty())
+            || row["memory"]["data"]["symbols"].as_array().is_some_and(|links|
+                links.iter().any(|link| link["state"] != "resolved"))
+    }
+
+    pub fn anchors(&self) -> usize { self.anchors.len() }
+}
+
 /// The `symbol_links` switch of a query.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
@@ -143,8 +258,8 @@ fn links_of<'m>(
     Ok(out)
 }
 
-/// Use every ranked note's live links as prose anchors, or none. Unlinked
-/// notes, old revisions, missing source bytes and incomplete graphs keep the
+/// Use every ranked note's live symbol or file dependencies as prose anchors,
+/// or none. Unlinked notes, old revisions and missing source bytes keep the
 /// window-based fallback rather than inferring a scope from partial evidence.
 fn ranked_memory_scope(
     db: &Connection,
@@ -172,15 +287,41 @@ fn ranked_memory_scope(
         return None;
     }
     let mut wanted = BTreeMap::new();
+    let mut seeds = BTreeSet::new();
     for row in selected {
         if row["memory"]["data"]["symbols"]
-            .as_array()?
-            .iter()
+            .as_array().into_iter().flatten()
             .any(|link| link["state"] != "resolved")
         {
             return None;
         }
-        for link in links.get(s(&row["memory"], "id"))? {
+        let Some(symbol_links) = links.get(s(&row["memory"], "id")) else {
+            // A deliberately file-grounded note has the file's scope, not
+            // that of every source window returned alongside it. Validate
+            // hashes just as for symbol links before inferring that scope.
+            let data = &row["memory"]["data"];
+            if data["symbols"].as_array().is_some_and(|links| !links.is_empty()) {
+                return None;
+            }
+            let dependencies = data["dependencies"].as_object()?;
+            if dependencies.is_empty() {
+                return None;
+            }
+            for (path, sha) in dependencies {
+                let document = documents.get(format!("file:{path}").as_str())?;
+                if sha.as_str()? != s(document, "sha256") {
+                    return None;
+                }
+                for symbol in symbols::in_file(db, repository, path).ok()? {
+                    if symbol.sha256 != s(document, "sha256") {
+                        return None;
+                    }
+                    seeds.insert((symbol.identity.relpath, symbol.identity.qualified_name));
+                }
+            }
+            continue;
+        };
+        for link in symbol_links {
             let revision = s(link, "revision");
             if wanted
                 .insert(s(link, "stable_id").to_string(), revision)
@@ -195,7 +336,6 @@ fn ranked_memory_scope(
     if live.len() != wanted.len() {
         return None;
     }
-    let mut seeds = BTreeSet::new();
     for symbol in live {
         let document = documents.get(format!("file:{}", symbol.identity.relpath).as_str())?;
         if wanted.get(&symbol.stable_id).copied() != Some(symbol.revision.as_str())
@@ -205,7 +345,10 @@ fn ranked_memory_scope(
         }
         seeds.insert((symbol.identity.relpath, symbol.identity.qualified_name));
     }
-    crate::identifier_arm::linked_memory_scope(db, repository, &seeds, documents)
+    // These notes already cover the prose topic. Their live symbols can
+    // anchor related notes, but a caller/callee relationship alone does not
+    // extend that topic. Explicit code questions keep dependency expansion.
+    Some(seeds)
 }
 
 /// What the `symbol_links` step added to a query.
@@ -613,6 +756,42 @@ pub fn confine(reply: &mut Value, own: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn rationale_note(id: &str, text: &str, symbol: Option<&str>) -> Value {
+        let symbols: Vec<Value> = symbol.into_iter().map(|name| json!({"state":"resolved",
+            "identity":{"relpath":"policy.py","qualified_name":name}})).collect();
+        json!({"kind":"memory","identity":id,"title":"","text":text,
+            "memory":{"data":{"dependencies":{"policy.py":"sha"},"symbols":symbols}}})
+    }
+
+    #[test]
+    fn rationale_focus_preserves_equivalent_units_and_additional_reasons_on_the_same_symbol() {
+        let limit = rationale_note("limit", "The reservation lasts five minutes.", Some("limit"));
+        let reason = rationale_note("reason", "Slow peers need room to acknowledge the batch.", Some("limit"));
+        let floor = rationale_note("floor", "The minimum waiting interval is sixty seconds.", Some("floor"));
+        let linked = rationale_note("linked", "An outstanding request expires after 300 seconds.", Some("lease"));
+        let all = vec![limit.clone(), reason.clone(), floor.clone(), linked.clone()];
+        let focus = NoteFocus::new("Why does the queue cap its waiting interval at 300 seconds?", &[limit], &all).unwrap();
+        assert!(focus.keep(&reason));
+        assert!(focus.keep(&linked));
+        assert!(!focus.keep(&floor));
+    }
+
+    #[test]
+    fn rationale_focus_does_not_guess_unmatched_or_compound_premises() {
+        let note = rationale_note("a", "Keep at least two live replicas during normal operation.", None);
+        let other = rationale_note("b", "Reserve one core per replica.", None);
+        let all = vec![note.clone(), other.clone()];
+        let focus = NoteFocus::new("Why must the chart keep at least two live replicas?", &all, &all).unwrap();
+        assert!(focus.keep(&note)); assert!(!focus.keep(&other));
+        for question in [
+            "Why must replacements remain available?",
+            "Why must the chart keep two replicas and reserve one core?",
+            "Why must the chart keep at least two live replicas; explain capacity too?",
+            "Which constraints must the chart preserve?",
+            "Why wait between 60 seconds and five minutes?",
+        ] { assert!(NoteFocus::new(question, &all, &all).is_none(), "{question}"); }
+    }
 
     #[test]
     fn the_switch_counts_when_left_out_follows_when_true_and_reads_none_when_false() {

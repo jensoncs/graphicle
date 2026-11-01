@@ -1,0 +1,1969 @@
+{
+  "date": "2026-11-01",
+  "status": "coverage_expanded_with_known_gaps",
+  "scope": "Authored English synthetic regression coverage. Text retrieval and reviewed-memory relevance only; no Terraform execution, Helm rendering, Kubernetes reconciliation, Bash execution or independent human-query accuracy claim.",
+  "runtime_binary_unchanged": true,
+  "binary_sha256": "cc916efc5bc358ef0df8a2d65250849af56424da38d767fd1f6228a72a72edeb",
+  "corpus": {
+    "previous_questions": 110,
+    "new_memory_questions": 30,
+    "new_source_questions": 20,
+    "total_questions": 160,
+    "memory_questions": 119,
+    "source_questions": 41,
+    "calls": 439,
+    "new_coverage_repeat_calls": 130,
+    "datasets": [
+      {
+        "id": "links",
+        "kind": "memory",
+        "sha256": "67e1a4e15e706f873e3ef137bdb73c0354e3ee8d61cc74bb95bce6c4d9849f40"
+      },
+      {
+        "id": "exact",
+        "kind": "memory",
+        "sha256": "cc8cfa57ac9db0dd39836c5740205581e8bee09bf0d0d3121894bb5134bd0d79"
+      },
+      {
+        "id": "pressure",
+        "kind": "memory",
+        "sha256": "6367859659b5be266f015f24d7252f8a76002b3455109753e11f2654fe3262ab"
+      },
+      {
+        "id": "diversity",
+        "kind": "memory",
+        "sha256": "7c6d67aa87fd9cc773593eccfba8b50f85913a260e6595d9e0ad34c1f0666e0d"
+      },
+      {
+        "id": "cutoff",
+        "kind": "memory",
+        "sha256": "eb96a46fc6197b815c5ecee70b643a219f0a840216cb714f6216659cf2ea724f"
+      },
+      {
+        "id": "negative",
+        "kind": "memory",
+        "sha256": "9d5f464992556268d431f3162e316d6d520663a494ef6c2e6c1cfccca5cce3e0"
+      },
+      {
+        "id": "source",
+        "kind": "source",
+        "sha256": "527341c78c5421f394afbb04153e14283a6a400ca630dd0ba163f5a7fda9ad22"
+      },
+      {
+        "id": "language-memory",
+        "kind": "memory",
+        "sha256": "593920bc990429862224a4e7b81720a7604b8961d3c7b183f23fcbe84ecb0384"
+      },
+      {
+        "id": "language-source",
+        "kind": "source",
+        "sha256": "515b8c8e2dd25b9efac7506444d10e14ffe94ee27c587c4144241f61b5bed9b9"
+      },
+      {
+        "id": "infrastructure-memory",
+        "kind": "memory",
+        "sha256": "2075b4406235fcc8750104e318f8816775844d39fcd994eb5338d30f9b565baa"
+      },
+      {
+        "id": "infrastructure-source",
+        "kind": "source",
+        "sha256": "e616fd1c7deeb0e3cf01d9ea3ce89f984b83fd50477a3f0850d50c1f8fa73cc7"
+      }
+    ]
+  },
+  "comparison_method": "Compare the original 309 and added 130 cases after validating identical dataset hashes, request and scoring contracts for each subset. No regression-gate rule was relaxed.",
+  "comparisons": {
+    "previous_309": {
+      "status": "passed",
+      "findings": []
+    },
+    "previous_accepted_309": {
+      "status": "passed",
+      "findings": []
+    },
+    "new_130_repeat": {
+      "status": "passed",
+      "findings": []
+    }
+  },
+  "previous_309_outcomes_identical": true,
+  "new_130_repeat_outcomes_identical": true,
+  "coverage_groups": {
+    "bash": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "macro_recall": 0.7291666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "macro_recall": 0.7291666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 9,
+        "fp": 8,
+        "fn": 0,
+        "precision_completed": 0.5294117647058824,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "go": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "hcl": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.5714285714285714,
+        "recall": 0.8,
+        "macro_recall": 0.875,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.5714285714285714,
+        "recall": 0.8,
+        "macro_recall": 0.875,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 4,
+        "fn": 1,
+        "precision_completed": 0.5,
+        "recall": 0.8,
+        "macro_recall": 0.875,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "helm": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 6,
+        "fn": 0,
+        "precision_completed": 0.45454545454545453,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 6,
+        "fn": 0,
+        "precision_completed": 0.45454545454545453,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 6,
+        "fn": 0,
+        "precision_completed": 0.45454545454545453,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "java": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "macro_recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "macro_recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 2,
+        "fp": 5,
+        "fn": 0,
+        "precision_completed": 0.2857142857142857,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      }
+    },
+    "kotlin": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "kubernetes": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "python": {
+      "memory/counted": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "macro_recall": 0.21428571428571427,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "macro_recall": 0.21428571428571427,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 50,
+        "fp": 22,
+        "fn": 0,
+        "precision_completed": 0.6944444444444444,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "rust": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "terraform": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 8,
+        "fn": 1,
+        "precision_completed": 0.38461538461538464,
+        "recall": 0.8333333333333334,
+        "macro_recall": 0.9166666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 5,
+        "fp": 8,
+        "fn": 1,
+        "precision_completed": 0.38461538461538464,
+        "recall": 0.8333333333333334,
+        "macro_recall": 0.9166666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 6,
+        "fp": 11,
+        "fn": 0,
+        "precision_completed": 0.35294117647058826,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "typescript": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "macro_recall": 0.6666666666666666,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "error_rate": 0.0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "macro_recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "error_rate": 0.0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    }
+  },
+  "summary": {
+    "memory/counted": {
+      "planned": 119,
+      "completed": 119,
+      "errors": 0,
+      "error_rate": 0.0,
+      "tp": 54,
+      "fp": 33,
+      "fn": 78,
+      "precision_completed": 0.6206896551724138,
+      "recall": 0.4090909090909091,
+      "macro_recall": 0.5274390243902439,
+      "negative_queries": 37,
+      "empty_memory_accuracy": 0.8108108108108109
+    },
+    "memory/off": {
+      "planned": 119,
+      "completed": 119,
+      "errors": 0,
+      "error_rate": 0.0,
+      "tp": 54,
+      "fp": 33,
+      "fn": 78,
+      "precision_completed": 0.6206896551724138,
+      "recall": 0.4090909090909091,
+      "macro_recall": 0.5274390243902439,
+      "negative_queries": 37,
+      "empty_memory_accuracy": 0.8108108108108109
+    },
+    "memory/on": {
+      "planned": 119,
+      "completed": 119,
+      "errors": 0,
+      "error_rate": 0.0,
+      "tp": 131,
+      "fp": 70,
+      "fn": 1,
+      "precision_completed": 0.6517412935323383,
+      "recall": 0.9924242424242424,
+      "macro_recall": 0.9939024390243902,
+      "negative_queries": 37,
+      "empty_memory_accuracy": 0.7837837837837838
+    },
+    "source/baseline": {
+      "planned": 41,
+      "completed": 41,
+      "errors": 0,
+      "error_rate": 0.0,
+      "required": 77,
+      "delivered": 77,
+      "evidence_recall": 1.0,
+      "complete": 41,
+      "completeness": 1.0
+    },
+    "source/routed": {
+      "planned": 41,
+      "completed": 41,
+      "errors": 0,
+      "error_rate": 0.0,
+      "required": 77,
+      "delivered": 77,
+      "evidence_recall": 1.0,
+      "complete": 41,
+      "completeness": 1.0
+    }
+  },
+  "setup_trial": {
+    "errors": 72,
+    "by_project": {
+      "terraform-queue": "setup: graphicle: No code symbol output.limit in modules/queue/main.tf in the project's code graph\n",
+      "hcl-worker": "setup: graphicle: No code symbol job.worker in worker.nomad.hcl in the project's code graph\n",
+      "helm-parcel": "setup: graphicle: No code symbol parcel.labels in templates/_helpers.tpl in the project's code graph\n",
+      "kubernetes-worker": "setup: graphicle: No code symbol selector in base/service.yaml in the project's code graph\n"
+    },
+    "report_sha256": "f5a969c5caa258afcad5a785f691fd231082963b5666f141e8c9d43cdb0e3ca5",
+    "disposition": "Invalid setup trial, never accepted as a baseline. Corrected the Terraform module output selector to its actual qualified identity. Used explicitly declared file dependencies for HCL job blocks and Helm/Kubernetes notes; no automatic fallback.",
+    "questions_labels_sources_and_note_bodies_unchanged": true
+  },
+  "symbol_inventory": {
+    "terraform-queue": [
+      [
+        "main.tf",
+        "module.queue",
+        "code"
+      ],
+      [
+        "main.tf",
+        "output.dispatch_limit",
+        "code"
+      ],
+      [
+        "main.tf",
+        "terraform_data.dispatch",
+        "code"
+      ],
+      [
+        "metrics.tf",
+        "terraform_data.metrics",
+        "code"
+      ],
+      [
+        "modules/queue/main.tf",
+        "Terraform module: modules/queue.queue/main.tf.local.bounded_retention",
+        "code"
+      ],
+      [
+        "modules/queue/main.tf",
+        "Terraform module: modules/queue.queue/main.tf.output.limit",
+        "code"
+      ],
+      [
+        "modules/queue/main.tf",
+        "Terraform module: modules/queue.queue/main.tf.var.retention_seconds",
+        "code"
+      ],
+      [
+        "variables.tf",
+        "var.retention_seconds",
+        "code"
+      ]
+    ],
+    "hcl-worker": [
+      [
+        "variables.hcl",
+        "var.drain_seconds",
+        "code"
+      ]
+    ],
+    "helm-parcel": [],
+    "kubernetes-worker": [],
+    "bash-delivery": [
+      [
+        "deliver.sh",
+        "consume_payload",
+        "code"
+      ],
+      [
+        "deliver.sh",
+        "deliver.sh script",
+        "code"
+      ],
+      [
+        "deliver.sh",
+        "deliver_payload",
+        "code"
+      ],
+      [
+        "deliver.sh",
+        "health_probe",
+        "code"
+      ],
+      [
+        "lib/policy.sh",
+        "policy.sh script",
+        "code"
+      ],
+      [
+        "lib/policy.sh",
+        "retry_delay",
+        "code"
+      ],
+      [
+        "scripts/preview.sh",
+        "deliver_payload",
+        "code"
+      ],
+      [
+        "scripts/preview.sh",
+        "preview.sh script",
+        "code"
+      ]
+    ]
+  },
+  "grounding": {
+    "terraform": "Symbol links use the current projected qualified names; the module output name includes its enclosing module identity.",
+    "hcl": "HCL variable uses a projected symbol; generic job blocks use explicit file dependencies because job symbols are unavailable.",
+    "helm": "Explicit file dependencies, not symbol links: this runtime projects no live symbol identities for these templates/manifests.",
+    "kubernetes": "Explicit file dependencies, not symbol links: this runtime projects no live symbol identities for these templates/manifests.",
+    "bash": "Projected Bash function symbols, including the sourced helper and same-named alternate implementation."
+  },
+  "new_memory_symbol_grounding": {
+    "infrastructure-memory/terraform-queue": {
+      "interface": [
+        {
+          "state": "resolved",
+          "stable_id": "c84c5d460858808f739aed047ab303acfa942636fc2a1903318f77c67957edd0",
+          "revision": "6e77556de04e8531e4b8363083f77e2a2dd4d9e242f761af38d65a610cad2d49",
+          "identity": {
+            "relpath": "main.tf",
+            "qualified_name": "module.queue",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "6b102e719115f9a6386949675e3abd897ee3f22674b80a68efa56fa74f37c7dc",
+          "byte_start": 0,
+          "byte_end": 92,
+          "rung": "named",
+          "source": "file:main.tf"
+        }
+      ],
+      "floor": [
+        {
+          "state": "resolved",
+          "stable_id": "54b8a9f3b2cd3051efcc827fc00ef3a29b33ed0783be770c573bbcfe58831a95",
+          "revision": "6619a74c1722221e2c9afbec07a1b9bd865146888290b1affe3429cd9928b02a",
+          "identity": {
+            "relpath": "variables.tf",
+            "qualified_name": "var.retention_seconds",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "6b102e719115f9a6386949675e3abd897ee3f22674b80a68efa56fa74f37c7dc",
+          "byte_start": 0,
+          "byte_end": 227,
+          "rung": "named",
+          "source": "file:variables.tf"
+        }
+      ],
+      "ceiling": [
+        {
+          "state": "resolved",
+          "stable_id": "e9c49d3dee82a15a2335d9e1371c48ca840345190530fc5fe3894e772bf5bde9",
+          "revision": "9ca0c284dadc024cd818d6ad2f88442241a1fa27487d5393097f4e7b9592ef16",
+          "identity": {
+            "relpath": "modules/queue/main.tf",
+            "qualified_name": "Terraform module: modules/queue.queue/main.tf.output.limit",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "6b102e719115f9a6386949675e3abd897ee3f22674b80a68efa56fa74f37c7dc",
+          "byte_start": 112,
+          "byte_end": 165,
+          "rung": "named",
+          "source": "file:modules/queue/main.tf"
+        }
+      ],
+      "noise": [
+        {
+          "state": "resolved",
+          "stable_id": "e9a506c52fd977bbdeaca6884cf0b0b3ae13481890dd9966c7e628a733425f48",
+          "revision": "d41dd5ac952e9088a2bac608b7eda3e408f07898b6f026944d015b65aee3727b",
+          "identity": {
+            "relpath": "metrics.tf",
+            "qualified_name": "terraform_data.metrics",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "6b102e719115f9a6386949675e3abd897ee3f22674b80a68efa56fa74f37c7dc",
+          "byte_start": 0,
+          "byte_end": 60,
+          "rung": "named",
+          "source": "file:metrics.tf"
+        }
+      ]
+    },
+    "infrastructure-memory/hcl-worker": {
+      "owner": [],
+      "drain": [
+        {
+          "state": "resolved",
+          "stable_id": "778ad464c8b7d055b6788ea3d94dc0ba106a79ae8ab718bca44741c5d0f77195",
+          "revision": "c5f94030ba8812feffe74cb3945cdfc7b31c81b4c61e6962894af9397ac8a4ce",
+          "identity": {
+            "relpath": "variables.hcl",
+            "qualified_name": "var.drain_seconds",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "aa23c31d7edd396b863189f53aa222f1b290ab06fd3fb0fe85ab38a916d3f74e",
+          "byte_start": 0,
+          "byte_end": 60,
+          "rung": "named",
+          "source": "file:variables.hcl"
+        }
+      ],
+      "noise": []
+    },
+    "infrastructure-memory/helm-parcel": {
+      "labels": [],
+      "availability": [],
+      "port": [],
+      "noise": []
+    },
+    "infrastructure-memory/kubernetes-worker": {
+      "selector": [],
+      "drain": [],
+      "port": [],
+      "noise": []
+    },
+    "infrastructure-memory/bash-delivery": {
+      "wire": [
+        {
+          "state": "resolved",
+          "stable_id": "26af4b3c44ef9be178587ffb0667745f0808cb5dea210fe9394551abd75d5350",
+          "revision": "8371e846cb597a6b92544e7bf9642fbf969eb13b6ecfe62e04b32f507bd9f9e5",
+          "identity": {
+            "relpath": "deliver.sh",
+            "qualified_name": "deliver_payload",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "a4a793be601669cb228cb3e34df51527dd43739a82c25f2f5c09f4698482f2d9",
+          "byte_start": 63,
+          "byte_end": 236,
+          "rung": "named",
+          "source": "file:deliver.sh"
+        }
+      ],
+      "lease": [
+        {
+          "state": "resolved",
+          "stable_id": "9a6c75319e622a6ac6f498a2337d2cec8167a2fe25f4befbd08dc1ed75a48838",
+          "revision": "5e274daf0b93f82a978c62506ff105554fea9823a667834b3eab2ce1751cbc52",
+          "identity": {
+            "relpath": "lib/policy.sh",
+            "qualified_name": "retry_delay",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "a4a793be601669cb228cb3e34df51527dd43739a82c25f2f5c09f4698482f2d9",
+          "byte_start": 20,
+          "byte_end": 161,
+          "rung": "named",
+          "source": "file:lib/policy.sh"
+        }
+      ],
+      "pipeline": [
+        {
+          "state": "resolved",
+          "stable_id": "18aea7351a0eec5c6e0ee7f1f6d2578db14707a75af94df162534e39a033104e",
+          "revision": "d1140aaf3a954b6270c18cc13df490ca0d199389f301d7af85804d001571f0f0",
+          "identity": {
+            "relpath": "deliver.sh",
+            "qualified_name": "consume_payload",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "a4a793be601669cb228cb3e34df51527dd43739a82c25f2f5c09f4698482f2d9",
+          "byte_start": 237,
+          "byte_end": 264,
+          "rung": "named",
+          "source": "file:deliver.sh"
+        }
+      ],
+      "alternate": [
+        {
+          "state": "resolved",
+          "stable_id": "0aa99d4a2a157e748cf223f152a913a8f5c8d0464b40b0e7b92a1ff2bad5615c",
+          "revision": "99e169db3fdb196e9ff0c8cda0a99eecd8371f20657d707f8d80ad59846d5201",
+          "identity": {
+            "relpath": "scripts/preview.sh",
+            "qualified_name": "deliver_payload",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "a4a793be601669cb228cb3e34df51527dd43739a82c25f2f5c09f4698482f2d9",
+          "byte_start": 20,
+          "byte_end": 70,
+          "rung": "named",
+          "source": "file:scripts/preview.sh"
+        }
+      ],
+      "noise": [
+        {
+          "state": "resolved",
+          "stable_id": "c6d71913c29c5b028fd790c4553a04f4eb2c86d8b551b4cde484ca8e348fb727",
+          "revision": "d28d07209f70426d94206ba1e4021e1819d3136236e380ee32ffd1b754399804",
+          "identity": {
+            "relpath": "deliver.sh",
+            "qualified_name": "health_probe",
+            "kind": "code",
+            "ordinal": 0
+          },
+          "episode": "a4a793be601669cb228cb3e34df51527dd43739a82c25f2f5c09f4698482f2d9",
+          "byte_start": 265,
+          "byte_end": 302,
+          "rung": "named",
+          "source": "file:deliver.sh"
+        }
+      ]
+    }
+  },
+  "new_memory_file_grounding": {
+    "infrastructure-memory/terraform-queue": {
+      "interface": {
+        "main.tf": "6e77556de04e8531e4b8363083f77e2a2dd4d9e242f761af38d65a610cad2d49"
+      },
+      "floor": {
+        "variables.tf": "6619a74c1722221e2c9afbec07a1b9bd865146888290b1affe3429cd9928b02a"
+      },
+      "ceiling": {
+        "modules/queue/main.tf": "9ca0c284dadc024cd818d6ad2f88442241a1fa27487d5393097f4e7b9592ef16"
+      },
+      "noise": {
+        "metrics.tf": "d41dd5ac952e9088a2bac608b7eda3e408f07898b6f026944d015b65aee3727b"
+      }
+    },
+    "infrastructure-memory/hcl-worker": {
+      "owner": {
+        "worker.nomad.hcl": "771ad30eb681876c73eceadc610aa6b0fb55b1987023d5201512e49b6713f11e"
+      },
+      "drain": {
+        "variables.hcl": "c5f94030ba8812feffe74cb3945cdfc7b31c81b4c61e6962894af9397ac8a4ce"
+      },
+      "noise": {
+        "metrics.nomad.hcl": "01e1a7c2be6d9d1d9e998355c3aa9500916eec6761ef9d846a11c8e8c841db29"
+      }
+    },
+    "infrastructure-memory/helm-parcel": {
+      "labels": {
+        "templates/_helpers.tpl": "10e440540098f2dca871b0a83e6b7a231d02bd8254adc21663c80f48e5c38777"
+      },
+      "availability": {
+        "values.yaml": "38849dc1d6b8e933e5b32ae0dcd22f863f5e8dca143d65cf5ef151b4fd00d6a0"
+      },
+      "port": {
+        "values.yaml": "38849dc1d6b8e933e5b32ae0dcd22f863f5e8dca143d65cf5ef151b4fd00d6a0"
+      },
+      "noise": {
+        "values.yaml": "38849dc1d6b8e933e5b32ae0dcd22f863f5e8dca143d65cf5ef151b4fd00d6a0"
+      }
+    },
+    "infrastructure-memory/kubernetes-worker": {
+      "selector": {
+        "base/service.yaml": "bd6cb61ae2dbf0e56bdbf3bc6409f29b4f0785bf72bc383364b907cc0977c8af"
+      },
+      "drain": {
+        "base/deployment.yaml": "bfc3935900375ad8d715a7c639ddc2ebf7f99522b1ea8f0ac0829e1316bcc6f7"
+      },
+      "port": {
+        "base/service.yaml": "bd6cb61ae2dbf0e56bdbf3bc6409f29b4f0785bf72bc383364b907cc0977c8af"
+      },
+      "noise": {
+        "base/configmap.yaml": "d6b8e8f9749cb2e87d23e77c78c729e2428e042b7b0a8497cd42410512043d3a"
+      }
+    },
+    "infrastructure-memory/bash-delivery": {
+      "wire": {
+        "deliver.sh": "8353fb85c20e1f595c4a24f5f72e4024bb9c077defdccbfe99ec5dff5dad618e"
+      },
+      "lease": {
+        "lib/policy.sh": "f535f2b6ba48525e006cf1d4247e52b9e931b8741743b29d56674528e4119f13"
+      },
+      "pipeline": {
+        "deliver.sh": "8353fb85c20e1f595c4a24f5f72e4024bb9c077defdccbfe99ec5dff5dad618e"
+      },
+      "alternate": {
+        "scripts/preview.sh": "3fe49c857248f42c30ac10aecf2b6c00832e43b2cc085b913caf74e51728ece2"
+      },
+      "noise": {
+        "deliver.sh": "8353fb85c20e1f595c4a24f5f72e4024bb9c077defdccbfe99ec5dff5dad618e"
+      }
+    }
+  },
+  "missing_new_memories": [
+    {
+      "case": "infrastructure-memory/hcl-worker/job-change/on",
+      "missing": [
+        "drain"
+      ],
+      "diagnostics": [
+        {
+          "id": "drain",
+          "stage": "eligible_not_selected",
+          "link_outcomes": {},
+          "candidate": {
+            "id": "3938ed5757274c258972cfdbd9f68b92",
+            "fusion": null,
+            "retrieval_arms": [],
+            "link_outcomes": {},
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": false,
+            "selection_filter": null,
+            "pack_rank": null,
+            "delivered": false,
+            "delivery_route": null
+          }
+        }
+      ]
+    }
+  ],
+  "new_memory_on_outcomes": [
+    {
+      "id": "infrastructure-memory/terraform-queue/module-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling",
+        "floor",
+        "interface"
+      ],
+      "retrieved_relevant": [
+        "ceiling",
+        "floor",
+        "interface"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/cap-reason/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "ceiling"
+      ],
+      "retrieved_relevant": [
+        "ceiling"
+      ],
+      "irrelevant": [
+        "floor",
+        "interface"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "interface"
+      ],
+      "retrieved_relevant": [
+        "interface"
+      ],
+      "irrelevant": [
+        "ceiling"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/input-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "floor"
+      ],
+      "retrieved_relevant": [
+        "floor"
+      ],
+      "irrelevant": [
+        "ceiling",
+        "interface"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "ceiling",
+        "floor",
+        "interface"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/terraform-queue/literal-default/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "ceiling",
+        "floor",
+        "interface"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/job-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain",
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/drain-reason/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "owner"
+      ],
+      "retrieved_relevant": [
+        "owner"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/variable-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "owner"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/hcl-worker/literal-count/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "hcl",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "drain",
+        "owner"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/helper-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": [
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/service-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels",
+        "port"
+      ],
+      "retrieved_relevant": [
+        "labels",
+        "port"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/replica-floor/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "availability"
+      ],
+      "retrieved_relevant": [
+        "availability"
+      ],
+      "irrelevant": [
+        "labels",
+        "noise",
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "labels"
+      ],
+      "retrieved_relevant": [
+        "labels"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/helm-parcel/literal-override/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "mixed:gotemplate+yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "availability",
+        "noise"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/service-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "port",
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "port",
+        "selector"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/drain-reason/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "drain"
+      ],
+      "retrieved_relevant": [
+        "drain"
+      ],
+      "irrelevant": [
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/selector-contract/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "direct_symbol",
+      "split": "regression",
+      "language": "yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "selector"
+      ],
+      "irrelevant": [
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "selector"
+      ],
+      "retrieved_relevant": [
+        "selector"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "drain",
+        "port"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/kubernetes-worker/literal-override/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "yaml",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/delivery-change/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "dependency",
+      "split": "regression",
+      "language": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "irrelevant": [
+        "alternate"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/delay-reason/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "rationale",
+      "split": "regression",
+      "language": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "lease"
+      ],
+      "retrieved_relevant": [
+        "lease"
+      ],
+      "irrelevant": [
+        "alternate",
+        "pipeline",
+        "wire"
+      ]
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/ambiguous-function/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "ambiguous_symbol",
+      "split": "regression",
+      "language": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "alternate",
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "alternate",
+        "lease",
+        "pipeline",
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/direct-prose/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "prose",
+      "split": "regression",
+      "language": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [
+        "wire"
+      ],
+      "retrieved_relevant": [
+        "wire"
+      ],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/unsupported/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "no_answer_control",
+      "split": "regression",
+      "language": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": []
+    },
+    {
+      "id": "infrastructure-memory/bash-delivery/literal-cap/on",
+      "kind": "memory",
+      "variant": "on",
+      "category": "code_only",
+      "split": "regression",
+      "language": "bash",
+      "origin": "authored_fixture",
+      "error": null,
+      "content_preserved": true,
+      "relevant": [],
+      "retrieved_relevant": [],
+      "irrelevant": [
+        "lease",
+        "noise",
+        "pipeline",
+        "wire"
+      ]
+    }
+  ],
+  "reports": {
+    "previous": {
+      "path": "/private/tmp/graphicle-precision-step2-eval-20261101/SCORECARD.json",
+      "sha256": "c71bd0c323ccfa3fc579acdf14bbfb454ad168eeeba203aa45a710f09eb7bd4d"
+    },
+    "setup_trial": {
+      "path": "/private/tmp/graphicle-infra-initial-eval-20261101/SCORECARD.json",
+      "sha256": "f5a969c5caa258afcad5a785f691fd231082963b5666f141e8c9d43cdb0e3ca5"
+    },
+    "new_coverage_first": {
+      "path": "/private/tmp/graphicle-infra-calibrated-eval-20261101/SCORECARD.json",
+      "sha256": "e3d4d5d138ee1fc3f7e403d2feb5980e4c457258424e06972ccb2300e9bc04de"
+    },
+    "expanded": {
+      "path": "/private/tmp/graphicle-infra-expanded-eval-20261101/SCORECARD.json",
+      "sha256": "1f11a9d0dc31504925e2b7b8fadc60c265bb270992a86d2596b299b5b4d016f7"
+    }
+  },
+  "evaluator_sha256": {
+    "quality.py": "86ce791b3151bd56855ccd540ff6ffc5ac2f52327591bfddcefca6815148e95e",
+    "quality_diagnostics.py": "4da654b8e81ad28ac541655efbcc8b086dd916911c5f7114294771f86f04e962",
+    "symbol_link_precision.py": "c3033b52382a3789f83f0ff2cae3af73cae926b6a0fff6b3b9d4e6d2550430ac",
+    "real_query_eval.py": "53c2746b8834271a5dae04aa0a0b86b681b53a67ac3a27749fa4d13f562f8557",
+    "retrieval_recall.py": "ea4db14866e03e4a28cb9a52c558f21171d15deefab71b5cf6f4bdb4b78da5dd"
+  },
+  "validation": {
+    "python_evaluator_tests": {
+      "passed": 77,
+      "skipped": 1,
+      "skip": "Optional local-model test; runtime unchanged."
+    },
+    "bash_syntax_files": 3,
+    "source_label_validation": "Unique exact quotes validated for all 41 source questions.",
+    "diff_check": "passed"
+  },
+  "baseline": {
+    "before_sha256": "3dea3e67227ac34500cd0bd5b667438401774c89ea3bd86f743ab2f396e26129",
+    "after_sha256": "5f75b1ba62e73790e741918785e64fc4e031e5e1382efdfe85db99159ae282aa",
+    "proposed_path": "/private/tmp/graphicle-infra-proposed-baseline-20261101.json",
+    "gate": {
+      "status": "passed",
+      "findings": []
+    },
+    "reason": "Reviewed expansion preserves all 309 preceding outcomes and records the repeated new cases, including the HCL recall miss and remaining false positives. Corpus expansion is not a retrieval improvement."
+  },
+  "remaining_work": [
+    "Project generic HCL job identities and references to variables.",
+    "Add usable Helm helper/template and Kubernetes YAML symbol identities; current memory coverage uses explicit file dependencies.",
+    "Improve configuration-topic precision and negative controls.",
+    "Prevent the alternate Bash implementation leaking into the path-qualified delivery question.",
+    "Validate with independently labelled human questions and rendered/executed configurations before claiming runtime effectiveness."
+  ]
+}

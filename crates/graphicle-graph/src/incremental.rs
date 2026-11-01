@@ -661,6 +661,12 @@ pub fn extract(
     engine: &str,
 ) -> Result<(Value, Report)> {
     let input_paths = paths;
+    // A chart marker, helper or values edit can change references throughout
+    // the chart, including formerly unsupported templates. Resolve the supplied
+    // corpus together until Helm has a complete incremental dependency closure.
+    if paths.iter().any(|path| extractors::helm::chart_root(path).is_some()) {
+        return full(input_paths, options, "helm_chart_requires_full_resolution");
+    }
     let root = extractors::resolution::resolved(
         options
             .root

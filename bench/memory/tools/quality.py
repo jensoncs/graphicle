@@ -10,6 +10,7 @@ import hashlib
 import json
 import math
 import platform
+import re
 import statistics
 import tempfile
 from pathlib import Path
@@ -46,6 +47,7 @@ def load_suite(path, source_roots=None):
             raise ValueError("Dataset escaped the suite directory")
         dataset = read(source)
         for project in dataset.get("projects", []):
+            project_coverage(project)
             key = name + "/" + project["id"]
             if key in source_roots:
                 if dataset.get("format") != "graphicle.real-query-seed.v1":
@@ -114,9 +116,21 @@ def validate_source(dataset):
 def project_language(project):
     """Count a mixed-language project once; unknown extensions stay explicit."""
     names = {".py": "python", ".js": "javascript", ".ts": "typescript", ".tsx": "typescript",
-             ".go": "go", ".java": "java", ".kt": "kotlin", ".rs": "rust"}
-    languages = sorted({names.get(Path(name).suffix, "unknown") for name in project["files"]})
+             ".go": "go", ".java": "java", ".kt": "kotlin", ".rs": "rust",
+             ".tf": "hcl", ".tfvars": "hcl", ".hcl": "hcl", ".sh": "bash", ".bash": "bash",
+             ".yaml": "yaml", ".yml": "yaml", ".tpl": "gotemplate"}
+    languages = sorted({names.get(Path(name).suffix.lower(), "unknown") for name in project["files"]})
     return languages[0] if len(languages) == 1 else "mixed:" + "+".join(languages)
+
+
+def project_coverage(project):
+    """Explicit fixture domain, separate from inferred syntax (Helm vs YAML)."""
+    group = project.get("coverage_group")
+    if group is None:
+        return project_language(project)
+    if not isinstance(group, str) or not re.fullmatch(r"[a-z][a-z0-9_-]{0,39}", group):
+        raise ValueError("Coverage groups must be short lowercase slugs")
+    return group
 
 
 def normalize(entry, project, rows):
@@ -130,6 +144,7 @@ def normalize(entry, project, rows):
                     "kind": entry["kind"], "variant": variant,
                     "category": q.get("category", q.get("intent")), "split": project["split"],
                     "language": project_language(project),
+                    "coverage": project_coverage(project),
                     "origin": q.get("origin", {}).get("kind", "authored_fixture"),
                     "seconds": value.get("seconds"), "tokens": value.get("tokens"),
                     "error": value.get("error"), "content_preserved": row.get("counted_preserves_content")}
@@ -266,7 +281,8 @@ def markdown(report):
         lines.append(f"| {name} | {m['completed']} / {m['planned']} | {percent(m.get('precision_completed'))} | "
                      f"{percent(m.get('recall', m.get('evidence_recall')))} | "
                      f"{percent(m.get('empty_memory_accuracy', m.get('completeness')))} | {tokens} | {p95} |")
-    for field, title in (("language", "Code language"), ("origin", "Query origin")):
+    for field, title in (("language", "Code language"), ("coverage", "Coverage group"),
+                         ("origin", "Query origin")):
         lines += ["", "## " + title, "",
                   "| Group | Variant | Completed / planned | Precision | Recall / evidence recall |",
                   "|---|---|---:|---:|---:|"]
@@ -322,7 +338,7 @@ def run(binary, suite, output, baseline=None, source_roots=None):
                 "memory_debug_candidates": 400, "memory_diagnostics_version": 1,
                 "latency_scope": "One fresh CLI process per query; warm store, uncontrolled filesystem cache"}
     save(output / "PROTOCOL.json", protocol)
-    cases, grounding = [], {}
+    cases, grounding, file_grounding = [], {}, {}
     for entry in entries:
         for project in entry["data"]["projects"]:
             destination = output / "cases" / entry["id"]
@@ -330,6 +346,7 @@ def run(binary, suite, output, baseline=None, source_roots=None):
                 rows = evaluate_project(project, binary, destination, diagnose=True)
                 if rows and "memory_grounding" in rows[0]:
                     grounding[entry["id"] + "/" + project["id"]] = rows[0]["memory_grounding"]
+                    file_grounding[entry["id"] + "/" + project["id"]] = rows[0]["memory_file_grounding"]
             else:
                 try:
                     with tempfile.TemporaryDirectory(prefix="graphicle-quality-source-") as tmp:
@@ -344,9 +361,10 @@ def run(binary, suite, output, baseline=None, source_roots=None):
             print(f"{entry['id']}/{project['id']}: {len(rows)} queries", flush=True)
     report = {"format": FORMAT, "contract": contract, "protocol": protocol, "cases": cases,
               "summary": summary(cases), "unmeasured": UNMEASURED, "memory_grounding": grounding,
+              "memory_file_grounding": file_grounding,
               "by_category": {cat: summary([c for c in cases if c["category"] == cat])
                               for cat in sorted({c["category"] for c in cases})}}
-    for field in ("language", "origin"):
+    for field in ("language", "coverage", "origin"):
         report["by_" + field] = {key: summary([c for c in cases if c[field] == key])
                                 for key in sorted({c[field] for c in cases})}
     inputs = [(binary, protocol["binary_sha256"])]

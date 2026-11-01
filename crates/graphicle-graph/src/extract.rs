@@ -94,6 +94,15 @@ fn null_as_empty<'de, D: serde::Deserializer<'de>>(
 ) -> std::result::Result<Vec<Value>, D::Error> {
     Ok(Option::<Vec<Value>>::deserialize(deserializer)?.unwrap_or_default())
 }
+/// Extraction also depends on chart membership, not only file bytes. Keep
+/// Helm cache entries scoped to their chart (including across root relocation).
+pub fn cache_salt(path: impl AsRef<Path>) -> Option<String> {
+    let path = path.as_ref();
+    crate::rcfile::cache_salt(path).or_else(|| {
+        extractors::helm::chart_root(path).map(|root| format!("helm={}", root.display()))
+    })
+}
+
 pub fn get_extractor(path: &Path) -> Option<String> {
     let name = path
         .file_name()
@@ -125,6 +134,9 @@ pub fn get_extractor(path: &Path) -> Option<String> {
             .map(str::to_string);
     }
     let ext = languages::suffix(path);
+    if extractors::helm::chart_root(path).is_some() {
+        return Some("helm".into());
+    }
     if ext == ".h" {
         if header_kind(path, true) {
             return Some("objc".into());
@@ -194,6 +206,7 @@ pub fn extract_file(path: &Path, root: Option<&Path>) -> Value {
         "package_manifest" => crate::manifest_ingest::extract_package_manifest(path),
         "robot" => Ok(extractors::robot::extract_robot(path)),
         "yaml" => Ok(extractors::yaml_config::extract_yaml(path)),
+        "helm" => extractors::helm::extract(path),
         "rst" => extractors::rst::extract_rst(path),
         "lazarus_package" | "slnx" | "csproj" | "xaml" => {
             Ok(projects::extract_project(path, &kind, root))
@@ -372,6 +385,8 @@ pub fn register_resolvers() {
                 Ok(())
             }),
         );
+        add("helm_references", &[".yaml", ".yml", ".tpl", ".gotmpl"],
+            Arc::new(|p, n, e| { extractors::helm::resolve(p, n, e); Ok(()) }));
         // The member passes read the per-file results and the edges in
         // either form, so none of them turns assembly's lists back to JSON.
         for (name, lang, ext) in [
@@ -812,7 +827,7 @@ fn records_in(
             &candidate_paths,
             &co,
             worker_count(candidates.len()),
-            |path: &Path| crate::rcfile::cache_salt(path),
+            |path: &Path| cache_salt(path),
             |path, entry, value| {
                 // A compact result tightens what stays JSON when it converts.
                 if !compact {
@@ -899,7 +914,7 @@ fn records_in(
         }
         if cacheable(path, &value) {
             let salted;
-            let co = match crate::rcfile::cache_salt(path) {
+            let co = match cache_salt(path) {
                 Some(salt) => {
                     salted = CacheOptions {
                         salt: Some(salt),
@@ -2560,6 +2575,30 @@ pub fn dispatch(r: &Value) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn chart_membership_invalidates_cached_extraction() {
+        let _serial = extractors::parse_cache::test_serial();
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let file = root.join("values.yaml");
+        std::fs::write(&file, "service:\n  port: 80\n").unwrap();
+        let options = ExtractOptions {
+            root: Some(root.clone()), cache_root: Some(root.join("cache")),
+            parallel: false, ..Default::default()
+        };
+        let run = || extract(std::slice::from_ref(&file), &options).unwrap();
+        let plain = run();
+        assert!(!plain["nodes"].as_array().unwrap().iter().any(|n| n.get("_helm_kind").is_some()));
+        std::fs::write(root.join("Chart.yaml"), "name: parcel\n").unwrap();
+        for _ in 0..2 {
+            let chart = run();
+            assert!(chart["nodes"].as_array().unwrap().iter().any(|n| n["label"] == "Values.service.port"));
+        }
+        std::fs::remove_file(root.join("Chart.yaml")).unwrap();
+        let plain = run();
+        assert!(!plain["nodes"].as_array().unwrap().iter().any(|n| n.get("_helm_kind").is_some()));
+    }
 
     #[cfg(unix)]
     #[test]

@@ -18,12 +18,16 @@ datasets must stay private. Nothing is sent as telemetry.
 
 ## What the scorecard measures
 
-The checked-in suite contains 89 authored memory questions and 21 authored
-source questions across seven code languages. Memory questions run with symbol
+The checked-in suite contains 128 authored memory questions and 41 authored
+source questions across seven programming languages plus HCL/Terraform, Helm,
+Kubernetes YAML and Bash. Memory questions run with symbol
 links off, counted (the default), and on. Source questions run with identifier
-routing off and on. These are **309 context calls**, covering relevant decisions, distracting memories,
+routing off and on. These are **466 context calls**, covering relevant decisions, distracting memories,
 negative controls, stale notes, caller/callee constraints, capacity pressure,
-exact source branches, attached rationale and UTF-8 citation boundaries.
+exact source branches, attached rationale, UTF-8 citation boundaries, configuration
+references and overrides, template helpers, workload selectors and shell pipelines.
+Coverage groups distinguish Helm from Kubernetes YAML and Terraform from generic
+HCL; they do not replace the syntax inferred from the fixture file extensions.
 
 These cases are regression fixtures, not an independent estimate of user
 effectiveness. Existing fixtures labelled `held_out` remain authored synthetic
@@ -522,8 +526,344 @@ The [Go repair receipt](../bench/memory/results/go-recall-fix-20261101.json)
 records the paired outcomes, unchanged baseline hashes, candidate binary and
 evaluator hashes, upgrade check and the remaining precision failure. This is
 a verified extraction/recall repair, not an accepted precision improvement.
-Relevance filtering after dependency expansion remains to be addressed while
-preserving the recovered callee recall.
+The follow-up below addresses relevance filtering while preserving the recovered
+callee recall.
+
+### Precision and unsupported topics (1 November 2026)
+
+Two changes were measured separately against the unchanged 309-call suite.
+The starting point here is the Go repair above, including its two newly added
+false positives. Questions, labels, settings and the accepted baselines were
+not changed.
+
+| Links-on measurement | Go repair | Step 1: prose scope | Step 2: topic support |
+|---|---:|---:|---:|
+| Relevant retrieved occurrences | 102 | 102 | 102 |
+| Irrelevant retrieved occurrences | 86 | 76 | 37 |
+| Precision | 54.26% | 57.30% | 73.38% |
+| Recall | 100% | 100% | 100% |
+| Negative questions returning no memory | 15/27 | 15/27 | 26/27 |
+
+Step 1 keeps a fully covered prose topic on the ranked notes' verified live
+symbols. It no longer expands that inferred scope into callers, callees or
+owners. Explicit code questions and incompletely covered prose retain their
+existing dependency/fallback behavior. Five focused prose cases across
+TypeScript, Go, Java, Kotlin and Rust each lose two irrelevant notes. This
+supersedes the dependency-closure behavior of the earlier prose-scope change.
+The intermediate gate still fails the Go unsupported-policy case; that failure
+is retained in the receipt.
+
+Step 2 recognizes narrow English attribute questions about explicit code names,
+separates the requested topic from the name, and checks existing stems in the
+authorized candidate notes and source text. With no topical match, it withholds
+both ranked and linked memories while retaining source retrieval. Any topical
+support restores the existing selection behavior. It does not apply to broad
+constraint/contract inventories, compound questions, rationale questions,
+unrecognized forms, semantic ranks, rerankers, or requests with explicit needs
+or rephrasings. There are no Go-specific terms, benchmark IDs or calibrated
+score thresholds in the rule.
+
+`memory_topic_support` reports the topic terms, matching terms and withheld
+counts. `unsupported_in_candidates` means no lexical support in the candidates
+inspected, not proof that a fact is absent from the repository. Candidate traces
+record `selection_filter: unsupported_topic`; the evaluator attributes an
+associated recall miss to `relevance_withheld` and still fails the ordinary
+recall gate. Positive controls verify that adding supporting notes, using
+inflected topic words, or finding support in source text preserves retrieval;
+debugging does not change results.
+
+Step 3 passes the frozen gate and comparisons against both the Go repair and
+step 1. All 102 relevant occurrences remain, including both recovered Go callee
+notes, with no per-case increase in irrelevant IDs. The synthetic source checks
+retain all 33 required spans across 21 questions in each mode. The separate
+historical-source replay retains all 17 spans across 11 questions in each mode
+(22 calls). Go precision rises from 55.56% to 83.33%, with recall at 100%.
+
+One negative case still returns a ranked tracing note for `eventKey(7)`; this
+code-result question is outside the new attribute rule. Overall, 37 false
+positives remain. This lexical rule can miss synonym-only attribute requests
+without matching candidate wording; independent human-query validation remains
+necessary. These figures are synthetic regression results, and do not establish
+production accuracy or equivalent behavior for non-English questions.
+
+The separate optional local-reranker replay preserves all outcomes across its
+54 questions / 162 calls (52 relevant and 46 irrelevant occurrences with links
+on). The new attribute filter is bypassed throughout that run; the model-free
+precision gains above are not claimed for reranked retrieval.
+
+Validation passes 18 symbol-link integration tests, 69 evaluator tests (one
+optional model test initially skipped), all 21 symbol-link evaluator tests when
+the local model assets are supplied, and runtime Clippy with warnings denied.
+The broader 533-test integration run has 528 passes, three ignored tests and
+two stale terminal-display assertions expecting seven graph nodes. Both the
+starting and candidate binaries produce the identical eight-node graph. Those
+assertions now compare the display with the structured sync count, and all 11
+terminal tests pass on recheck. No retrieval behavior changed for that repair.
+
+The [step-by-step receipt](../bench/memory/results/memory-precision-steps-20261101.json)
+preserves comparisons, per-case changes, binary/evaluator hashes, validation
+and the intermediate failed gate. The accepted baselines remain unchanged.
+
+### Infrastructure and Bash coverage (1 November 2026)
+
+`quality_infrastructure_memories.json` adds 30 memory questions; the matching
+source fixture adds 20 source questions. The five projects cover Terraform
+module inputs/outputs, validation and explicit tfvars overrides; a generic HCL
+job and variable; Helm values, named helpers and template includes; Kubernetes
+selectors, ConfigMap references and a Kustomize patch; and Bash sourcing,
+same-named functions, argument quoting, pipeline failure and delay bounds.
+Every group includes direct prose, dependency/constraint and negative questions.
+
+These are authored English regression questions. Terraform is not planned or
+applied, Helm is not rendered, Kubernetes is not reconciled and the shell scripts
+are not executed. The source labels require exact supplied text, not a generated
+answer or a claim that the referenced configuration behaves correctly at runtime.
+All three Bash files pass `bash -n`.
+
+The setup audit initially rejected symbol-linked notes in four groups. Inspection
+of the current live-symbol table distinguished a Terraform naming mismatch from
+missing symbol support: the nested Terraform output has a module-qualified
+identity; generic HCL projects the variable but not its job blocks; these Helm
+and Kubernetes fixtures have no live symbol identities. The Terraform fixture
+uses the actual output identity. HCL job notes, Helm notes and Kubernetes notes
+explicitly use Graphicle's existing file-dependency API. HCL variable and Bash
+function notes still use symbols. No automatic fallback, relevance-label change,
+question rewrite or runtime extraction fix was used to conceal the setup errors.
+The failed setup trial is retained in the receipt and is not a quality baseline.
+
+The evaluator now accepts and validates explicit `dependencies` in memory
+fixtures. Only unique paths in the supplied project are admitted. Alongside
+`memory-links.json`, `memory-files.json` and the scorecard's
+`memory_file_grounding` preserve the saved dependency hashes. Empty symbol lists
+for file-dependent notes do not count as successful symbol resolution. Future
+symbol-link coverage for Helm and YAML still needs working projected symbols.
+
+| New coverage group | Note grounding | Relevant / labelled | False positives | Precision | Recall |
+|---|---|---:|---:|---:|---:|
+| Terraform | Symbols | 6/6 | 11 | 35.3% | 100% |
+| Generic HCL | File dependencies + variable symbol | 4/5 | 4 | 50.0% | 80% |
+| Helm templates | File dependencies | 5/5 | 6 | 45.5% | 100% |
+| Kubernetes YAML | File dependencies | 5/5 | 4 | 55.6% | 100% |
+| Bash | Symbols | 9/9 | 8 | 52.9% | 100% |
+
+The HCL `job-change` question misses the `drain` note on `var.drain_seconds`.
+The note is an authorized candidate, but no retrieval arm, link encounter or
+packing offer is recorded. The absent job symbol is a concrete extraction gap;
+these observations do not implicate the final memory cap. Precision issues
+include Bash's alternate implementation leaking into a path-qualified question,
+and irrelevant notes on unsupported-policy and literal-configuration questions.
+Only 3/10 new negative questions return no memories.
+
+All 44 required source spans across the 20 new questions are delivered in both
+routing modes. Together the new memory cases retrieve 29/30 relevant occurrences
+with 33 false positives. These are new coverage measurements, not improvements
+over the earlier 73.38% precision / 100% recall corpus. A single HCL miss and
+substantial over-returning remain visible.
+
+The full 439-call run preserves all original 309 outcomes exactly. Its 130 new
+calls reproduce the first valid infrastructure run on fresh stores, with no
+execution or parity errors. The expanded baseline records 131/132 relevant
+memory occurrences (99.24% recall), 70 false positives (65.17% precision), and
+29/37 correct empty-memory results. All 77 required source spans across 41
+questions are retained in each routing mode. The lower pooled precision reflects
+the harder added corpus, not a change to retrieval: the binary is unchanged.
+The baseline was frozen only after the original-case comparison, exact repeat
+check and setup audit; its known HCL miss remains explicit. Validation passes
+77 Python evaluator tests, with one optional model test skipped.
+
+The [infrastructure coverage receipt](../bench/memory/results/infrastructure-coverage-20261101.json)
+records the setup correction, per-group results, unchanged original outcomes,
+repeat comparison and baseline provenance. Passing the expanded regression
+baseline means retaining observed outcomes; it does not certify complete HCL,
+Helm, Kubernetes or Bash support.
+
+### HCL recall and configuration precision follow-up (1 November 2026)
+
+The infrastructure questions, source bytes, note bodies, grounding and relevance
+labels remain unchanged. The runtime now retains labelled root blocks in generic
+`.hcl` files and their nested references, so `job.worker` reaches the checkpoint
+note on `var.drain_seconds`. Unknown Terraform blocks retain their old behavior.
+The earlier setup description above records the pre-fix runtime; the HCL fixture
+intentionally keeps its original file-grounded job notes for this comparison.
+
+Identifier routing now recognizes lowercase HCL address namespaces and
+configuration/template file extensions. This also lets the existing unsupported
+attribute check handle `module.queue` and `job.worker`. Narrow setting-value and
+explicit last-file override questions with matching selected source and setting
+names withhold design memories. Rationale, compound requests, missing source or
+settings, semantic ranking, reranking, and caller-supplied needs or query variants
+keep ordinary retrieval. `memory_value_request` reports the path, setting and
+withheld counts; candidate traces record `configuration_value_request`.
+
+The existing fully-covered prose scope also accepts explicit file dependencies,
+after checking their saved and live source hashes. This prevents the new HCL
+dependency from adding the checkpoint note to a question asking only for the
+handoff agreement. Unlinked or incomplete evidence retains the broad fallback.
+
+| Links-on group | Relevant before → after | False positives before → after | Precision before → after | Recall before → after |
+|---|---:|---:|---:|---:|
+| Generic HCL | 4 → 5 | 4 → 3 | 50.0% → 62.5% | 80% → 100% |
+| Terraform | 6 → 6 | 11 → 4 | 35.3% → 60.0% | 100% → 100% |
+| Helm | 5 → 5 | 6 → 4 | 45.5% → 55.6% | 100% → 100% |
+
+The complete 439-call comparison passes without a lost relevant note, new false
+positive or lost required source span. All original 309 outcomes are identical;
+the 130 infrastructure outcomes reproduce exactly in a separate fresh-store
+run. Pooled links-on recall reaches 132/132 (100%); false positives fall from 70
+to 60, precision rises from 65.17% to 68.75%, and correct empty-memory results
+rise from 29/37 to 33/37. Both source modes still deliver 77/77 required spans.
+The accepted baseline now records these gains. All 44 focused Rust tests pass
+(20 symbol-link integration, 4 extractor, 9 question-shape, 6 identifier and
+5 note-routing tests). The
+[improvement receipt](../bench/memory/results/infrastructure-improvement-20261101.json)
+records hashes, case-level changes, the rejected first trial, exact repeat,
+remaining false-positive traces and baseline provenance.
+
+These are model-free synthetic regression improvements, not universal language
+accuracy. Helm and Kubernetes still use file-grounded notes; this change does not
+add their symbol extractors or render configuration. Terraform still over-returns
+four notes on the rationale, title and variable questions. Helm still over-returns
+four notes on helper and replica questions. HCL's literal count question and
+shutdown rationale retain three false positives. The next precision work needs
+Helm helper/value references and individual-note relevance checks, validated with
+independently labelled rationale questions; lowering the note cap risks losing
+the dependency constraints these tests require.
+
+### Helm references and rationale-note focus (1 November 2026)
+
+Chart templates now expose static helper and render symbols, and chart values
+expose addressable fields such as `Values.service.port`. Literal `include` and
+`template` calls and `.Values` accesses form directed references within a chart.
+References to a map include its addressable descendants; references to a leaf
+exclude sibling fields. Symbol-grounded notes can therefore follow the requested
+helper, template or value dependency. Existing file-grounded notes keep their
+original granularity; this does not reinterpret their labels or grounding.
+
+Helm scope narrowing requires a current, complete graph. Dynamic helpers,
+custom helper contexts, `tpl`, indirect value lookups, unresolved references,
+aliases and duplicate fields retain the broader retrieval fallback. Unsupported
+syntax, explicit YAML tags and size/structure limits skip static extraction while
+preserving text retrieval. Values are inspected through parser events without
+constructing values or expanding aliases. Override files remain separate
+annotations, not a calculated effective configuration. Library-chart template
+resolution, rendering, values merging and field-level revision tracking remain
+outside this static analysis. Chart membership participates in extraction cache
+keys; charts use full reference resolution on sync until incremental dependency
+closure is supported. AST schema 15 refreshes older graph records.
+
+For model-free, single `Why ...` questions, an already retrieved note matching
+one normalized duration or a three-word content phrase can focus the note set.
+Matching notes, additional notes on the same resolved symbol, and ungrounded or
+unresolved-symbol notes remain eligible. Unmatched paraphrases, compound
+questions, semantic ranking, reranking, explicit needs and query variants retain
+ordinary retrieval. This is a lexical selection heuristic, not proof of semantic
+relevance; independently labelled rationale queries are still needed.
+
+The packet exposes `memory_scope_support` and `memory_rationale_support`, including
+the selection basis and withheld counts. Candidate diagnostics identify
+`outside_helm_scope` and `rationale_premise_mismatch`, so a future recall miss can
+be traced to the relevant selection step. The regression tests cover symbol
+notes, parent values, template edits, dynamic fallback, equivalent duration units,
+same-symbol additional reasons and caller-supplied expanded requests.
+
+The graph-only trial on the unchanged 130-call infrastructure subset removed
+the helper question's unrelated port note (Helm precision 55.6% → 62.5%). Adding
+rationale focus produced the final 439-call results below; no fixture source, note, grounding,
+question, label, request budget or scoring rule changed.
+
+| Links-on group | Relevant before → after | False positives before → after | Precision before → after | Recall |
+|---|---:|---:|---:|---:|
+| Helm | 5 → 5 | 4 → 0 | 55.6% → 100% | 100% |
+| Terraform | 6 → 6 | 4 → 2 | 60.0% → 75.0% | 100% |
+| HCL | 5 → 5 | 3 → 2 | 62.5% → 71.4% | 100% |
+| Entire corpus | 132 → 132 | 60 → 39 | 68.75% → 77.19% | 100% |
+
+The rationale cases also improve in TypeScript, Go, Java, Kotlin, Rust,
+Kubernetes and Bash. No individual case loses a previously retrieved relevant
+note, gains an irrelevant note or loses a required source span. Both source
+modes retain 77/77 required spans. Links-off and counted preserve parity: their
+precision rises from 67.5% to 81.8%, with recall unchanged at 54/132. Links-on
+correct empty-memory results remain 33/37. These are precision gains on authored
+regression cases, not universal accuracy for these languages.
+
+All 37 focused Rust tests pass (8 extractor, 1 chart-cache invalidation, 23
+symbol-link integration and 5 symbol-link unit tests). The final binary's 130
+infrastructure outcomes reproduce exactly in a separate fresh-store run. The
+439-call comparison passes against the previous baseline, and the accepted
+baseline now records these gains. The
+[Helm and rationale receipt](../bench/memory/results/helm-rationale-improvement-20261101.json)
+contains the before/after metrics, intermediate graph-only result, unchanged
+contract checks, per-case changes, binary/report hashes and repeatability checks.
+
+Remaining target false positives are Terraform's handoff-contract question
+(`ceiling`) and input-variable question (`interface`), plus the HCL literal-count
+question (`drain`, `owner`). Helm has no false positives in these six authored
+memory questions; dynamic templates and independently labelled real questions
+still require broader validation. No memory cap was lowered.
+
+### Configuration ownership, literal counts and computed Helm references (1 November 2026)
+
+The remaining Terraform prose/input false positives came through ordinary note
+ranking, before link expansion. Model-free requests naming a complete note title
+now focus both ranked and linked notes on matching notes and their resolved
+symbols. Unlinked or unresolved ranked evidence keeps prose retrieval broad.
+A file-qualified question about the constraint governing one `var.*` input uses
+that declaration's scope; a change-impact question still follows callers and
+callees. Explicit needs, query variants and semantic ranking retain broad
+retrieval. Packets report `memory_prose_support` (`exact_note_title`) or
+`memory_scope_support` (`configuration_input`); candidate traces identify
+`note_title_mismatch` and `outside_configuration_input`.
+
+HCL count questions now reuse `memory_value_request` only after parsing the
+selected source: exactly one block must match the requested kind and label,
+with exactly one integer-literal `count` attribute. A comment, another block,
+a computed count, ambiguous blocks, malformed or incomplete source, a missing
+file, or an additional rationale clause cannot trigger this suppression.
+
+Helm references now resolve bounded expression forms without executing Helm or
+Sprig: literal `printf`/`print` helper names, immutable variable aliases,
+literal-key `index`/`get`/`dig` accesses, root captures, `with` scopes, finite
+`ternary` helper alternatives, and simple literal `tpl` fragments. Both possible
+conditional helpers remain dependencies. Assignments that can mutate bindings
+across a branch, runtime values, nonliteral `tpl`, unsupported control scopes
+and external lookups remain explicit fallbacks. Value-file contents never become
+assumed constants. AST schema 16 refreshes older graph records.
+
+Nine additional authored Helm questions (27 calls) cover eight supported
+expression forms and one runtime-value control. Their sources, note grounding
+and closed-world labels were fixed before evaluating either binary. They extend
+the suite from 160 questions / 439 calls to 169 questions / 466 calls. Results
+on the original cases are compared separately from the added coverage.
+
+| Links-on comparison | Relevant before → after | False positives before → after | Precision before → after | Recall |
+|---|---:|---:|---:|---:|
+| Original Terraform cases | 6 → 6 | 2 → 0 | 75.0% → 100% | 100% |
+| Original HCL cases | 5 → 5 | 2 → 0 | 71.4% → 100% | 100% |
+| Entire unchanged 439-call corpus | 132 → 132 | 39 → 35 | 77.19% → 79.04% | 100% |
+| Nine added Helm expression cases, same labels on both binaries | 12 → 12 | 24 → 2 | 33.33% → 85.71% | 100% |
+
+All eight supported expression questions return only their relevant notes. The
+runtime-value control still returns two unrelated value notes alongside both
+potential helper notes. No effective release configuration was provided, so the
+analyzer does not assume that `values.yaml` supplies the final helper name or
+that a nonliteral `tpl` body is known. This part remains a conservative fallback,
+not a closed precision gap for arbitrary rendered Helm releases.
+
+The expanded baseline records 144/144 relevant occurrences, 37 false positives
+and 79.56% precision. These pooled figures include new coverage and must not be
+used as an improvement comparison against the old corpus. The original 439 cases
+pass their prior baseline individually; no relevant note or required source span
+was lost and no old case gained a false positive. Both source modes still deliver
+77/77 required spans. Separate fresh-store repeats reproduce all 130 infrastructure
+and 27 new-expression outcomes exactly with the same final binary.
+
+Validation passes 49 focused Rust tests (24 symbol-link integration, 10
+question-shape, 5 note-focus and 10 Helm extractor tests) and 27 Python evaluator
+tests, including the binary-backed test. The
+[configuration and expression receipt](../bench/memory/results/configuration-expression-improvement-20261101.json)
+records the scope-only step, old/new corpus comparisons, hashes, remaining runtime
+false positives and repeatability checks. The baseline was expanded only after
+these comparisons passed.
 
 ## What remains unmeasured
 

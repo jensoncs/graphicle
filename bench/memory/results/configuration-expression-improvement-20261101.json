@@ -1,0 +1,1574 @@
+{
+  "date": "2026-11-01",
+  "scope": "Model-free authored synthetic fixtures. Original 439 cases unchanged; nine new Helm questions labelled before either binary was evaluated. Static analysis does not choose effective deployment values or execute Helm/Sprig.",
+  "status": "terraform_hcl_target_cases_closed_bounded_helm_expressions_resolved_runtime_values_remain_unresolved",
+  "comparisons": {
+    "scope_step_130": {
+      "status": "passed",
+      "findings": []
+    },
+    "original_439": {
+      "status": "passed",
+      "findings": []
+    },
+    "previous_baseline_439": {
+      "status": "passed",
+      "findings": []
+    },
+    "new_dynamic_cases_27": {
+      "status": "passed",
+      "findings": []
+    },
+    "infrastructure_repeat_130": {
+      "status": "passed",
+      "findings": []
+    },
+    "dynamic_repeat_27": {
+      "status": "passed",
+      "findings": []
+    }
+  },
+  "original_dataset_labels_requests_and_scoring_unchanged": true,
+  "repeat_157_outcomes_identical": true,
+  "baseline_before_sha256": "ee744188afe2e4c6a890feb2fff998411d13beaf326035eb037badedb0e2363a",
+  "baseline_after_sha256": "f32659b18d4b8731dbb95932c1eea4a29293bf2a78b149c7db14dc6ad5a20c93",
+  "original_links_on_before": {
+    "questions": 119,
+    "tp": 132,
+    "fp": 39,
+    "fn": 0,
+    "precision": 0.7719298245614035,
+    "recall": 1.0
+  },
+  "original_links_on_after": {
+    "questions": 119,
+    "tp": 132,
+    "fp": 35,
+    "fn": 0,
+    "precision": 0.7904191616766467,
+    "recall": 1.0
+  },
+  "dynamic_links_on_before": {
+    "questions": 9,
+    "tp": 12,
+    "fp": 24,
+    "fn": 0,
+    "precision": 0.3333333333333333,
+    "recall": 1.0
+  },
+  "dynamic_links_on_after": {
+    "questions": 9,
+    "tp": 12,
+    "fp": 2,
+    "fn": 0,
+    "precision": 0.8571428571428571,
+    "recall": 1.0
+  },
+  "expanded_links_on": {
+    "questions": 128,
+    "tp": 144,
+    "fp": 37,
+    "fn": 0,
+    "precision": 0.7955801104972375,
+    "recall": 1.0
+  },
+  "coverage_before": {
+    "terraform": {
+      "questions": 6,
+      "tp": 6,
+      "fp": 2,
+      "fn": 0,
+      "precision": 0.75,
+      "recall": 1.0
+    },
+    "hcl": {
+      "questions": 6,
+      "tp": 5,
+      "fp": 2,
+      "fn": 0,
+      "precision": 0.7142857142857143,
+      "recall": 1.0
+    },
+    "helm": {
+      "questions": 6,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  },
+  "coverage_original_after": {
+    "terraform": {
+      "questions": 6,
+      "tp": 6,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "hcl": {
+      "questions": 6,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    },
+    "helm": {
+      "questions": 6,
+      "tp": 5,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0
+    }
+  },
+  "original_changed_outcomes": [
+    {
+      "case": "infrastructure-memory/terraform-queue/direct-prose/on",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/direct-prose/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "interface"
+        ],
+        "retrieved_relevant": [
+          "interface"
+        ],
+        "irrelevant": [
+          "ceiling"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/direct-prose/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "interface"
+        ],
+        "retrieved_relevant": [
+          "interface"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/direct-prose/off",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/direct-prose/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "interface"
+        ],
+        "retrieved_relevant": [
+          "interface"
+        ],
+        "irrelevant": [
+          "ceiling"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/direct-prose/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "interface"
+        ],
+        "retrieved_relevant": [
+          "interface"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/direct-prose/counted",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/direct-prose/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "interface"
+        ],
+        "retrieved_relevant": [
+          "interface"
+        ],
+        "irrelevant": [
+          "ceiling"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/direct-prose/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "interface"
+        ],
+        "retrieved_relevant": [
+          "interface"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/input-change/off",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/input-change/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "floor"
+        ],
+        "retrieved_relevant": [
+          "floor"
+        ],
+        "irrelevant": [
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/input-change/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "floor"
+        ],
+        "retrieved_relevant": [
+          "floor"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/input-change/counted",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/input-change/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "floor"
+        ],
+        "retrieved_relevant": [
+          "floor"
+        ],
+        "irrelevant": [
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/input-change/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "floor"
+        ],
+        "retrieved_relevant": [
+          "floor"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/input-change/on",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/input-change/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "floor"
+        ],
+        "retrieved_relevant": [
+          "floor"
+        ],
+        "irrelevant": [
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/input-change/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "floor"
+        ],
+        "retrieved_relevant": [
+          "floor"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/literal-count/on",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/literal-count/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "drain",
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/literal-count/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/literal-count/off",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/literal-count/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/literal-count/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/literal-count/counted",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/literal-count/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/literal-count/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    }
+  ],
+  "dynamic_case_changes": [
+    {
+      "case": "helm-expression-memory/helm-expressions/computed/off",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/computed/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/computed/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/computed/counted",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/computed/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/computed/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/computed/on",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/computed/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/computed/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/alias/counted",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/alias/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/alias/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/alias/on",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/alias/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/alias/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/alias/off",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/alias/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/alias/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/index/on",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/index/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/index/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/index/off",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/index/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/index/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/index/counted",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/index/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/index/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/get/off",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/get/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/get/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/get/counted",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/get/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/get/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/get/on",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/get/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/get/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/dig/counted",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/dig/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/dig/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/dig/on",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/dig/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/dig/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/dig/off",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/dig/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/dig/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "port"
+        ],
+        "retrieved_relevant": [
+          "port"
+        ],
+        "irrelevant": [
+          "labels",
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/branch/on",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/branch/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/branch/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/branch/off",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/branch/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/branch/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/branch/counted",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/branch/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/branch/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/scoped/off",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/scoped/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels",
+          "port"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "port"
+        ],
+        "irrelevant": [
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/scoped/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels",
+          "port"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "port"
+        ],
+        "irrelevant": [
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/scoped/counted",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/scoped/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels",
+          "port"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "port"
+        ],
+        "irrelevant": [
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/scoped/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels",
+          "port"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "port"
+        ],
+        "irrelevant": [
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/scoped/on",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/scoped/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels",
+          "port"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "port"
+        ],
+        "irrelevant": [
+          "modern",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/scoped/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels",
+          "port"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "port"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/tpl/counted",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/tpl/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/tpl/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/tpl/on",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/tpl/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/tpl/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/tpl/off",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/tpl/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/tpl/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "modern",
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/runtime/on",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/runtime/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/runtime/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/runtime/off",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/runtime/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/runtime/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "helm-expression-memory/helm-expressions/runtime/counted",
+      "before": {
+        "id": "helm-expression-memory/helm-expressions/runtime/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "helm-expression-memory/helm-expressions/runtime/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "labels",
+          "modern"
+        ],
+        "retrieved_relevant": [
+          "labels",
+          "modern"
+        ],
+        "irrelevant": [
+          "port",
+          "replicas"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    }
+  ],
+  "remaining_dynamic_false_positives": [
+    {
+      "case": "helm-expression-memory/helm-expressions/runtime/on",
+      "irrelevant": [
+        "port",
+        "replicas"
+      ],
+      "diagnostics": [
+        {
+          "id": "port",
+          "rank": 2,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "5db307b4f5a4460c9cbd14b0bb8e64bd",
+            "fusion": {
+              "rank": 4,
+              "score": 0.015384615384615385
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "already_seen": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        },
+        {
+          "id": "replicas",
+          "rank": 3,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "575c4eccb2154a89b03fd5ba508dad18",
+            "fusion": {
+              "rank": 2,
+              "score": 0.015873015873015872
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "already_seen": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 3,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    }
+  ],
+  "source_required_spans": {
+    "source/baseline": {
+      "required": 77,
+      "delivered": 77,
+      "complete": 41,
+      "completeness": 1.0
+    },
+    "source/routed": {
+      "required": 77,
+      "delivered": 77,
+      "complete": 41,
+      "completeness": 1.0
+    }
+  },
+  "tests": {
+    "symbol_links_integration": 24,
+    "question_shape_unit": 10,
+    "symbol_links_unit": 5,
+    "helm_extractor_unit": 10,
+    "quality_python_with_binary": 27,
+    "diff_check": "passed"
+  },
+  "build": {
+    "binary": "/private/tmp/graphicle-close-final-20261101",
+    "binary_sha256": "7604e7edb9291138d66c394992f9b065ce5f994699e76c97f228a723f1ebec23",
+    "profile": "dev",
+    "parser_linkage": "static",
+    "cargo_helper": "/private/tmp/graphicle-infra-improve-cargo-20261101.sh"
+  },
+  "reports": {
+    "before": {
+      "path": "/private/tmp/graphicle-helm-rationale-full-v2-20261101/SCORECARD.json",
+      "sha256": "dc854c34325117a5b95b59fbd97e70588a206a573a9ce54e38db3adacd0afb88"
+    },
+    "scope_step": {
+      "path": "/private/tmp/graphicle-close-scope-eval-20261101/SCORECARD.json",
+      "sha256": "905cb33a9a99382467818ff08b84f6a74693cfc87576ba28337d1ebab6368733"
+    },
+    "dynamic_before": {
+      "path": "/private/tmp/graphicle-dynamic-before-valid-20261101/SCORECARD.json",
+      "sha256": "27cbc6c0144e8065746e86ae251296a34012a057a8b8c66650cf82bddc62c760"
+    },
+    "dynamic_after": {
+      "path": "/private/tmp/graphicle-dynamic-after-20261101/SCORECARD.json",
+      "sha256": "3ce860be95535bd1176cb65f2c1a6dfb07dbfe3b0c24ccd4385392f0e3327aa5"
+    },
+    "after": {
+      "path": "/private/tmp/graphicle-close-expanded-20261101/SCORECARD.json",
+      "sha256": "2cc55e9d0b2c3e792a739c30f62b31a3339b7136152bd36e98f46d0006c3be58"
+    },
+    "repeat": {
+      "path": "/private/tmp/graphicle-close-repeat-20261101/SCORECARD.json",
+      "sha256": "f8cd1168ef106e0230b1dfd549b4dbc3aa992bc17a30e0bf79d40eec29da7129"
+    }
+  },
+  "limits": [
+    "Finite helper strings, literal index/get/dig keys, immutable aliases, root captures, with scopes, branch unions and simple literal tpl fragments resolve without running templates.",
+    "Runtime values, nonliteral tpl, mutable variable bindings, unsupported scopes and unavailable library helpers remain explicit conservative fallbacks.",
+    "The runtime-value control retains both potential helper notes and two unrelated value notes. Precise resolution requires authoritative release values/render inputs; no default was assumed.",
+    "Literal HCL suppression requires a unique named block and a parsed literal count; malformed, ambiguous, missing or computed assignments retain design-note retrieval.",
+    "Title/input selection uses model-free lexical scope only. Expanded needs, query variants and semantic ranking keep existing broad retrieval.",
+    "Synthetic regression gains do not establish independent real-query accuracy or production latency."
+  ]
+}

@@ -1,0 +1,2147 @@
+{
+  "date": "2026-11-01",
+  "scope": "Unchanged authored English model-free synthetic retrieval fixtures; not rendered configuration, real-user accuracy or production latency.",
+  "status": "improved_with_remaining_precision_gaps",
+  "comparisons": {
+    "same_439_cases": {
+      "status": "passed",
+      "findings": []
+    },
+    "accepted_baseline": {
+      "status": "passed",
+      "findings": []
+    },
+    "repeat_130": {
+      "status": "passed",
+      "findings": []
+    }
+  },
+  "original_309_outcomes_identical": true,
+  "infrastructure_130_repeat_outcomes_identical": true,
+  "datasets_and_request_contract_unchanged": true,
+  "evaluator_code_unchanged": true,
+  "runtime_binary_before": "cc916efc5bc358ef0df8a2d65250849af56424da38d767fd1f6228a72a72edeb",
+  "runtime_binary_after": "9a0748966a8762c0cdbe23b732918b70640fd7471b949796d1d95b5e8ef2a617",
+  "baseline_before_sha256": "5f75b1ba62e73790e741918785e64fc4e031e5e1382efdfe85db99159ae282aa",
+  "baseline_after_sha256": "b8d15d110c86dba260be2303c414479b173af6c50139192de477048e9f13f24a",
+  "coverage_before": {
+    "bash": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 9,
+        "fp": 8,
+        "fn": 0,
+        "precision_completed": 0.5294117647058824,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "go": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "hcl": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.5714285714285714,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.5714285714285714,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 4,
+        "fn": 1,
+        "precision_completed": 0.5,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "helm": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 6,
+        "fn": 0,
+        "precision_completed": 0.45454545454545453,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 6,
+        "fn": 0,
+        "precision_completed": 0.45454545454545453,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 6,
+        "fn": 0,
+        "precision_completed": 0.45454545454545453,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "java": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 2,
+        "fp": 5,
+        "fn": 0,
+        "precision_completed": 0.2857142857142857,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      }
+    },
+    "kotlin": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "kubernetes": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "python": {
+      "memory/counted": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 50,
+        "fp": 22,
+        "fn": 0,
+        "precision_completed": 0.6944444444444444,
+        "recall": 1.0,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "rust": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "terraform": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 8,
+        "fn": 1,
+        "precision_completed": 0.38461538461538464,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 8,
+        "fn": 1,
+        "precision_completed": 0.38461538461538464,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 11,
+        "fn": 0,
+        "precision_completed": 0.35294117647058826,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "typescript": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    }
+  },
+  "coverage_after": {
+    "bash": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 9,
+        "fp": 8,
+        "fn": 0,
+        "precision_completed": 0.5294117647058824,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "go": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "hcl": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "helm": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "java": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 2,
+        "fp": 5,
+        "fn": 0,
+        "precision_completed": 0.2857142857142857,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      }
+    },
+    "kotlin": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "kubernetes": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "python": {
+      "memory/counted": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 50,
+        "fp": 22,
+        "fn": 0,
+        "precision_completed": 0.6944444444444444,
+        "recall": 1.0,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "rust": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "terraform": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 1,
+        "precision_completed": 0.5555555555555556,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 1,
+        "precision_completed": 0.5555555555555556,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.6,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "typescript": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    }
+  },
+  "changed_outcomes": [
+    {
+      "case": "infrastructure-memory/terraform-queue/input-change/on",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/input-change/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "floor"
+        ],
+        "retrieved_relevant": [
+          "floor"
+        ],
+        "irrelevant": [
+          "ceiling",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/input-change/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "floor"
+        ],
+        "retrieved_relevant": [
+          "floor"
+        ],
+        "irrelevant": [
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/unsupported/counted",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/unsupported/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "ceiling",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/unsupported/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/unsupported/on",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/unsupported/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "ceiling",
+          "floor",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/unsupported/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/unsupported/off",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/unsupported/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "ceiling",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/unsupported/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/literal-default/on",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/literal-default/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "ceiling",
+          "floor",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/literal-default/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/literal-default/off",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/literal-default/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "floor",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/literal-default/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/literal-default/counted",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/literal-default/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "floor",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/literal-default/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/job-change/on",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/job-change/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "drain",
+          "owner"
+        ],
+        "retrieved_relevant": [
+          "owner"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/job-change/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "drain",
+          "owner"
+        ],
+        "retrieved_relevant": [
+          "drain",
+          "owner"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/unsupported/counted",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/unsupported/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/unsupported/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/unsupported/on",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/unsupported/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/unsupported/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/unsupported/off",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/unsupported/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/unsupported/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/helm-parcel/literal-override/on",
+      "before": {
+        "id": "infrastructure-memory/helm-parcel/literal-override/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "availability",
+          "noise"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/helm-parcel/literal-override/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/helm-parcel/literal-override/off",
+      "before": {
+        "id": "infrastructure-memory/helm-parcel/literal-override/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "availability",
+          "noise"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/helm-parcel/literal-override/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/helm-parcel/literal-override/counted",
+      "before": {
+        "id": "infrastructure-memory/helm-parcel/literal-override/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "availability",
+          "noise"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/helm-parcel/literal-override/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    }
+  ],
+  "trial_disposition": "The first focused trial restored HCL recall but added drain to the file-grounded handoff-only question. Rejected; extending existing complete-prose scope to hash-validated file dependencies removed that regression. No question, note, source, grounding or gold label was changed.",
+  "remaining_target_false_positives": [
+    {
+      "case": "infrastructure-memory/terraform-queue/cap-reason/on",
+      "irrelevant": [
+        "floor",
+        "interface"
+      ],
+      "diagnostics": [
+        {
+          "id": "floor",
+          "rank": 2,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "f33b5d6b6a5545d88db8bd518110920b",
+            "fusion": {
+              "rank": 2,
+              "score": 0.015625
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "already_seen": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        },
+        {
+          "id": "interface",
+          "rank": 3,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "5e7137ba277446a0911d8a4e0c8622b0",
+            "fusion": {
+              "rank": 3,
+              "score": 0.015151515151515152
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "already_seen": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 3,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/direct-prose/on",
+      "irrelevant": [
+        "ceiling"
+      ],
+      "diagnostics": [
+        {
+          "id": "ceiling",
+          "rank": 2,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "9f1a54c8a9c44141b21b2fbe024ff8aa",
+            "fusion": {
+              "rank": 2,
+              "score": 0.015873015873015872
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "already_seen": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/input-change/on",
+      "irrelevant": [
+        "interface"
+      ],
+      "diagnostics": [
+        {
+          "id": "interface",
+          "rank": 2,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "5e7137ba277446a0911d8a4e0c8622b0",
+            "fusion": {
+              "rank": 1,
+              "score": 0.015151515151515152
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "already_seen": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/drain-reason/on",
+      "irrelevant": [
+        "owner"
+      ],
+      "diagnostics": [
+        {
+          "id": "owner",
+          "rank": 2,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "322107af5b454446a079d808092569ac",
+            "fusion": {
+              "rank": 2,
+              "score": 0.015873015873015872
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {},
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/literal-count/on",
+      "irrelevant": [
+        "drain",
+        "owner"
+      ],
+      "diagnostics": [
+        {
+          "id": "owner",
+          "rank": 1,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "322107af5b454446a079d808092569ac",
+            "fusion": {
+              "rank": 1,
+              "score": 0.015873015873015872
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {},
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 1,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        },
+        {
+          "id": "drain",
+          "rank": 2,
+          "route": "symbol_link",
+          "linked_symbol": "var.drain_seconds",
+          "candidate": {
+            "id": "1421b4454dcb4f739522d821f5e62ee2",
+            "fusion": null,
+            "retrieval_arms": [],
+            "link_outcomes": {
+              "candidate": 1
+            },
+            "link_candidate_rank": 1,
+            "link_final_rank": 1,
+            "reranker": null,
+            "selected_by_rank": false,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "symbol_link"
+          }
+        }
+      ]
+    },
+    {
+      "case": "infrastructure-memory/helm-parcel/helper-change/on",
+      "irrelevant": [
+        "port"
+      ],
+      "diagnostics": [
+        {
+          "id": "port",
+          "rank": 1,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "db4f20e84a254d9eb6fa6953e7244caf",
+            "fusion": {
+              "rank": 1,
+              "score": 0.015873015873015872
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {},
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 1,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "infrastructure-memory/helm-parcel/replica-floor/on",
+      "irrelevant": [
+        "labels",
+        "noise",
+        "port"
+      ],
+      "diagnostics": [
+        {
+          "id": "port",
+          "rank": 2,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "db4f20e84a254d9eb6fa6953e7244caf",
+            "fusion": {
+              "rank": 2,
+              "score": 0.015873015873015872
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {},
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        },
+        {
+          "id": "labels",
+          "rank": 3,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "a00794bca0b74cd4a05d9a8ba96e8625",
+            "fusion": {
+              "rank": 3,
+              "score": 0.015625
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {},
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 3,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        },
+        {
+          "id": "noise",
+          "rank": 4,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "2f3db3b44d6742bbbb43f51942874938",
+            "fusion": {
+              "rank": 4,
+              "score": 0.014925373134328358
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {},
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 4,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "symbol_links_integration": 20,
+    "code_question_unit": 9,
+    "identifier_arm_unit": 6,
+    "notes_first_unit": 5,
+    "terraform_hcl_extractor_unit": 4,
+    "diff_check": "passed"
+  },
+  "build": {
+    "cargo_helper": "/private/tmp/graphicle-infra-improve-cargo-20261101.sh",
+    "rust": "1.94.1",
+    "profile": "dev",
+    "parser_linkage": "static",
+    "binary": "/private/tmp/graphicle-infra-improved-v2-20261101"
+  },
+  "reports": {
+    "before": {
+      "path": "/private/tmp/graphicle-infra-expanded-eval-20261101/SCORECARD.json",
+      "sha256": "1f11a9d0dc31504925e2b7b8fadc60c265bb270992a86d2596b299b5b4d016f7"
+    },
+    "trial_with_hcl_prose_regression": {
+      "path": "/private/tmp/graphicle-infra-improved-focus-v1-20261101/SCORECARD.json",
+      "sha256": "20afb634b25b87820d3b74f8585234da72df12beb22de1dfc6cd7c5f669be7e6"
+    },
+    "focused_repeat": {
+      "path": "/private/tmp/graphicle-infra-improved-focus-v2-20261101/SCORECARD.json",
+      "sha256": "832d93399b5e20f0fdffc573c5f4f082d2035e90813c41d003003ad8453a84cb"
+    },
+    "after": {
+      "path": "/private/tmp/graphicle-infra-improved-full-v2-20261101/SCORECARD.json",
+      "sha256": "6900f74a8207bd81bab33ece437c029dfffcf967bcfc6eb97648e34be76afc9b"
+    }
+  },
+  "remaining_work": [
+    "Helm helper/include and value-field graph identities; fixture notes remain explicitly file-grounded.",
+    "Individual-note relevance for rationale and direct-symbol questions; retain all dependency constraints.",
+    "Independent real-query relevance labels and paraphrases before broader precision tuning."
+  ]
+}

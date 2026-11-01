@@ -1,0 +1,5422 @@
+{
+  "date": "2026-11-01",
+  "scope": "Unchanged authored English model-free synthetic fixtures. Static Helm references and lexical rationale selection; not rendered configuration, independent user accuracy or production latency.",
+  "status": "improved_with_remaining_precision_gaps",
+  "comparisons": {
+    "graph_only_130": {
+      "status": "passed",
+      "findings": []
+    },
+    "unchanged_439": {
+      "status": "passed",
+      "findings": []
+    },
+    "accepted_baseline": {
+      "status": "passed",
+      "findings": []
+    },
+    "repeat_130": {
+      "status": "passed",
+      "findings": []
+    }
+  },
+  "infrastructure_130_repeat_outcomes_identical": true,
+  "initial_combined_trial_outcomes_identical": true,
+  "datasets_labels_requests_and_scoring_unchanged": true,
+  "runtime_binary_before": "9a0748966a8762c0cdbe23b732918b70640fd7471b949796d1d95b5e8ef2a617",
+  "runtime_binary_after": "7c3f57bd899dff300ac98d335e75133580f00adf200ed400f702c4266cc3cb9b",
+  "baseline_before_sha256": "b8d15d110c86dba260be2303c414479b173af6c50139192de477048e9f13f24a",
+  "baseline_after_sha256": "ee744188afe2e4c6a890feb2fff998411d13beaf326035eb037badedb0e2363a",
+  "coverage_before": {
+    "bash": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 9,
+        "fp": 8,
+        "fn": 0,
+        "precision_completed": 0.5294117647058824,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "go": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "hcl": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "helm": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "java": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 2,
+        "fp": 5,
+        "fn": 0,
+        "precision_completed": 0.2857142857142857,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      }
+    },
+    "kotlin": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "kubernetes": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "python": {
+      "memory/counted": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 50,
+        "fp": 22,
+        "fn": 0,
+        "precision_completed": 0.6944444444444444,
+        "recall": 1.0,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "rust": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "terraform": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 1,
+        "precision_completed": 0.5555555555555556,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 1,
+        "precision_completed": 0.5555555555555556,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.6,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "typescript": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 6,
+        "precision_completed": 0.8,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    }
+  },
+  "coverage_graph_only_trial": {
+    "bash": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 4,
+        "precision_completed": 0.625,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 9,
+        "fp": 8,
+        "fn": 0,
+        "precision_completed": 0.5294117647058824,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "hcl": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "helm": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "kubernetes": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "terraform": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 1,
+        "precision_completed": 0.5555555555555556,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 1,
+        "precision_completed": 0.5555555555555556,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.6,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    }
+  },
+  "coverage_after": {
+    "bash": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 1,
+        "fn": 4,
+        "precision_completed": 0.8333333333333334,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 1,
+        "fn": 4,
+        "precision_completed": 0.8333333333333334,
+        "recall": 0.5555555555555556,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 9,
+        "fp": 5,
+        "fn": 0,
+        "precision_completed": 0.6428571428571429,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "go": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "hcl": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 1,
+        "precision_completed": 0.8,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 1,
+        "fn": 1,
+        "precision_completed": 0.8,
+        "recall": 0.8,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.7142857142857143,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "helm": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "java": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 2,
+        "fp": 5,
+        "fn": 0,
+        "precision_completed": 0.2857142857142857,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      }
+    },
+    "kotlin": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "kubernetes": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 0.5
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "python": {
+      "memory/counted": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 50,
+        "fp": 22,
+        "fn": 0,
+        "precision_completed": 0.6944444444444444,
+        "recall": 1.0,
+        "negative_queries": 15,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "rust": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "terraform": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.7142857142857143,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.7142857142857143,
+        "recall": 0.8333333333333334,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.75,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "evidence_recall": 1.0,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "typescript": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "evidence_recall": 1.0,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    }
+  },
+  "category_before": {
+    "ambiguous_method": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 20,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 20,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 20,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "ambiguous_symbol": {
+      "memory/counted": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision_completed": 1.0,
+        "recall": 0.125,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision_completed": 1.0,
+        "recall": 0.125,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 8,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "behavior": {
+      "source/baseline": {
+        "planned": 39,
+        "completed": 39,
+        "errors": 0,
+        "required": 74,
+        "delivered": 74,
+        "evidence_recall": 1.0,
+        "complete": 39,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 39,
+        "completed": 39,
+        "errors": 0,
+        "required": 74,
+        "delivered": 74,
+        "evidence_recall": 1.0,
+        "complete": 39,
+        "completeness": 1.0
+      }
+    },
+    "callee_capacity": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.25,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "callee_memory": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "callee_rationale": {
+      "memory/counted": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 1,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.3333333333333333,
+        "recall": 0.5,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 1,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.3333333333333333,
+        "recall": 0.5,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 2,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.3333333333333333,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "caller_capacity": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.25,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "code_only": {
+      "memory/counted": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.875
+      },
+      "memory/off": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.875
+      },
+      "memory/on": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 7,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.8125
+      }
+    },
+    "cross_file_dependency": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 5,
+        "fn": 1,
+        "precision_completed": 0.5,
+        "recall": 0.8333333333333334,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 5,
+        "fn": 1,
+        "precision_completed": 0.5,
+        "recall": 0.8333333333333334,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 11,
+        "fn": 0,
+        "precision_completed": 0.35294117647058826,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "dependency": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 3,
+        "precision_completed": 0.9,
+        "recall": 0.75,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 3,
+        "precision_completed": 0.9,
+        "recall": 0.75,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 12,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.9230769230769231,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "direct_capacity": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "direct_symbol": {
+      "memory/counted": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 4,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.5714285714285714,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 4,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.5714285714285714,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 4,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.5714285714285714,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "enclosing_contract": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "lexical_relevant": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "linked_relevant": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision_completed": 1.0,
+        "recall": 0.125,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision_completed": 1.0,
+        "recall": 0.125,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 8,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "location": {
+      "source/baseline": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "required": 1,
+        "delivered": 1,
+        "evidence_recall": 1.0,
+        "complete": 1,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "required": 1,
+        "delivered": 1,
+        "evidence_recall": 1.0,
+        "complete": 1,
+        "completeness": 1.0
+      }
+    },
+    "multiple_links": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "multiple_symbols": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 2,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 2,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 2,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "no_answer": {
+      "memory/counted": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 3,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 3,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 3,
+        "empty_memory_accuracy": 1.0
+      }
+    },
+    "no_answer_control": {
+      "memory/counted": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.9375
+      },
+      "memory/off": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.9375
+      },
+      "memory/on": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.9375
+      }
+    },
+    "path_qualified": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "prose": {
+      "memory/counted": {
+        "planned": 11,
+        "completed": 11,
+        "errors": 0,
+        "tp": 12,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.9230769230769231,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 11,
+        "completed": 11,
+        "errors": 0,
+        "tp": 12,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.9230769230769231,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 11,
+        "completed": 11,
+        "errors": 0,
+        "tp": 12,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8571428571428571,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "prose_capacity": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "qualified_method": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 10,
+        "precision_completed": 1.0,
+        "recall": 0.3333333333333333,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 10,
+        "precision_completed": 1.0,
+        "recall": 0.3333333333333333,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 15,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "qualified_symbol": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "rationale": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 9,
+        "fn": 0,
+        "precision_completed": 0.35714285714285715,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 9,
+        "fn": 0,
+        "precision_completed": 0.35714285714285715,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 10,
+        "fn": 0,
+        "precision_completed": 0.3333333333333333,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "source/baseline": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "required": 2,
+        "delivered": 2,
+        "evidence_recall": 1.0,
+        "complete": 1,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "required": 2,
+        "delivered": 2,
+        "evidence_recall": 1.0,
+        "complete": 1,
+        "completeness": 1.0
+      }
+    },
+    "relevant_direct_competes_with_irrelevant_callee": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "same_symbol_distractor": {
+      "memory/counted": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 2,
+        "precision_completed": 1.0,
+        "recall": 0.3333333333333333,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 2,
+        "precision_completed": 1.0,
+        "recall": 0.3333333333333333,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 3,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.5,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "stale": {
+      "memory/counted": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      }
+    },
+    "transitive_dependency": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.3333333333333333,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "unresolved_capacity": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.25,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "unresolved_symbol": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.3333333333333333,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    }
+  },
+  "category_after": {
+    "ambiguous_method": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 20,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 20,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 20,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "ambiguous_symbol": {
+      "memory/counted": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision_completed": 1.0,
+        "recall": 0.125,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision_completed": 1.0,
+        "recall": 0.125,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 8,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "behavior": {
+      "source/baseline": {
+        "planned": 39,
+        "completed": 39,
+        "errors": 0,
+        "required": 74,
+        "delivered": 74,
+        "evidence_recall": 1.0,
+        "complete": 39,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 39,
+        "completed": 39,
+        "errors": 0,
+        "required": 74,
+        "delivered": 74,
+        "evidence_recall": 1.0,
+        "complete": 39,
+        "completeness": 1.0
+      }
+    },
+    "callee_capacity": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.25,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "callee_memory": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "callee_rationale": {
+      "memory/counted": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 1,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.3333333333333333,
+        "recall": 0.5,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 1,
+        "fp": 2,
+        "fn": 1,
+        "precision_completed": 0.3333333333333333,
+        "recall": 0.5,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 2,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.3333333333333333,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "caller_capacity": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.25,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "code_only": {
+      "memory/counted": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.875
+      },
+      "memory/off": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.875
+      },
+      "memory/on": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 7,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.8125
+      }
+    },
+    "cross_file_dependency": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8333333333333334,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8333333333333334,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.8571428571428571,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "dependency": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 3,
+        "precision_completed": 0.9,
+        "recall": 0.75,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 3,
+        "precision_completed": 0.9,
+        "recall": 0.75,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 12,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.9230769230769231,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "direct_capacity": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "direct_symbol": {
+      "memory/counted": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 4,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.5714285714285714,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 4,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.5714285714285714,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 4,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.6666666666666666,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "enclosing_contract": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "lexical_relevant": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.8333333333333334,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.5555555555555556,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "linked_relevant": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision_completed": 1.0,
+        "recall": 0.125,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 7,
+        "precision_completed": 1.0,
+        "recall": 0.125,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 8,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "location": {
+      "source/baseline": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "required": 1,
+        "delivered": 1,
+        "evidence_recall": 1.0,
+        "complete": 1,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "required": 1,
+        "delivered": 1,
+        "evidence_recall": 1.0,
+        "complete": 1,
+        "completeness": 1.0
+      }
+    },
+    "multiple_links": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "multiple_symbols": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 2,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 2,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 2,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "no_answer": {
+      "memory/counted": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 3,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 3,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 3,
+        "empty_memory_accuracy": 1.0
+      }
+    },
+    "no_answer_control": {
+      "memory/counted": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.9375
+      },
+      "memory/off": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.9375
+      },
+      "memory/on": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 0,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.0,
+        "recall": null,
+        "negative_queries": 16,
+        "empty_memory_accuracy": 0.9375
+      }
+    },
+    "path_qualified": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "prose": {
+      "memory/counted": {
+        "planned": 11,
+        "completed": 11,
+        "errors": 0,
+        "tp": 12,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.9230769230769231,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 11,
+        "completed": 11,
+        "errors": 0,
+        "tp": 12,
+        "fp": 1,
+        "fn": 0,
+        "precision_completed": 0.9230769230769231,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 11,
+        "completed": 11,
+        "errors": 0,
+        "tp": 12,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8571428571428571,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "prose_capacity": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "qualified_method": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 10,
+        "precision_completed": 1.0,
+        "recall": 0.3333333333333333,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 10,
+        "precision_completed": 1.0,
+        "recall": 0.3333333333333333,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 15,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "qualified_symbol": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "rationale": {
+      "memory/counted": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 5,
+        "completed": 5,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "source/baseline": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "required": 2,
+        "delivered": 2,
+        "evidence_recall": 1.0,
+        "complete": 1,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "required": 2,
+        "delivered": 2,
+        "evidence_recall": 1.0,
+        "complete": 1,
+        "completeness": 1.0
+      }
+    },
+    "relevant_direct_competes_with_irrelevant_callee": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "same_symbol_distractor": {
+      "memory/counted": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 2,
+        "precision_completed": 1.0,
+        "recall": 0.3333333333333333,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 1,
+        "fp": 0,
+        "fn": 2,
+        "precision_completed": 1.0,
+        "recall": 0.3333333333333333,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "tp": 3,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.5,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "stale": {
+      "memory/counted": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/off": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      },
+      "memory/on": {
+        "planned": 2,
+        "completed": 2,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": null,
+        "recall": null,
+        "negative_queries": 2,
+        "empty_memory_accuracy": 1.0
+      }
+    },
+    "transitive_dependency": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.3333333333333333,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "unresolved_capacity": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.25,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    },
+    "unresolved_symbol": {
+      "memory/counted": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/off": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 0,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": null,
+        "recall": 0.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      },
+      "memory/on": {
+        "planned": 1,
+        "completed": 1,
+        "errors": 0,
+        "tp": 1,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.3333333333333333,
+        "recall": 1.0,
+        "negative_queries": 0,
+        "empty_memory_accuracy": null
+      }
+    }
+  },
+  "summary": {
+    "before": {
+      "memory/counted": {
+        "planned": 119,
+        "completed": 119,
+        "errors": 0,
+        "tp": 54,
+        "fp": 26,
+        "fn": 78,
+        "precision_completed": 0.675,
+        "recall": 0.4090909090909091,
+        "negative_queries": 37,
+        "empty_memory_accuracy": 0.918918918918919
+      },
+      "memory/off": {
+        "planned": 119,
+        "completed": 119,
+        "errors": 0,
+        "tp": 54,
+        "fp": 26,
+        "fn": 78,
+        "precision_completed": 0.675,
+        "recall": 0.4090909090909091,
+        "negative_queries": 37,
+        "empty_memory_accuracy": 0.918918918918919
+      },
+      "memory/on": {
+        "planned": 119,
+        "completed": 119,
+        "errors": 0,
+        "tp": 132,
+        "fp": 60,
+        "fn": 0,
+        "precision_completed": 0.6875,
+        "recall": 1.0,
+        "negative_queries": 37,
+        "empty_memory_accuracy": 0.8918918918918919
+      },
+      "source/baseline": {
+        "planned": 41,
+        "completed": 41,
+        "errors": 0,
+        "required": 77,
+        "delivered": 77,
+        "evidence_recall": 1.0,
+        "complete": 41,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 41,
+        "completed": 41,
+        "errors": 0,
+        "required": 77,
+        "delivered": 77,
+        "evidence_recall": 1.0,
+        "complete": 41,
+        "completeness": 1.0
+      }
+    },
+    "after": {
+      "memory/counted": {
+        "planned": 119,
+        "completed": 119,
+        "errors": 0,
+        "tp": 54,
+        "fp": 12,
+        "fn": 78,
+        "precision_completed": 0.8181818181818182,
+        "recall": 0.4090909090909091,
+        "negative_queries": 37,
+        "empty_memory_accuracy": 0.918918918918919
+      },
+      "memory/off": {
+        "planned": 119,
+        "completed": 119,
+        "errors": 0,
+        "tp": 54,
+        "fp": 12,
+        "fn": 78,
+        "precision_completed": 0.8181818181818182,
+        "recall": 0.4090909090909091,
+        "negative_queries": 37,
+        "empty_memory_accuracy": 0.918918918918919
+      },
+      "memory/on": {
+        "planned": 119,
+        "completed": 119,
+        "errors": 0,
+        "tp": 132,
+        "fp": 39,
+        "fn": 0,
+        "precision_completed": 0.7719298245614035,
+        "recall": 1.0,
+        "negative_queries": 37,
+        "empty_memory_accuracy": 0.8918918918918919
+      },
+      "source/baseline": {
+        "planned": 41,
+        "completed": 41,
+        "errors": 0,
+        "required": 77,
+        "delivered": 77,
+        "evidence_recall": 1.0,
+        "complete": 41,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 41,
+        "completed": 41,
+        "errors": 0,
+        "required": 77,
+        "delivered": 77,
+        "evidence_recall": 1.0,
+        "complete": 41,
+        "completeness": 1.0
+      }
+    }
+  },
+  "changed_outcomes": [
+    {
+      "case": "language-memory/typescript-delivery/callee-rationale/counted",
+      "before": {
+        "id": "language-memory/typescript-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/typescript-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/typescript-delivery/callee-rationale/on",
+      "before": {
+        "id": "language-memory/typescript-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner",
+          "wire"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/typescript-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/typescript-delivery/callee-rationale/off",
+      "before": {
+        "id": "language-memory/typescript-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/typescript-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/go-delivery/callee-rationale/counted",
+      "before": {
+        "id": "language-memory/go-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/go-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/go-delivery/callee-rationale/on",
+      "before": {
+        "id": "language-memory/go-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner",
+          "wire"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/go-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/go-delivery/callee-rationale/off",
+      "before": {
+        "id": "language-memory/go-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/go-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/java-delivery/callee-rationale/counted",
+      "before": {
+        "id": "language-memory/java-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/java-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/java-delivery/callee-rationale/on",
+      "before": {
+        "id": "language-memory/java-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner",
+          "wire"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/java-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/java-delivery/callee-rationale/off",
+      "before": {
+        "id": "language-memory/java-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/java-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/kotlin-delivery/callee-rationale/counted",
+      "before": {
+        "id": "language-memory/kotlin-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/kotlin-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/kotlin-delivery/callee-rationale/on",
+      "before": {
+        "id": "language-memory/kotlin-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner",
+          "wire"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/kotlin-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/kotlin-delivery/callee-rationale/off",
+      "before": {
+        "id": "language-memory/kotlin-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/kotlin-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/rust-delivery/callee-rationale/counted",
+      "before": {
+        "id": "language-memory/rust-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/rust-delivery/callee-rationale/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/rust-delivery/callee-rationale/on",
+      "before": {
+        "id": "language-memory/rust-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner",
+          "wire"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/rust-delivery/callee-rationale/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "language-memory/rust-delivery/callee-rationale/off",
+      "before": {
+        "id": "language-memory/rust-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "language-memory/rust-delivery/callee-rationale/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/cap-reason/counted",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/cap-reason/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "ceiling"
+        ],
+        "retrieved_relevant": [
+          "ceiling"
+        ],
+        "irrelevant": [
+          "floor",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/cap-reason/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "ceiling"
+        ],
+        "retrieved_relevant": [
+          "ceiling"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/cap-reason/on",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/cap-reason/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "ceiling"
+        ],
+        "retrieved_relevant": [
+          "ceiling"
+        ],
+        "irrelevant": [
+          "floor",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/cap-reason/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "ceiling"
+        ],
+        "retrieved_relevant": [
+          "ceiling"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/cap-reason/off",
+      "before": {
+        "id": "infrastructure-memory/terraform-queue/cap-reason/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "ceiling"
+        ],
+        "retrieved_relevant": [
+          "ceiling"
+        ],
+        "irrelevant": [
+          "floor",
+          "interface"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/terraform-queue/cap-reason/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "ceiling"
+        ],
+        "retrieved_relevant": [
+          "ceiling"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/drain-reason/counted",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/drain-reason/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/drain-reason/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/drain-reason/on",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/drain-reason/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/drain-reason/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/drain-reason/off",
+      "before": {
+        "id": "infrastructure-memory/hcl-worker/drain-reason/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [
+          "owner"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/hcl-worker/drain-reason/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/helm-parcel/helper-change/on",
+      "before": {
+        "id": "infrastructure-memory/helm-parcel/helper-change/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [
+          "port"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/helm-parcel/helper-change/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "labels"
+        ],
+        "retrieved_relevant": [
+          "labels"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/helm-parcel/replica-floor/on",
+      "before": {
+        "id": "infrastructure-memory/helm-parcel/replica-floor/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "availability"
+        ],
+        "retrieved_relevant": [
+          "availability"
+        ],
+        "irrelevant": [
+          "labels",
+          "noise",
+          "port"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/helm-parcel/replica-floor/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "availability"
+        ],
+        "retrieved_relevant": [
+          "availability"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/helm-parcel/replica-floor/off",
+      "before": {
+        "id": "infrastructure-memory/helm-parcel/replica-floor/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "availability"
+        ],
+        "retrieved_relevant": [
+          "availability"
+        ],
+        "irrelevant": [
+          "labels",
+          "noise",
+          "port"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/helm-parcel/replica-floor/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "availability"
+        ],
+        "retrieved_relevant": [
+          "availability"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/helm-parcel/replica-floor/counted",
+      "before": {
+        "id": "infrastructure-memory/helm-parcel/replica-floor/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "availability"
+        ],
+        "retrieved_relevant": [
+          "availability"
+        ],
+        "irrelevant": [
+          "labels",
+          "noise",
+          "port"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/helm-parcel/replica-floor/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "availability"
+        ],
+        "retrieved_relevant": [
+          "availability"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/kubernetes-worker/drain-reason/counted",
+      "before": {
+        "id": "infrastructure-memory/kubernetes-worker/drain-reason/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [
+          "port"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/kubernetes-worker/drain-reason/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/kubernetes-worker/drain-reason/on",
+      "before": {
+        "id": "infrastructure-memory/kubernetes-worker/drain-reason/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [
+          "port"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/kubernetes-worker/drain-reason/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/kubernetes-worker/drain-reason/off",
+      "before": {
+        "id": "infrastructure-memory/kubernetes-worker/drain-reason/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [
+          "port"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/kubernetes-worker/drain-reason/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "drain"
+        ],
+        "retrieved_relevant": [
+          "drain"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/bash-delivery/delay-reason/counted",
+      "before": {
+        "id": "infrastructure-memory/bash-delivery/delay-reason/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "alternate",
+          "wire"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/bash-delivery/delay-reason/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/bash-delivery/delay-reason/on",
+      "before": {
+        "id": "infrastructure-memory/bash-delivery/delay-reason/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "alternate",
+          "pipeline",
+          "wire"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/bash-delivery/delay-reason/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "infrastructure-memory/bash-delivery/delay-reason/off",
+      "before": {
+        "id": "infrastructure-memory/bash-delivery/delay-reason/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [
+          "alternate",
+          "wire"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "infrastructure-memory/bash-delivery/delay-reason/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lease"
+        ],
+        "retrieved_relevant": [
+          "lease"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    }
+  ],
+  "trial_disposition": "Graph-only trial removed the helper false positive. Final code additionally handles parent-value dependencies, chart cache membership and conservative fallback for unsupported syntax; parser events never expand YAML aliases. The initial combined trial predates these final safeguards and is not the accepted binary.",
+  "remaining_target_false_positives": [
+    {
+      "case": "infrastructure-memory/terraform-queue/direct-prose/on",
+      "irrelevant": [
+        "ceiling"
+      ],
+      "diagnostics": [
+        {
+          "id": "ceiling",
+          "rank": 2,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "e4cd7862e86746108d08acd6140f4757",
+            "fusion": {
+              "rank": 2,
+              "score": 0.015873015873015872
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "already_seen": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "infrastructure-memory/terraform-queue/input-change/on",
+      "irrelevant": [
+        "interface"
+      ],
+      "diagnostics": [
+        {
+          "id": "interface",
+          "rank": 2,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "4b0d7f56356d4ffd919ee091a6c29ca2",
+            "fusion": {
+              "rank": 1,
+              "score": 0.015151515151515152
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "already_seen": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "infrastructure-memory/hcl-worker/literal-count/on",
+      "irrelevant": [
+        "drain",
+        "owner"
+      ],
+      "diagnostics": [
+        {
+          "id": "owner",
+          "rank": 1,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "53096af491cc4f28b3d4a49ff8c0760d",
+            "fusion": {
+              "rank": 1,
+              "score": 0.015873015873015872
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {},
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 1,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        },
+        {
+          "id": "drain",
+          "rank": 2,
+          "route": "symbol_link",
+          "linked_symbol": "var.drain_seconds",
+          "candidate": {
+            "id": "a3618da180be43659384de59506e1dfc",
+            "fusion": null,
+            "retrieval_arms": [],
+            "link_outcomes": {
+              "candidate": 1
+            },
+            "link_candidate_rank": 1,
+            "link_final_rank": 1,
+            "reranker": null,
+            "selected_by_rank": false,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "symbol_link"
+          }
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "helm_extractor_unit": 8,
+    "chart_cache_invalidation": 1,
+    "symbol_links_integration": 23,
+    "symbol_links_unit": 5,
+    "diff_check": "passed"
+  },
+  "build": {
+    "cargo_helper": "/private/tmp/graphicle-infra-improve-cargo-20261101.sh",
+    "rust": "1.94.1",
+    "profile": "dev",
+    "parser_linkage": "static",
+    "binary": "/private/tmp/graphicle-helm-rationale-v2-20261101"
+  },
+  "reports": {
+    "before": {
+      "path": "/private/tmp/graphicle-infra-improved-full-v2-20261101/SCORECARD.json",
+      "sha256": "6900f74a8207bd81bab33ece437c029dfffcf967bcfc6eb97648e34be76afc9b"
+    },
+    "graph_only_trial": {
+      "path": "/private/tmp/graphicle-helm-step1-valid-eval-20261101/SCORECARD.json",
+      "sha256": "9e00b4affa9909003905d00d1e00c6a3ccb769b480b0bc264b634a31841c7c5e"
+    },
+    "initial_combined_trial": {
+      "path": "/private/tmp/graphicle-helm-rationale-full-20261101/SCORECARD.json",
+      "sha256": "8316ab5729af7f62c0993094343aa45875bc0b7d50170ccf202513972a8ea681"
+    },
+    "after": {
+      "path": "/private/tmp/graphicle-helm-rationale-full-v2-20261101/SCORECARD.json",
+      "sha256": "dc854c34325117a5b95b59fbd97e70588a206a573a9ce54e38db3adacd0afb88"
+    },
+    "repeat": {
+      "path": "/private/tmp/graphicle-helm-rationale-repeat-20261101/SCORECARD.json",
+      "sha256": "762be0f3508f6a81ca5cacadbd4eed85a42208486146795781166051b8583e07"
+    }
+  },
+  "remaining_limits": [
+    "Dynamic template execution, cross-chart library helper resolution, values merging and effective rendered output are not modelled.",
+    "Helm fields use conservative file-based revision invalidation, not exact field-level staleness.",
+    "File-grounded notes retain file granularity. Rationale filtering is lexical and does not prove semantic irrelevance.",
+    "Independent human-labelled paraphrases, multiple explanations and real-query evaluation remain necessary before broader relevance claims."
+  ]
+}

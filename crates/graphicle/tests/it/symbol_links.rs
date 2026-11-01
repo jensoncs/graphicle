@@ -229,7 +229,7 @@ fn literal_call_values_do_not_expand_linked_decisions() {
 }
 
 #[test]
-fn prose_memory_anchors_keep_dependencies_without_neighbour_notes() {
+fn covered_prose_topics_do_not_expand_to_dependency_notes() {
     let f = Fixture::new(&[(
         "codec.py",
         "def encode_item(value):\n    # quokka ledger\n    return normalize_item(value)\n\ndef normalize_item(value):\n    return str(value)\n\ndef probe_item():\n    return True\n",
@@ -255,7 +255,7 @@ fn prose_memory_anchors_keep_dependencies_without_neighbour_notes() {
         json!({"symbol_links":true,"debug_candidates":400}),
     );
     assert!(
-        includes(&packet, &anchor) && includes(&packet, &dependency),
+        includes(&packet, &anchor) && !includes(&packet, &dependency),
         "{packet:#}"
     );
     assert!(!includes(&packet, &neighbour), "{packet:#}");
@@ -283,10 +283,15 @@ fn prose_memory_anchors_keep_dependencies_without_neighbour_notes() {
     );
     assert!(
         includes(&multiple, &anchor)
-            && includes(&multiple, &dependency)
+            && !includes(&multiple, &dependency)
             && includes(&multiple, &neighbour),
         "{multiple:#}"
     );
+    let code = f.context(
+        "Which constraints apply to `encode_item`?",
+        json!({"symbol_links":true}),
+    );
+    assert!(includes(&code, &anchor) && includes(&code, &dependency), "{code:#}");
     let explicit = f.context(
         "What governs the quokka ledger and `missing_item`?",
         json!({"symbol_links":true}),
@@ -327,6 +332,291 @@ fn prose_memory_anchors_keep_dependencies_without_neighbour_notes() {
         false
     );
     assert!(includes(&fallback, &neighbour), "{fallback:#}");
+}
+
+#[test]
+fn rationale_support_filters_both_routes_without_overriding_expanded_requests() {
+    let f = Fixture::new(&[("queue.py", "def limit():\n    return floor()\n\ndef floor():\n    return 60\n")]);
+    let cap = f.note("Backlog reservation", "Reserved capacity covers at most five minutes of backlog.",
+        json!([{"path":"queue.py","qualified_name":"limit"}]));
+    let floor = f.note("Replay horizon", "Clients need sixty seconds to reconnect.",
+        json!([{"path":"queue.py","qualified_name":"floor"}]));
+    let reason = f.note("Peer covenant", "Slow peers need room to acknowledge the batch.",
+        json!([{"path":"queue.py","qualified_name":"limit"}]));
+    let question = "Why does limit() cap backlog at 300 seconds?";
+    for mode in [json!(false), Value::Null, json!(true)] {
+        let packet = f.context(question, json!({"symbol_links":mode,"debug_candidates":400}));
+        assert!(includes(&packet, &cap), "{packet:#}");
+        assert!(!includes(&packet, &floor), "{packet:#}");
+        assert_eq!(packet["memory_rationale_support"]["basis"], "rationale_duration_agreement", "{packet:#}");
+        if mode == true { assert!(includes(&packet, &reason), "{packet:#}"); }
+    }
+    for switches in [json!({"needs":["reconnection floor"]}), json!({"query_variants":[{"text":"reconnect clients","kind":"query"}]})] {
+        let mut switches = switches; switches["symbol_links"] = json!(true);
+        let packet = f.context(question, switches);
+        assert!(packet.get("memory_rationale_support").is_none(), "{packet:#}");
+        assert!(includes(&packet, &floor), "{packet:#}");
+    }
+}
+
+#[test]
+fn helm_helpers_and_value_fields_keep_only_their_dependency_notes() {
+    let files = [
+        ("Chart.yaml", "apiVersion: v2\nname: parcel\nversion: 0.1.0\n"),
+        ("values.yaml", "replicaCount: 2\nservice:\n  port: 8080\nresources:\n  cpu: 100m\n"),
+        ("templates/_helpers.tpl", "{{ define \"parcel.labels\" }}\napp: {{ .Release.Name }}\n{{ end }}\n"),
+        ("templates/service.yaml", "kind: Service\nselector:\n  {{ include \"parcel.labels\" . }}\nport: {{ .Values.service.port }}\n"),
+        ("templates/deployment.yaml", "kind: Deployment\nreplicas: {{ .Values.replicaCount }}\nport: {{ .Values.service.port }}\n"),
+    ];
+    let f = Fixture::new(&files);
+    let labels = f.note("Release isolation", "Selectors must preserve tenant boundaries.",
+        json!([{"path":"templates/_helpers.tpl","qualified_name":"parcel.labels"}]));
+    let port = f.note("Listener compatibility", "The target must agree with the container port.",
+        json!([{"path":"values.yaml","qualified_name":"Values.service.port"}]));
+    let replicas = f.note("Availability floor", "Replicas must preserve replacement capacity.",
+        json!([{"path":"values.yaml","qualified_name":"Values.replicaCount"}]));
+    let cpu = f.note("Compute reservation", "Capacity must preserve a core per replica.",
+        json!([{"path":"values.yaml","qualified_name":"Values.resources.cpu"}]));
+    for (question, wanted) in [
+        ("Which constraints must a change to parcel.labels preserve?", vec![&labels]),
+        ("Which constraints must a change to templates/service.yaml preserve?", vec![&labels, &port]),
+        ("Which constraints govern .Values.replicaCount?", vec![&replicas]),
+        ("Which constraints govern .Values.service?", vec![&port]),
+    ] {
+        let packet = f.context(question, json!({"symbol_links":true,"debug_candidates":400}));
+        assert_eq!(packet["memory_scope_support"]["basis"], "helm_dependencies", "{packet:#}");
+        for note in [&labels, &port, &replicas, &cpu] {
+            assert_eq!(includes(&packet, note), wanted.iter().any(|n| n["id"] == note["id"]), "{question}: {packet:#}");
+        }
+    }
+    // Computed names and indirect field access preserve the same dependencies.
+    for template in [
+        r#"{{ include (printf "%s.labels" "parcel") . }}{{ get .Values.service "port" }}"#,
+        r#"{{ $helper := "parcel.labels" }}{{ $values := .Values }}{{ include $helper . }}{{ index $values "service" "port" }}"#,
+        r#"{{ tpl "{{ include \"parcel.labels\" . }}" . }}{{ .Values | dig "service" "port" 80 }}"#,
+        r#"{{ $root := . }}{{ with .Values.service }}{{ .port }}{{ include "parcel.labels" $root }}{{ end }}"#,
+    ] {
+        let mut dynamic = files;
+        dynamic[3].1 = template;
+        f.sync(&dynamic);
+        let packet = f.context("Which constraints must a change to templates/service.yaml preserve?", json!({"symbol_links":true}));
+        assert_eq!(packet["memory_scope_support"]["basis"],"helm_dependencies","{packet:#}");
+        assert!(includes(&packet,&labels) && includes(&packet,&port),"{packet:#}");
+        assert!(!includes(&packet,&replicas) && !includes(&packet,&cpu),"{packet:#}");
+    }
+    // The graph must refresh references when a template changes, even though
+    // its old helper and values declarations are unchanged.
+    let mut changed = files;
+    changed[3].1 = "kind: Service\nreplicas: {{ .Values.replicaCount }}\n";
+    f.sync(&changed);
+    let packet = f.context("Which constraints must a change to templates/service.yaml preserve?", json!({"symbol_links":true}));
+    assert!(includes(&packet, &replicas), "{packet:#}");
+    assert!(!includes(&packet, &labels) && !includes(&packet, &port), "{packet:#}");
+    changed[3].1 = "kind: Service\n{{ include .Values.helper . }}\n";
+    f.sync(&changed);
+    let packet = f.context("Which constraints must a change to templates/service.yaml preserve?", json!({"symbol_links":true}));
+    assert!(packet.get("memory_scope_support").is_none(), "{packet:#}");
+    changed[2].1 = "{{ define \"parcel.labels\" }}{{ tpl .Values.labels . }}{{ end }}\n";
+    f.sync(&changed);
+    let packet = f.context("Which constraints must a change to parcel.labels preserve?", json!({"symbol_links":true}));
+    assert!(packet.get("memory_scope_support").is_none(), "{packet:#}");
+    assert_eq!(packet["symbol_links"]["query_symbol_scope"]["applied"], false, "{packet:#}");
+}
+
+#[test]
+fn unsupported_helm_structures_preserve_sync_and_text_retrieval() {
+    let f = Fixture::new(&[
+        ("Chart.yaml", "apiVersion: v2\nname: parcel\nversion: 0.1.0\n"),
+        ("values.yaml", "? [region, zone]\n: custom-placement\n"),
+        ("templates/service.yaml", "kind: Service\nport: {{ .Values.port }}\n"),
+    ]);
+    let packet = f.context("Which constraints govern templates/service.yaml?", json!({"symbol_links":true}));
+    assert!(packet.get("memory_scope_support").is_none(), "{packet:#}");
+    assert!(!packet["evidence"].as_array().unwrap().is_empty(), "{packet:#}");
+}
+
+#[test]
+fn configuration_owner_and_named_title_exclude_consumer_notes_but_keep_change_queries_broad() {
+    let f = Fixture::new(&[
+        ("main.tf", "module \"queue\" {\n source = \"./queue\"\n retention = var.retention_seconds\n}\n"),
+        ("variables.tf", "variable \"retention_seconds\" {\n default = 60\n}\n"),
+        ("worker.hcl", "job \"worker\" {\n group \"processors\" {\n count = 2\n }\n}\n"),
+    ]);
+    let contract = f.note("Queue handoff contract", "The queue output stays in seconds.",
+        json!([{"path":"main.tf","qualified_name":"module.queue"}]));
+    let floor = f.note("Replay horizon", "The queue must keep at least sixty seconds of backlog.",
+        json!([{"path":"variables.tf","qualified_name":"var.retention_seconds"}]));
+    let availability = f.note("Worker availability", "The processors count must preserve rolling replacement room.",
+        json!([{"path":"worker.hcl","qualified_name":"job.worker"}]));
+    for mode in [json!(false), Value::Null, json!(true)] {
+        let title = f.context("What is the queue handoff contract?", json!({"symbol_links":mode}));
+        assert!(includes(&title,&contract) && !includes(&title,&floor), "{title:#}");
+        assert_eq!(title["memory_prose_support"]["basis"], "exact_note_title");
+        let owner = f.context("Which constraint governs var.retention_seconds in variables.tf?", json!({"symbol_links":mode}));
+        assert!(includes(&owner,&floor) && !includes(&owner,&contract), "{owner:#}");
+        assert_eq!(owner["memory_scope_support"]["basis"], "configuration_input");
+        let count = f.context("What count is assigned to the processors group in worker.hcl?", json!({"symbol_links":mode}));
+        assert!(!includes(&count,&availability), "{count:#}");
+        assert!(count["memories"].as_array().unwrap().is_empty(), "{count:#}");
+        assert!(!count["evidence"].as_array().unwrap().is_empty());
+        assert_eq!(count["memory_value_request"]["key"], "count");
+    }
+    let change = f.context("Which constraints must a change to module.queue preserve?", json!({"symbol_links":true}));
+    assert!(includes(&change,&contract) && includes(&change,&floor), "{change:#}");
+    let expanded = f.context("Which constraint governs var.retention_seconds in variables.tf?", json!({"symbol_links":true,"needs":["queue handoff contract"]}));
+    assert!(expanded.get("memory_scope_support").is_none(), "{expanded:#}");
+    assert!(includes(&expanded,&contract) && includes(&expanded,&floor), "{expanded:#}");
+}
+
+#[test]
+fn configuration_values_keep_source_without_design_memories() {
+    let f = Fixture::new(&[("settings.tf", "variable \"timeout\" {\n  default = 60\n}\n")]);
+    let note = f.note("Timeout allowance", "The timeout must preserve room for recovery.",
+        json!([{"path":"settings.tf","qualified_name":"var.timeout"}]));
+    let question = "What default value does settings.tf assign to timeout?";
+    for mode in [Value::Null, json!(false), json!(true)] {
+        let packet = f.context(question, json!({"symbol_links":mode,"debug_candidates":400}));
+        assert!(packet["memories"].as_array().unwrap().is_empty(), "{packet:#}");
+        assert!(!packet["evidence"].as_array().unwrap().is_empty(), "{packet:#}");
+        assert_eq!(packet["memory_value_request"]["key"], "timeout");
+        assert!(packet["memory_candidates_debug"]["candidates"].as_array().unwrap()
+            .iter().any(|c| c["id"] == note["id"] && c["selection_filter"] == "configuration_value_request"));
+    }
+    for (question, switches) in [
+        (question, json!({"symbol_links":true,"needs":["recovery room"]})),
+        ("What default value does missing.tf assign to timeout?", json!({"symbol_links":true})),
+        ("What default value does settings.tf assign to missing_setting?", json!({"symbol_links":true})),
+        ("What default value does settings.tf assign to timeout and why?", json!({"symbol_links":true})),
+    ] {
+        let packet = f.context(question, switches);
+        assert!(packet.get("memory_value_request").is_none(), "{packet:#}");
+        assert!(includes(&packet, &note), "{packet:#}");
+    }
+}
+
+#[test]
+fn hcl_job_constraints_reach_referenced_variables() {
+    let f = Fixture::new(&[
+        ("worker.hcl", "job \"worker\" {\n  group \"pool\" {\n    shutdown_delay = \"${var.drain_seconds}s\"\n  }\n}\n"),
+        ("variables.hcl", "variable \"drain_seconds\" {\n  default = 45\n}\n"),
+        ("other.hcl", "job \"metrics\" {\n  type = \"batch\"\n}\n"),
+    ]);
+    let drain = f.note("Checkpoint covenant", "Persist outstanding checkpoints before termination.",
+        json!([{"path":"variables.hcl","qualified_name":"var.drain_seconds"}]));
+    let unrelated = f.note("Reporting cadence", "Archive summaries hourly.",
+        json!([{"path":"other.hcl","qualified_name":"job.metrics"}]));
+    let owner = f.store.note(&f.workspace, &f.key, &f.args(json!({
+        "title":"Worker handoff agreement", "body":"Keep a consumer accepting work.",
+        "kind":"decision", "dependencies":["worker.hcl"]
+    }))).unwrap();
+    let question = "Which constraints must a change to job.worker preserve?";
+    let on = f.context(question, json!({"symbol_links":true}));
+    assert!(includes(&on, &drain), "{on:#}");
+    assert!(!includes(&on, &unrelated), "{on:#}");
+    assert_eq!(on["symbol_links"]["query_symbol_scope"]["applied"], true);
+    let off = f.context(question, json!({"symbol_links":false}));
+    assert!(!includes(&off, &drain), "{off:#}");
+    let prose = f.context("What is the worker handoff agreement?", json!({"symbol_links":true}));
+    assert!(includes(&prose, &owner), "{prose:#}");
+    assert!(!includes(&prose, &drain), "{prose:#}");
+    assert_eq!(prose["symbol_links"]["query_symbol_scope"]["basis"], "ranked_memories");
+}
+
+#[test]
+fn unsupported_attribute_questions_need_more_than_a_symbol_match() {
+    let f = Fixture::new(&[(
+        "a.py",
+        "def alpha():\n    return wait()\n\ndef wait():\n    return 1\n",
+    )]);
+    let existing = f.note(
+        "Alpha result",
+        "Keep alpha results stable.",
+        json!([{"path":"a.py","qualified_name":"alpha"}]),
+    );
+    let question = "Which backup schedule is required by alpha()?";
+    for mode in [Value::Null, json!(false), json!(true)] {
+        let packet = f.context(
+            question,
+            json!({"symbol_links":mode,"debug_candidates":400}),
+        );
+        assert!(
+            packet["memories"].as_array().unwrap().is_empty(),
+            "{packet:#}"
+        );
+        assert!(
+            !packet["evidence"].as_array().unwrap().is_empty(),
+            "{packet:#}"
+        );
+        assert_eq!(
+            packet["memory_topic_support"]["status"],
+            "unsupported_in_candidates"
+        );
+        assert!(
+            packet["memory_candidates_debug"]["candidates"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| c["id"] == existing["id"] && c["selection_filter"] == "unsupported_topic")
+        );
+        let plain = f.context(question, json!({"symbol_links":mode}));
+        for key in [
+            "memories",
+            "evidence",
+            "markdown",
+            "tokens",
+            "memory_topic_support",
+        ] {
+            assert_eq!(packet[key], plain[key], "{key}");
+        }
+    }
+    for broad in [
+        "Which constraints are required by alpha()?",
+        "Which compatibility constraints govern alpha()?",
+        "Which backup schedule and other policies are required by alpha()?",
+        "Why does alpha wait until dawn?",
+    ] {
+        let packet = f.context(broad, json!({"symbol_links":true}));
+        assert!(packet.get("memory_topic_support").is_none(), "{packet:#}");
+        assert!(includes(&packet, &existing), "{packet:#}");
+    }
+    let expanded = f.context(
+        question,
+        json!({"symbol_links":true,"needs":["stable results"]}),
+    );
+    assert!(
+        expanded.get("memory_topic_support").is_none(),
+        "{expanded:#}"
+    );
+    assert!(includes(&expanded, &existing), "{expanded:#}");
+    // Support may live in a callee's note, and inflections must still match.
+    // Reuse the unchanged question to prove this is evidence-driven abstention.
+    let supporting = f.note(
+        "Backup scheduling",
+        "Take snapshots nightly.",
+        json!([{"path":"a.py","qualified_name":"wait"}]),
+    );
+    let packet = f.context(question, json!({"symbol_links":true}));
+    assert_eq!(packet["memory_topic_support"]["status"], "supported");
+    assert!(includes(&packet, &supporting), "{packet:#}");
+}
+
+#[test]
+fn source_topic_evidence_preserves_dependency_memory() {
+    let f = Fixture::new(&[(
+        "a.py",
+        "def alpha():\n    # backup schedule is computed here\n    return wait()\n\ndef wait():\n    return 1\n",
+    )]);
+    let note = f.note(
+        "Restoration covenant",
+        "A cold restore needs an intact snapshot.",
+        json!([{"path":"a.py","qualified_name":"wait"}]),
+    );
+    let packet = f.context(
+        "Which backup schedule is required by alpha()?",
+        json!({"symbol_links":true}),
+    );
+    assert_eq!(packet["memory_topic_support"]["status"], "supported");
+    assert!(includes(&packet, &note), "{packet:#}");
 }
 
 #[test]
