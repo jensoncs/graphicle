@@ -147,6 +147,42 @@ fn premise_anchors(premise: &[String], durations: &BTreeSet<u64>, candidates: &[
 }
 
 impl NoteFocus {
+    /// A field explicitly named in a YAML file can anchor file-grounded notes
+    /// without treating every other setting in that file as the same topic.
+    fn field(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
+        static FIELD: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(
+            r"(?i)^\s*(?:which|what)\s+constraints?\s+governs?\s+`?(?P<field>[a-z_][a-z0-9_.]*)`?\s+in\s+`?(?P<path>[a-z0-9_./-]+\.ya?ml)`?\s*\??\s*$"
+        ).expect("named YAML field topic"));
+        let found = FIELD.captures(question)?;
+        let topic = crate::notes_first::stems(&found["field"]);
+        if topic.is_empty() { return None; }
+        let anchors: BTreeSet<String> = candidates.iter().filter(|row| row["kind"] == "memory")
+            .filter(|row| row["memory"]["data"]["dependencies"].as_object().is_some_and(|deps|
+                deps.keys().any(|path| path == &found["path"] || path.ends_with(&format!("/{}",&found["path"])))))
+            .filter(|row| topic.is_subset(&crate::notes_first::stems(&format!("{} {}",s(row,"title"),s(row,"text")))))
+            .map(|row| s(row,"identity").into()).collect();
+        selected.iter().any(|row| anchors.contains(s(row,"identity")))
+            .then_some(Self { anchors, symbols:BTreeSet::new(), topic, basis:"named_field_topic" })
+    }
+
+    /// Factual expiry questions name their subject directly. A shared symbol
+    /// may add qualifications about that subject, not an unrelated policy.
+    fn expiry(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
+        static EXPIRY: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(
+            r"(?i)^\s*when\s+does\s+(?P<subject>[a-z][a-z -]*?)\s+expire\s*\??\s*$"
+        ).expect("expiry fact subject"));
+        let found = EXPIRY.captures(question)?;
+        if graphicle_memory::text::words(&found["subject"]).iter().any(|w| matches!(w.as_str(),"and"|"or"|"also"|"not"|"never"))
+            || !crate::identifier_arm::explicit_names(&found["subject"]).names.is_empty() { return None; }
+        let premise = content_sequence(&found["subject"]);
+        if premise.len() < 3 { return None; }
+        let anchors = premise_anchors(&premise,&BTreeSet::new(),candidates,3);
+        let symbols = candidates.iter().filter(|row| anchors.contains(s(row,"identity"))).flat_map(note_symbols).collect();
+        let topic = crate::notes_first::stems(&found["subject"]);
+        selected.iter().any(|row| anchors.contains(s(row,"identity")))
+            .then_some(Self { anchors, symbols, topic, basis:"factual_subject_phrase" })
+    }
+
     /// A two-part rationale can narrow only after BOTH premises have retrieved
     /// support. Keep the union of their notes/symbols; never focus on one half.
     fn compound(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
@@ -210,10 +246,17 @@ impl NoteFocus {
             || r["memory"]["data"]["symbols"].as_array().is_some_and(|links| links.iter().any(|l| l["state"] != "resolved"))) {
             return None;
         }
-        let terms = crate::notes_first::stems(topic);
-        if terms.len() < 2 { return None; }
+        let (title, qualifier) = topic.split_once(" for ").map_or((topic,None),|(title,qualifier)|(title,Some(qualifier)));
+        let terms = crate::notes_first::stems(title);
+        let full_terms = crate::notes_first::stems(topic);
+        if full_terms.len() < 2 { return None; }
         let matching: Vec<_> = candidates.iter().filter(|r| r["kind"] == "memory"
-            && crate::notes_first::stems(s(r, "title")) == terms).collect();
+            && (crate::notes_first::stems(s(r, "title")) == full_terms
+                || (terms.len() >= 2 && crate::notes_first::stems(s(r,"title")) == terms
+                    && qualifier.is_some_and(|q| {
+                        let terms = crate::notes_first::stems(q);
+                        terms.len() >= 2 && terms.is_subset(&crate::notes_first::stems(s(r,"text")))
+                    })))).collect();
         let anchors: BTreeSet<String> = matching.iter().map(|r| s(r,"identity").into()).collect();
         let symbols = matching.iter().flat_map(|r| note_symbols(r)).collect();
         let topic = focus_topic(question,&anchors,candidates);
@@ -222,11 +265,17 @@ impl NoteFocus {
     }
 
     pub fn filter_reason(&self) -> &'static str {
-        if self.basis == "exact_note_title" { "note_title_mismatch" } else { "rationale_premise_mismatch" }
+        match self.basis {
+            "exact_note_title" => "note_title_mismatch",
+            "named_field_topic" | "factual_subject_phrase" => "note_topic_mismatch",
+            _ => "rationale_premise_mismatch",
+        }
     }
 
     pub fn new(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
         if let Some(focus) = Self::title(question, selected, candidates) { return Some(focus); }
+        if let Some(focus) = Self::field(question, selected, candidates) { return Some(focus); }
+        if let Some(focus) = Self::expiry(question, selected, candidates) { return Some(focus); }
         if let Some(focus) = Self::retry_timing(question, selected, candidates) { return Some(focus); }
         if let Some(focus) = Self::compound(question, selected, candidates) { return Some(focus); }
         let words = graphicle_memory::text::words(question);
@@ -249,8 +298,13 @@ impl NoteFocus {
     pub fn keep(&self, row: &Value) -> bool {
         self.anchors.contains(s(row, "identity"))
             || (!note_symbols(row).is_disjoint(&self.symbols) && {
-                let (quantified, topic) = policy_topic(&format!("{} {}",s(row,"title"),s(row,"text")));
-                !quantified || !topic.is_disjoint(&self.topic)
+                let text = format!("{} {}",s(row,"title"),s(row,"text"));
+                if self.basis == "factual_subject_phrase" {
+                    !crate::notes_first::stems(&text).is_disjoint(&self.topic)
+                } else {
+                    let (quantified, topic) = policy_topic(&text);
+                    !quantified || !topic.is_disjoint(&self.topic)
+                }
             })
             || row["memory"]["data"]["dependencies"].as_object().is_none_or(|d| d.is_empty())
             || row["memory"]["data"]["symbols"].as_array().is_some_and(|links|
@@ -852,6 +906,35 @@ mod tests {
         assert!(focus.keep(&reason));
         assert!(focus.keep(&linked));
         assert!(!focus.keep(&floor));
+    }
+
+    #[test]
+    fn factual_subjects_keep_qualifications_without_other_same_symbol_policies() {
+        let lease = rationale_note("lease","Our upstream's connection lease expires after one minute.",Some("retry_delay"));
+        let extra = rationale_note("extra","The connection lease may end early during maintenance.",Some("retry_delay"));
+        let jitter = rationale_note("jitter","Randomized scheduling is deferred until the gateway migration finishes.",Some("retry_delay"));
+        let all = vec![lease.clone(),extra.clone(),jitter.clone()];
+        let focus = NoteFocus::new("When does our upstream connection lease expire?",&[lease.clone()],&all).unwrap();
+        assert!(focus.keep(&lease) && focus.keep(&extra) && !focus.keep(&jitter));
+        let mut unknown = jitter.clone();
+        unknown["memory"]["data"]["dependencies"] = json!({});
+        assert!(focus.keep(&unknown));
+        assert!(NoteFocus::new("When does our upstream connection lease expire and why is scheduling deferred?",&all,&all).is_none());
+        assert!(NoteFocus::new("When does the reservation expire?",&all,&all).is_none());
+        assert!(NoteFocus::new("Why is retry_delay capped at 60?",&all,&all).is_none());
+    }
+
+    #[test]
+    fn named_titles_with_qualifiers_require_support_for_the_whole_qualifier() {
+        let mut contract = rationale_note("contract","Preserve fractional minor units at the boundary.",Some("total"));
+        contract["title"] = json!("Cent settlement contract");
+        let all = vec![contract.clone()];
+        assert!(NoteFocus::new("What is the cent settlement contract for fractional minor units?",&all,&all).is_some());
+        assert!(NoteFocus::new("What is the cent settlement contract for unknown currencies?",&all,&all).is_none());
+        assert!(NoteFocus::new("What is the cent settlement contract for fractional minor units and refunds?",&all,&all).is_none());
+        contract["title"] = json!("Policy for account closure");
+        let all = vec![contract];
+        assert!(NoteFocus::new("What is the policy for account closure?",&all,&all).is_some());
     }
 
     #[test]

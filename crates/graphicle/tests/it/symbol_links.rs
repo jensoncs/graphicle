@@ -335,6 +335,52 @@ fn covered_prose_topics_do_not_expand_to_dependency_notes() {
 }
 
 #[test]
+fn yaml_field_topics_and_absent_resource_attributes_do_not_mix_policies() {
+    let f = Fixture::new(&[("base/service.yaml","apiVersion: v1\nkind: Service\nmetadata:\n  name: parcel-worker\nspec:\n  selector:\n    app: parcel-worker\n  ports:\n    - port: 80\n      targetPort: 8080\n")]);
+    let note = |title: &str, body: &str| f.store.note(&f.workspace,&f.key,&f.args(json!({
+        "title":title,"body":body,"kind":"decision","dependencies":["base/service.yaml"]
+    }))).unwrap();
+    let selector = note("Traffic membership agreement","The Service selector must match the intended pod labels.");
+    let port = note("Listener compatibility","The Service target port must match the container listener.");
+    let q = "Which constraint governs selector in base/service.yaml?";
+    let packet = f.context(q,json!({"symbol_links":true,"debug_candidates":400}));
+    assert!(includes(&packet,&selector) && !includes(&packet,&port),"{packet:#}");
+    assert_eq!(packet["memory_rationale_support"]["basis"],"named_field_topic");
+    for q in ["Which constraints must a change to base/service.yaml preserve?","Which constraints govern selector and port in base/service.yaml?"] {
+        let broad = f.context(q,json!({"symbol_links":true}));
+        assert!(includes(&broad,&selector) && includes(&broad,&port),"{broad:#}");
+    }
+    let expanded = f.context(q,json!({"symbol_links":true,"needs":["listener compatibility"]}));
+    assert!(includes(&expanded,&port),"{expanded:#}");
+    let missing = f.context("Which constraint governs selector in missing.yaml?",json!({"symbol_links":true}));
+    assert!(missing.get("memory_rationale_support").is_none(),"{missing:#}");
+    let q = "Which backup storage region is required for the parcel-worker service?";
+    let absent = f.context(q,json!({"symbol_links":true}));
+    assert!(absent["memories"].as_array().unwrap().is_empty(),"{absent:#}");
+    assert_eq!(absent["memory_topic_support"]["status"],"unsupported_in_candidates");
+    let backup = note("Regional backup policy","Backup storage must stay in the approved home region.");
+    let supported = f.context(q,json!({"symbol_links":true}));
+    assert!(includes(&supported,&backup),"{supported:#}");
+    assert_eq!(supported["memory_topic_support"]["status"],"supported");
+}
+
+#[test]
+fn factual_contract_and_expiry_requests_keep_their_requested_topics() {
+    let f = Fixture::new(&[("policy.py","def total_amount(items):\n    return round(sum(items),2)\n\ndef pause_delay(attempt):\n    return min(2 ** attempt,60)\n")]);
+    let contract = f.note("Money settlement contract","Preserve fractional minor units at the outbound boundary.",json!([{"path":"policy.py","qualified_name":"total_amount"}]));
+    let audit = f.note("Audit archive","Retain original fiscal items for seven years.",json!([{"path":"policy.py","qualified_name":"total_amount"}]));
+    let value = f.context("What is the money settlement contract for fractional minor units?",json!({"symbol_links":true}));
+    assert!(includes(&value,&contract) && !includes(&value,&audit),"{value:#}");
+    let lease = f.note("Receiver allowance","The remote session lease expires after one minute.",json!([{"path":"policy.py","qualified_name":"pause_delay"}]));
+    let condition = f.note("Maintenance condition","The session lease may end early during maintenance.",json!([{"path":"policy.py","qualified_name":"pause_delay"}]));
+    let jitter = f.note("Randomization follow-up","Randomized scheduling is deferred until migration finishes.",json!([{"path":"policy.py","qualified_name":"pause_delay"}]));
+    let value = f.context("When does the remote session lease expire?",json!({"symbol_links":true}));
+    assert!(includes(&value,&lease) && includes(&value,&condition) && !includes(&value,&jitter),"{value:#}");
+    let broad = f.context("Which constraints must a change to pause_delay preserve?",json!({"symbol_links":true}));
+    assert!(includes(&broad,&lease) && includes(&broad,&jitter),"{broad:#}");
+}
+
+#[test]
 fn qualified_changes_keep_imported_policies_and_exclude_other_owners() {
     let f = Fixture::new(&[
         ("sender.js","import { pauseFor as retryWait } from './policy.js';\nexport class NoticeSender { async send(attempt) { return retryWait(attempt); } }\nexport class PreviewSender { async send(attempt) { return attempt; } }\nexport function noticeKey(value) { return String(value); }\n"),

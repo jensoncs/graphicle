@@ -381,12 +381,26 @@ pub(crate) fn requested_memory_topic(question: &str) -> Option<BTreeSet<String>>
         ))
         .expect("the memory attribute question rule")
     });
-    let captures = ATTRIBUTE.captures(question)?;
+    // Kubernetes resource names are prose (often DNS-style hyphenated names),
+    // rather than code identifiers. Keep the requested attribute separate from
+    // that resource, just as for the existing explicit-code question shape.
+    static RESOURCE: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(concat!(
+        r"(?i)^\s*(?:what|which)\s+(?P<topic>[a-z][a-z -]*?)\s+",
+        r"(?:is|are)\s+(?:required|mandatory|approved)\s+for\s+(?:the\s+)?",
+        r"(?P<target>[a-z0-9][a-z0-9.-]*\s+(?:deployment|statefulset|daemonset|service|job|cronjob|configmap))\s*\??\s*$"
+    )).expect("named Kubernetes resource attribute"));
+    let resource = RESOURCE.captures(question);
+    let ordinary = ATTRIBUTE.captures(question);
+    let captures = resource.as_ref().or(ordinary.as_ref())?;
     let topic = &captures["topic"];
     let target = &captures["target"];
-    if crate::identifier_arm::explicit_names(target)
+    if resource.is_some() && target.split_whitespace().next().is_some_and(|name|
+        matches!(name.to_ascii_lowercase().as_str(), "the" | "a" | "an" | "this" | "that" | "our")) {
+        return None;
+    }
+    if (resource.is_none() && crate::identifier_arm::explicit_names(target)
         .names
-        .is_empty()
+        .is_empty())
         || !crate::identifier_arm::explicit_names(topic)
             .names
             .is_empty()
@@ -1345,6 +1359,18 @@ mod tests {
             &short[short.len() - 80..]
         );
         assert_eq!(short.matches("parse_config").count(), 1);
+    }
+
+    #[test]
+    fn named_resource_attributes_keep_the_subject_out_of_topic_support() {
+        let q = "Which backup storage region is required for the parcel-worker deployment?";
+        assert_eq!(requested_memory_topic(q),Some(crate::notes_first::stems("backup storage region")));
+        for q in [
+            "Which constraints are required for the parcel-worker deployment?",
+            "Which backup storage region and retention are required for the parcel-worker deployment?",
+            "Which backup storage region is required for the deployment?",
+            "Why is a backup region required for the parcel-worker deployment?",
+        ] { assert!(requested_memory_topic(q).is_none(),"{q}"); }
     }
 
     #[test]

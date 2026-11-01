@@ -640,7 +640,7 @@
     ]
   },
   "provenance": {
-    "report_sha256": "8810363bad2fdfaa6d91c260dcc8b744c7095f63caa972a39daf6ec3e4773bb6",
+    "report_sha256": "5135283f02644a0f63123919f026ec339bf17f84cee2c1465fbc5f1671623d57",
     "protocol": {
       "contract": {
         "scoring_version": 1,
@@ -1281,7 +1281,7 @@
           "source/payments/unicode/routed"
         ]
       },
-      "binary_sha256": "a2fcaa7a628d37736e4d7f45e1646381e8873f24dcfc74fee1a5fe517308206b",
+      "binary_sha256": "cc77972c434c55c455745adc28f52e322e5271b8a9a82f20929ba93a5ba7c564",
       "python": "3.15.1",
       "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
       "runner_sha256": {
@@ -1378,9 +1378,7 @@
       "retrieved_relevant": [
         "settlement"
       ],
-      "irrelevant": [
-        "shipping"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/billing/direct-recall/on",
@@ -1399,10 +1397,7 @@
       "retrieved_relevant": [
         "settlement"
       ],
-      "irrelevant": [
-        "audit",
-        "shipping"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/billing/direct-recall/off",
@@ -1421,9 +1416,7 @@
       "retrieved_relevant": [
         "settlement"
       ],
-      "irrelevant": [
-        "shipping"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/billing/same-symbol-no-memory/on",
@@ -1722,9 +1715,7 @@
       "retrieved_relevant": [
         "ceiling"
       ],
-      "irrelevant": [
-        "jitter"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/retry/direct-recall/off",
@@ -7876,9 +7867,7 @@
       "retrieved_relevant": [
         "selector"
       ],
-      "irrelevant": [
-        "port"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/kubernetes-worker/selector-contract/off",
@@ -7897,9 +7886,7 @@
       "retrieved_relevant": [
         "selector"
       ],
-      "irrelevant": [
-        "port"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/kubernetes-worker/selector-contract/counted",
@@ -7918,9 +7905,7 @@
       "retrieved_relevant": [
         "selector"
       ],
-      "irrelevant": [
-        "port"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/kubernetes-worker/direct-prose/off",
@@ -7992,10 +7977,7 @@
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "drain",
-        "port"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/kubernetes-worker/unsupported/on",
@@ -8010,10 +7992,7 @@
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "drain",
-        "port"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/kubernetes-worker/unsupported/off",
@@ -8028,10 +8007,7 @@
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "drain",
-        "port"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/kubernetes-worker/literal-override/on",

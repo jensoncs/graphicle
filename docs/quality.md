@@ -18,11 +18,11 @@ datasets must stay private. Nothing is sent as telemetry.
 
 ## What the scorecard measures
 
-The checked-in suite contains 128 authored memory questions and 41 authored
+The checked-in suite contains 146 authored memory questions and 49 authored
 source questions across seven programming languages plus HCL/Terraform, Helm,
 Kubernetes YAML and Bash. Memory questions run with symbol
 links off, counted (the default), and on. Source questions run with identifier
-routing off and on. These are **466 context calls**, covering relevant decisions, distracting memories,
+routing off and on. These are **536 context calls**, covering relevant decisions, distracting memories,
 negative controls, stale notes, caller/callee constraints, capacity pressure,
 exact source branches, attached rationale, UTF-8 citation boundaries, configuration
 references and overrides, template helpers, workload selectors and shell pipelines.
@@ -1058,6 +1058,71 @@ files, questions, labels, requests and scoring are unchanged. The accepted
 baseline now records the gains, and the
 [Go/JavaScript findings receipt](../bench/memory/results/go-js-findings-20261101.json)
 retains the paired comparisons, hashes and selection diagnostics.
+
+### Python/Kubernetes factual precision and pilot follow-ups (1 November 2026)
+
+Exact note-title focus now accepts a trailing `for ...` qualifier only when all
+of its substantive terms occur in the matching note body. Existing full-title
+matching remains intact, including titles containing `for`. Unknown qualifiers
+and compound requests retain broad retrieval.
+
+A narrow expiry question can focus on an actually retrieved three-word subject
+phrase. It keeps same-symbol qualifications that mention the subject, such as
+early lease expiry during maintenance, while withholding unrelated scheduling
+policy. Unanchored and unresolved note grounding remains eligible. This does not
+infer a unit for a bare number or map tenant/customer paraphrases by assumption.
+Packets identify `factual_subject_phrase`; candidate traces report
+`note_topic_mismatch`.
+
+YAML field questions use the requested file and field to anchor matching notes;
+another policy in the same file is not automatically about that field. The basis
+is `named_field_topic`. Broad file-change and multi-field requests remain broad.
+The existing absent-topic guard now also recognizes attributes of explicitly
+named Kubernetes resources, separating the requested attribute from the resource
+name. A phrase such as "the deployment" alone does not establish a resource name.
+Any topical support in the authorized notes or source preserves retrieval, and
+expanded/semantic requests keep their existing behavior.
+
+Remaining cases stay in the baseline with their original relevance labels.
+Missing symbol identities, unsupported prose/semantic matches and unknown Helm
+render inputs require more evidence or separately validated retrieval changes.
+The current Helm graph does not certify that known local helpers exhaust the
+runtime helper namespace, so enumerating only those helpers is not a complete
+replacement for effective chart/release inputs.
+
+The pilot follow-up register is an offline benchmark artifact, not deployed
+Sentinel telemetry. For real pilot requests, record the repository snapshot and
+binary, effective switches/needs/query variants, independently labelled evidence,
+candidate routes and exclusions, omissions/budgets/errors, and applicable Helm
+render inputs. Evaluate the actual Sentinel request configuration: semantic
+ranking and expanded requests may bypass these model-free filters.
+
+The unchanged 536-call comparison, with symbol links enabled, measures:
+
+| Coverage | Relevant before → after | False positives before → after | Precision before → after | Recall |
+|---|---:|---:|---:|---:|
+| Python, 50 memory questions | 50 → 50 | 12 → 9 | 80.6% → 84.7% | 100% |
+| Kubernetes, 6 memory questions | 5 → 5 | 3 → 0 | 62.5% → 100% | 100% |
+| Helm, 15 memory questions | 17 → 17 | 2 → 2 | 89.5% → 89.5% | 100% |
+| Entire memory corpus | 162 → 162 | 17 → 11 | 90.50% → 93.64% | 100% |
+
+The six removed false-positive note occurrences span four questions: qualified
+settlement contract, upstream lease expiry, Service selector contract, and absent
+backup-region requirement. Eleven false positives remain across seven questions:
+five from incomplete symbol scope, three from unsupported prose/semantic scope,
+one from the unstated duration unit, and two from the unbound Helm helper.
+Their relevance labels and conservative fallback behavior are unchanged.
+
+All 52 focused Rust tests pass (31 symbol-link integration, 9 note-focus and 12
+question-shape unit tests). The full run passes the prior baseline with no lost
+relevant notes, added irrelevant notes or lost source spans. Both source modes
+retain 88/88 required spans, and the separate 171-call fresh-store replay matches
+the corresponding full-run outcomes exactly with the same binary. Defaults and
+delivery caps are unchanged; pooled counted-mode recall remains 50%, with Python
+at 18%. The accepted baseline records the gains. The
+[pilot gap tracker and measurement receipt](../bench/memory/results/pilot-gaps-20261101.json)
+contains closed/open status, required follow-up evidence, comparisons, hashes,
+candidate-filter diagnostics and the recommended pilot capture fields.
 
 ## What remains unmeasured
 
