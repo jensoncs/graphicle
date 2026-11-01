@@ -1768,6 +1768,8 @@ fn context_impl(
             .map(|scope| (scope, "configuration_input", "outside_configuration_input"))
             .or_else(|| crate::identifier_arm::shell_memory_scope(lookup.db(), lookup.repository(), query, &documents)
                 .map(|scope| (scope, "shell_dependencies", "outside_shell_scope")))
+            .or_else(|| crate::identifier_arm::qualified_change_scope(lookup.db(), lookup.repository(), query, &documents)
+                .map(|scope| (scope, "qualified_change", "outside_qualified_change")))
             .or_else(|| symbol_links.enabled().then(|| crate::identifier_arm::helm_memory_scope(lookup.db(), lookup.repository(), query, &documents))
                 .flatten().map(|scope| (scope, "helm_dependencies", "outside_helm_scope")));
         if let Some((scope, basis, reason)) = scope {
@@ -1806,11 +1808,22 @@ fn context_impl(
             crate::code_question::configuration_count_request(query, path, s(row,"text"))
                 .or_else(|| crate::code_question::shell_cap_request(query,path,s(row,"text")))
         })).flatten());
+    // Apply the existing literal-call intent to ranked notes only when the
+    // selected source includes a graph-resolved declaration for the target.
+    let literal_call = lexical_only.then(|| crate::code_question::literal_call_target(query)).flatten()
+        .filter(|target| sources.iter().any(|row| {
+            let name = s(&row["source"][crate::code_graph_arm::ARM], "qualified_name");
+            name == target || name.ends_with(&format!(".{target}")) || name.ends_with(&format!("::{target}"))
+        }));
     let mut memory_value_report = configuration_value.as_ref().map(|(path, key)|
         json!({"basis":"configuration_value_request","path":path,"key":key,
-            "withheld_ranked":0,"withheld_linked":0}));
+            "withheld_ranked":0,"withheld_linked":0}))
+        .or_else(|| literal_call.as_ref().map(|target| json!({"basis":"literal_call_value_request",
+            "target":target,"withheld_ranked":0,"withheld_linked":0})));
     let memory_filter = if configuration_value.is_some() {
         Some("configuration_value_request")
+    } else if literal_call.is_some() {
+        Some("literal_call_value_request")
     } else if unsupported_topic {
         Some("unsupported_topic")
     } else {
@@ -2021,12 +2034,27 @@ fn context_impl(
                 }
                 // A matching reason may arrive only through a caller/callee
                 // link. Establish focus from that actually retrieved candidate
-                // prefix before the delivery cap, retaining earlier ranked notes.
+                // prefix before the delivery cap. Explicit timing or fully
+                // supported compound scope
+                // also refines ranked notes; other late rationale focus retains
+                // the earlier ranked evidence.
                 if lexical_only && rationale.is_none() {
-                    rationale = crate::symbol_links::NoteFocus::new(query,&linked_memories,&rows);
+                    // Compound premises may have one anchor ranked and another
+                    // linked. Require the union of actually retrieved evidence.
+                    let retrieved: Vec<_> = selected_memories.iter().chain(&linked_memories).cloned().collect();
+                    rationale = crate::symbol_links::NoteFocus::new(query,&retrieved,&rows);
                     if let Some(focus) = &rationale {
                         rationale_report = json!({"basis":focus.basis,"anchors":focus.anchors(),
                             "anchor_route":"symbol_link","withheld_ranked":0,"withheld_linked":0});
+                        if matches!(focus.basis, "retry_timing_policy" | "rationale_compound_agreement") {
+                            let before = selected_memories.len();
+                            selected_memories.retain(|row| {
+                                if focus.keep(row) { return true; }
+                                if let Some(trace) = memory_trace.as_mut() { trace.withheld(row, focus.filter_reason()); }
+                                false
+                            });
+                            rationale_report["withheld_ranked"] = json!(before-selected_memories.len());
+                        }
                     }
                 }
                 if let Some(focus) = &rationale {

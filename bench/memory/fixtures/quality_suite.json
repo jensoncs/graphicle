@@ -60,6 +60,16 @@
       "id": "helm-expression-memory",
       "kind": "memory",
       "file": "quality_helm_expressions.json"
+    },
+    {
+      "id": "go-js-memory",
+      "kind": "memory",
+      "file": "quality_go_js_memories.json"
+    },
+    {
+      "id": "go-js-source",
+      "kind": "source",
+      "file": "quality_go_js_sources.json"
     }
   ]
 }

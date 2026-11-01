@@ -704,6 +704,22 @@ pub(crate) fn shell_memory_scope(
     Some(scope)
 }
 
+/// Ranked notes for a change to one explicitly qualified declaration use the
+/// same dependency/owner scope as linked notes. Unknown and ambiguous shapes
+/// keep ordinary retrieval, as do broader or compound requests.
+pub(crate) fn qualified_change_scope(
+    db: &Connection, repository: &str, question: &str, documents: &HashMap<&str, &Value>,
+) -> Option<BTreeSet<(String, String)>> {
+    static CHANGE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(
+        r"(?i)^\s*which\s+constraints\s+must\s+a\s+change\s+to\s+`?(?P<target>[a-z_][a-z0-9_]*(?:(?:\.|::)[a-z_][a-z0-9_]*)+)`?\s+preserve\s*\??\s*$"
+    ).expect("qualified declaration change question"));
+    CHANGE.captures(question)?;
+    // Dotted Helm helper names belong to the existing chart-specific policy,
+    // including its explicit symbol-links switch; do not override that route.
+    if helm_memory_scope(db,repository,question,documents).is_some() { return None; }
+    memory_symbol_scope(db,repository,question,documents)
+}
+
 pub(crate) fn configuration_owner_scope(
     db: &Connection, repository: &str, question: &str, documents: &HashMap<&str, &Value>,
 ) -> Option<BTreeSet<(String, String)>> {

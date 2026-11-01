@@ -9,6 +9,28 @@ use std::{fs, path::Path};
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
+fn js_method_import_aliases_keep_the_method_caller_and_respect_shadowing() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    write(&root,"sender.js",concat!(
+        "import { pauseFor as retryWait } from './policy.js';\n",
+        "export class Sender { async send(attempt) { return retryWait(attempt); } }\n",
+        "export class Shadow { send(retryWait) { return retryWait(2); } }\n",
+        "export class Local { send() { const retryWait = x => x; return retryWait(2); } }\n"
+    ));
+    write(&root,"policy.js","export const pauseFor = n => Math.min(n, 30);\n");
+    let options = ExtractOptions { root:Some(root.clone()), cache_root:Some(root.clone()), ..Default::default() };
+    for _ in 0..2 {
+        let graph = extract(&[root.join("sender.js"),root.join("policy.js")],&options).unwrap();
+        let calls: Vec<_> = graph["edges"].as_array().unwrap().iter()
+            .filter(|e| e["relation"] == "calls" && e["target"] == "policy_pausefor").collect();
+        assert!(calls.iter().any(|e| e["source"] == "sender_sender_send"),"{graph:#}");
+        assert!(!calls.iter().any(|e| e["source"] == "sender_shadow_send" || e["source"] == "sender_local_send"),"{graph:#}");
+    }
+}
+
+#[test]
 fn go_calls_resolve_without_a_home_or_user_build_cache() {
     const CHILD: &str = "GRAPHICLE_GO_NO_HOME_FIXTURE";
     if std::env::var_os(CHILD).is_none() {

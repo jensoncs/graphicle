@@ -335,6 +335,66 @@ fn covered_prose_topics_do_not_expand_to_dependency_notes() {
 }
 
 #[test]
+fn qualified_changes_keep_imported_policies_and_exclude_other_owners() {
+    let f = Fixture::new(&[
+        ("sender.js","import { pauseFor as retryWait } from './policy.js';\nexport class NoticeSender { async send(attempt) { return retryWait(attempt); } }\nexport class PreviewSender { async send(attempt) { return attempt; } }\nexport function noticeKey(value) { return String(value); }\n"),
+        ("policy.js","export const pauseFor = attempt => Math.min(2 ** attempt,30);\n"),
+    ]);
+    let wire = f.note("Envelope field agreement","Readers require the original field order.",json!([{"path":"sender.js","qualified_name":"NoticeSender.send"}]));
+    let owner = f.note("Sender shutdown contract","Repeated shutdown must be harmless for all operations on this sender.",json!([{"path":"sender.js","qualified_name":"NoticeSender"}]));
+    let lease = f.note("Pending lifetime","The receiver expires after half a minute. Longer waits lose the notice.",json!([{"path":"policy.js","qualified_name":"pauseFor"}]));
+    let trace = f.note("Notice change diagnostics","A change to NoticeSender.send should record noticeKey calls for diagnostics.",json!([{"path":"sender.js","qualified_name":"noticeKey"}]));
+    let alternate = f.note("Preview display agreement","Preview consumers require a visible prefix.",json!([{"path":"sender.js","qualified_name":"PreviewSender.send"}]));
+    let q = "Which constraints must a change to NoticeSender.send preserve?";
+    let packet = f.context(q,json!({"symbol_links":true,"debug_candidates":400}));
+    assert!(includes(&packet,&wire) && includes(&packet,&owner) && includes(&packet,&lease),"{packet:#}");
+    assert!(!includes(&packet,&trace) && !includes(&packet,&alternate),"{packet:#}");
+    assert_eq!(packet["memory_scope_support"]["basis"],"qualified_change");
+    let preview = f.context("Which constraints must a change to PreviewSender.send preserve?",json!({"symbol_links":true}));
+    assert!(includes(&preview,&alternate) && !includes(&preview,&owner),"{preview:#}");
+    let compound = f.context("Why does NoticeSender.send wait at most thirty seconds and preserve field order?",json!({"symbol_links":true}));
+    assert!(includes(&compound,&wire) && includes(&compound,&lease),"{compound:#}");
+    assert!(!includes(&compound,&owner) && !includes(&compound,&trace),"{compound:#}");
+    assert_eq!(compound["memory_rationale_support"]["basis"],"rationale_compound_agreement");
+    let expanded = f.context(q,json!({"symbol_links":true,"needs":["notice change diagnostics"]}));
+    assert!(includes(&expanded,&trace),"{expanded:#}");
+    assert!(expanded.get("memory_scope_support").is_none());
+    let missing = f.context("Which constraints must a change to MissingSender.send preserve?",json!({"symbol_links":true}));
+    assert!(missing.get("memory_scope_support").is_none(),"{missing:#}");
+}
+
+#[test]
+fn javascript_timing_focus_and_literal_values_preserve_broad_requests() {
+    let f = Fixture::new(&[("notice.js", "export function pauseNotice(attempt) { return Math.min(2 ** attempt, 30); }\nexport function dispatchNotice(attempt) { return pauseNotice(attempt); }\nexport function noticeKey(value) { return String(value); }\n")]);
+    let lifetime = f.note("Receiver expiry", "The peer expires pending notices after half a minute. Longer waits lose the notice.",json!([{"path":"notice.js","qualified_name":"pauseNotice"}]));
+    let wire = f.note("Field ordering", "Consumers require the original field order.",json!([{"path":"notice.js","qualified_name":"dispatchNotice"}]));
+    let trace = f.note("Notice key sampling", "Record noticeKey invocations for dispatchNotice retry timing telemetry.",json!([{"path":"notice.js","qualified_name":"noticeKey"}]));
+    for q in ["Which constraints govern dispatchNotice retry timing?", "Why does dispatchNotice stop increasing the pause after thirty seconds?"] {
+        let packet = f.context(q,json!({"symbol_links":true}));
+        assert!(includes(&packet,&lifetime),"{packet:#}");
+        assert!(!includes(&packet,&wire) && !includes(&packet,&trace),"{packet:#}");
+    }
+    for mode in [json!(false),Value::Null,json!(true)] {
+        let packet = f.context("What does noticeKey(9) return?",json!({"symbol_links":mode,"debug_candidates":400}));
+        assert!(packet["memories"].as_array().unwrap().is_empty(),"{packet:#}");
+        assert!(!packet["evidence"].as_array().unwrap().is_empty());
+        assert_eq!(packet["memory_value_request"]["basis"],"literal_call_value_request","{packet:#}");
+    }
+    for q in ["Which constraints must a change to dispatchNotice preserve?", "Which constraints govern dispatchNotice retry timing and field ordering?"] {
+        let broad = f.context(q,json!({"symbol_links":true}));
+        assert!(includes(&broad,&lifetime) && includes(&broad,&wire),"{broad:#}");
+    }
+    for q in ["What does noticeKey(9) return and why?", "What does noticeKey(value) return?"] {
+        let broad = f.context(q,json!({"symbol_links":true}));
+        assert!(includes(&broad,&trace),"{broad:#}");
+    }
+    let expanded = f.context("What does noticeKey(9) return?",json!({"symbol_links":true,"needs":["notice key sampling"]}));
+    assert!(includes(&expanded,&trace),"{expanded:#}");
+    let absent = f.context("What does missingKey(9) return?",json!({"symbol_links":true}));
+    assert!(absent.get("memory_value_request").is_none(),"{absent:#}");
+}
+
+#[test]
 fn shell_scope_keeps_sourced_dependencies_and_literal_caps_keep_only_code() {
     let files = [
         ("deliver.sh", "source \"./lib/policy.sh\"\ndeliver_payload() {\n retry_delay \"$1\" | consume_payload\n}\nconsume_payload() { cat; }\n"),

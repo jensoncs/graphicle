@@ -86,7 +86,7 @@ pub(crate) fn outside_scope(row: &Value, scope: &BTreeSet<(String, String)>, doc
 
 /// A model-free note focus backed by an already retrieved note which names
 /// the requested topic or repeats a rationale question's premise. It is deliberately narrower than relevance
-/// classification: unmatched paraphrases and multi-part questions stay broad.
+/// classification: unmatched paraphrases and unsupported multi-part questions stay broad.
 /// Notes on the same symbol can supply additional reasons without repeating the
 /// premise. A separately quantified policy with a disjoint topic does not gain
 /// relevance just from that link; ungrounded notes cannot justify exclusion.
@@ -133,7 +133,70 @@ fn focus_topic(question: &str, anchors: &BTreeSet<String>, candidates: &[Value])
     topic
 }
 
+fn premise_anchors(premise: &[String], durations: &BTreeSet<u64>, candidates: &[Value], phrase_len: usize) -> BTreeSet<String> {
+    candidates.iter().filter(|row| row["kind"] == "memory").filter_map(|row| {
+        let text = format!("{} {}",s(row,"title"),s(row,"text"));
+        let supported = if !durations.is_empty() {
+            !graphicle_memory::text::duration_literals(&text).is_disjoint(durations)
+        } else {
+            let terms = content_sequence(&text);
+            premise.windows(phrase_len).any(|phrase| terms.windows(phrase_len).any(|other| other == phrase))
+        };
+        supported.then(|| s(row,"identity").into())
+    }).collect()
+}
+
 impl NoteFocus {
+    /// A two-part rationale can narrow only after BOTH premises have retrieved
+    /// support. Keep the union of their notes/symbols; never focus on one half.
+    fn compound(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
+        static QUESTION: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(
+            r"(?i)^\s*why\s+does\s+`?(?P<target>[a-z_][a-z0-9_.:]*)`?\s+(?P<body>[^?;\n]+)\??\s*$"
+        ).expect("two-premise rationale"));
+        static AND: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\s+and\s+").unwrap());
+        let found = QUESTION.captures(question)?;
+        if crate::identifier_arm::explicit_names(&found["target"]).names.is_empty()
+            || !crate::identifier_arm::explicit_names(&found["body"]).names.is_empty()
+            || graphicle_memory::text::words(question).iter().any(|w| matches!(w.as_str(),"or"|"also"|"not"|"no"|"never"|"without")) { return None; }
+        let clauses: Vec<_> = AND.split(&found["body"]).collect();
+        if clauses.len() != 2 { return None; }
+        let mut anchors = BTreeSet::new();
+        for clause in clauses {
+            let durations = graphicle_memory::text::duration_literals(clause);
+            if durations.len() > 1 { return None; }
+            // Two consecutive content words (e.g. "field order") support an
+            // explicit subtopic after removing the shared declaration name.
+            let supported = premise_anchors(&content_sequence(clause),&durations,candidates,2);
+            if !selected.iter().any(|row| supported.contains(s(row,"identity"))) { return None; }
+            anchors.extend(supported);
+        }
+        let symbols = candidates.iter().filter(|row| anchors.contains(s(row,"identity"))).flat_map(note_symbols).collect();
+        let topic = focus_topic(question,&anchors,candidates);
+        Some(Self { anchors, symbols, topic, basis:"rationale_compound_agreement" })
+    }
+
+    /// A narrowly named retry-timing question can focus on an explicitly timed
+    /// waiting policy. Bare inventories and compound topics keep broad recall.
+    fn retry_timing(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
+        static TIMING: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(concat!(
+            r"(?i)^\s*(?:which|what)\s+constraints\s+govern\s+",
+            r"(?P<target>`?[a-z_][a-z0-9_.:]*`?)\s+(?:retry timing|backoff timing|waiting interval)\s*\??\s*$"
+        )).expect("focused retry timing question"));
+        let matched = TIMING.captures(question)?;
+        if crate::identifier_arm::explicit_names(&matched["target"]).names.is_empty() { return None; }
+        let waiting = crate::notes_first::stems("wait pause retry backoff delay timeout");
+        let anchors: BTreeSet<String> = candidates.iter().filter(|row| {
+            let text = format!("{} {}", s(row,"title"), s(row,"text"));
+            row["kind"] == "memory" && !graphicle_memory::text::duration_literals(&text).is_empty()
+                && !crate::notes_first::stems(&text).is_disjoint(&waiting)
+        }).map(|row| s(row,"identity").into()).collect();
+        let symbols = candidates.iter().filter(|row| anchors.contains(s(row,"identity")))
+            .flat_map(note_symbols).collect();
+        let topic = focus_topic(question,&anchors,candidates);
+        selected.iter().any(|row| anchors.contains(s(row,"identity")))
+            .then_some(Self { anchors, symbols, topic, basis: "retry_timing_policy" })
+    }
+
     /// Exact named-topic requests can use the same grounded-note focus as
     /// rationale questions. Unlinked ranked evidence leaves prose scope broad.
     fn title(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
@@ -164,6 +227,8 @@ impl NoteFocus {
 
     pub fn new(question: &str, selected: &[Value], candidates: &[Value]) -> Option<Self> {
         if let Some(focus) = Self::title(question, selected, candidates) { return Some(focus); }
+        if let Some(focus) = Self::retry_timing(question, selected, candidates) { return Some(focus); }
+        if let Some(focus) = Self::compound(question, selected, candidates) { return Some(focus); }
         let words = graphicle_memory::text::words(question);
         if words.first().map(String::as_str) != Some("why")
             || words.iter().any(|word| matches!(word.as_str(), "and" | "or" | "also"))
@@ -173,23 +238,9 @@ impl NoteFocus {
         let durations = graphicle_memory::text::duration_literals(question);
         if durations.len() > 1 { return None; }
         let premise = content_sequence(question);
-        let mut anchors = BTreeSet::new();
-        let mut symbols = BTreeSet::new();
-        for row in candidates.iter().filter(|row| row["kind"] == "memory") {
-            let text = format!("{} {}", s(row, "title"), s(row, "text"));
-            let supported = if !durations.is_empty() {
-                !graphicle_memory::text::duration_literals(&text).is_disjoint(&durations)
-            } else {
-                let terms = content_sequence(&text);
-                // Three consecutive content words are evidence of the same
-                // premise; shared words such as "must" or "replica" are not.
-                premise.windows(3).any(|phrase| terms.windows(3).any(|other| other == phrase))
-            };
-            if supported {
-                anchors.insert(s(row, "identity").into());
-                symbols.extend(note_symbols(row));
-            }
-        }
+        // A single rationale still requires three consecutive content words.
+        let anchors = premise_anchors(&premise,&durations,candidates,3);
+        let symbols = candidates.iter().filter(|row| anchors.contains(s(row,"identity"))).flat_map(note_symbols).collect();
         let topic = focus_topic(question,&anchors,candidates);
         selected.iter().any(|row| anchors.contains(s(row, "identity"))).then_some(Self { anchors, symbols, topic,
             basis: if durations.is_empty() { "rationale_premise_phrase" } else { "rationale_duration_agreement" } })
@@ -801,6 +852,32 @@ mod tests {
         assert!(focus.keep(&reason));
         assert!(focus.keep(&linked));
         assert!(!focus.keep(&floor));
+    }
+
+    #[test]
+    fn compound_rationale_requires_retrieved_support_for_both_parts() {
+        let wait = rationale_note("wait","The receiver expires after half a minute. Longer waits lose the notice.",Some("pauseFor"));
+        let wire = rationale_note("wire","Downstream readers require the original field order.",Some("Sender.send"));
+        let owner = rationale_note("owner","Repeated shutdown must be harmless.",Some("Sender"));
+        let extra = rationale_note("extra","Older decoders depend on this representation.",Some("Sender.send"));
+        let all = vec![wait.clone(),wire.clone(),owner.clone(),extra.clone()];
+        let q = "Why does Sender.send wait at most thirty seconds and preserve field order?";
+        assert!(NoteFocus::new(q,&[wait.clone()],&all).is_none());
+        assert!(NoteFocus::new(q,&[wire.clone()],&all).is_none());
+        let focus = NoteFocus::new(q,&[wait.clone(),wire.clone()],&all).unwrap();
+        assert_eq!(focus.basis,"rationale_compound_agreement");
+        assert!(focus.keep(&wait) && focus.keep(&wire) && focus.keep(&extra));
+        assert!(!focus.keep(&owner));
+        let mut unknown = owner.clone();
+        unknown["memory"]["data"]["symbols"][0]["state"] = json!("pending");
+        assert!(focus.keep(&unknown));
+        for q in [
+            "Why does Sender.send wait at most thirty seconds and encrypt payloads?",
+            "Why does Sender.send wait at most thirty seconds and not preserve field order?",
+            "Why does Sender.send wait at most thirty seconds or preserve field order?",
+            "Why does Sender.send wait at most thirty seconds and preserve field order and allow shutdown?",
+            "Why does Sender.send wait at most thirty seconds and Other.send preserve field order?",
+        ] { assert!(NoteFocus::new(q,&all,&all).is_none(),"{q}"); }
     }
 
     #[test]

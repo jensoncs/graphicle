@@ -1,0 +1,126 @@
+{
+  "format": "graphicle.quality-sources.v1",
+  "provenance": "Authored synthetic Go/JavaScript expansion, 2026-11-01. Closed-world relevance labels fixed before either binary is measured. Exercises pointer receivers, duplicate methods, cross-file calls, async ES modules, aliased imports, arrow helpers, literal reads and compound requests. Not captured real-user queries or independently labelled effectiveness.",
+  "projects": [
+    {
+      "id": "javascript-notices",
+      "split": "regression",
+      "files": {
+        "sender.js": "import { pauseFor as retryWait } from \"./policy.js\";\nexport class NoticeSender {\n  async send(attempt) { return retryWait(attempt); }\n  close() { return true; }\n}\nexport class PreviewSender {\n  async send(attempt) { return attempt; }\n}\nexport function noticeKey(value) { return String(value); }\n",
+        "policy.js": "export const pauseFor = (attempt) => Math.min(2 ** attempt, 30);\n"
+      },
+      "queries": [
+        {
+          "id": "aliased-call",
+          "intent": "behavior",
+          "question": "How does NoticeSender.send invoke the imported retry policy?",
+          "required": [
+            {
+              "file": "sender.js",
+              "quote": "import { pauseFor as retryWait } from \"./policy.js\";"
+            },
+            {
+              "file": "sender.js",
+              "quote": "async send(attempt) { return retryWait(attempt); }"
+            }
+          ]
+        },
+        {
+          "id": "arrow-bound",
+          "intent": "behavior",
+          "question": "How does pauseFor bound the retry pause?",
+          "required": [
+            {
+              "file": "policy.js",
+              "quote": "export const pauseFor = (attempt) => Math.min(2 ** attempt, 30);"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "intent": "behavior",
+          "question": "How does PreviewSender.send return the supplied attempt?",
+          "required": [
+            {
+              "file": "sender.js",
+              "quote": "async send(attempt) { return attempt; }"
+            }
+          ]
+        },
+        {
+          "id": "literal-key",
+          "intent": "behavior",
+          "question": "What does noticeKey(\"sample\") return?",
+          "required": [
+            {
+              "file": "sender.js",
+              "quote": "export function noticeKey(value) { return String(value); }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "go-notices",
+      "split": "regression",
+      "files": {
+        "sender.go": "package notices\n\ntype Sender interface { Send(attempt int) int }\ntype Worker struct{}\nfunc (w *Worker) Send(attempt int) int { return RetryWait(attempt) }\nfunc (w *Worker) Close() bool { return true }\ntype Preview struct{}\nfunc (p *Preview) Send(attempt int) int { return attempt }\nfunc NoticeKey(value string) string { return value }\n",
+        "policy.go": "package notices\n\nfunc RetryWait(attempt int) int { return ClampWait(1 << attempt) }\nfunc ClampWait(delay int) int {\n    if delay > 30 { return 30 }\n    return delay\n}\n"
+      },
+      "queries": [
+        {
+          "id": "pointer-interface",
+          "intent": "behavior",
+          "question": "How does the Worker pointer receiver implement Sender.Send?",
+          "required": [
+            {
+              "file": "sender.go",
+              "quote": "type Sender interface { Send(attempt int) int }"
+            },
+            {
+              "file": "sender.go",
+              "quote": "func (w *Worker) Send(attempt int) int { return RetryWait(attempt) }"
+            }
+          ]
+        },
+        {
+          "id": "transitive-bound",
+          "intent": "behavior",
+          "question": "How does RetryWait use ClampWait to bound the delay?",
+          "required": [
+            {
+              "file": "policy.go",
+              "quote": "func RetryWait(attempt int) int { return ClampWait(1 << attempt) }"
+            },
+            {
+              "file": "policy.go",
+              "quote": "if delay > 30 { return 30 }"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "intent": "behavior",
+          "question": "How does Preview.Send return the supplied attempt?",
+          "required": [
+            {
+              "file": "sender.go",
+              "quote": "func (p *Preview) Send(attempt int) int { return attempt }"
+            }
+          ]
+        },
+        {
+          "id": "literal-key",
+          "intent": "behavior",
+          "question": "What does NoticeKey(\"sample\") return?",
+          "required": [
+            {
+              "file": "sender.go",
+              "quote": "func NoticeKey(value string) string { return value }"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

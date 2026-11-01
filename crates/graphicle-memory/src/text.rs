@@ -194,9 +194,9 @@ pub fn sha256(value: &[u8]) -> String {
     format!("{:x}", Sha256::digest(value))
 }
 
-/// Unambiguous, nonnegative integer duration phrases, normalized to milliseconds.
-/// Supports digits and English numbers below 100. Unsupported quantities are
-/// ignored, never approximated; this is a matching signal, not a duration parser
+/// Unambiguous, nonnegative duration phrases, normalized to milliseconds.
+/// Supports digits, English integers below 100, and explicit halves/quarters.
+/// Unsupported quantities are ignored, never approximated; this is a matching signal, not a duration parser
 /// for configuration or execution. Bare numbers have no inferred unit.
 pub fn duration_literals(value: &str) -> std::collections::BTreeSet<u64> {
     const SMALL: &[&str] = &["zero", "one", "two", "three", "four", "five", "six", "seven",
@@ -205,9 +205,9 @@ pub fn duration_literals(value: &str) -> std::collections::BTreeSet<u64> {
     const TENS: &[&str] = &["twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"];
     static LITERALS: OnceLock<Regex> = OnceLock::new();
     let rule = LITERALS.get_or_init(|| Regex::new(concat!(
-        r"(?i)\b([0-9]+|(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)",
+        r"(?i)\b(half(?: of)? (?:a|an)|(?:a|one) quarter of (?:a|an)|three quarters of (?:a|an)|[0-9]+|(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)",
         r"(?:[ -](?:one|two|three|four|five|six|seven|eight|nine))?)[ \t-]+(milliseconds?|seconds?|minutes?|hours?|days?)\b"
-    )).expect("integer duration literals"));
+    )).expect("exact duration literals"));
     rule.captures_iter(value).filter_map(|found| {
         let start = found.get(0)?.start();
         let before = value[..start].trim_end();
@@ -224,20 +224,28 @@ pub fn duration_literals(value: &str) -> std::collections::BTreeSet<u64> {
         }
         let amount = found[1].to_ascii_lowercase();
         let pieces: Vec<&str> = amount.split([' ', '-']).collect();
-        let number = match pieces.as_slice() {
+        let fraction = match amount.as_str() {
+            "half a" | "half an" | "half of a" | "half of an" => Some((1u64, 2u64)),
+            "a quarter of a" | "a quarter of an" | "one quarter of a" | "one quarter of an" => Some((1, 4)),
+            "three quarters of a" | "three quarters of an" => Some((3, 4)),
+            _ => None,
+        };
+        let integer = match pieces.as_slice() {
             [single] => single.parse::<u64>().ok()
                 .or_else(|| SMALL.iter().position(|v| v == single).map(|i| i as u64))
                 .or_else(|| TENS.iter().position(|v| v == single).map(|i| (i as u64 + 2) * 10)),
             [tens, ones] => TENS.iter().position(|v| v == tens).and_then(|t|
                 SMALL[..10].iter().position(|v| v == ones).map(|o| (t as u64 + 2) * 10 + o as u64)),
             _ => None,
-        }?;
+        };
+        let (number, divisor) = fraction.or_else(|| integer.map(|n| (n, 1)))?;
         let unit = found[2].to_ascii_lowercase();
         let factor = match unit.trim_end_matches('s') {
             "millisecond" => 1, "second" => 1000, "minute" => 60_000,
             "hour" => 3_600_000, "day" => 86_400_000, _ => return None,
         };
-        number.checked_mul(factor)
+        let millis = number.checked_mul(factor)?;
+        (millis % divisor == 0).then_some(millis / divisor)
     }).collect()
 }
 
@@ -271,7 +279,13 @@ mod bounded_count_tests {
         assert_eq!(duration_literals("wait sixty seconds"), duration_literals("lease expires after one minute"));
         assert_eq!(duration_literals("timeout after 120 seconds"), duration_literals("timeout after two minutes"));
         assert_eq!(duration_literals("wait forty-five seconds"), duration_literals("wait 45000 milliseconds"));
-        for unsupported in ["cap at 60", "wait 1.5 seconds", "wait -5 seconds", "wait 1/2 seconds",
+        for (phrase, equivalent) in [
+            ("three quarters of a minute", "45 seconds"),
+            ("half a minute", "30 seconds"),
+            ("one quarter of an hour", "15 minutes"),
+            ("a quarter of a second", "250 milliseconds"),
+        ] { assert_eq!(duration_literals(phrase), duration_literals(equivalent), "{phrase}"); }
+        for unsupported in ["half a millisecond", "two and three quarters of a minute", "negative half a minute", "three quarters of a month", "cap at 60", "wait 1.5 seconds", "wait -5 seconds", "wait 1/2 seconds",
             "wait one hundred twenty seconds", "wait one hundred and one minute", "wait negative two seconds",
             "wait 18446744073709551615 days"] {
             assert!(duration_literals(unsupported).is_empty(), "{unsupported}");

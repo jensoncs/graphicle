@@ -1,0 +1,296 @@
+{
+  "format": "graphicle.symbol-link-eval.v1",
+  "provenance": "Authored synthetic Go/JavaScript expansion, 2026-11-01. Closed-world relevance labels fixed before either binary is measured. Exercises pointer receivers, duplicate methods, cross-file calls, async ES modules, aliased imports, arrow helpers, literal reads and compound requests. Not captured real-user queries or independently labelled effectiveness.",
+  "projects": [
+    {
+      "id": "javascript-notices",
+      "split": "regression",
+      "files": {
+        "sender.js": "import { pauseFor as retryWait } from \"./policy.js\";\nexport class NoticeSender {\n  async send(attempt) { return retryWait(attempt); }\n  close() { return true; }\n}\nexport class PreviewSender {\n  async send(attempt) { return attempt; }\n}\nexport function noticeKey(value) { return String(value); }\n",
+        "policy.js": "export const pauseFor = (attempt) => Math.min(2 ** attempt, 30);\n"
+      },
+      "memories": [
+        {
+          "id": "wire",
+          "title": "Envelope field agreement",
+          "body": "Downstream readers require the original field order in serialized notices.",
+          "symbols": [
+            {
+              "path": "sender.js",
+              "qualified_name": "NoticeSender.send"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Pending notice lifetime",
+          "body": "The receiver expires a pending notice after half a minute. Longer waits lose the notice.",
+          "symbols": [
+            {
+              "path": "policy.js",
+              "qualified_name": "pauseFor"
+            }
+          ]
+        },
+        {
+          "id": "owner",
+          "title": "Sender shutdown contract",
+          "body": "Repeated shutdown must be harmless for all operations on this sender.",
+          "symbols": [
+            {
+              "path": "sender.js",
+              "qualified_name": "NoticeSender"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "title": "Preview display agreement",
+          "body": "Preview consumers require a visible test prefix.",
+          "symbols": [
+            {
+              "path": "sender.js",
+              "qualified_name": "PreviewSender.send"
+            }
+          ]
+        },
+        {
+          "id": "trace",
+          "title": "Notice key diagnostics",
+          "body": "Record noticeKey calls for diagnostic sampling.",
+          "symbols": [
+            {
+              "path": "sender.js",
+              "qualified_name": "noticeKey"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "qualified-change",
+          "category": "qualified_method",
+          "question": "Which constraints must a change to NoticeSender.send preserve?",
+          "relevant_memories": [
+            "wire",
+            "lease",
+            "owner"
+          ],
+          "rationale": "Preserve method, owner and transitively called policy constraints; exclude alternate sender and key diagnostics."
+        },
+        {
+          "id": "timing",
+          "category": "focused_timing",
+          "question": "Which constraints govern NoticeSender.send retry timing?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "Only the receiver lifetime governs pauses."
+        },
+        {
+          "id": "duration-rationale",
+          "category": "cross_file_dependency",
+          "question": "Why does NoticeSender.send stop increasing the pause after thirty seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "Half a minute and thirty seconds are equivalent; unrelated field order does not explain timing."
+        },
+        {
+          "id": "literal-key",
+          "category": "code_only",
+          "question": "What does noticeKey(\"sample\") return?",
+          "relevant_memories": [],
+          "rationale": "Source answers the explicit literal call; diagnostic policy is unrelated."
+        },
+        {
+          "id": "literal-policy",
+          "category": "code_only",
+          "question": "What does pauseFor(2) return?",
+          "relevant_memories": [],
+          "rationale": "Source computes the value; no design decision is requested."
+        },
+        {
+          "id": "alternate-change",
+          "category": "qualified_method",
+          "question": "Which constraints must a change to PreviewSender.send preserve?",
+          "relevant_memories": [
+            "alternate"
+          ],
+          "rationale": "The independently implemented preview method has its own contract."
+        },
+        {
+          "id": "owner-prose",
+          "category": "lexical_relevant",
+          "question": "What is the sender shutdown contract?",
+          "relevant_memories": [
+            "owner"
+          ],
+          "rationale": "The exact contract title identifies the owner-wide lifecycle constraint."
+        },
+        {
+          "id": "missing-topic",
+          "category": "no_answer",
+          "question": "What encryption algorithm governs NoticeSender.send?",
+          "relevant_memories": [],
+          "rationale": "Neither source nor decisions specify an encryption algorithm."
+        },
+        {
+          "id": "compound",
+          "category": "compound_request",
+          "question": "Why does NoticeSender.send wait at most thirty seconds and preserve field order?",
+          "relevant_memories": [
+            "lease",
+            "wire"
+          ],
+          "rationale": "Both policies explain the explicit topics; this control must not focus only on timing."
+        }
+      ]
+    },
+    {
+      "id": "go-notices",
+      "split": "regression",
+      "files": {
+        "sender.go": "package notices\n\ntype Sender interface { Send(attempt int) int }\ntype Worker struct{}\nfunc (w *Worker) Send(attempt int) int { return RetryWait(attempt) }\nfunc (w *Worker) Close() bool { return true }\ntype Preview struct{}\nfunc (p *Preview) Send(attempt int) int { return attempt }\nfunc NoticeKey(value string) string { return value }\n",
+        "policy.go": "package notices\n\nfunc RetryWait(attempt int) int { return ClampWait(1 << attempt) }\nfunc ClampWait(delay int) int {\n    if delay > 30 { return 30 }\n    return delay\n}\n"
+      },
+      "memories": [
+        {
+          "id": "wire",
+          "title": "Envelope field agreement",
+          "body": "Downstream readers require the original field order in serialized notices.",
+          "symbols": [
+            {
+              "path": "sender.go",
+              "qualified_name": "Worker.Send"
+            }
+          ]
+        },
+        {
+          "id": "lease",
+          "title": "Pending notice lifetime",
+          "body": "The receiver expires a pending notice after half a minute. Longer waits lose the notice.",
+          "symbols": [
+            {
+              "path": "policy.go",
+              "qualified_name": "ClampWait"
+            }
+          ]
+        },
+        {
+          "id": "owner",
+          "title": "Sender shutdown contract",
+          "body": "Repeated shutdown must be harmless for all operations on this sender.",
+          "symbols": [
+            {
+              "path": "sender.go",
+              "qualified_name": "Worker"
+            }
+          ]
+        },
+        {
+          "id": "alternate",
+          "title": "Preview display agreement",
+          "body": "Preview consumers require a visible test prefix.",
+          "symbols": [
+            {
+              "path": "sender.go",
+              "qualified_name": "Preview.Send"
+            }
+          ]
+        },
+        {
+          "id": "trace",
+          "title": "Notice key diagnostics",
+          "body": "Record NoticeKey calls for diagnostic sampling.",
+          "symbols": [
+            {
+              "path": "sender.go",
+              "qualified_name": "NoticeKey"
+            }
+          ]
+        }
+      ],
+      "queries": [
+        {
+          "id": "qualified-change",
+          "category": "qualified_method",
+          "question": "Which constraints must a change to Worker.Send preserve?",
+          "relevant_memories": [
+            "wire",
+            "lease",
+            "owner"
+          ],
+          "rationale": "Preserve method, owner and transitively called policy constraints; exclude alternate sender and key diagnostics."
+        },
+        {
+          "id": "timing",
+          "category": "focused_timing",
+          "question": "Which constraints govern Worker.Send retry timing?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "Only the receiver lifetime governs pauses."
+        },
+        {
+          "id": "duration-rationale",
+          "category": "cross_file_dependency",
+          "question": "Why does Worker.Send stop increasing the pause after thirty seconds?",
+          "relevant_memories": [
+            "lease"
+          ],
+          "rationale": "Half a minute and thirty seconds are equivalent; unrelated field order does not explain timing."
+        },
+        {
+          "id": "literal-key",
+          "category": "code_only",
+          "question": "What does NoticeKey(\"sample\") return?",
+          "relevant_memories": [],
+          "rationale": "Source answers the explicit literal call; diagnostic policy is unrelated."
+        },
+        {
+          "id": "literal-policy",
+          "category": "code_only",
+          "question": "What does RetryWait(2) return?",
+          "relevant_memories": [],
+          "rationale": "Source computes the value; no design decision is requested."
+        },
+        {
+          "id": "alternate-change",
+          "category": "qualified_method",
+          "question": "Which constraints must a change to Preview.Send preserve?",
+          "relevant_memories": [
+            "alternate"
+          ],
+          "rationale": "The independently implemented preview method has its own contract."
+        },
+        {
+          "id": "owner-prose",
+          "category": "lexical_relevant",
+          "question": "What is the sender shutdown contract?",
+          "relevant_memories": [
+            "owner"
+          ],
+          "rationale": "The exact contract title identifies the owner-wide lifecycle constraint."
+        },
+        {
+          "id": "missing-topic",
+          "category": "no_answer",
+          "question": "What encryption algorithm governs Worker.Send?",
+          "relevant_memories": [],
+          "rationale": "Neither source nor decisions specify an encryption algorithm."
+        },
+        {
+          "id": "compound",
+          "category": "compound_request",
+          "question": "Why does Worker.Send wait at most thirty seconds and preserve field order?",
+          "relevant_memories": [
+            "lease",
+            "wire"
+          ],
+          "rationale": "Both policies explain the explicit topics; this control must not focus only on timing."
+        }
+      ]
+    }
+  ]
+}

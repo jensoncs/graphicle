@@ -260,19 +260,23 @@ pub fn is_code_question(question: &str) -> bool {
 /// A question asking only for the value of a call with literal inputs. This
 /// narrow shape needs code, not automatic expansion into linked decisions.
 /// Symbolic inputs, nested calls, rationale and additional requests stay on the
-/// ordinary path. This does not suppress memories found by ordinary retrieval.
+/// ordinary path. Ranked-note suppression additionally requires selected source.
 pub fn asks_for_literal_call_value(question: &str) -> bool {
+    literal_call_target(question).is_some()
+}
+
+pub(crate) fn literal_call_target(question: &str) -> Option<String> {
     static CALL: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(concat!(
             r"(?i)^\s*what(?:\s+(?:value|string|number|result))?\s+does\s+`?",
-            r"[a-z_][a-z0-9_.:]*\(([^()\n]+)\)`?\s+(?:return|produce)\s*\??\s*$"
+            r"(?P<target>[a-z_][a-z0-9_.:]*)\((?P<value>[^()\n]+)\)`?\s+(?:return|produce)\s*\??\s*$"
         ))
         .expect("the literal call value rule")
     });
     static INPUT: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(concat!(
             r"(?i)^\s*what\s+(?:value|string|number|result)\s+does\s+`?",
-            r"[a-z_][a-z0-9_.:]*`?\s+(?:return|produce)\s+for\s+([^?\n]+?)\s*\??\s*$"
+            r"(?P<target>[a-z_][a-z0-9_.:]*)`?\s+(?:return|produce)\s+for\s+(?P<value>[^?\n]+?)\s*\??\s*$"
         ))
         .expect("the literal input value rule")
     });
@@ -281,12 +285,12 @@ pub fn asks_for_literal_call_value(question: &str) -> bool {
     static SINGLE_QUOTED: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(r"'([^'\\\n]*)'").expect("the simple quoted literal rule")
     });
-    let (value, arguments) = if let Some(found) = CALL.captures(question) {
-        (found[1].to_string(), true)
+    let (value, arguments, target) = if let Some(found) = CALL.captures(question) {
+        (found["value"].to_string(), true, found["target"].to_string())
     } else if let Some(found) = INPUT.captures(question) {
-        (found[1].to_string(), false)
+        (found["value"].to_string(), false, found["target"].to_string())
     } else {
-        return false;
+        return None;
     };
     let value = SINGLE_QUOTED.replace_all(&value, |captures: &regex::Captures<'_>| {
         serde_json::to_string(&captures[1]).expect("a string is JSON")
@@ -296,7 +300,7 @@ pub fn asks_for_literal_call_value(question: &str) -> bool {
     } else {
         value.into_owned()
     };
-    serde_json::from_str::<Value>(&value).is_ok()
+    serde_json::from_str::<Value>(&value).is_ok().then_some(target)
 }
 
 /// A narrow request to read a setting or apply a stated last-file override.

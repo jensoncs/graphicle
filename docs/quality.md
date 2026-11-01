@@ -933,6 +933,132 @@ recall remains 18% for Python and 55.6% for Bash. The 100% recall figures above 
 only with symbol links enabled on this authored corpus, not to general language
 accuracy or production queries.
 
+### JavaScript relevance and expanded Go/JavaScript coverage (1 November 2026)
+
+The existing duration matcher now recognizes explicit halves and quarters of
+fixed-duration units, so "three quarters of a minute" can support a rationale
+about forty-five seconds. Normalization requires an exact whole number of
+milliseconds; bare numbers, calendar months, signed values, unsupported mixed
+fractions and sub-millisecond fractions do not acquire guessed meanings.
+
+The existing note focus also recognizes narrow questions of the form "Which
+constraints govern `sendEvent` retry timing?" (including backoff timing and
+waiting interval). Focus requires an actually retrieved note with both an
+explicit duration and waiting-policy terms. Its packet basis is
+`retry_timing_policy`. This explicit topic scope also filters ranked notes when
+the supporting policy arrives later through a symbol link; other late rationale
+focus keeps its earlier ranked evidence. Broad inventories and compound requests
+keep ordinary retrieval. This remains a bounded lexical heuristic, not a general semantic
+relevance classifier.
+
+Literal-call value questions now use the existing source-value filter for ranked
+notes when selected source contains the graph-resolved target declaration. The
+packet and candidate trace report `literal_call_value_request`. Existing linked
+note suppression remains in place. Missing target source, symbolic inputs,
+compound questions, semantic ranking and caller-supplied needs do not trigger
+the new ranked-note filter. The filter does not execute code or prove a runtime
+result.
+
+The new Go and JavaScript fixtures add nine memory questions and four exact-source
+questions per language. They cover async ES-module methods, aliased imports,
+arrow helpers, Go pointer receivers and interfaces, cross-file/transitive calls,
+alternate methods, literal reads, absent topics and compound questions. Both
+binaries are measured against the same new labels, fixed before either run.
+These remain authored, retry-focused synthetic cases; independent real-query
+and broader application-domain coverage are still outstanding.
+
+Paired comparisons with symbol links enabled:
+
+| Same-case comparison | Relevant before → after | False positives before → after | Precision before → after | Recall |
+|---|---:|---:|---:|---:|
+| Original JavaScript, 4 questions | 2 → 2 | 5 → 0 | 28.6% → 100% | 100% |
+| New JavaScript, 9 questions | 9 → 9 | 13 → 4 | 40.9% → 69.2% | 100% |
+| New Go, 9 questions | 9 → 9 | 10 → 2 | 47.4% → 81.8% | 100% |
+
+On the unchanged 466-call corpus, overall links-on precision rises from 86.75%
+to 89.44% (144 relevant occurrences retained; 22 → 17 false positives).
+Other-language outcomes are identical. Adding the new cases produces the
+195-question, 536-call baseline with 162 relevant occurrences, 23 false positives
+and 87.57% precision. Those pooled figures describe the expanded population and
+must not be used as a same-corpus improvement comparison.
+
+The expanded language results are Go 90.5% precision over 16 memory questions
+(19 relevant, 2 irrelevant occurrences) and JavaScript 73.3% over 13 questions
+(11 relevant, 4 irrelevant). Both have 100% recall with links enabled. Default
+link behavior is unchanged; counted-mode recall on the expanded fixtures is
+52.6% for Go and 90.9% for JavaScript.
+
+The new cases expose six remaining false positives across five questions:
+JavaScript's qualified change question returns a diagnostic note; both languages'
+alternate-method questions return an unrelated owner contract; and compound
+questions retain extra owner/diagnostic notes. These gaps remain labelled in the
+baseline. Broader compound requests are not narrowed to one timing explanation.
+
+Validation passes 46 focused Rust tests (28 symbol-link integration, 11
+question-shape, 6 note-focus and 1 duration unit test), the original 466-case
+regression comparison, and the paired 70-call expansion comparison. A fresh-store
+94-call repeat reproduces the corresponding final full-run outcomes exactly.
+Both source modes deliver all 88 required spans. No existing or new paired case
+loses relevant evidence or gains an irrelevant note. The accepted baseline and
+suite now include the new coverage; the
+[JavaScript and Go coverage receipt](../bench/memory/results/javascript-go-coverage-20261101.json)
+records hashes, comparisons, selection diagnostics and remaining false positives.
+
+### Closing the expanded Go/JavaScript findings (1 November 2026)
+
+The six false positives exposed by the added fixtures had two retrieval causes:
+ranked notes could bypass the qualified declaration scope already used for
+linked notes, and compound rationale questions bypassed note focus entirely.
+
+Qualified change requests now apply the existing dependency and enclosing-owner
+scope to ranked notes, with packet basis `qualified_change` and candidate reason
+`outside_qualified_change`. Unknown declarations, caller-supplied needs and
+semantic ranking keep ordinary retrieval. Dotted Helm helper names remain on
+the existing chart-specific route and retain its symbol-links switch.
+
+Before narrowing this scope, the JS/TS resolution pass was extended to record
+imported calls from direct named methods of top-level classes. An aliased call
+such as `retryWait()` now connects `NoticeSender.send` to the imported `pauseFor`
+arrow function. Previously lexical ranking rescued that relevant note despite
+the missing call edge. Parameter and local-binding shadows do not produce this
+import edge. The fresh/cached extraction test covers both the method caller and
+shadow controls. AST cache schema 17 invalidates older extraction entries on
+the next extraction; existing projected graphs need an index refresh to gain
+the corrected edge.
+
+A two-part rationale can focus only when both clauses have actually retrieved
+support, using the union of ranked and linked candidates. Explicit durations or
+consecutive content words support each clause. The union of both anchor notes
+and their symbols remains eligible, including additional reasons on the same
+symbol. Missing support for either clause, negation, disjunction, additional
+subjects and more than two clauses keep broad retrieval. The packet basis is
+`rationale_compound_agreement`; the rule remains a lexical heuristic rather than
+a semantic proof of relevance.
+
+On the unchanged 195-question, 536-call corpus, with symbol links enabled:
+
+| Coverage | Relevant before → after | False positives before → after | Precision before → after | Recall |
+|---|---:|---:|---:|---:|
+| Go, 16 memory questions | 19 → 19 | 2 → 0 | 90.5% → 100% | 100% |
+| JavaScript, 13 memory questions | 11 → 11 | 4 → 0 | 73.3% → 100% | 100% |
+| Entire memory corpus | 162 → 162 | 23 → 17 | 87.57% → 90.50% | 100% |
+
+All six exposed false positives are removed. No paired case loses a relevant
+note, gains an irrelevant note or loses required source evidence. Other-language
+outcomes are identical, and both source modes retain all 88 required spans.
+Defaults and delivery caps are unchanged: counted-mode recall remains 52.6%
+for Go and 90.9% for JavaScript. The full-recall claims above apply only to this
+authored corpus with links enabled; 17 false positives remain in other languages.
+
+Validation passes 37 focused Rust tests (29 symbol-link integration, 7 note-focus
+unit tests and 1 fresh/cached method-alias extraction test). The full 536-call
+run passes the previous baseline; a separate 70-call fresh-store replay exactly
+reproduces the corresponding full-run outcomes with the same binary. Fixture
+files, questions, labels, requests and scoring are unchanged. The accepted
+baseline now records the gains, and the
+[Go/JavaScript findings receipt](../bench/memory/results/go-js-findings-20261101.json)
+retains the paired comparisons, hashes and selection diagnostics.
+
 ## What remains unmeasured
 
 The scorecard explicitly marks independent real-query quality, generated-answer

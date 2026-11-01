@@ -1,0 +1,2680 @@
+{
+  "date": "2026-11-01",
+  "scope": "Authored synthetic model-free retrieval fixtures; not independent real-user quality, execution correctness or production latency.",
+  "status": "original_javascript_precision_gaps_closed_go_javascript_coverage_expanded_with_remaining_precision_gaps",
+  "comparisons": {
+    "original_466": {
+      "status": "passed",
+      "findings": []
+    },
+    "accepted_baseline_466": {
+      "status": "passed",
+      "findings": []
+    },
+    "new_70": {
+      "status": "passed",
+      "findings": []
+    },
+    "repeat_94": {
+      "status": "passed",
+      "findings": []
+    }
+  },
+  "repeat_94_outcomes_identical": true,
+  "original_fixtures_labels_requests_and_scoring_unchanged": true,
+  "new_labels_fixed_before_both_measurements": true,
+  "original_before": {
+    "bash": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": 1.0,
+        "recall": 0.5555555555555556
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": 1.0,
+        "recall": 0.5555555555555556
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 9,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "go": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "hcl": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "helm": {
+      "memory/counted": {
+        "planned": 15,
+        "completed": 15,
+        "errors": 0,
+        "tp": 17,
+        "fp": 25,
+        "fn": 0,
+        "precision_completed": 0.40476190476190477,
+        "recall": 1.0
+      },
+      "memory/off": {
+        "planned": 15,
+        "completed": 15,
+        "errors": 0,
+        "tp": 17,
+        "fp": 25,
+        "fn": 0,
+        "precision_completed": 0.40476190476190477,
+        "recall": 1.0
+      },
+      "memory/on": {
+        "planned": 15,
+        "completed": 15,
+        "errors": 0,
+        "tp": 17,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8947368421052632,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "java": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5
+      },
+      "memory/off": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 3,
+        "fn": 1,
+        "precision_completed": 0.25,
+        "recall": 0.5
+      },
+      "memory/on": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 2,
+        "fp": 5,
+        "fn": 0,
+        "precision_completed": 0.2857142857142857,
+        "recall": 1.0
+      }
+    },
+    "kotlin": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "kubernetes": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "python": {
+      "memory/counted": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18
+      },
+      "memory/off": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18
+      },
+      "memory/on": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 50,
+        "fp": 12,
+        "fn": 0,
+        "precision_completed": 0.8064516129032258,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "rust": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "terraform": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8333333333333334
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8333333333333334
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "typescript": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    }
+  },
+  "original_after": {
+    "bash": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": 1.0,
+        "recall": 0.5555555555555556
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": 1.0,
+        "recall": 0.5555555555555556
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 9,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "go": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "hcl": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "helm": {
+      "memory/counted": {
+        "planned": 15,
+        "completed": 15,
+        "errors": 0,
+        "tp": 17,
+        "fp": 25,
+        "fn": 0,
+        "precision_completed": 0.40476190476190477,
+        "recall": 1.0
+      },
+      "memory/off": {
+        "planned": 15,
+        "completed": 15,
+        "errors": 0,
+        "tp": 17,
+        "fp": 25,
+        "fn": 0,
+        "precision_completed": 0.40476190476190477,
+        "recall": 1.0
+      },
+      "memory/on": {
+        "planned": 15,
+        "completed": 15,
+        "errors": 0,
+        "tp": 17,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8947368421052632,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "java": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 1,
+        "fn": 1,
+        "precision_completed": 0.5,
+        "recall": 0.5
+      },
+      "memory/off": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 1,
+        "fp": 1,
+        "fn": 1,
+        "precision_completed": 0.5,
+        "recall": 0.5
+      },
+      "memory/on": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "tp": 2,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      }
+    },
+    "kotlin": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "kubernetes": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "python": {
+      "memory/counted": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18
+      },
+      "memory/off": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18
+      },
+      "memory/on": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 50,
+        "fp": 12,
+        "fn": 0,
+        "precision_completed": 0.8064516129032258,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "rust": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "terraform": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8333333333333334
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8333333333333334
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "typescript": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    }
+  },
+  "expansion_before": {
+    "go": {
+      "memory/counted": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 6,
+        "fp": 5,
+        "fn": 3,
+        "precision_completed": 0.5454545454545454,
+        "recall": 0.6666666666666666
+      },
+      "memory/off": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 6,
+        "fp": 5,
+        "fn": 3,
+        "precision_completed": 0.5454545454545454,
+        "recall": 0.6666666666666666
+      },
+      "memory/on": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 9,
+        "fp": 10,
+        "fn": 0,
+        "precision_completed": 0.47368421052631576,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 6,
+        "delivered": 6,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 6,
+        "delivered": 6,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 9,
+        "fp": 13,
+        "fn": 0,
+        "precision_completed": 0.4090909090909091,
+        "recall": 1.0
+      },
+      "memory/off": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 9,
+        "fp": 13,
+        "fn": 0,
+        "precision_completed": 0.4090909090909091,
+        "recall": 1.0
+      },
+      "memory/on": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 9,
+        "fp": 13,
+        "fn": 0,
+        "precision_completed": 0.4090909090909091,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    }
+  },
+  "expansion_after": {
+    "go": {
+      "memory/counted": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 6,
+        "fp": 1,
+        "fn": 3,
+        "precision_completed": 0.8571428571428571,
+        "recall": 0.6666666666666666
+      },
+      "memory/off": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 6,
+        "fp": 1,
+        "fn": 3,
+        "precision_completed": 0.8571428571428571,
+        "recall": 0.6666666666666666
+      },
+      "memory/on": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 9,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8181818181818182,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 6,
+        "delivered": 6,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 6,
+        "delivered": 6,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 9,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.6923076923076923,
+        "recall": 1.0
+      },
+      "memory/off": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 9,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.6923076923076923,
+        "recall": 1.0
+      },
+      "memory/on": {
+        "planned": 9,
+        "completed": 9,
+        "errors": 0,
+        "tp": 9,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.6923076923076923,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    }
+  },
+  "expanded_after": {
+    "bash": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": 1.0,
+        "recall": 0.5555555555555556
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 4,
+        "precision_completed": 1.0,
+        "recall": 0.5555555555555556
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 9,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "go": {
+      "memory/counted": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 10,
+        "fp": 1,
+        "fn": 9,
+        "precision_completed": 0.9090909090909091,
+        "recall": 0.5263157894736842
+      },
+      "memory/off": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 10,
+        "fp": 1,
+        "fn": 9,
+        "precision_completed": 0.9090909090909091,
+        "recall": 0.5263157894736842
+      },
+      "memory/on": {
+        "planned": 16,
+        "completed": 16,
+        "errors": 0,
+        "tp": 19,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.9047619047619048,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "required": 11,
+        "delivered": 11,
+        "complete": 7,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "required": 11,
+        "delivered": 11,
+        "complete": 7,
+        "completeness": 1.0
+      }
+    },
+    "hcl": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "helm": {
+      "memory/counted": {
+        "planned": 15,
+        "completed": 15,
+        "errors": 0,
+        "tp": 17,
+        "fp": 25,
+        "fn": 0,
+        "precision_completed": 0.40476190476190477,
+        "recall": 1.0
+      },
+      "memory/off": {
+        "planned": 15,
+        "completed": 15,
+        "errors": 0,
+        "tp": 17,
+        "fp": 25,
+        "fn": 0,
+        "precision_completed": 0.40476190476190477,
+        "recall": 1.0
+      },
+      "memory/on": {
+        "planned": 15,
+        "completed": 15,
+        "errors": 0,
+        "tp": 17,
+        "fp": 2,
+        "fn": 0,
+        "precision_completed": 0.8947368421052632,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 10,
+        "delivered": 10,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "java": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "javascript": {
+      "memory/counted": {
+        "planned": 13,
+        "completed": 13,
+        "errors": 0,
+        "tp": 10,
+        "fp": 5,
+        "fn": 1,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.9090909090909091
+      },
+      "memory/off": {
+        "planned": 13,
+        "completed": 13,
+        "errors": 0,
+        "tp": 10,
+        "fp": 5,
+        "fn": 1,
+        "precision_completed": 0.6666666666666666,
+        "recall": 0.9090909090909091
+      },
+      "memory/on": {
+        "planned": 13,
+        "completed": 13,
+        "errors": 0,
+        "tp": 11,
+        "fp": 4,
+        "fn": 0,
+        "precision_completed": 0.7333333333333333,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "kotlin": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "kubernetes": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 3,
+        "fn": 0,
+        "precision_completed": 0.625,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 9,
+        "delivered": 9,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "python": {
+      "memory/counted": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18
+      },
+      "memory/off": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 9,
+        "fp": 1,
+        "fn": 41,
+        "precision_completed": 0.9,
+        "recall": 0.18
+      },
+      "memory/on": {
+        "planned": 50,
+        "completed": 50,
+        "errors": 0,
+        "tp": 50,
+        "fp": 12,
+        "fn": 0,
+        "precision_completed": 0.8064516129032258,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 6,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 6,
+        "completeness": 1.0
+      }
+    },
+    "rust": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    },
+    "terraform": {
+      "memory/counted": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8333333333333334
+      },
+      "memory/off": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 5,
+        "fp": 0,
+        "fn": 1,
+        "precision_completed": 1.0,
+        "recall": 0.8333333333333334
+      },
+      "memory/on": {
+        "planned": 6,
+        "completed": 6,
+        "errors": 0,
+        "tp": 6,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 4,
+        "completed": 4,
+        "errors": 0,
+        "required": 8,
+        "delivered": 8,
+        "complete": 4,
+        "completeness": 1.0
+      }
+    },
+    "typescript": {
+      "memory/counted": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/off": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 4,
+        "fp": 0,
+        "fn": 6,
+        "precision_completed": 1.0,
+        "recall": 0.4
+      },
+      "memory/on": {
+        "planned": 7,
+        "completed": 7,
+        "errors": 0,
+        "tp": 10,
+        "fp": 0,
+        "fn": 0,
+        "precision_completed": 1.0,
+        "recall": 1.0
+      },
+      "source/baseline": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      },
+      "source/routed": {
+        "planned": 3,
+        "completed": 3,
+        "errors": 0,
+        "required": 5,
+        "delivered": 5,
+        "complete": 3,
+        "completeness": 1.0
+      }
+    }
+  },
+  "original_summary_before": {
+    "memory/counted": {
+      "planned": 128,
+      "completed": 128,
+      "errors": 0,
+      "tp": 66,
+      "fp": 32,
+      "fn": 78,
+      "precision_completed": 0.673469387755102,
+      "recall": 0.4583333333333333
+    },
+    "memory/off": {
+      "planned": 128,
+      "completed": 128,
+      "errors": 0,
+      "tp": 66,
+      "fp": 32,
+      "fn": 78,
+      "precision_completed": 0.673469387755102,
+      "recall": 0.4583333333333333
+    },
+    "memory/on": {
+      "planned": 128,
+      "completed": 128,
+      "errors": 0,
+      "tp": 144,
+      "fp": 22,
+      "fn": 0,
+      "precision_completed": 0.8674698795180723,
+      "recall": 1.0
+    },
+    "source/baseline": {
+      "planned": 41,
+      "completed": 41,
+      "errors": 0,
+      "required": 77,
+      "delivered": 77,
+      "complete": 41,
+      "completeness": 1.0
+    },
+    "source/routed": {
+      "planned": 41,
+      "completed": 41,
+      "errors": 0,
+      "required": 77,
+      "delivered": 77,
+      "complete": 41,
+      "completeness": 1.0
+    }
+  },
+  "original_summary_after": {
+    "memory/counted": {
+      "planned": 128,
+      "completed": 128,
+      "errors": 0,
+      "tp": 66,
+      "fp": 30,
+      "fn": 78,
+      "precision_completed": 0.6875,
+      "recall": 0.4583333333333333
+    },
+    "memory/off": {
+      "planned": 128,
+      "completed": 128,
+      "errors": 0,
+      "tp": 66,
+      "fp": 30,
+      "fn": 78,
+      "precision_completed": 0.6875,
+      "recall": 0.4583333333333333
+    },
+    "memory/on": {
+      "planned": 128,
+      "completed": 128,
+      "errors": 0,
+      "tp": 144,
+      "fp": 17,
+      "fn": 0,
+      "precision_completed": 0.8944099378881988,
+      "recall": 1.0
+    },
+    "source/baseline": {
+      "planned": 41,
+      "completed": 41,
+      "errors": 0,
+      "required": 77,
+      "delivered": 77,
+      "complete": 41,
+      "completeness": 1.0
+    },
+    "source/routed": {
+      "planned": 41,
+      "completed": 41,
+      "errors": 0,
+      "required": 77,
+      "delivered": 77,
+      "complete": 41,
+      "completeness": 1.0
+    }
+  },
+  "expanded_summary_after": {
+    "memory/counted": {
+      "planned": 146,
+      "completed": 146,
+      "errors": 0,
+      "tp": 81,
+      "fp": 35,
+      "fn": 81,
+      "precision_completed": 0.6982758620689655,
+      "recall": 0.5
+    },
+    "memory/off": {
+      "planned": 146,
+      "completed": 146,
+      "errors": 0,
+      "tp": 81,
+      "fp": 35,
+      "fn": 81,
+      "precision_completed": 0.6982758620689655,
+      "recall": 0.5
+    },
+    "memory/on": {
+      "planned": 146,
+      "completed": 146,
+      "errors": 0,
+      "tp": 162,
+      "fp": 23,
+      "fn": 0,
+      "precision_completed": 0.8756756756756757,
+      "recall": 1.0
+    },
+    "source/baseline": {
+      "planned": 49,
+      "completed": 49,
+      "errors": 0,
+      "required": 88,
+      "delivered": 88,
+      "complete": 49,
+      "completeness": 1.0
+    },
+    "source/routed": {
+      "planned": 49,
+      "completed": 49,
+      "errors": 0,
+      "required": 88,
+      "delivered": 88,
+      "complete": 49,
+      "completeness": 1.0
+    }
+  },
+  "changed_original_cases": [
+    {
+      "case": "cutoff/webhooks-holdout/timing/on",
+      "before": {
+        "id": "cutoff/webhooks-holdout/timing/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lifetime"
+        ],
+        "retrieved_relevant": [
+          "lifetime"
+        ],
+        "irrelevant": [
+          "schema",
+          "tracing"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "cutoff/webhooks-holdout/timing/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lifetime"
+        ],
+        "retrieved_relevant": [
+          "lifetime"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/ceiling/counted",
+      "before": {
+        "id": "cutoff/webhooks-holdout/ceiling/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lifetime"
+        ],
+        "retrieved_relevant": [
+          "lifetime"
+        ],
+        "irrelevant": [
+          "tracing"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "cutoff/webhooks-holdout/ceiling/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [
+          "lifetime"
+        ],
+        "retrieved_relevant": [
+          "lifetime"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/ceiling/on",
+      "before": {
+        "id": "cutoff/webhooks-holdout/ceiling/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lifetime"
+        ],
+        "retrieved_relevant": [
+          "lifetime"
+        ],
+        "irrelevant": [
+          "schema",
+          "tracing"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "cutoff/webhooks-holdout/ceiling/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [
+          "lifetime"
+        ],
+        "retrieved_relevant": [
+          "lifetime"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/ceiling/off",
+      "before": {
+        "id": "cutoff/webhooks-holdout/ceiling/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lifetime"
+        ],
+        "retrieved_relevant": [
+          "lifetime"
+        ],
+        "irrelevant": [
+          "tracing"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "cutoff/webhooks-holdout/ceiling/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [
+          "lifetime"
+        ],
+        "retrieved_relevant": [
+          "lifetime"
+        ],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/string/off",
+      "before": {
+        "id": "cutoff/webhooks-holdout/string/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "tracing"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "cutoff/webhooks-holdout/string/off",
+        "kind": "memory",
+        "variant": "off",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/string/counted",
+      "before": {
+        "id": "cutoff/webhooks-holdout/string/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "tracing"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "cutoff/webhooks-holdout/string/counted",
+        "kind": "memory",
+        "variant": "counted",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/string/on",
+      "before": {
+        "id": "cutoff/webhooks-holdout/string/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [
+          "tracing"
+        ],
+        "error": null,
+        "content_preserved": true
+      },
+      "after": {
+        "id": "cutoff/webhooks-holdout/string/on",
+        "kind": "memory",
+        "variant": "on",
+        "relevant": [],
+        "retrieved_relevant": [],
+        "irrelevant": [],
+        "error": null,
+        "content_preserved": true
+      }
+    }
+  ],
+  "selection_diagnostics": [
+    {
+      "case": "cutoff/webhooks-holdout/timing/on",
+      "reports": {
+        "memory_rationale_support": {
+          "basis": "retry_timing_policy",
+          "anchors": 1,
+          "anchor_route": "symbol_link",
+          "withheld_ranked": 1,
+          "withheld_linked": 1
+        }
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/ceiling/counted",
+      "reports": {
+        "memory_rationale_support": {
+          "basis": "rationale_duration_agreement",
+          "anchors": 1,
+          "anchor_route": "ranked",
+          "withheld_ranked": 1,
+          "withheld_linked": 0
+        }
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/ceiling/on",
+      "reports": {
+        "memory_rationale_support": {
+          "basis": "rationale_duration_agreement",
+          "anchors": 1,
+          "anchor_route": "ranked",
+          "withheld_ranked": 1,
+          "withheld_linked": 1
+        }
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/ceiling/off",
+      "reports": {
+        "memory_rationale_support": {
+          "basis": "rationale_duration_agreement",
+          "anchors": 1,
+          "anchor_route": "ranked",
+          "withheld_ranked": 1,
+          "withheld_linked": 0
+        }
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/string/off",
+      "reports": {
+        "memory_value_request": {
+          "basis": "literal_call_value_request",
+          "target": "eventKey",
+          "withheld_ranked": 1,
+          "withheld_linked": 0
+        }
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/string/counted",
+      "reports": {
+        "memory_value_request": {
+          "basis": "literal_call_value_request",
+          "target": "eventKey",
+          "withheld_ranked": 1,
+          "withheld_linked": 0
+        }
+      }
+    },
+    {
+      "case": "cutoff/webhooks-holdout/string/on",
+      "reports": {
+        "memory_value_request": {
+          "basis": "literal_call_value_request",
+          "target": "eventKey",
+          "withheld_ranked": 1,
+          "withheld_linked": 0
+        }
+      }
+    }
+  ],
+  "remaining_go_javascript_false_positives": [
+    {
+      "case": "go-js-memory/javascript-notices/qualified-change/on",
+      "irrelevant": [
+        "trace"
+      ],
+      "diagnostics": [
+        {
+          "id": "trace",
+          "rank": 3,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "afa9f5ac8c8e4ff1b9cc8afbd5fd780d",
+            "fusion": {
+              "rank": 2,
+              "score": 0.015873015873015872
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "outside_symbol_scope": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 3,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "go-js-memory/javascript-notices/alternate-change/on",
+      "irrelevant": [
+        "owner"
+      ],
+      "diagnostics": [
+        {
+          "id": "owner",
+          "rank": 1,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "37fd157322e24e1fa88b63452c4c2f5a",
+            "fusion": {
+              "rank": 1,
+              "score": 0.016129032258064516
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "outside_symbol_scope": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 1,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "go-js-memory/javascript-notices/compound/on",
+      "irrelevant": [
+        "owner",
+        "trace"
+      ],
+      "diagnostics": [
+        {
+          "id": "owner",
+          "rank": 2,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "37fd157322e24e1fa88b63452c4c2f5a",
+            "fusion": {
+              "rank": 3,
+              "score": 0.015625
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "already_seen": 2
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 2,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        },
+        {
+          "id": "trace",
+          "rank": 4,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "afa9f5ac8c8e4ff1b9cc8afbd5fd780d",
+            "fusion": {
+              "rank": 4,
+              "score": 0.015384615384615385
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "outside_symbol_scope": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 4,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "go-js-memory/go-notices/alternate-change/on",
+      "irrelevant": [
+        "owner"
+      ],
+      "diagnostics": [
+        {
+          "id": "owner",
+          "rank": 1,
+          "route": "ranked",
+          "linked_symbol": null,
+          "candidate": {
+            "id": "c7e0ed1d3ab7492eaae6155ae77cc788",
+            "fusion": {
+              "rank": 1,
+              "score": 0.016129032258064516
+            },
+            "retrieval_arms": [
+              "lexical"
+            ],
+            "link_outcomes": {
+              "outside_symbol_scope": 1
+            },
+            "link_candidate_rank": null,
+            "link_final_rank": null,
+            "reranker": null,
+            "selected_by_rank": true,
+            "selection_filter": null,
+            "pack_rank": 1,
+            "delivered": true,
+            "delivery_route": "ranked"
+          }
+        }
+      ]
+    },
+    {
+      "case": "go-js-memory/go-notices/compound/on",
+      "irrelevant": [
+        "owner"
+      ],
+      "diagnostics": [
+        {
+          "id": "owner",
+          "rank": 3,
+          "route": "symbol_link",
+          "linked_symbol": "Worker",
+          "candidate": {
+            "id": "c7e0ed1d3ab7492eaae6155ae77cc788",
+            "fusion": null,
+            "retrieval_arms": [],
+            "link_outcomes": {
+              "candidate": 1
+            },
+            "link_candidate_rank": 1,
+            "link_final_rank": 1,
+            "reranker": null,
+            "selected_by_rank": false,
+            "selection_filter": null,
+            "pack_rank": 3,
+            "delivered": true,
+            "delivery_route": "symbol_link"
+          }
+        }
+      ]
+    }
+  ],
+  "other_language_outcomes_identical": true,
+  "tests": {
+    "symbol_links_integration": 28,
+    "question_shape_unit": 11,
+    "symbol_links_unit": 6,
+    "duration_unit": 1,
+    "diff_check": "passed"
+  },
+  "reports": {
+    "original_before": {
+      "path": "/private/tmp/graphicle-bash-python-full-final-20261101/SCORECARD.json",
+      "sha256": "b83dccc4fa46295ca6bc28ce56de59649c5faef8a1217af96bd60103840ea78e"
+    },
+    "expansion_before": {
+      "path": "/private/tmp/graphicle-js-go-expansion-before-20261101/SCORECARD.json",
+      "sha256": "e8680a2e6b84b5989c460dd0def2043f9082aa7a32f6fe8cca203593da10a7f5"
+    },
+    "expanded_after": {
+      "path": "/private/tmp/graphicle-js-go-full-final-20261101/SCORECARD.json",
+      "sha256": "b4f9cb8983a75b5380a36df1052c311701d416f54dda6b0c4caefd6ac30b3eef"
+    },
+    "repeat": {
+      "path": "/private/tmp/graphicle-js-go-repeat-final-20261101/SCORECARD.json",
+      "sha256": "9f8ddf0ec5a0c110978ef3c52ccff24d3bd29a5dfccd22d7fc6e5d69bed60356"
+    }
+  },
+  "binary_sha256": "3b4915ad18c779a0168511d26dec95537b0398f7369f5ff939e4b74fa7266a3c",
+  "baseline_before_sha256": "b338bdfd3daf6e6b96408bcd8ab82a113a7eda9137210acb10b2e307fa2619dc",
+  "baseline_after_sha256": "2d80f597f4b881c81798e8129dd18fe433696c1eb4adbd7d86527495d82e18e7",
+  "limits": [
+    "Explicit half/quarter durations normalize only exact integral milliseconds; no guessed units, calendar months or floating approximation.",
+    "Timing focus recognizes a narrow named retry/backoff/waiting-interval request and requires a retrieved duration-bearing waiting-policy anchor. It is a lexical heuristic, not semantic entailment.",
+    "Literal-call ranked-note suppression requires selected graph-resolved target source; it does not execute the call or prove a runtime result.",
+    "New synthetic coverage tests async ES modules, aliased arrow helpers, pointer receivers, duplicate methods, transitive calls and compound requests. It is still retry-focused and does not establish language-wide or real-query accuracy.",
+    "Default symbol-link behavior and caps are unchanged. All full-recall figures refer to links enabled."
+  ]
+}
