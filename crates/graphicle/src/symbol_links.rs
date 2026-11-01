@@ -68,8 +68,8 @@ pub(crate) fn prioritize_literals(question: &str, memories: &mut [Value]) {
     });
 }
 
-/// An explicitly grounded note outside a complete Helm dependency scope is
-/// not evidence about that helper/template. Unanchored or stale grounds cannot
+/// An explicitly grounded note outside a validated declaration/dependency scope
+/// is not evidence about that requested implementation. Unanchored or stale grounds cannot
 /// justify exclusion. Values-file notes retain their declared file granularity.
 pub(crate) fn outside_scope(row: &Value, scope: &BTreeSet<(String, String)>, documents: &HashMap<&str, &Value>) -> bool {
     let data = &row["memory"]["data"];
@@ -88,10 +88,12 @@ pub(crate) fn outside_scope(row: &Value, scope: &BTreeSet<(String, String)>, doc
 /// the requested topic or repeats a rationale question's premise. It is deliberately narrower than relevance
 /// classification: unmatched paraphrases and multi-part questions stay broad.
 /// Notes on the same symbol can supply additional reasons without repeating the
-/// premise, and ungrounded notes cannot be excluded through this rule.
+/// premise. A separately quantified policy with a disjoint topic does not gain
+/// relevance just from that link; ungrounded notes cannot justify exclusion.
 pub(crate) struct NoteFocus {
     anchors: BTreeSet<String>,
     symbols: BTreeSet<(String, String)>,
+    topic: BTreeSet<String>,
     pub basis: &'static str,
 }
 
@@ -110,6 +112,25 @@ fn content_sequence(text: &str) -> Vec<String> {
             BTreeSet::from([word.clone()])
         } else { crate::notes_first::stems(word) }
     }).collect()
+}
+
+/// A separately quantified time policy is positive evidence of a distinct
+/// topic only when its remaining words are disjoint from the supported premise.
+/// Calendar units are used as text, never converted into an assumed duration.
+fn policy_topic(text: &str) -> (bool, BTreeSet<String>) {
+    static QUANTITY: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(concat!(
+        r"(?i)\b(?:[0-9]+|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)",
+        r"(?:[ -](?:one|two|three|four|five|six|seven|eight|nine))?[ \t-]+(?:milliseconds?|seconds?|minutes?|hours?|days?|weeks?|months?|years?)\b"
+    )).expect("quantified note topic"));
+    (QUANTITY.is_match(text), crate::notes_first::stems(&QUANTITY.replace_all(text," ")))
+}
+
+fn focus_topic(question: &str, anchors: &BTreeSet<String>, candidates: &[Value]) -> BTreeSet<String> {
+    let mut topic = policy_topic(question).1;
+    for row in candidates.iter().filter(|r| anchors.contains(s(r,"identity"))) {
+        topic.extend(policy_topic(&format!("{} {}",s(row,"title"),s(row,"text"))).1);
+    }
+    topic
 }
 
 impl NoteFocus {
@@ -132,8 +153,9 @@ impl NoteFocus {
             && crate::notes_first::stems(s(r, "title")) == terms).collect();
         let anchors: BTreeSet<String> = matching.iter().map(|r| s(r,"identity").into()).collect();
         let symbols = matching.iter().flat_map(|r| note_symbols(r)).collect();
+        let topic = focus_topic(question,&anchors,candidates);
         selected.iter().any(|r| anchors.contains(s(r,"identity")))
-            .then_some(Self { anchors, symbols, basis: "exact_note_title" })
+            .then_some(Self { anchors, symbols, topic, basis: "exact_note_title" })
     }
 
     pub fn filter_reason(&self) -> &'static str {
@@ -168,13 +190,17 @@ impl NoteFocus {
                 symbols.extend(note_symbols(row));
             }
         }
-        selected.iter().any(|row| anchors.contains(s(row, "identity"))).then_some(Self { anchors, symbols,
+        let topic = focus_topic(question,&anchors,candidates);
+        selected.iter().any(|row| anchors.contains(s(row, "identity"))).then_some(Self { anchors, symbols, topic,
             basis: if durations.is_empty() { "rationale_premise_phrase" } else { "rationale_duration_agreement" } })
     }
 
     pub fn keep(&self, row: &Value) -> bool {
         self.anchors.contains(s(row, "identity"))
-            || !note_symbols(row).is_disjoint(&self.symbols)
+            || (!note_symbols(row).is_disjoint(&self.symbols) && {
+                let (quantified, topic) = policy_topic(&format!("{} {}",s(row,"title"),s(row,"text")));
+                !quantified || !topic.is_disjoint(&self.topic)
+            })
             || row["memory"]["data"]["dependencies"].as_object().is_none_or(|d| d.is_empty())
             || row["memory"]["data"]["symbols"].as_array().is_some_and(|links|
                 links.iter().any(|link| link["state"] != "resolved"))
@@ -775,6 +801,26 @@ mod tests {
         assert!(focus.keep(&reason));
         assert!(focus.keep(&linked));
         assert!(!focus.keep(&floor));
+    }
+
+    #[test]
+    fn same_symbol_policies_need_more_than_a_shared_link_for_a_narrow_premise() {
+        let rounded = rationale_note("round", "Preserve two decimal places at the outbound boundary.", Some("total"));
+        let audit = rationale_note("audit", "Finance retains original line items for seven years in an archive.", Some("total"));
+        let extra = rationale_note("extra", "Card networks reject fractional minor units.", Some("total"));
+        let quantified_extra = rationale_note("other", "A two day reconciliation window also requires decimal rounding.", Some("total"));
+        let all = vec![rounded.clone(),audit.clone(),extra.clone(),quantified_extra.clone()];
+        let focus = NoteFocus::new("Why does total round to two decimal places?", &[rounded], &all).unwrap();
+        assert!(!focus.keep(&audit));
+        assert!(focus.keep(&extra) && focus.keep(&quantified_extra));
+        let mut unknown = audit.clone();
+        unknown["memory"]["data"]["dependencies"] = json!({});
+        assert!(focus.keep(&unknown));
+        unknown["memory"]["data"]["symbols"][0]["state"] = json!("pending");
+        unknown["memory"]["data"]["dependencies"] = json!({"policy.py":"sha"});
+        assert!(focus.keep(&unknown));
+        assert!(NoteFocus::new("Why round to two decimal places and retain original line items?", &all, &all).is_none());
+        assert!(NoteFocus::new("Why is retry_delay capped at 60?", &all, &all).is_none());
     }
 
     #[test]

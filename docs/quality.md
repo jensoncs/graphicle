@@ -865,6 +865,74 @@ records the scope-only step, old/new corpus comparisons, hashes, remaining runti
 false positives and repeatability checks. The baseline was expanded only after
 these comparisons passed.
 
+### Bash scope and Python rationale precision (1 November 2026)
+
+Path-qualified shell questions now apply their validated function dependency
+scope to ordinary ranked notes as well as linked notes. This excludes a separate
+same-named implementation while retaining the sourced helper and consumer
+constraints. Ambiguous names without a path, dynamic command names, `eval`,
+computed source paths, stale/missing graph data, expanded needs and semantic
+ranking retain ordinary retrieval. Candidate diagnostics report
+`outside_shell_scope`; packets identify the `shell_dependencies` basis.
+
+Narrow shell cap-value questions use the existing source-value mechanism after
+parsing the selected source. A unique arithmetic clamp must compare the requested
+variable to a decimal integer and assign that same integer in its branch. Comments,
+quoted examples, malformed excerpts, computed bounds, mismatched assignments,
+leading-zero/octal literals, multiple caps and additional conditional writes cannot
+establish this proof.
+This reads a literal from source; it does not execute shell code or predict its
+runtime output. Rationale and compound questions keep design-note retrieval.
+
+A rationale focus can now begin when a matching note arrives through a symbol
+link, before the linked-note delivery cap. This allows a caller/callee reason
+with little lexical overlap to exclude unrelated linked notes after it is
+actually retrieved. Earlier ranked evidence is retained when focus starts late.
+`memory_rationale_support.anchor_route` distinguishes `ranked` from `symbol_link`.
+`symbol_links.candidate_memories_before_filters` records the original linked
+prefix, while `candidate_memories` records the prefix remaining before the cap.
+The delivery cap itself is unchanged.
+
+Same-symbol notes remain eligible as additional explanations unless a separately
+quantified time policy has no topical overlap with the supported premise or its
+matching notes. Calendar units are treated as text, never converted to assumed
+durations. This lexical heuristic distinguishes the audit-retention note from
+the rounding explanation while retaining unquantified reasons, related quantified
+reasons and unresolved/unanchored notes. It does not infer that a bare `60` means
+seconds or that an unmatched paraphrase expresses a known premise.
+
+The unchanged 169-question, 466-call synthetic suite measures these gains with
+symbol links enabled:
+
+| Coverage | Relevant before → after | False positives before → after | Precision before → after | Recall |
+|---|---:|---:|---:|---:|
+| Bash, 6 memory questions | 9 → 9 | 5 → 0 | 64.3% → 100% | 100% |
+| Python, 50 memory questions | 50 → 50 | 22 → 12 | 69.4% → 80.6% | 100% |
+| Entire memory corpus | 144 → 144 | 37 → 22 | 79.56% → 86.75% | 100% |
+
+Bash removes the alternate implementation from the path-qualified change question
+and four design notes from the literal-cap question. Python removes ten irrelevant
+note occurrences across same-symbol, caller/callee, cross-file and transitive
+rationale questions. No case loses a relevant note or gains an irrelevant one;
+other-language outcomes are identical. Both source modes retain all 77 required
+spans. The 186-call fresh-store repeat reproduces the corresponding full-run
+outcomes exactly with the same final binary. Fixtures, labels, requests and scoring
+are unchanged, and the accepted baseline now records the gains.
+
+All 44 focused Rust tests pass: 27 symbol-link integration, 11 question-shape and
+6 note-focus unit tests. The
+[Bash and Python precision receipt](../bench/memory/results/bash-python-precision-20261101.json)
+records comparisons, hashes, changed cases, selection diagnostics and remaining
+false positives.
+
+Python still returns 12 irrelevant note occurrences across eight questions:
+direct recall, bare-number and unmatched-paraphrase rationale, partially unresolved
+links, and prose-only requests. These are remaining precision gaps, not closed
+cases. Default link behavior and delivery caps are unchanged; default counted-mode
+recall remains 18% for Python and 55.6% for Bash. The 100% recall figures above apply
+only with symbol links enabled on this authored corpus, not to general language
+accuracy or production queries.
+
 ## What remains unmeasured
 
 The scorecard explicitly marks independent real-query quality, generated-answer

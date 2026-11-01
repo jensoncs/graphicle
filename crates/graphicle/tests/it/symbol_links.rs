@@ -335,6 +335,66 @@ fn covered_prose_topics_do_not_expand_to_dependency_notes() {
 }
 
 #[test]
+fn shell_scope_keeps_sourced_dependencies_and_literal_caps_keep_only_code() {
+    let files = [
+        ("deliver.sh", "source \"./lib/policy.sh\"\ndeliver_payload() {\n retry_delay \"$1\" | consume_payload\n}\nconsume_payload() { cat; }\n"),
+        ("lib/policy.sh", "retry_delay() {\n local delay=$((1 << attempt))\n if (( delay > 45 )); then\n delay=45\n fi\n printf '%s\\n' \"$delay\"\n}\n"),
+        ("preview.sh", "deliver_payload() { echo preview; }\n"),
+    ];
+    let f = Fixture::new(&files);
+    let owner = f.note("Delivery agreement","A change must preserve literal payload bytes.",json!([{"path":"deliver.sh","qualified_name":"deliver_payload"}]));
+    let lease = f.note("Delay allowance","The peer permits forty-five seconds to recover.",json!([{"path":"lib/policy.sh","qualified_name":"retry_delay"}]));
+    let pipe = f.note("Consumer agreement","A change must preserve failure propagation.",json!([{"path":"deliver.sh","qualified_name":"consume_payload"}]));
+    let preview = f.note("Alternate delivery agreement","A change to deliver_payload must preserve the preview prefix.",json!([{"path":"preview.sh","qualified_name":"deliver_payload"}]));
+    let question = "Which constraints must a change to deliver_payload in deliver.sh preserve?";
+    let packet = f.context(question,json!({"symbol_links":true,"debug_candidates":400}));
+    assert!(includes(&packet,&owner) && includes(&packet,&lease) && includes(&packet,&pipe),"{packet:#}");
+    assert!(!includes(&packet,&preview),"{packet:#}");
+    assert_eq!(packet["memory_scope_support"]["basis"],"shell_dependencies");
+    let broad = f.context("Which constraints must a change to deliver_payload preserve?",json!({"symbol_links":true}));
+    assert!(includes(&broad,&preview),"{broad:#}");
+    for mode in [json!(false),Value::Null,json!(true)] {
+        let value = f.context("What cap value does lib/policy.sh assign to delay?",json!({"symbol_links":mode}));
+        assert!(value["memories"].as_array().unwrap().is_empty(),"{value:#}");
+        assert!(!value["evidence"].as_array().unwrap().is_empty());
+        assert_eq!(value["memory_value_request"]["key"],"delay");
+    }
+    let expanded = f.context(question,json!({"symbol_links":true,"needs":["preview prefix"]}));
+    assert!(expanded.get("memory_scope_support").is_none(),"{expanded:#}");
+    assert!(includes(&expanded,&preview),"{expanded:#}");
+    let mut dynamic = files;
+    dynamic[0].1 = "source \"$POLICY\"\ndeliver_payload() { retry_delay \"$1\"; }\n";
+    f.sync(&dynamic);
+    let unknown = f.context(question,json!({"symbol_links":true}));
+    assert!(unknown.get("memory_scope_support").is_none(),"{unknown:#}");
+    assert!(includes(&unknown,&preview),"{unknown:#}");
+}
+
+#[test]
+fn rationale_focus_can_start_from_a_linked_reason_before_the_cap() {
+    let f = Fixture::new(&[("delivery.py","def send_packet(attempt):\n    return backoff_delay(attempt)\n\ndef backoff_delay(attempt):\n    return min(2 ** attempt, 60)\n")]);
+    let lease = f.note("Peer lifetime","The remote session expires after one minute. Longer pauses abandon the connection.",json!([{"path":"delivery.py","qualified_name":"backoff_delay"}]));
+    let audit = f.note("Ledger storage","Keep fiscal archives immutable.",json!([{"path":"delivery.py","qualified_name":"send_packet"}]));
+    let packet = f.context("Why does send_packet cap the backoff at sixty seconds?",json!({"symbol_links":true,"debug_candidates":400}));
+    assert!(includes(&packet,&lease) && !includes(&packet,&audit),"{packet:#}");
+    assert_eq!(packet["memory_rationale_support"]["anchor_route"],"symbol_link","{packet:#}");
+    let broad = f.context("Which constraints must a change to send_packet preserve?",json!({"symbol_links":true}));
+    assert!(includes(&broad,&lease) && includes(&broad,&audit),"{broad:#}");
+}
+
+#[test]
+fn same_symbol_quantified_policy_does_not_override_a_supported_rationale() {
+    let f = Fixture::new(&[("billing.py","def invoice_total(items):\n    return round(sum(items), 2)\n")]);
+    let settlement = f.note("Settlement boundary","Preserve two decimal places at the outbound boundary.",json!([{"path":"billing.py","qualified_name":"invoice_total"}]));
+    let audit = f.note("Audit evidence","Finance retains original line items for seven years in an archive.",json!([{"path":"billing.py","qualified_name":"invoice_total"}]));
+    let extra = f.note("Processor requirement","Card networks reject fractional minor units.",json!([{"path":"billing.py","qualified_name":"invoice_total"}]));
+    let packet = f.context("Why does invoice_total round to two decimal places?",json!({"symbol_links":true}));
+    assert!(includes(&packet,&settlement) && includes(&packet,&extra) && !includes(&packet,&audit),"{packet:#}");
+    let broad = f.context("Which constraints must a change to invoice_total preserve?",json!({"symbol_links":true}));
+    assert!(includes(&broad,&settlement) && includes(&broad,&extra) && includes(&broad,&audit),"{broad:#}");
+}
+
+#[test]
 fn rationale_support_filters_both_routes_without_overriding_expanded_requests() {
     let f = Fixture::new(&[("queue.py", "def limit():\n    return floor()\n\ndef floor():\n    return 60\n")]);
     let cap = f.note("Backlog reservation", "Reserved capacity covers at most five minutes of backlog.",
@@ -796,7 +856,9 @@ fn equivalent_durations_can_rescue_a_late_linked_constraint() {
         json!({"symbol_links":true,"debug_candidates":400}),
     );
     assert!(includes(&packet, &needed), "{packet:#}");
-    assert_eq!(packet["symbol_links"]["candidate_memories"], 5);
+    assert_eq!(packet["symbol_links"]["candidate_memories_before_filters"], 5);
+    assert_eq!(packet["symbol_links"]["candidate_memories"], 1);
+    assert_eq!(packet["memory_rationale_support"]["withheld_linked"], 4);
     assert_eq!(packet["symbol_links"]["memory_limit"], 4);
     let trace = packet["memory_candidates_debug"]["candidates"]
         .as_array()

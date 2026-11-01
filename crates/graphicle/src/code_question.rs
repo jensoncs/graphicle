@@ -348,6 +348,20 @@ pub(crate) fn configuration_count_request(question: &str, path: &str, source: &s
         .then(|| (c["path"].into(), "count".into()))
 }
 
+/// A source-backed shell cap read. The parser must prove the matching literal
+/// branch; a variable assignment somewhere in the file is insufficient.
+pub(crate) fn shell_cap_request(question: &str, path: &str, source: &str) -> Option<(String, String)> {
+    static CAP: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(concat!(
+        r"(?i)^\s*what\s+cap\s+value\s+does\s+`?",
+        r"(?P<path>[a-z0-9_./-]+\.(?:sh|bash))`?\s+assign\s+to\s+`?",
+        r"(?P<key>[a-z_][a-z0-9_]*)`?\s*\??\s*$"
+    )).expect("shell literal cap question"));
+    let c = CAP.captures(question)?;
+    if path != &c["path"] && !path.ends_with(&format!("/{}", &c["path"])) { return None; }
+    graphicle::extractors::bash::has_literal_cap(source,&c["key"])
+        .then(|| (c["path"].into(),c["key"].into()))
+}
+
 /// The attribute in a narrowly phrased factual question about an explicit code
 /// name. This is a lexical support check, not a general intent classifier:
 /// rationale, inventories, compound requests and unfamiliar forms stay broad.
@@ -1327,6 +1341,24 @@ mod tests {
             &short[short.len() - 80..]
         );
         assert_eq!(short.matches("parse_config").count(), 1);
+    }
+
+    #[test]
+    fn shell_cap_reads_need_one_real_literal_clamp() {
+        let q = "What cap value does lib/policy.sh assign to delay?";
+        let source = "retry_delay() {\n local delay=$((1 << attempt))\n if (( delay > 45 )); then\n delay=45\n fi\n}\n";
+        assert!(shell_cap_request(q,"lib/policy.sh",source).is_some());
+        for bad in [source.replace("delay > 45","delay > cap"), source.replace("delay=45","delay=$cap"),
+            source.replace("delay=45","delay=44"), source.replace("45","045"),
+            source.replace("delay > 45","delay > 045"), source.replace("delay", "other"),
+            source.lines().map(|line| format!("# {line}\n")).collect::<String>(),
+            format!("{source}{source}"), format!("{source}\nif (( delay > cap )); then delay=$cap; fi"),
+            "echo 'if (( delay > 45 )); then delay=45; fi'".into(),
+            "if (( delay > 45 )); then delay=45".into()] {
+            assert!(shell_cap_request(q,"lib/policy.sh",&bad).is_none(),"{bad}");
+        }
+        assert!(shell_cap_request(q,"missing.sh",source).is_none());
+        assert!(shell_cap_request("What cap value does lib/policy.sh assign to delay and why?","lib/policy.sh",source).is_none());
     }
 
     #[test]

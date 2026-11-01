@@ -1766,6 +1766,8 @@ fn context_impl(
         let documents = snapshot.documents.iter().map(|d| (s(d, "id"), d)).collect();
         let scope = crate::identifier_arm::configuration_owner_scope(lookup.db(), lookup.repository(), query, &documents)
             .map(|scope| (scope, "configuration_input", "outside_configuration_input"))
+            .or_else(|| crate::identifier_arm::shell_memory_scope(lookup.db(), lookup.repository(), query, &documents)
+                .map(|scope| (scope, "shell_dependencies", "outside_shell_scope")))
             .or_else(|| symbol_links.enabled().then(|| crate::identifier_arm::helm_memory_scope(lookup.db(), lookup.repository(), query, &documents))
                 .flatten().map(|scope| (scope, "helm_dependencies", "outside_helm_scope")));
         if let Some((scope, basis, reason)) = scope {
@@ -1780,7 +1782,7 @@ fn context_impl(
             if basis == "configuration_input" { configuration_scope = Some(scope); }
         }
     }
-    let rationale = lexical_only.then(|| crate::symbol_links::NoteFocus::new(query, &selected_memories, &rows)).flatten();
+    let mut rationale = lexical_only.then(|| crate::symbol_links::NoteFocus::new(query, &selected_memories, &rows)).flatten();
     let mut rationale_report = Value::Null;
     if let Some(focus) = &rationale {
         let before = selected_memories.len();
@@ -1790,7 +1792,7 @@ fn context_impl(
             false
         });
         rationale_report = json!({"basis":focus.basis,"anchors":focus.anchors(),
-            "withheld_ranked":before-selected_memories.len(),"withheld_linked":0});
+            "anchor_route":"ranked","withheld_ranked":before-selected_memories.len(),"withheld_linked":0});
     }
     let configuration_value = lexical_only
         .then(|| crate::code_question::configuration_value_request(query)).flatten()
@@ -1802,6 +1804,7 @@ fn context_impl(
         })).or_else(|| lexical_only.then(|| sources.iter().find_map(|row| {
             let path = s(row, "origin").strip_prefix("file:")?;
             crate::code_question::configuration_count_request(query, path, s(row,"text"))
+                .or_else(|| crate::code_question::shell_cap_request(query,path,s(row,"text")))
         })).flatten());
     let mut memory_value_report = configuration_value.as_ref().map(|(path, key)|
         json!({"basis":"configuration_value_request","path":path,"key":key,
@@ -1949,6 +1952,9 @@ fn context_impl(
                 candidates.extend(lifted.windows);
                 linked_memories = lifted.memories;
                 symbol_links_report = lifted.report;
+                if symbol_links.enabled() && symbol_links_report.get("considered").is_some() {
+                    symbol_links_report["candidate_memories_before_filters"] = json!(linked_memories.len());
+                }
                 if let Some(trace) = memory_trace.as_mut() {
                     trace.linked_candidates(&linked_memories);
                 }
@@ -2012,6 +2018,16 @@ fn context_impl(
                     });
                     memory_scope_report["withheld_linked"] = json!(before-linked_memories.len());
                     symbol_links_report["lifted_memories"] = json!(linked_memories.len());
+                }
+                // A matching reason may arrive only through a caller/callee
+                // link. Establish focus from that actually retrieved candidate
+                // prefix before the delivery cap, retaining earlier ranked notes.
+                if lexical_only && rationale.is_none() {
+                    rationale = crate::symbol_links::NoteFocus::new(query,&linked_memories,&rows);
+                    if let Some(focus) = &rationale {
+                        rationale_report = json!({"basis":focus.basis,"anchors":focus.anchors(),
+                            "anchor_route":"symbol_link","withheld_ranked":0,"withheld_linked":0});
+                    }
                 }
                 if let Some(focus) = &rationale {
                     let before = linked_memories.len();

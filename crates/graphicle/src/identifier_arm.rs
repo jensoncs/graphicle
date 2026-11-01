@@ -685,6 +685,25 @@ pub(crate) fn helm_memory_scope(
     memory_dependency_scope(&graph, pending, documents, ScopeTraversal::References)
 }
 
+/// Reuse the same complete dependency scope for ranked notes when a shell
+/// question explicitly identifies both a function and its implementation file.
+pub(crate) fn shell_memory_scope(
+    db: &Connection, repository: &str, question: &str, documents: &HashMap<&str, &Value>,
+) -> Option<BTreeSet<(String, String)>> {
+    let named = explicit_names(question);
+    if named.names.is_empty() || named.paths.is_empty()
+        || !named.paths.iter().all(|path| path.ends_with(".sh") || path.ends_with(".bash")) {
+        return None;
+    }
+    let scope = memory_symbol_scope(db, repository, question, documents)?;
+    for path in scope.iter().map(|(path,_)| path).collect::<BTreeSet<_>>() {
+        let document = documents.get(format!("file:{path}").as_str())?;
+        if (path.ends_with(".sh") || path.ends_with(".bash"))
+            && !graphicle::extractors::bash::has_static_dispatch(s(document,"content")) { return None; }
+    }
+    Some(scope)
+}
+
 pub(crate) fn configuration_owner_scope(
     db: &Connection, repository: &str, question: &str, documents: &HashMap<&str, &Value>,
 ) -> Option<BTreeSet<(String, String)>> {

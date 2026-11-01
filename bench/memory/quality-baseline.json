@@ -560,7 +560,7 @@
     ]
   },
   "provenance": {
-    "report_sha256": "2cc55e9d0b2c3e792a739c30f62b31a3339b7136152bd36e98f46d0006c3be58",
+    "report_sha256": "b83dccc4fa46295ca6bc28ce56de59649c5faef8a1217af96bd60103840ea78e",
     "protocol": {
       "contract": {
         "scoring_version": 1,
@@ -1121,7 +1121,7 @@
           "source/payments/unicode/routed"
         ]
       },
-      "binary_sha256": "7604e7edb9291138d66c394992f9b065ce5f994699e76c97f228a723f1ebec23",
+      "binary_sha256": "0503a75e26c56433b85f46c017845b1dd2d701b6cdf68f04646fbfc97243dc8c",
       "python": "3.15.1",
       "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
       "runner_sha256": {
@@ -1365,9 +1365,7 @@
       "retrieved_relevant": [
         "settlement"
       ],
-      "irrelevant": [
-        "audit"
-      ]
+      "irrelevant": []
     },
     {
       "id": "links/billing/unrelated/counted",
@@ -2901,11 +2899,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "archive",
-        "probe",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "pressure/caller-pressure/lease-rationale/off",
@@ -2958,11 +2952,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "archive",
-        "probe",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "pressure/shared-pressure/shared-target/off",
@@ -3263,9 +3253,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "audit"
-      ]
+      "irrelevant": []
     },
     {
       "id": "diversity/transitive/two-hop-callee/off",
@@ -3318,10 +3306,7 @@
       "retrieved_relevant": [
         "lease"
       ],
-      "irrelevant": [
-        "order",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "cutoff/pagination-holdout/change/off",
@@ -7969,9 +7954,7 @@
         "pipeline",
         "wire"
       ],
-      "irrelevant": [
-        "alternate"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/bash-delivery/delivery-change/counted",
@@ -7993,9 +7976,7 @@
         "pipeline",
         "wire"
       ],
-      "irrelevant": [
-        "alternate"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/bash-delivery/delivery-change/on",
@@ -8018,9 +7999,7 @@
         "pipeline",
         "wire"
       ],
-      "irrelevant": [
-        "alternate"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/bash-delivery/delay-reason/counted",
@@ -8263,12 +8242,7 @@
       "content_preserved": true,
       "relevant": [],
       "retrieved_relevant": [],
-      "irrelevant": [
-        "lease",
-        "noise",
-        "pipeline",
-        "wire"
-      ]
+      "irrelevant": []
     },
     {
       "id": "infrastructure-memory/bash-delivery/literal-cap/off",
