@@ -1848,10 +1848,10 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     let mut b = crate::phase::phase("review_analyze_head", || {
         analyze(&head, &r.profile, cached_b)
     })?;
-    services::attach(&base, &mut a)?;
-    services::attach(&head, &mut b)?;
+    crate::phase::phase("review_service_links_base", || services::attach(&base, &mut a))?;
+    crate::phase::phase("review_service_links_head", || services::attach(&head, &mut b))?;
     let mut report = crate::phase::phase("review_compare", || compare(&base, &head, &a, &b, &r))?;
-    let coverage_ids = store.authorized_read(workspace, token, "read", |db, p| {
+    let coverage_ids = crate::phase::phase("review_execution_coverage", || store.authorized_read(workspace, token, "read", |db, p| {
         let visible = |pins: &[Pin]| {
             pins.iter()
                 .filter(|pin| store::repo(db, p, &pin.repository_id).is_ok())
@@ -1865,9 +1865,11 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
             &visible(&r.head),
             &r.profile,
         )
-    })?;
+    }))?;
     if let Some(options) = &r.business_context {
-        let (suggestions, omitted) = crate::business_context::suggestions(&report, options, &r.base, &r.head);
+        let (suggestions, omitted) = crate::phase::phase("review_history_candidates", || {
+            crate::business_context::suggestions(&report, options, &r.base, &r.head)
+        });
         for suggestion in suggestions {
             let side = s(&suggestion, "side");
             let (input, analysis) = if side == "base" {
