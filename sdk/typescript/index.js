@@ -108,6 +108,7 @@ export class GraphicleError extends Error {
     this.name = "GraphicleError";
     this.status = status;
     this.body = body;
+    this.code = body && typeof body.code === "string" ? body.code : undefined;
     this.retryAfterSeconds = retryAfterSeconds;
   }
 }
@@ -220,7 +221,10 @@ export class Project {
     return this.#client.request("POST", this.#path + "/commands", {operation, arguments: args}, options);
   }
   overview(options) { return this.#client.request("GET", this.#path + "/overview", undefined, options); }
-  status(options) { return this.command("status", {}, options); }
+  status(options) {
+    const {compact = false, ...request} = options ?? {};
+    return this.command("status", compact ? {compact: true} : {}, request);
+  }
   context(question, args = {}, options) { return this.command("context", {...args, question}, options); }
   read(sourceId, args = {}, options) { return this.command("read", {...args, source_id: sourceId}, options); }
   graphSource(episode, path, args = {}, options) { return this.command("graph.source", {...args, episode, path}, options); }

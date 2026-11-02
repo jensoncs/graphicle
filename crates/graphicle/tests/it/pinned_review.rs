@@ -77,7 +77,13 @@ impl Fixture {
         json!({"repository_id":repo,"directory":dir,"snapshot":begin["snapshot"],"commit":commit,"policy_sha256":policy})
     }
     fn run(&self, args: &Value) -> Value {
-        review::run(&self.store, &self.workspace, &self.token, args).unwrap()
+        let packet = review::run(&self.store, &self.workspace, &self.token, args).unwrap();
+        let schema: Value = serde_json::from_str(review::RISK_SCHEMA_JSON).unwrap();
+        let validator = jsonschema::validator_for(&schema).unwrap();
+        if let Err(error) = validator.validate(&packet) {
+            panic!("risk schema: {error} at {}", error.instance_path);
+        }
+        packet
     }
 }
 const MOD: &str = "module example/tax\ngo 1.23\n";

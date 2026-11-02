@@ -130,6 +130,7 @@ class GraphicleError(Exception):
                  job: Optional[Dict[str, Any]] = None, retry_after: Optional[int] = None) -> None:
         super().__init__(message)
         self.status = status
+        self.code = body.get("code") if isinstance(body, dict) else None
         self.message = message
         self.body = body
         self.job = job
@@ -362,8 +363,8 @@ class Project:
         arguments["repository_id"] = self.id
         return self.client.command(operation, **arguments)
 
-    def status(self) -> Dict[str, Any]:
-        return self.command("status")
+    def status(self, *, compact: bool = False) -> Dict[str, Any]:
+        return self.command("status", **({"compact": True} if compact else {}))
 
     def overview(self) -> Dict[str, Any]:
         """Source, memory and recorded-graph readiness for this project (service 0.6+)."""

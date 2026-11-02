@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:graphicle:review-risk:v1",
+  "title": "Graphicle review measurement fields v1",
+  "type": "object",
+  "required": ["format", "risk_schema", "impact", "entries", "coverage"],
+  "properties": {
+    "format": {"const": "graphicle.review.v1"},
+    "risk_schema": {"const": "graphicle.review-risk.v1"},
+    "impact": {"enum": ["potential_impact", "no_changes_in_scope", "incomplete"]},
+    "coverage": {"type": "object", "required": ["complete", "budget_omitted"], "properties": {
+      "complete": {"type": "boolean"}, "budget_omitted": {"type": "integer", "minimum": 0}
+    }},
+    "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
+  },
+  "$defs": {
+    "basis": {
+      "type": "object", "required": ["scope", "complete", "reason"],
+      "properties": {
+        "scope": {"type": ["string", "null"]},
+        "complete": {"type": "boolean"},
+        "reason": {"enum": ["base_snapshot", "unscoped_uncertainty", "unresolved_component", "missing_file_declarations", "complete_static_component", "context_omitted"]}
+      }
+    },
+    "reason": {
+      "type": "object", "required": ["reason"],
+      "properties": {
+        "reason": {"enum": ["change_seed", "dependency", "potential_consumer", "conservative_scope", "historical_cochange"]},
+        "path": {"type": "array", "items": {"type": "string"}},
+        "steps": {"type": "array", "items": {"type": "object"}},
+        "uncertain_scope": {"type": "boolean"}
+      }
+    },
+    "entry": {
+      "type": "object", "required": ["id", "analysis_level", "review_basis", "update", "test_classification", "reasons"],
+      "properties": {
+        "id": {"type": "string"},
+        "analysis_level": {"enum": ["compiler_symbol", "basic_file"]},
+        "review_basis": {"$ref": "#/$defs/basis"},
+        "update": {"enum": ["added", "updated"]},
+        "test_classification": {"enum": ["test_file", "non_test_file", "not_analyzed"]},
+        "reasons": {"type": "array", "items": {"$ref": "#/$defs/reason"}}
+      }
+    }
+  }
+}

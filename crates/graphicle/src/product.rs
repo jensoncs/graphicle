@@ -502,11 +502,7 @@ pub async fn meter(State(app): State<App>, request: Request<Body>, next: Next) -
         let bytes = match to_bytes(body, BODY_LIMIT).await {
             Ok(bytes) => bytes,
             Err(_) => {
-                return (
-                    StatusCode::PAYLOAD_TOO_LARGE,
-                    Json(json!({"error":"Request body exceeds 24 MiB"})),
-                )
-                    .into_response();
+                return Error::transport_bound("Request body exceeds 24 MiB").into_response();
             }
         };
         let exempt = serde_json::from_slice::<Value>(&bytes)

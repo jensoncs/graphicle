@@ -10,6 +10,11 @@ versioned together at 0.2.0.
 
 ### Review correctness and performance
 
+- Add compact status and commit receipts, bounded missing-upload pages, authorized
+  snapshot source reuse, versioned review risk fields, structured errors, and
+  source ranking/packing diagnostics for review integrations. See the
+  [pilot protocol](docs/pilot-protocol.md) for migration and measurement semantics.
+
 - Discover Next.js, Spring, Actix and Axum HTTP endpoints through the existing
   route pass, and inventory Firebase callable/HTTP functions and event triggers
   without guessing deployment wiring. Refresh routes when Next manifests change.

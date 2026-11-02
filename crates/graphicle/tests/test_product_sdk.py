@@ -54,6 +54,16 @@ def sync(project, files, commit):
                                                "snapshot": begin["snapshot"], "policy_sha256": policy}}
 
 
+def test_compact_status_reports_admitted_snapshot(product):
+    _, project = product
+    pinned = sync(project, {"doc.txt": "pilot"}, "a" * 40)
+    status = project.status(compact=True)
+    assert status["format"] == "graphicle.status.v1"
+    assert status["repository"]["snapshot"] == pinned["pin"]["snapshot"]
+    assert status["files"] == 1 and status["bytes"] == 5
+    assert "graph" not in status and len(json.dumps(status)) < 2048
+
+
 def test_python_client_runs_the_product_workflow_and_budget_recovery(product):
     client, project = product
     first = sync(project, {"auth.py": "def auth():\n    return 'before'\n"}, "a" * 40)

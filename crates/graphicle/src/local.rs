@@ -1152,23 +1152,35 @@ fn send_batches(
         )
     };
     let (mut batch, mut batch_bytes) = (Vec::new(), 0);
-    for name in prepared["missing"].as_array().into_iter().flatten() {
-        let name = name.as_str().unwrap_or_default();
-        let content = files
-            .remove(name)
-            .ok_or_else(|| Error::bad("The sync asked for a file the folder did not send"))?;
-        if !batch.is_empty()
-            && (batch.len() == crate::limits::UPLOAD_FILES
-                || batch_bytes + content.len() > crate::limits::REQUEST_BYTES)
-        {
+    let mut page = prepared.clone();
+    loop {
+        for name in page["missing"].as_array().into_iter().flatten() {
+            let name = name.as_str().unwrap_or_default();
+            let content = files
+                .remove(name)
+                .ok_or_else(|| Error::bad("The sync asked for a file the folder did not send"))?;
+            if !batch.is_empty()
+                && (batch.len() == crate::limits::UPLOAD_FILES
+                    || batch_bytes + content.len() > crate::limits::REQUEST_BYTES)
+            {
+                upload(std::mem::take(&mut batch))?;
+                batch_bytes = 0;
+            }
+            batch_bytes += content.len();
+            batch.push(json!({"path":name,"content":content}));
+        }
+        if !batch.is_empty() {
             upload(std::mem::take(&mut batch))?;
             batch_bytes = 0;
         }
-        batch_bytes += content.len();
-        batch.push(json!({"path":name,"content":content}));
-    }
-    if !batch.is_empty() {
-        upload(batch)?;
+        let Some(cursor) = page["next_cursor"].as_str() else {
+            break;
+        };
+        page = store.sync_missing(
+            workspace,
+            capability,
+            &json!({"repository_id":repository,"sync_id":prepared["sync_id"],"cursor":cursor}),
+        )?;
     }
     crate::phase::phase("sync_commit", || {
         store.sync_commit(

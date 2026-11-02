@@ -6,7 +6,10 @@ export interface ClientOptions {
   url: string; workspace: string; capability: string;
   timeoutMs?: number; fetch?: typeof globalThis.fetch; insecureHttp?: boolean;
 }
-export interface Evidence extends Result {id: string; sha256?: string; text?: string; quote?: string}
+export interface Evidence extends Result {
+  id: string; sha256?: string; text?: string; quote?: string;
+  rank?: number; rank_score?: number | null; score_kind?: "hybrid_fusion_v1" | "unscored";
+}
 export interface Context extends Result {evidence: Evidence[]; memories: Result[]}
 /** Immutable source binding admitted through sync.prepare/upload/commit. */
 export interface SnapshotPin {
@@ -71,18 +74,32 @@ export interface BusinessHistory {
     attributions: readonly {commit: string; line_start: number; line_end: number; subject: string; author_id?: string; timestamp?: number}[];
   }[];
 }
+export interface ReviewBasis {
+  scope: string | null; complete: boolean;
+  reason: "base_snapshot" | "unscoped_uncertainty" | "unresolved_component" |
+    "missing_file_declarations" | "complete_static_component" | "context_omitted";
+}
+export interface ReviewEntry extends Result {
+  id: string; analysis_level: "compiler_symbol" | "basic_file";
+  review_basis: ReviewBasis; update: "added" | "updated";
+  test_classification: "test_file" | "non_test_file" | "not_analyzed";
+  reasons: (Result & {reason: "change_seed" | "dependency" | "potential_consumer" |
+    "conservative_scope" | "historical_cochange"})[];
+}
 export interface ReviewPacket extends Result {
+  risk_schema: "graphicle.review-risk.v1";
   format: "graphicle.review.v1"; packet_id: string; previous_packet_id: string | null;
   base: SnapshotPin[]; head: SnapshotPin[]; profile: ReviewProfile;
   impact: "potential_impact" | "no_changes_in_scope" | "incomplete";
   changes: Result & {count: number}; coverage: Result & {complete: boolean; budget_omitted: number};
-  entries: Result[]; diffs: Result[]; invalidated: Result[]; unchanged: string[]; tokens: number;
+  entries: ReviewEntry[]; diffs: Result[]; invalidated: Result[]; unchanged: string[]; tokens: number;
   context_order: string[];
   service_provenance?: {format: "graphicle.service-provenance.v1"; definitions: Record<string, Result>};
 }
 export function materializeServiceProvenance(packet: Result): Promise<Result>;
 export function applyReviewDelta(previous: Result | null, packet: ReviewPacket): Promise<Result>;
 export class GraphicleError extends Error {
+  code?: string;
   status: number; body?: unknown; retryAfterSeconds?: number;
   constructor(message: string, options?: {status?: number; body?: unknown; retryAfterSeconds?: number; cause?: unknown});
 }
@@ -102,7 +119,7 @@ export class Project {
   readonly id: string;
   command<T = Result>(operation: string, args?: Arguments, options?: RequestOptions): Promise<T>;
   overview(options?: RequestOptions): Promise<Result>;
-  status(options?: RequestOptions): Promise<Result>;
+  status(options?: RequestOptions & {compact?: boolean}): Promise<Result>;
   context(question: string, args?: Arguments, options?: RequestOptions): Promise<Context>;
   read(sourceId: string, args?: Arguments, options?: RequestOptions): Promise<Result>;
   graphSource(episode: string, path: string, args?: Arguments, options?: RequestOptions): Promise<Result>;

@@ -800,9 +800,13 @@ pub fn pack(request: &Value) -> Result<Value> {
             "preview".into(),
             json!(quote.chars().take(600).collect::<String>()),
         );
-        if chronological {
-            reference.insert("rank".into(), json!(position + 1));
-        }
+        reference.insert("rank".into(), json!(position + 1));
+        reference
+            .entry("rank_score".to_string())
+            .or_insert(Value::Null);
+        reference
+            .entry("score_kind".to_string())
+            .or_insert(json!("unscored"));
         placed.push(order_fields(payload, false, sources.len()));
         delivered.push(quote);
         sources.push(Value::Object(reference));
@@ -984,7 +988,20 @@ pub fn pack(request: &Value) -> Result<Value> {
         return Err("At most 20 explicit evidence needs".into());
     }
     let unresolved = crate::retrieval::unresolved_needs(&needs, &delivered);
+    let minimum_score = sources
+        .iter()
+        .filter_map(|s| s["rank_score"].as_f64())
+        .min_by(f64::total_cmp);
+    let scored = sources
+        .iter()
+        .filter(|s| s["rank_score"].as_f64().is_some())
+        .count();
+    let packing = json!({"format":"graphicle.source-packing.v1","candidates":hits.len(),
+        "kept":sources.len(),"dropped":hits.len().saturating_sub(sources.len()),
+        "budget_dropped":omitted_sources,"scored_kept":scored,"unscored_kept":sources.len()-scored,
+        "lowest_score_kept":minimum_score,"score_kind":"hybrid_fusion_v1"});
     let result = json!({"repository_id":repo.get("id"),"snapshot":repo.get("snapshot"),"question":request.get("question"),
+        "packing":packing,
         "markdown":rendered,"characters":chars(&rendered),"max_chars":max_chars,"tokens":text::count(&rendered),"max_tokens":max_tokens,
         "compact_citations":compact,
         "tokenizer":"cl100k_base (reference; agent tokenization may differ)","sources":sources,"memories":included_memories,"withheld_stale":stale,

@@ -338,6 +338,7 @@ def test_bad_capability_raises_permission_error(local):
         bad.project("anything")
     assert isinstance(denied.value, PermissionError) and isinstance(denied.value, GraphicleError)
     assert denied.value.status == 403 and denied.value.message == "Workspace access denied"
+    assert denied.value.code == "admission_scope"
     with pytest.raises(PermissionError):
         Memory(bad).search("anything", filters={"user_id": "alice"})
     with pytest.raises(GraphicleError) as rejected:

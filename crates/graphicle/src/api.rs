@@ -318,7 +318,41 @@ pub fn router(app: App) -> Router {
         ))
         .layer(middleware::from_fn_with_state(app.clone(), admission))
         .layer(middleware::from_fn_with_state(app.clone(), boundary))
+        .layer(middleware::from_fn(structured_rejection))
         .with_state(app)
+}
+/// Axum's body-limit and extractor rejections do not pass through `Error`.
+/// Give API clients the same bounded envelope while preserving response headers.
+async fn structured_rejection(request: Request<Body>, next: Next) -> Response {
+    let response = next.run(request).await;
+    let status = response.status();
+    if !(status.is_client_error() || status.is_server_error())
+        || response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|v| v.starts_with("application/json"))
+    {
+        return response;
+    }
+    let (mut parts, body) = response.into_parts();
+    let message = match to_bytes(body, 8192).await {
+        Ok(bytes) if !bytes.is_empty() => String::from_utf8_lossy(&bytes).into_owned(),
+        _ => status
+            .canonical_reason()
+            .unwrap_or("Request failed")
+            .to_owned(),
+    };
+    let error = Error {
+        status,
+        ..Error::bad(message)
+    };
+    parts.headers.insert(
+        header::CONTENT_TYPE,
+        header::HeaderValue::from_static("application/json"),
+    );
+    parts.headers.remove(header::CONTENT_LENGTH);
+    Response::from_parts(parts, Body::from(error.json().to_string()))
 }
 /// A route that names a workspace, before the request meter: an installed
 /// extension may refuse it for the request's credential or limit the tokens
@@ -429,11 +463,11 @@ async fn boundary(State(app): State<App>, mut request: Request<Body>, next: Next
                 .get("x-graphicle-request")
                 .is_none_or(|v| v != "1")
         {
-            return (
-                StatusCode::FORBIDDEN,
-                Json(json!({"error":"Browser mutation requires a same-origin request"})),
-            )
-                .into_response();
+            return Error {
+                status: StatusCode::FORBIDDEN,
+                ..Error::bad("Browser mutation requires a same-origin request")
+            }
+            .into_response();
         }
         if let Ok(value) = header::HeaderValue::from_str(&cookie) {
             request
@@ -447,11 +481,11 @@ async fn boundary(State(app): State<App>, mut request: Request<Body>, next: Next
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     if !app.allowed_hosts.iter().any(|allowed| allowed == host) {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({"error":"Unexpected server host"})),
-        )
-            .into_response();
+        return Error {
+            status: StatusCode::FORBIDDEN,
+            ..Error::bad("Unexpected server host")
+        }
+        .into_response();
     }
     if !cross_site
         && let Some(origin) = request
@@ -463,11 +497,11 @@ async fn boundary(State(app): State<App>, mut request: Request<Body>, next: Next
             |public| origin == public && public == &format!("https://{host}"),
         )
     {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({"error":"Cross-origin access denied"})),
-        )
-            .into_response();
+        return Error {
+            status: StatusCode::FORBIDDEN,
+            ..Error::bad("Cross-origin access denied")
+        }
+        .into_response();
     }
     let mut result = next.run(request).await;
     let headers = result.headers_mut();
@@ -1233,6 +1267,7 @@ pub const CORE_OPERATIONS: &[&str] = &[
     "storage.prune",
     "sync.abort",
     "sync.commit",
+    "sync.missing",
     "sync.prepare",
     "sync.upload",
     "vector.configure",
@@ -1293,6 +1328,7 @@ pub(crate) fn dispatch(
         "register" => store.register(workspace, capability, args),
         "status" | "runtime.status" => store.project_status(workspace, capability, args),
         "sync.prepare" => store.sync_prepare(workspace, capability, args),
+        "sync.missing" => store.sync_missing(workspace, capability, args),
         "sync.upload" => store.sync_upload(workspace, capability, args),
         "sync.commit" => store.sync_commit(workspace, capability, args),
         "read" | "evidence.read" => {
@@ -2653,7 +2689,7 @@ fn mcp_in(
             } else {
                 -32602
             };
-            json!({"jsonrpc":"2.0","id":request["id"],"error":{"code":code,"message":error.message}})
+            json!({"jsonrpc":"2.0","id":request["id"],"error":{"code":code,"message":error.message,"data":error.json()}})
         }
     })
 }

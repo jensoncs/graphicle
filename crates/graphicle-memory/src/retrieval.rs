@@ -825,6 +825,11 @@ pub fn rank(request: &Value) -> Result<Value> {
     let mut remaining: Vec<_> = scores.into_iter().collect();
     remaining.sort_by(|a, b| b.1.total_cmp(&a.1).then(a.0.cmp(&b.0)));
     remaining.truncate(MAX_FUSED);
+    let source_scores: BTreeMap<_, _> = remaining
+        .iter()
+        .filter(|(id, _)| rows[ids[id]]["kind"] != "memory")
+        .map(|(id, score)| (id.clone(), *score))
+        .collect();
     // Diagnostics: the fused order before selection (for recall harnesses).
     let debug_fused = request
         .get("debug_fused")
@@ -1057,6 +1062,7 @@ pub fn rank(request: &Value) -> Result<Value> {
         .map(|(_, x)| x)
         .collect();
     let mut output = json!({"sources":sources,"memories":memories,"reasons":reasons,"unresolved_needs":unresolved,"mode":mode,
+        "source_scores":source_scores,"score_kind":"hybrid_fusion_v1",
         "relationship_hops":hops,"decisions":selected.len(),
         "need_assessment":"lexical candidate coverage, not semantic sufficiency","complete_evidence_guaranteed":false,
         "strategy":"hybrid_rrf_graph_sequential_diversity","network_requests":0,"cache":cache::stats()?,

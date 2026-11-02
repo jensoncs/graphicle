@@ -81,6 +81,7 @@ mod source_object;
 pub mod store;
 pub mod store_compat;
 pub mod structured_memory;
+mod sync_protocol;
 pub mod symbol_links;
 pub mod symbols;
 pub mod temporal_graph;
@@ -109,6 +110,35 @@ pub struct Error {
 }
 pub type Result<T> = std::result::Result<T, Error>;
 impl Error {
+    /// Stable machine classification, independent of human message wording.
+    pub fn code(&self) -> &'static str {
+        match self.status {
+            StatusCode::FORBIDDEN | StatusCode::UNAUTHORIZED => "admission_scope",
+            StatusCode::PAYLOAD_TOO_LARGE => "transport_bound",
+            StatusCode::REQUEST_TIMEOUT | StatusCode::GATEWAY_TIMEOUT => "timeout",
+            StatusCode::CONFLICT => "conflict",
+            StatusCode::NOT_FOUND => "not_found",
+            StatusCode::TOO_MANY_REQUESTS => "rate_limited",
+            status if status.is_server_error() => "internal",
+            _ => "invalid_request",
+        }
+    }
+    pub fn json(&self) -> Value {
+        json!({"format":"graphicle.error.v1","code":self.code(),"status":self.status.as_u16(),
+            "error":self.message.chars().take(2048).collect::<String>()})
+    }
+    pub fn transport_bound(message: impl std::fmt::Display) -> Self {
+        Self {
+            status: StatusCode::PAYLOAD_TOO_LARGE,
+            ..Self::bad(message)
+        }
+    }
+    pub fn timeout(message: impl std::fmt::Display) -> Self {
+        Self {
+            status: StatusCode::GATEWAY_TIMEOUT,
+            ..Self::bad(message)
+        }
+    }
     pub fn bad(message: impl std::fmt::Display) -> Self {
         Self {
             status: StatusCode::BAD_REQUEST,
@@ -149,7 +179,11 @@ impl From<serde_json::Error> for Error {
 }
 impl From<std::io::Error> for Error {
     fn from(e: std::io::Error) -> Self {
-        Self::bad(format!("Local I/O failed: {e}"))
+        if e.kind() == std::io::ErrorKind::TimedOut {
+            Self::timeout("Local I/O timed out")
+        } else {
+            Self::bad(format!("Local I/O failed: {e}"))
+        }
     }
 }
 impl From<String> for Error {
@@ -175,7 +209,7 @@ impl From<graphicle_memory::Error> for Error {
 }
 impl IntoResponse for Error {
     fn into_response(self) -> Response {
-        (self.status, Json(json!({"error":self.message}))).into_response()
+        (self.status, Json(self.json())).into_response()
     }
 }
 

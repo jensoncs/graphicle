@@ -12,6 +12,17 @@ async function server(t, handler) {
 }
 const client = (url, more = {}) => new Graphicle({url, workspace: "workspace-1", capability: "fixture-secret", ...more});
 
+test("compact status forwards the flag and structured errors retain the code", async t => {
+  const url = await server(t, async (req, res) => {
+    let body = ""; for await (const chunk of req) body += chunk;
+    assert.deepEqual(JSON.parse(body), {operation: "status", arguments: {compact: true}});
+    res.writeHead(403, {"content-type": "application/json"});
+    res.end(JSON.stringify({format: "graphicle.error.v1", code: "admission_scope", status: 403, error: "Denied"}));
+  });
+  await assert.rejects(client(url).project("p").status({compact: true}),
+    error => error instanceof GraphicleError && error.code === "admission_scope" && error.status === 403);
+});
+
 test("project workflow sends a bound v1 path and preserves evidence hashes", async t => {
   const calls = [];
   const url = await server(t, async (req, res) => {

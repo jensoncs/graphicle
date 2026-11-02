@@ -36,6 +36,9 @@ struct Cli {
     /// The model configuration (default: models.json in the data folder).
     #[arg(long, global = true, value_name = "FILE")]
     config: Option<PathBuf>,
+    /// Emit failed calls as a single graphicle.error.v1 JSON object on stderr.
+    #[arg(long, global = true)]
+    json_errors: bool,
     #[command(subcommand)]
     command: Option<Command>,
 }
@@ -306,6 +309,9 @@ enum Command {
         /// is not a terminal).
         #[arg(long)]
         json: bool,
+        /// Return bounded identity/count fields without the source manifest.
+        #[arg(long)]
+        compact: bool,
     },
     /// Check the installation, this project and its agents; print the
     /// command that fixes each problem.
@@ -706,7 +712,7 @@ fn arguments(path: Option<PathBuf>) -> Result<Value> {
     if let Some(path) = path {
         let bytes = std::fs::read(path)?;
         if bytes.len() > 16 * 1024 * 1024 {
-            return Err(Error::bad("Arguments exceed 16 MiB"));
+            return Err(Error::transport_bound("Arguments exceed 16 MiB"));
         }
         let value: Value = serde_json::from_slice(&bytes)?;
         if !value.is_object() {
@@ -727,6 +733,10 @@ fn arguments(path: Option<PathBuf>) -> Result<Value> {
 /// cannot start, with the status to exit with.
 pub fn main_with(extensions: Extensions) -> i32 {
     let args: Vec<OsString> = std::env::args_os().collect();
+    let json_errors = args
+        .iter()
+        .take_while(|a| *a != "--")
+        .any(|a| a == "--json-errors");
     if let Some(engine_args) = crate::graph_command::requested(&args) {
         crate::graph_command::note_project(&args, engine_args);
         return crate::graph_command::exec(engine_args);
@@ -747,7 +757,11 @@ pub fn main_with(extensions: Extensions) -> i32 {
                 }
                 Err(error) => {
                     // The common errors name the command that fixes them.
-                    eprintln!("graphicle: {}", crate::terminal::explain(&error.message));
+                    if json_errors {
+                        eprintln!("{}", error.json());
+                    } else {
+                        eprintln!("graphicle: {}", crate::terminal::explain(&error.message));
+                    }
                     1
                 }
             };
@@ -838,10 +852,24 @@ where
     I: IntoIterator<Item = T>,
     T: Into<OsString> + Clone,
 {
+    let args: Vec<OsString> = args.into_iter().map(Into::into).collect();
+    let json_errors = args
+        .iter()
+        .take_while(|a| *a != "--")
+        .any(|a| a == "--json-errors");
     let extensions = crate::extension::installed();
     let interface = interface();
     let mut matches = match interface.clone().try_get_matches_from(args) {
         Ok(matches) => matches,
+        Err(error)
+            if json_errors
+                && !matches!(
+                    error.kind(),
+                    clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion
+                ) =>
+        {
+            return Err(Error::bad(error));
+        }
         Err(error) => crate::terminal::usage_error(&interface, error),
     };
     let context = CliContext::new(
@@ -1587,9 +1615,25 @@ where
             let _ = tokio::task::spawn_blocking(move || drain.join()).await;
             served
         }
-        Command::Status { project, json } => {
+        Command::Status {
+            project,
+            json,
+            compact,
+        } => {
             let session = local::session(&store, false)?;
             let resolved = local::resolve(&store, &session, project.as_deref())?;
+            if compact {
+                return print(
+                    &api::command_async(
+                        &app,
+                        &session.workspace,
+                        &session.capability,
+                        "status",
+                        &json!({"repository_id":resolved.id,"compact":true}),
+                    )
+                    .await?,
+                );
+            }
             // The easy flow's freshness: the folder's few changed files first.
             let fresh = crate::fresh::ensure(
                 &store,

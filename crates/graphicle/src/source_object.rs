@@ -88,6 +88,21 @@ pub(crate) fn load(db: &Connection, repository: &str, sha: &str) -> Result<Optio
     Ok(Some(content))
 }
 
+pub(crate) fn check_retention(db: &Connection, repository: &str, retained: usize) -> Result<()> {
+    let bytes: u64 = db.query_row(
+        "SELECT coalesce(sum(bytes),0) FROM repo_objects WHERE repository_id=?",
+        [repository],
+        |r| r.get(0),
+    )?;
+    if bytes > retained as u64 {
+        return Err(Error::bad(format!(
+            "Retained sources exceed {}, earlier versions included; prune earlier versions with storage.prune, or raise limits.project_bytes",
+            crate::limits::size(retained)
+        )));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

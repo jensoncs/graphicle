@@ -27,6 +27,8 @@ mod basic;
 mod provenance;
 
 const FORMAT: &str = "graphicle.review.v1";
+pub const RISK_SCHEMA: &str = "graphicle.review-risk.v1";
+pub const RISK_SCHEMA_JSON: &str = include_str!("../../../docs/schemas/review-risk-v1.json");
 const MAX_SOURCE_BYTES: usize = 64 * 1024 * 1024;
 const MAX_FILES: usize = 20_000;
 fn depth() -> usize {
@@ -811,6 +813,13 @@ fn entry(
         "name":symbol.name,"kind":symbol.kind,"parent":symbol.parent,"package":symbol.package,"package_binding":binding,"byte_start":symbol.start,"byte_end":symbol.end,"line":symbol.line,"end_line":symbol.end_line,
         "signature_revision":symbol.signature,"implementation_revision":symbol.implementation,"text":&source.content.text().expect("verified compiler span")[symbol.start..symbol.end],"reasons":reasons,"test":source.path.ends_with("_test.go")});
     value["text_sha256"] = json!(text::sha256(s(&value, "text").as_bytes()));
+    value["analysis_level"] = json!("compiler_symbol");
+    value["test_classification"] = json!(if source.path.ends_with("_test.go") {
+        "test_file"
+    } else {
+        "non_test_file"
+    });
+    value["review_basis"] = json!({"scope":null,"complete":false,"reason":if side=="base" {"base_snapshot"} else {"unscoped_uncertainty"}});
     value["revision"] = json!(crate::digest(&value));
     value
 }
@@ -1326,6 +1335,7 @@ fn pack_encoding(
     scopes: Option<&reuse::Scopes>,
     compact: bool,
 ) -> Result<(Value, Value, usize)> {
+    report["risk_schema"] = json!(RISK_SCHEMA);
     let mut entries = std::mem::take(report["entries"].as_array_mut().unwrap());
     let provenance = if compact {
         crate::phase::phase("review_compact_provenance", || provenance::Catalog::prepare(&mut entries))
@@ -2105,7 +2115,7 @@ pub fn read_request(path: &Path) -> Result<Value> {
         .take(1024 * 1024 + 1)
         .read_to_end(&mut bytes)?;
     if bytes.len() > 1024 * 1024 {
-        return Err(Error::bad("Review request exceeds 1 MiB"));
+        return Err(Error::transport_bound("Review request exceeds 1 MiB"));
     }
     Ok(serde_json::from_slice(&bytes)?)
 }

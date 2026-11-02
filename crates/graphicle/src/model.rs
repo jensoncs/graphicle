@@ -746,7 +746,11 @@ pub async fn generate_with_credential(
             } else {
                 "Provider request failed before a response; usage may be unknown"
             };
-            Error::bad(request_failure(what, &error))
+            if error.is_timeout() {
+                Error::timeout(request_failure(what, &error))
+            } else {
+                Error::bad(request_failure(what, &error))
+            }
         })?;
     let value = provider_json(response, credential).await?;
     reply(p, &value, estimated, start)

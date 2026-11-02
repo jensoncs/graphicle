@@ -2149,6 +2149,31 @@ fn context_impl(
     };
     let mut hits =
         crate::evidence::source_hits(documents, &candidates, args["expand_context"] != false)?;
+    // Expanded/merged windows retain the best score of their contributing
+    // candidates. Explicit declarations absent from fusion remain unscored.
+    for hit in &mut hits {
+        let score = candidates
+            .iter()
+            .filter(|c| {
+                c["source"]["id"] == hit["source"]["id"]
+                    && c["source"]["sha256"] == hit["source"]["sha256"]
+                    && c["source"]["byte_start"]
+                        .as_u64()
+                        .zip(c["source"]["byte_end"].as_u64())
+                        .is_some_and(|(a, b)| {
+                            a < hit["source"]["byte_end"].as_u64().unwrap_or(0)
+                                && b > hit["source"]["byte_start"].as_u64().unwrap_or(u64::MAX)
+                        })
+            })
+            .filter_map(|c| ranked["source_scores"][s(c, "identity")].as_f64())
+            .max_by(f64::total_cmp);
+        hit["source"]["rank_score"] = json!(score);
+        hit["source"]["score_kind"] = json!(if score.is_some() {
+            "hybrid_fusion_v1"
+        } else {
+            "unscored"
+        });
+    }
     if demote {
         mark_test_files_last(&mut hits);
     }
@@ -2251,6 +2276,9 @@ fn context_impl(
             crate::code_graph_arm::ARM,
             crate::doc_links::ARM,
             crate::symbol_links::ARM,
+            "rank",
+            "rank_score",
+            "score_kind",
         ] {
             if let Some(facts) = source.get(arm) {
                 window[arm] = facts.clone();
@@ -2945,6 +2973,20 @@ pub fn project_packet(
 
 impl Store {
     pub fn project_status(&self, workspace: &str, token: &str, args: &Value) -> Result<Value> {
+        if args.get("compact").is_some_and(|v| !v.is_boolean()) {
+            return Err(Error::bad("compact must be true or false"));
+        }
+        if args["compact"] == true {
+            return self.authorized_read(workspace, token, "read", |db,p| {
+                let repository=repo(db,p,string(args,"repository_id",100)?)?;
+                let (files,bytes):(u64,u64)=db.query_row("SELECT count(*),coalesce(sum(o.bytes),0) FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 WHERE h.repository_id=?",[s(&repository,"id")],|r|Ok((r.get(0)?,r.get(1)?)))?;
+                Ok(json!({"format":"graphicle.status.v1","compact":true,"repository":{
+                    "id":repository["id"],"name":repository["name"],"snapshot":repository["snapshot"],
+                    "generation":repository["generation"],"updated_at":repository["updated_at"]},
+                    "files":files,"bytes":bytes,"structural_revision":graphicle_memory::structure::REVISION,
+                    "service_version":env!("CARGO_PKG_VERSION")}))
+            });
+        }
         self.authorized_read(workspace,token,"read",|db,p| {
             let repository=repo(db,p,string(args,"repository_id",100)?)?;let snap=snapshot(db,&repository,p)?;
             let observed:bool=db.query_row("SELECT EXISTS(SELECT 1 FROM am_connectors WHERE repository_id=? AND state='active' AND json_type(config,'$.observe')='object')",[s(&repository,"id")],|r|r.get(0))?;

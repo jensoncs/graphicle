@@ -60,6 +60,7 @@ mod offboard;
 mod one_server;
 mod passage_index;
 mod permissions_refresh;
+mod pilot_protocol;
 mod product_workspace;
 mod project_identity;
 mod provider_http_hosts;

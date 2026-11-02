@@ -586,7 +586,8 @@ impl Store {
     /// parts after the first name the `sync_id` the first one returned. The
     /// manifest is held to the project limits of whoever runs Graphicle
     /// ([`crate::limits`]); its last part returns the `snapshot` and the paths
-    /// whose content is `missing`, or `replayed: true` for an unchanged tree.
+    /// whose content is `missing` (paged via `sync.missing`), or `replayed:
+    /// true` for an unchanged tree.
     /// A failed request changes nothing; `sync.abort` drops an unfinished sync.
     pub fn sync_prepare(&self, workspace: &str, token: &str, args: &Value) -> Result<Value> {
         let limits = self.limits()?;
@@ -603,6 +604,11 @@ impl Store {
             Some(Value::Bool(complete)) => *complete,
             Some(_) => return Err(Error::bad("Expected manifest_complete: true or false")),
         };
+        if !complete && args.get("reuse_sources").is_some() {
+            return Err(Error::bad(
+                "Supply reuse_sources with the final manifest part",
+            ));
+        }
         let mut part = BTreeMap::new();
         for item in manifest {
             let name = path(string(item, "path", 1000)?)?;
@@ -670,20 +676,19 @@ impl Store {
                 let metadata:Value=serde_json::from_str(&metadata)?;
                 crate::review::bind_snapshot(db,identifier,&snapshot,&metadata)?;
                 let projection=crate::jobs::enqueue_projection(db,identifier,p,&snapshot,&metadata)?;
-                return Ok(json!({"snapshot":snapshot,"sync_id":null,"missing":[],"replayed":true,"projection_job":projection}));
+                return Ok(json!({"format":"graphicle.sync-missing.v1","snapshot":snapshot,"sync_id":null,"missing":[],"missing_total":0,"next_cursor":null,"reused":{"objects":0,"bytes":0},"replayed":true,"projection_job":projection}));
             }
-            let mut missing=Vec::new();
-            let mut exists=db.prepare_cached("SELECT EXISTS(SELECT 1 FROM repo_objects WHERE repository_id=? AND sha256=? AND bytes=?)")?;
-            for (name,item) in files.as_object().unwrap() {
-                if !exists.query_row(params![identifier,s(item,"sha256"),item["bytes"].as_i64()],|r|r.get::<_,bool>(0))? {missing.push(name.clone());}
-            }
-            drop(exists);
+            let reused=crate::sync_protocol::reuse(db,p,identifier,&files,args)?;
+            crate::source_object::check_retention(db,identifier,limits.retained_bytes())?;
             let manifest=graphicle_memory::text::canonical(&files);
             let sync_id=match continued {
                 Some(sync_id)=>{db.execute("UPDATE repo_syncs SET snapshot=?,manifest=?,state='pending' WHERE id=?",params![snapshot,manifest,sync_id])?;sync_id.to_string()}
                 None=>{unfinished(db)?;let sync_id=id();db.execute("INSERT INTO repo_syncs VALUES(?,?,?,?,?,?,?,?)",params![sync_id,identifier,expected,snapshot,manifest,metadata,"pending",now()])?;sync_id}
             };
-            Ok(json!({"snapshot":snapshot,"sync_id":sync_id,"missing":missing,"replayed":false}))
+            let sync=json!({"id":sync_id,"snapshot":snapshot,"manifest":manifest});
+            let mut result=crate::sync_protocol::missing_page(db,identifier,&sync,args)?;
+            result["reused"]=reused;
+            Ok(result)
         })
     }
     /// Send content for a pending sync (`sync.upload`): 1 to
@@ -731,18 +736,7 @@ impl Store {
                 )?;
                 accepted.push(name.to_string());
             }
-            let bytes: i64 = db.query_row(
-                "SELECT coalesce(sum(bytes),0) FROM repo_objects WHERE repository_id=?",
-                [identifier],
-                |r| r.get(0),
-            )?;
-            let retained = limits.retained_bytes();
-            if usize::try_from(bytes).unwrap_or(usize::MAX) > retained {
-                return Err(Error::bad(format!(
-                    "Retained sources exceed {}, earlier versions included; prune earlier versions with storage.prune, or raise limits.project_bytes",
-                    crate::limits::size(retained)
-                )));
-            }
+            crate::source_object::check_retention(db, identifier, limits.retained_bytes())?;
             Ok(json!({"accepted":accepted,"snapshot_activated":false}))
         })
     }
@@ -755,6 +749,9 @@ impl Store {
     /// still searchable as text. Storage, integrity and authorization errors
     /// fail it.
     pub fn sync_commit(&self, workspace: &str, token: &str, args: &Value) -> Result<Value> {
+        if args.get("compact").is_some_and(|v| !v.is_boolean()) {
+            return Err(Error::bad("compact must be true or false"));
+        }
         let limits = self.limits()?;
         let analysis_limits = limits.analysis_request();
         let limited = graphicle_memory::structure::limited_revision(&limits.analysis());
@@ -927,6 +924,14 @@ impl Store {
             let (limited,skipped)=analysis_report(db,identifier)?;
             if !limited.is_empty() {result["limited"]=json!(limited);}
             if !skipped.is_empty() {result["skipped"]=json!(skipped);}
+            if args["compact"] == true {
+                for name in ["changed","removed","limited","skipped"] {
+                    let count=result[name].as_array().map_or(0,Vec::len);
+                    result.as_object_mut().unwrap().remove(name);
+                    result[format!("{name}_count")]=json!(count);
+                }
+                result["format"]=json!("graphicle.sync-commit.v1");
+            }
             Ok(result)
         })
     }
