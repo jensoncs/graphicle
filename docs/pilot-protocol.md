@@ -78,6 +78,21 @@ manifest validation, commit identity binding, and admission policy still apply.
 This reuses source bytes, not parse caches, memories, or policy bindings. Base and
 head in one target automatically share retained content by digest.
 
+For admission gaps, send the exhaustive `metadata.withheld_paths` attestation
+described in [pinned reviews](pinned-review.md#admit-source-snapshots). This avoids
+a blanket incomplete verdict for known credentials outside the Go build, while
+retaining uncertainty for missing source and possible embedded inputs.
+
+For large-repository timing, distinguish prepare/missing discovery, upload,
+commit parsing/chunking, projection, and native review analysis. Reusing donors
+removes repeated uploads but a fresh scratch project still needs its own parse
+and chunk records. Directly reviewing retained context-project snapshots also
+avoids that scratch admission work. A reused target keeps parse/chunk records
+for unchanged path/hash pairs, subject to analyzer revision changes. Missing-list
+pages currently rescan the manifest and check each unique object; repeated pages
+are another cost to measure. The reported Nexus 252-second sync has not been
+reproduced here, so the local byte-saving fixture is not a production latency claim.
+
 ## Risk measurements
 
 Packets carry `risk_schema:"graphicle.review-risk.v2"`. The machine contract is

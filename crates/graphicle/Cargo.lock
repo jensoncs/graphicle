@@ -1448,6 +1448,7 @@ dependencies = [
  "calamine",
  "chrono",
  "clap",
+ "glob",
  "graphicle",
  "graphicle-memory",
  "html2text",

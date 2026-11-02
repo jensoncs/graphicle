@@ -86,8 +86,57 @@ cryptographic proof of Git history. Graphicle verifies source bytes against the
 immutable manifest and retains separate commit/policy bindings when different
 commits have identical trees. Re-importing the same binding replaces its scope
 attestation, including downgrades from complete to incomplete. An absent or
-false `scope_complete` produces an explicit coverage limitation. Upgrading it
-requires a new explicit collector attestation.
+false `scope_complete` without an exhaustive omission list produces an explicit
+coverage limitation. Upgrading it requires a new explicit collector attestation.
+
+Collectors that withhold files can send an **exhaustive** list of exact
+repository-relative paths in the initial `sync.prepare` metadata:
+
+```json
+{
+  "commit": "<full lowercase Git commit ID>",
+  "policy_sha256": "<SHA-256 of the source admission/exclusion policy>",
+  "scope_complete": false,
+  "withheld_paths": [".env.production", "tls/client.key", "private/credentials.json"]
+}
+```
+
+The list includes every omitted file, not only credentials. Absent/null retains
+the old blanket limitation; an empty array explicitly attests no omissions.
+Paths must be unique and cannot overlap the admitted manifest. Traversal and
+absolute paths are rejected. The list shares metadata's 64 KiB bound, with at
+most 20,000 paths of at most 1,000 bytes each. A nonempty list conflicts with
+`scope_complete:true`. Multipart sync retains the initial metadata and checks
+overlap against every part.
+
+For Go, known credential/documentation filenames can be ruled out as build inputs
+only after checking all admitted packages' `go:embed` patterns, including directory
+and wildcard matches. Character classes, escapes and invalid patterns retain
+uncertainty rather than using a non-match as proof. `vendor/modules.txt` and compiler-source extensions are not
+treated as documentation/credentials. Missing code, build metadata, unknown files
+and potentially embedded assets remain incomplete. An apparently unrelated
+withheld source file could add a consumer edge missing from the admitted graph;
+Graphicle does not infer its irrelevance from that partial graph. Other languages
+do not yet have this compiler-backed omission proof. This checks Go build inputs;
+it does not prove runtime file reads or runtime configuration irrelevant.
+
+`coverage.source_admission.base/head` reports per-binding `withheld_count`,
+`outside_build_count`, `unresolved_count` and a digest of the sorted list, without
+echoing the paths. The admission gap clears only when every listed omission can
+be ruled out. Other analysis gaps remain. Lists are stored per exact
+repository/snapshot/commit/policy binding, reassessed even on a compiler-cache hit,
+and rechecked for concurrent updates before returning the packet. Old bindings
+migrate with an unknown (null) list; an older writer replacing the scope
+attestation invalidates any previously stored list. `build.info` advertises this contract as
+`review_source_admission: "exhaustive-withheld-paths-go-build-v1"`.
+
+Go discovery diagnostics distinguish `unavailable_external_package:<import path>`
+from `incomplete_discovery:<local package>`. Dependency errors are attributed to
+their owning package using Go's structured diagnostics, rather than marking every
+importer as a discovery failure. Own-source discovery errors and actual type-check
+failures remain incomplete. External code is still restricted to admitted
+snapshots: merely placing it in a host module cache does not authorize Graphicle
+to use it. This diagnostic fix alone cannot make an uncheckable build complete.
 
 Existing source limits, permissions, upload validation, and compare-and-swap
 sync checks apply. Retain both sides' source objects until review completes;

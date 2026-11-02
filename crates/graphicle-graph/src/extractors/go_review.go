@@ -69,14 +69,15 @@ type reviewCall struct {
 	DiscardedError bool   `json:"discarded_error,omitempty"`
 }
 type reviewPackage struct {
-	Dependencies []string          `json:"dependencies"`
-	Path         string            `json:"path"`
-	Directory    string            `json:"directory"`
-	Module       string            `json:"module"`
-	Version      string            `json:"version"`
-	Replacement  string            `json:"replacement"`
-	Files        []string          `json:"files"`
-	Imports      map[string]string `json:"imports"`
+	EmbedPatterns []string          `json:"embed_patterns"`
+	Dependencies  []string          `json:"dependencies"`
+	Path          string            `json:"path"`
+	Directory     string            `json:"directory"`
+	Module        string            `json:"module"`
+	Version       string            `json:"version"`
+	Replacement   string            `json:"replacement"`
+	Files         []string          `json:"files"`
+	Imports       map[string]string `json:"imports"`
 }
 type reviewWorld struct {
 	Root     string          `json:"root"`
@@ -92,6 +93,7 @@ type reviewInput struct {
 	Role    string `json:"role"`
 }
 type reviewCollector struct {
+	externalErrors map[string]bool
 	root           string
 	allowedRoots   []string
 	world          *reviewWorld
@@ -421,7 +423,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 	}
 	bindings := localValueBindings(files, info)
 	flow := functionValueFlow(files, info, bindings)
-	p := reviewPackage{Dependencies: m.Deps, Path: m.ImportPath, Directory: r.relative(m.Dir), Files: []string{}, Imports: map[string]string{}}
+	p := reviewPackage{EmbedPatterns: append(append(append([]string{}, m.EmbedPatterns...), m.TestEmbedPatterns...), m.XTestEmbedPatterns...), Dependencies: m.Deps, Path: m.ImportPath, Directory: r.relative(m.Dir), Files: []string{}, Imports: map[string]string{}}
 	if m.Module != nil {
 		p.Module = m.Module.Path
 		p.Version = m.Module.Version
@@ -864,6 +866,51 @@ func (r *reviewCollector) preflight(env []string) error {
 	}
 	return nil
 }
+
+// Dependency failures describe the dependency that failed, not a discovery
+// failure in every importer. Unknown/local failures remain conservative; the
+// independent go/types result must still succeed before a package is valid.
+func reviewLocalPackage(path string, all map[string]*metadata, allowed func(string) bool) bool {
+	for _, m := range all {
+		if m.Module != nil && allowed(m.Module.Dir) && (path == m.Module.Path || strings.HasPrefix(path, m.Module.Path+"/")) {
+			return true
+		}
+	}
+	return false
+}
+
+// go list copies a dependency's Error into importers' DepsErrors. ImportStack
+// can end at the importer, so resolve the complete diagnostic to its owner;
+// never infer the missing package by parsing error prose.
+func reviewErrorKey(problem packageError) string {
+	value, _ := json.Marshal(problem)
+	return string(value)
+}
+func reviewExternalErrors(all map[string]*metadata, allowed func(string) bool) map[string]bool {
+	errors := map[string]bool{}
+	for path, m := range all {
+		if m.Error == nil {
+			continue
+		}
+		key := reviewErrorKey(*m.Error)
+		external := !m.Standard && !allowed(m.Dir) && !reviewLocalPackage(path, all, allowed)
+		previous, seen := errors[key]
+		errors[key] = external && (!seen || previous)
+	}
+	return errors
+}
+func reviewDiscoveryIncomplete(m *metadata, externalErrors map[string]bool) bool {
+	if m.Error != nil || (m.Incomplete && len(m.DepsErrors) == 0) {
+		return true
+	}
+	for _, problem := range m.DepsErrors {
+		if !externalErrors[reviewErrorKey(problem)] {
+			return true
+		}
+	}
+	return false
+}
+
 func runReview(req reviewRequest) {
 	root, _ := os.Getwd()
 	root, _ = filepath.EvalSymlinks(root)
@@ -871,7 +918,7 @@ func runReview(req reviewRequest) {
 		Version   string        `json:"analyzer"`
 		Toolchain string        `json:"toolchain"`
 		Worlds    []reviewWorld `json:"worlds"`
-	}{Version: "graphicle-go-review-v7"}
+	}{Version: "graphicle-go-review-v8"}
 	version, _ := exec.Command("go", "version").Output()
 	result.Toolchain = strings.TrimSpace(string(version))
 	var allowed []string
@@ -927,9 +974,6 @@ func runReview(req reviewRequest) {
 			if strings.HasSuffix(m.ImportPath, ".test") && m.Name == "main" {
 				continue
 			}
-			if m.Error != nil || m.Incomplete || len(m.DepsErrors) > 0 {
-				world.Issues = append(world.Issues, "incomplete_discovery:"+m.ImportPath)
-			}
 			if !m.Standard && collector.allowed(m.Dir) {
 				addInputs := func(names []string, role string) {
 					for _, name := range names {
@@ -953,6 +997,14 @@ func runReview(req reviewRequest) {
 			l.meta[m.ImportPath] = &m
 			if !m.DepOnly {
 				roots[m.ImportPath] = true
+			}
+		}
+		collector.externalErrors = reviewExternalErrors(l.meta, collector.allowed)
+		for path, m := range l.meta {
+			if !m.Standard && !collector.allowed(m.Dir) && !reviewLocalPackage(path, l.meta, collector.allowed) {
+				world.Issues = append(world.Issues, "unavailable_external_package:"+path)
+			} else if reviewDiscoveryIncomplete(m, collector.externalErrors) {
+				world.Issues = append(world.Issues, "incomplete_discovery:"+path)
 			}
 		}
 		if l.sizes == nil {

@@ -15,6 +15,9 @@ use std::{
     path::Path,
 };
 
+#[path = "review_admission.rs"]
+pub(crate) mod admission;
+
 #[path = "review_reuse.rs"]
 mod reuse;
 #[path = "service_graph.rs"]
@@ -108,7 +111,7 @@ struct Input {
     pins: Vec<Pin>,
     sources: BTreeMap<String, Source>,
     issues: Vec<Value>,
-    bindings: Vec<(Pin, bool)>,
+    bindings: Vec<admission::Binding>,
 }
 #[derive(Clone, Serialize, Deserialize)]
 struct Symbol {
@@ -330,11 +333,16 @@ fn load(
             let row=store::one(db,"SELECT manifest,metadata FROM repo_snapshots WHERE repository_id=? AND sha256=?",params![pin.repository_id,pin.snapshot])?;
             let Some(row)=row else {input.issues.push(issue("unavailable_snapshot",json!(pin.directory)));continue};
             let manifest:Value=serde_json::from_str(s(&row,"manifest"))?;let metadata:Value=serde_json::from_str(s(&row,"metadata"))?;
-            let binding=store::one(db,"SELECT scope_complete FROM repo_snapshot_bindings WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?",params![pin.repository_id,pin.snapshot,pin.commit,pin.policy_sha256])?;
+            let binding=store::one(db,"SELECT scope_complete,withheld_paths FROM repo_snapshot_bindings WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?",params![pin.repository_id,pin.snapshot,pin.commit,pin.policy_sha256])?;
             let legacy=metadata["commit"]==pin.commit && metadata["policy_sha256"]==pin.policy_sha256;
             if (binding.is_none() && !legacy)||crate::digest(&manifest)!=pin.snapshot {input.issues.push(issue("snapshot_binding_mismatch",json!(pin.directory)));continue}
             let complete = binding.as_ref().map(|v|v["scope_complete"]==1).unwrap_or(legacy && metadata["scope_complete"]==true);
-            input.bindings.push((pin.clone(), complete));
+            let withheld = match &binding {
+                Some(row) if !row["withheld_paths"].is_null() => Some(serde_json::from_str::<Vec<String>>(s(row,"withheld_paths"))?),
+                Some(_) => None,
+                None => admission::withheld_paths(&metadata)?,
+            };
+            input.bindings.push(admission::Binding { pin:pin.clone(), complete, withheld, original:binding });
             if let Some(preparation) = metadata.get("dependency_preparation") {
                 let prepared_profile = serde_json::from_value::<Profile>(preparation["profile"].clone());
                 if prepared_profile.ok().and_then(|p| serde_json::to_value(p).ok()) != Some(serde_json::to_value(profile)?) {
@@ -1133,8 +1141,9 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
         };
     let selected_a = select_scope(a, &seeds_a, &fallback_a)?;
     let selected_b = select_scope(b, &seeds_b, &fallback_b)?;
-    let mut issues = a.issues.clone();
-    issues.extend(b.issues.clone());
+    let (mut issues, admission_a) = admission::assess(base, a, "base");
+    let (issues_b, admission_b) = admission::assess(head, b, "head");
+    issues.extend(issues_b);
     issues.extend(scope_issues);
     issues.extend(selected_a.issues);
     issues.extend(selected_b.issues);
@@ -1216,7 +1225,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     let complete = issues.is_empty();
     Ok(
         json!({"format":FORMAT,"base":base.pins,"head":head.pins,"profile":r.profile,"analyzer":a.analyzer,"toolchain":{"base":a.toolchain,"head":b.toolchain},"changes":changes,"correspondence":correspondence,"dependency_binding_changed":dependency_changed,
-        "diffs":diffs,"entries":entries,"file_changes":file_changes,"package_instances":{"base":a.packages,"head":b.packages},"service_graph":{"base":a.services.summary(),"head":b.services.summary()},"coverage":{"complete":complete,"scope":"supplied snapshot set; Go compiler facts and basic Terraform/Helm/Bash/Python/Rust source dependencies","behavioral_propagation_proven":false,"path_selection":"shortest_example_per_direction","issues":issues,"max_depth":r.max_depth},
+        "diffs":diffs,"entries":entries,"file_changes":file_changes,"package_instances":{"base":a.packages,"head":b.packages},"service_graph":{"base":a.services.summary(),"head":b.services.summary()},"coverage":{"complete":complete,"source_admission":{"base":admission_a,"head":admission_b},"scope":"supplied snapshot set; Go compiler facts and basic Terraform/Helm/Bash/Python/Rust source dependencies","behavioral_propagation_proven":false,"path_selection":"shortest_example_per_direction","issues":issues,"max_depth":r.max_depth},
         "impact":if !complete{"incomplete"}else if seeds_a.is_empty()&&seeds_b.is_empty()&&diffs.is_empty()&&!dependency_changed{"no_changes_in_scope"}else{"potential_impact"}}),
     )
 }
@@ -2061,7 +2070,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         report["business_context"]["omitted_peer_suggestions"] = json!(omitted);
     }
     let context_sha = crate::digest(
-        &json!({"business_context":r.business_context,"execution_coverage":coverage_ids,
+        &json!({"business_context":r.business_context,"execution_coverage":coverage_ids,"source_admission":report["coverage"]["source_admission"],
             "service_graph":{"base":a.services.summary(),"head":b.services.summary()}}),
     );
     let scopes = crate::phase::phase("review_reuse_scopes", || {
@@ -2095,9 +2104,10 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         }
         drop(exists);
         for input in [&base, &head] {
-            for (pin, complete) in &input.bindings {
-                let current = store::one(db,"SELECT scope_complete FROM repo_snapshot_bindings WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?",params![pin.repository_id,pin.snapshot,pin.commit,pin.policy_sha256])?;
-                if current.is_some_and(|v| (v["scope_complete"] == 1) != *complete) {
+            for binding in &input.bindings {
+                let pin = &binding.pin;
+                let current = store::one(db,"SELECT scope_complete,withheld_paths FROM repo_snapshot_bindings WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?",params![pin.repository_id,pin.snapshot,pin.commit,pin.policy_sha256])?;
+                if current != binding.original {
                     return Err(Error::conflict("Snapshot scope attestation changed during review; retry"));
                 }
             }
@@ -2142,6 +2152,7 @@ pub(crate) fn bind_snapshot(
     snapshot: &str,
     metadata: &Value,
 ) -> Result<()> {
+    let withheld = admission::withheld_paths(metadata)?.map(|paths| serde_json::to_string(&paths)).transpose()?;
     let commit = s(metadata, "commit");
     let policy = s(metadata, "policy_sha256");
     if ![40, 64].contains(&commit.len())
@@ -2153,6 +2164,7 @@ pub(crate) fn bind_snapshot(
         return Ok(());
     }
     db.execute("INSERT INTO repo_snapshot_bindings(repository_id,snapshot,commit_id,policy_sha256,scope_complete) VALUES(?,?,?,?,?) ON CONFLICT(repository_id,snapshot,commit_id,policy_sha256) DO UPDATE SET scope_complete=excluded.scope_complete",params![repository,snapshot,commit,policy,metadata["scope_complete"]==true])?;
+    db.execute("UPDATE repo_snapshot_bindings SET withheld_paths=? WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?",params![withheld,repository,snapshot,commit,policy])?;
     Ok(())
 }
 

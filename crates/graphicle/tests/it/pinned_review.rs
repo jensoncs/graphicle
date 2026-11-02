@@ -13,6 +13,8 @@ mod python_environment_impact;
 mod environment_impact;
 #[path = "basic_impact.rs"]
 mod basic_impact;
+#[path = "source_admission.rs"]
+mod source_admission;
 
 struct Fixture {
     _dir: tempfile::TempDir,
@@ -1056,7 +1058,7 @@ fn empty_build_selections_and_missing_dependencies_produce_qualified_packets() {
     assert!(
         report["coverage"]["issues"]
             .to_string()
-            .contains("incomplete_discovery")
+            .contains("unavailable_external_package:example.test/missing")
     );
 }
 

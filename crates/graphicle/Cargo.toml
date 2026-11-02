@@ -37,6 +37,7 @@ clap = { version = "4", features = ["derive"] }
 url = "2"
 subtle = "2"
 ignore = "0.4"
+glob = "0.3"
 base64 = "0.22"
 regex = "1"
 similar = "2.7"

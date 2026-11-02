@@ -361,6 +361,7 @@ impl Store {
         db.execute_batch(include_str!("workflow_schema.sql"))?;
         db.execute_batch(include_str!("expansion_schema.sql"))?;
         db.execute_batch(include_str!("projection_schema.sql"))?;
+        crate::review::admission::migrate(&db)?;
         ensure_column(&db, "gf_episodes", "parent_episode", "TEXT")?;
         db.execute_batch(include_str!("temporal_schema.sql"))?;
         crate::temporal_graph::migrate(&db)?;
@@ -629,6 +630,7 @@ impl Store {
         if !metadata.is_object() || metadata.to_string().len() > 65536 {
             return Err(Error::bad("Invalid bounded metadata"));
         }
+        crate::review::admission::withheld_paths(&metadata)?;
         let limited = graphicle_memory::structure::limited_revision(&limits.analysis());
         self.authorized(workspace,token,"collect",|db,p| {
             let repository=repo(db,p,string(args,"repository_id",100)?)?;
@@ -647,6 +649,10 @@ impl Store {
             };
             for (name,item) in part {
                 if files.insert(name,item).is_some() {return Err(Error::bad("Duplicate source path"));}
+            }
+            let saved_metadata:Value=serde_json::from_str(&metadata)?;
+            if crate::review::admission::withheld_paths(&saved_metadata)?.is_some_and(|paths|paths.iter().any(|path|files.contains_key(path))) {
+                return Err(Error::bad("A withheld path cannot also be admitted"));
             }
             let bytes:usize=files.values().map(|item|item["bytes"].as_u64().unwrap_or(0) as usize).sum();
             if files.len()>limits.project_files || bytes>limits.project_bytes {

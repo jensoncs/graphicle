@@ -20,12 +20,16 @@ import (
 
 type request struct {
 	Semantic *semanticRequest `json:"semantic,omitempty"`
-	Paths  []string
-	Review *reviewRequest `json:"review,omitempty"`
+	Paths    []string
+	Review   *reviewRequest `json:"review,omitempty"`
 }
 type moduleMetadata struct {
 	Path, Version, Dir, GoMod, GoVersion string
 	Replace                              *moduleMetadata
+}
+type packageError struct {
+	Err, Pos    string
+	ImportStack []string
 }
 type metadata struct {
 	Deps                                                        []string
@@ -33,11 +37,12 @@ type metadata struct {
 	GoFiles, CgoFiles                                           []string
 	IgnoredGoFiles, EmbedFiles, TestEmbedFiles, XTestEmbedFiles []string
 	ImportMap                                                   map[string]string
-	Error                                                       *struct{ Err string }
+	Error                                                       *packageError
 	Module                                                      *moduleMetadata
 	Standard, DepOnly, Incomplete                               bool
 	Imports, TestGoFiles, XTestGoFiles                          []string
-	DepsErrors                                                  []struct{ Err string }
+	DepsErrors                                                  []packageError
+	EmbedPatterns, TestEmbedPatterns, XTestEmbedPatterns        []string
 }
 type site struct {
 	Candidate  bool   `json:"candidate,omitempty"`
@@ -112,6 +117,9 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 	}
 	pkg, err := conf.Check(path, l.fset, files, info)
 	valid := err == nil && m.Error == nil && !m.Incomplete && len(m.DepsErrors) == 0 && len(m.CgoFiles) == 0
+	if l.review != nil {
+		valid = err == nil && !reviewDiscoveryIncomplete(m, l.review.externalErrors) && len(m.CgoFiles) == 0
+	}
 	if l.review != nil && !m.Standard {
 		l.review.collect(l, m, files, info, valid)
 	}
@@ -251,7 +259,10 @@ func main() {
 	if err := json.NewDecoder(os.Stdin).Decode(&req); err != nil {
 		panic(err)
 	}
-	if req.Semantic != nil { runSemantic(*req.Semantic); return }
+	if req.Semantic != nil {
+		runSemantic(*req.Semantic)
+		return
+	}
 	if req.Review != nil {
 		runReview(*req.Review)
 		return

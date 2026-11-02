@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"go/token"
+	"go/types"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -18,7 +20,7 @@ func TestDiscoveryBatchesModuleAndResolvesLinuxHTTP(t *testing.T) {
 	}
 	root := t.TempDir()
 	helper := filepath.Join(root, "helper")
-	build := exec.Command("go", "build", "-o", helper, "go_types.go", "go_review.go")
+	build := exec.Command("go", "build", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go")
 	build.Env = append(os.Environ(), "GOFLAGS=", "GOWORK=off", "GOENV=off", "GOTOOLCHAIN=local", "CGO_ENABLED=0")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v: %s", err, out)
@@ -93,5 +95,62 @@ func TestDiscoveryBatchesModuleAndResolvesLinuxHTTP(t *testing.T) {
 	}
 	if lists != 1 {
 		t.Fatalf("expected one go list, got %d: %s", lists, commands)
+	}
+}
+
+func TestReviewDiscoverySeparatesExternalFailures(t *testing.T) {
+	allowed := func(path string) bool { return path == "/pin" }
+	own := &metadata{ImportPath: "example/app", Dir: "/pin", Module: &moduleMetadata{Path: "example/app", Dir: "/pin"}, Incomplete: true,
+		DepsErrors: []packageError{{Err: "unavailable", ImportStack: []string{"example/app"}, Pos: "code.go:2:8"}}}
+	problem := own.DepsErrors[0]
+	external := &metadata{ImportPath: "outside/module", Error: &problem}
+	all := map[string]*metadata{"example/app": own, "outside/module": external}
+	errors := reviewExternalErrors(all, allowed)
+	if reviewDiscoveryIncomplete(own, errors) {
+		t.Fatal("external dependency smeared into local discovery")
+	}
+	if reviewLocalPackage("outside/module", all, allowed) {
+		t.Fatal("external module became local")
+	}
+	all["example/app/missing"] = &metadata{ImportPath: "example/app/missing", Error: &problem}
+	if !reviewDiscoveryIncomplete(own, reviewExternalErrors(all, allowed)) {
+		t.Fatal("diagnostic also owned by a missing local package was hidden")
+	}
+	delete(all, "example/app/missing")
+	own.Error = &problem
+	if !reviewDiscoveryIncomplete(own, errors) {
+		t.Fatal("own package error was hidden")
+	}
+	own.Error = nil
+	own.DepsErrors[0].ImportStack = []string{"example/app", "example/app/missing"}
+	if !reviewDiscoveryIncomplete(own, errors) {
+		t.Fatal("missing local package hidden")
+	}
+	own.DepsErrors[0].ImportStack = nil
+	if !reviewDiscoveryIncomplete(own, errors) {
+		t.Fatal("unattributed failure hidden")
+	}
+	own.DepsErrors = nil
+	if !reviewDiscoveryIncomplete(own, errors) {
+		t.Fatal("unexplained incomplete metadata hidden")
+	}
+}
+
+func TestReviewExternalDiagnosticsStillRequireLocalTypeChecking(t *testing.T) {
+	root := t.TempDir()
+	problem := packageError{Err: "unavailable outside dependency", Pos: "other.go:2:8", ImportStack: []string{"example/app"}}
+	for _, source := range []string{"package app\nfunc F() int { return 1 }\n", "package app\nfunc F() int { return \"wrong type\" }\n"} {
+		if err := os.WriteFile(filepath.Join(root, "code.go"), []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+		own := &metadata{ImportPath: "example/app", Dir: root, GoFiles: []string{"code.go"}, Module: &moduleMetadata{Path: "example/app", Dir: root}, Incomplete: true, DepsErrors: []packageError{problem}}
+		all := map[string]*metadata{"example/app": own, "outside/module": {ImportPath: "outside/module", Error: &problem}}
+		collector := &reviewCollector{root: root, allowedRoots: []string{root}, world: &reviewWorld{Root: root}}
+		collector.externalErrors = reviewExternalErrors(all, collector.allowed)
+		l := &loader{fset: token.NewFileSet(), meta: all, packages: map[string]*types.Package{}, busy: map[string]bool{}, sizes: types.SizesFor("gc", "amd64"), review: collector}
+		_, err := l.Import("example/app")
+		if (err != nil) != strings.Contains(source, "wrong type") {
+			t.Fatalf("type-check validity lost: %s: %v", source, err)
+		}
 	}
 }

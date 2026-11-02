@@ -64,3 +64,32 @@ dependency or lockfile was changed.
 
 Reviewed memories remain excluded from the source-only pilot baseline; this is
 an intentional protocol decision, not an unimplemented admission step.
+
+## Source admission follow-up
+
+The following deterministic fixtures exercise the upstream admission fixes;
+they are not a rerun of the Odin or Nexus production probes.
+
+| Fixture | Before / control | Updated behavior |
+| --- | --- | --- |
+| Changed Go function; three withheld credentials per side | `scope_complete:false` without a list: `impact:incomplete` | Exhaustive list: three inputs ruled outside the Go build per side; `impact:potential_impact`, including on a compiler-cache hit |
+| Credential matching `go:embed assets/*` | Incomplete admission | Still incomplete, one unresolved withheld input |
+| Withheld Go source, `vendor/modules.txt`, `go.mod`, or unknown JSON | Incomplete admission | Still incomplete; missing source is not declared irrelevant using the partial graph |
+| Missing external Go package | External error also attributed as local `incomplete_discovery` | Separate `unavailable_external_package`; local discovery warning removed, actual local type-check failure retained; impact still incomplete |
+| Exact tree with different commits/policies | One tree may have several admission assertions | Lists stay independent by binding; legacy and older-writer assertions remain conservative |
+
+The existing 1,000-file reuse fixture was rerun: 1,000 objects reused and eight
+changed files uploaded, 9,760 raw bytes instead of 2,425,852 (99.60% less content).
+No new sync acceleration is claimed. Donor reuse still copies bytes into the
+target and does not copy parse/chunk records; direct context-project pins avoid
+fresh scratch admission. Missing pages still perform per-object checks across
+the manifest. Production phase timings are needed to attribute the reported
+252-second Nexus sync to those costs.
+
+Focused tests: `go test go_types.go go_review.go go_semantic.go go_types_test.go`,
+runtime `cargo test --lib --test it review::`, and
+`cargo test --test it pilot_protocol:: -- --nocapture`. New coverage includes
+path validation, multipart overlap, embedded credentials, commit/policy isolation,
+cached-fact reassessment, schema migration, and invalidation by older writers.
+The runtime now declares the already-locked `glob` dependency directly to match
+Go embed patterns conservatively.

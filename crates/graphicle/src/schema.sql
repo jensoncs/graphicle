@@ -459,6 +459,7 @@ CREATE TABLE IF NOT EXISTS repo_snapshot_bindings (
     commit_id TEXT NOT NULL,
     policy_sha256 TEXT NOT NULL,
     scope_complete INTEGER NOT NULL,
+    withheld_paths TEXT,
     PRIMARY KEY(repository_id, snapshot, commit_id, policy_sha256),
     FOREIGN KEY(repository_id, snapshot) REFERENCES repo_snapshots(repository_id, sha256) ON DELETE CASCADE);
 
