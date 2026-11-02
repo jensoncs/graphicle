@@ -17,6 +17,14 @@ remain available to ordinary graph retrieval, but their presence in a review
 scope is reported as unsupported. An incomplete result must never be
 interpreted as “no impact.”
 
+With `risk_schema: "graphicle.review-risk.v2"`, `impact` describes the full
+analysis of those supplied snapshots before response packing. A smaller token
+budget does not change the verdict. Omissions are reported separately in
+`coverage.budget_omitted`; `coverage.complete` and each entry's `review_basis`
+remain conservative about missing context. Analysis and admission gaps still
+produce `impact: "incomplete"`. See the [measurement contract](pilot-protocol.md#risk-measurements)
+for v1/v2 comparison semantics.
+
 ## Basic language support
 
 Basic analysis is selected automatically for admitted sources in the existing
@@ -30,7 +38,7 @@ only basic sources do not require a Go toolchain.
 | Terraform | Changed `.tf`, `.tfvars`, JSON variants and lockfiles; conservative same-directory module scope; literal local module source dependencies | No plan/state, provider schemas, expression evaluation or remote modules |
 | Helm | Changed chart files, values, templates and helpers; conservative nearest-chart scope and vendored subchart candidates | No rendering, release values, dependency-condition evaluation, cluster capabilities or remote charts |
 | Bash | Changed scripts, declaration metadata, literal `source`, `.`, `bash` and `sh` path candidates | Working directory and PATH are not established; expansions, dynamic commands and runtime function binding remain unresolved |
-| Python | Changed files, declaration metadata, local import candidates and nearest project-manifest scope | No environment/package resolution, runtime dispatch, dynamic imports or rebinding resolution |
+| Python | Changed files, declaration metadata, local import candidates, literal env reads and nearest project-manifest scope | No runtime environment/package resolution, runtime dispatch, dynamic imports or rebinding resolution |
 | Rust | Changed files, declaration metadata, local module/import candidates and nearest Cargo manifest scope | No Cargo dependency resolution, feature/cfg evaluation, macros, build scripts or trait dispatch |
 
 Entries carry `analysis_level: "basic_file"`, `language`, complete file bytes and
@@ -511,3 +519,15 @@ never upgrade unresolved static edges to resolved calls.
 Ordinary graph extraction now asks Go for test variants when its input includes
 `_test.go` paths. Pinned review includes internal and external test packages when
 `profile.tests` is true, and excludes them when false; build tags still apply.
+
+### Environment configuration context
+
+Pinned reviews analyze literal Kubernetes env declarations and Go
+`os.Getenv` / `os.LookupEnv` or Python `os.getenv` / `os.environ` consumers by
+default when a repository has one admitted application root and one
+workload/container. Python links use file-level import dependencies, not a
+compiler call graph. Automatic associations are
+labelled source candidates, not verified service/environment ownership.
+Ambiguous or cross-repository mappings require pinned service manifest v2;
+ordinary context retrieval does not infer these deployment scopes. See [environment inputs](service-boundaries.md#literal-environment-inputs-v2)
+for the manifest, supported syntax, fallback rules and measurement counters.

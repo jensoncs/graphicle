@@ -628,6 +628,25 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 					obj = info.Uses[f.Sel]
 				}
 			}
+			// Resolve the standard-library object, not the spelling: import aliases
+			// work and a local object named os cannot invent an environment read.
+			if target, ok := obj.(*types.Func); ok && valid && !dynamic && target.Pkg() != nil && target.Pkg().Path() == "os" {
+				name := target.Name()
+				if name == "Getenv" || name == "LookupEnv" || name == "Environ" || name == "Setenv" || name == "Unsetenv" || name == "Clearenv" {
+					env := site
+					env.Relation, env.Reason, env.Spelling = "reads_environment", "", ""
+					env.Evidence = "go/types:os." + name
+					if name == "Setenv" || name == "Unsetenv" || name == "Clearenv" {
+						env.Relation = "writes_environment"
+					}
+					if len(call.Args) > 0 {
+						if literal, ok := unparen(call.Args[0]).(*ast.BasicLit); ok && literal.Kind == token.STRING {
+							env.Spelling, _ = strconv.Unquote(literal.Value)
+						}
+					}
+					r.world.Calls = append(r.world.Calls, env)
+				}
+			}
 			if _, ok := obj.(*types.Builtin); ok {
 				return true
 			}
@@ -852,7 +871,7 @@ func runReview(req reviewRequest) {
 		Version   string        `json:"analyzer"`
 		Toolchain string        `json:"toolchain"`
 		Worlds    []reviewWorld `json:"worlds"`
-	}{Version: "graphicle-go-review-v6"}
+	}{Version: "graphicle-go-review-v7"}
 	version, _ := exec.Command("go", "version").Output()
 	result.Toolchain = strings.TrimSpace(string(version))
 	var allowed []string
@@ -955,7 +974,9 @@ func runReview(req reviewRequest) {
 		}
 		for i := range world.Calls {
 			site := &world.Calls[i]
-			if site.Reason != "" {
+			// Environment operations bind to configuration inputs in the review
+			// layer, not to a Go declaration in the admitted source tree.
+			if site.Reason != "" || site.Relation == "reads_environment" || site.Relation == "writes_environment" {
 				continue
 			}
 			var targets []string

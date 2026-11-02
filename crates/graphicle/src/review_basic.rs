@@ -211,6 +211,33 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             };
             let mut parsed = structure::analyze(parse_path, content)
                 .unwrap_or_else(|_| structure::skipped("basic parse failed"));
+            if *lang == "python" && ext == "py" {
+                let shadowed_os = input.sources.keys().any(|other| {
+                    other.split('/').next() == path.split('/').next()
+                        && (other.ends_with("/os.py") || other.ends_with("/os/__init__.py"))
+                });
+                let environment = &parsed["environment"];
+                let incomplete = environment.is_null()
+                    || environment["issues"]
+                        .as_array()
+                        .is_none_or(|issues| !issues.is_empty())
+                    || shadowed_os;
+                if incomplete {
+                    out.issues.push(issue("python_environment_incomplete",json!({"file":path,"issues":environment["issues"],"local_os_module":shadowed_os})));
+                }
+                inventory["environment"] = environment.clone();
+                for operation in environment["operations"].as_array().into_iter().flatten().cloned()
+                    .chain(incomplete.then(||json!({"kind":"read","key":null,"byte_start":0,"byte_end":content.len(),"line":1}))) {
+                    out.calls.push((owner.clone(),Call {
+                        caller:file_key(path),target:String::new(),target_file:String::new(),target_package:String::new(),target_offset:0,
+                        spelling:if shadowed_os {String::new()}else{operation["key"].as_str().unwrap_or("").into()},
+                        file:path.clone(),start:operation["byte_start"].as_u64().unwrap_or(0) as usize,end:operation["byte_end"].as_u64().unwrap_or(0) as usize,
+                        line:operation["line"].as_u64().unwrap_or(1) as usize,
+                        relation:if operation["kind"]=="write"{"writes_environment"}else{"reads_environment"}.into(),
+                        reason:String::new(),evidence:"python_import_binding".into(),discarded_error:false,
+                    }));
+                }
+            }
             let declarations: Vec<_> = parsed["symbols"]
                 .as_array()
                 .into_iter()
@@ -276,7 +303,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "terraform"=>"No plan, state, provider schemas, remote module resolution or expression evaluation",
                 "helm"=>"Chart source scope only; no rendering, release values, cluster capabilities or remote chart resolution",
                 "bash"=>"Literal script paths are candidates; working directory, PATH, expansions and dynamic commands are unresolved",
-                "python"=>"Local import candidates only; environments, dynamic imports, rebinding and runtime dispatch are not resolved",
+                "python"=>"Local import candidates and literal environment reads only; runtime environments, dynamic imports, rebinding and runtime dispatch are not resolved",
                 _=>"Local module candidates only; Cargo resolution, cfg, macros, build scripts and trait dispatch are not resolved"
             }})));
     }

@@ -9,12 +9,14 @@ use std::path::{Component, Path};
 use std::sync::OnceLock;
 use tree_sitter::{Language, Node, Parser};
 
+#[path = "python_environment.rs"]
+mod python_environment;
+
 /// The revision stored with every parse a repository sync caches
 /// (`repo_parses`): a new value re-parses cached files once. Bump it whenever
-/// the analysis output changes. 7: the issue text says that
-/// type and overload resolution are not performed instead of pointing at a
-/// configured language server.
-pub const REVISION: &str = "graphicle-static-rust-7";
+/// the analysis output changes. 8: Python environment operations carry bounded
+/// import-binding evidence and explicit ambiguity/mutation diagnostics.
+pub const REVISION: &str = "graphicle-static-rust-8";
 
 /// Per-file analysis limits. No limit fails an analysis: a
 /// file past one is analysed as far as the limit allows, its analysis is
@@ -614,6 +616,8 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
     let mut links = Vec::new();
     let mut issues = Vec::new();
     let mut shadowed = Vec::new();
+    let mut environment = Value::Null;
+    let mut environment_limited = false;
     let (mut symbols_full, mut imports_full, mut links_full) = (false, false, false);
     let (mut nodes_stopped, mut calls_truncated) = (false, false);
     let parser_name = if language.is_some() {
@@ -629,6 +633,15 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
         let tree = parser
             .parse(content, None)
             .ok_or("Source parsing did not complete")?;
+        if ext == "py" {
+            environment = python_environment::analyze(tree.root_node(), content.as_bytes(), limits);
+            let env_issues = environment["issues"].as_array().expect("bounded environment analysis");
+            environment_limited = env_issues.iter().any(|i| i == "python_environment_operation_limit");
+            nodes_stopped |= env_issues.iter().any(|i| i == "python_environment_node_limit");
+            if environment_limited {
+                issues.push(format!("Environment operation list truncated at {}",counted(limits.calls, "operation", "operations")));
+            }
+        }
         if tree.root_node().has_error() {
             issues.push(
                 "Source has syntax errors; extracted relationships may be incomplete".to_owned(),
@@ -972,9 +985,12 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
     issues.dedup();
     let mut result = json!({"revision":REVISION,"symbols":symbols,"imports":imports,"calls":calls,"links":links,"shadowed_bindings":shadowed,
         "parser":parser_name,"complete":issues.is_empty(),"issues":issues});
+    if ext == "py" {
+        result["environment"] = environment;
+    }
     if let Some(kind) = limited_kind(
         nodes_stopped,
-        calls_truncated,
+        calls_truncated || environment_limited,
         symbols_full || imports_full || links_full,
     ) {
         result["limited"] = json!(kind);

@@ -7,6 +7,10 @@ use serde_json::{Value, json};
 
 #[path = "service_boundaries.rs"]
 mod service_boundaries;
+#[path = "python_environment_impact.rs"]
+mod python_environment_impact;
+#[path = "environment_impact.rs"]
+mod environment_impact;
 #[path = "basic_impact.rs"]
 mod basic_impact;
 
@@ -602,7 +606,14 @@ fn business_context_adds_historical_constraints_and_revision_safe_deltas() {
     let tight = f.run(&tight_args);
     assert!(text::count(&tight.to_string()) <= 3500);
     assert!(tight["coverage"]["budget_omitted"].as_u64().unwrap() > 0);
-    assert_eq!(tight["impact"], "incomplete");
+    assert_eq!(tight["impact"], "potential_impact");
+    assert_eq!(tight["impact"], enhanced["impact"]);
+    assert_eq!(tight["coverage"]["complete"], false);
+    assert!(tight["entries"].as_array().unwrap().iter().any(|entry| {
+        entry["side"] == "head"
+            && entry["review_basis"]["complete"] == false
+            && entry["review_basis"]["reason"] == "context_omitted"
+    }));
 
     args["previous_packet_id"] = enhanced["packet_id"].clone();
     let repeated = f.run(&args);

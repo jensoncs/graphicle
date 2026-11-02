@@ -21,14 +21,16 @@ mod reuse;
 mod services;
 #[path = "review_flows.rs"]
 mod flows;
+#[path = "review_environment.rs"]
+mod environment;
 #[path = "review_basic.rs"]
 mod basic;
 #[path = "review_provenance.rs"]
 mod provenance;
 
 const FORMAT: &str = "graphicle.review.v1";
-pub const RISK_SCHEMA: &str = "graphicle.review-risk.v1";
-pub const RISK_SCHEMA_JSON: &str = include_str!("../../../docs/schemas/review-risk-v1.json");
+pub const RISK_SCHEMA: &str = "graphicle.review-risk.v2";
+pub const RISK_SCHEMA_JSON: &str = include_str!("../../../docs/schemas/review-risk-v2.json");
 const MAX_SOURCE_BYTES: usize = 64 * 1024 * 1024;
 const MAX_FILES: usize = 20_000;
 fn depth() -> usize {
@@ -715,6 +717,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
         "event_delivers".into(),
         "potential_import".into(),
         "configuration_scope".into(),
+        "reads_environment".into(),
     ];
     let mut paths_emitted = 0usize;
     for reverse in [false, true] {
@@ -997,7 +1000,10 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             Path::new(&file).extension().and_then(|e| e.to_str()),
             Some("md" | "rst" | "txt")
         ) || Path::new(&file).file_name().is_some_and(|n| n == "LICENSE");
-        let classification = if embedded {
+        let environment_change = !binary && !embedded && environment::covers_change(&file, a, b);
+        let classification = if environment_change {
+            "environment_value_change"
+        } else if embedded {
             "embedded_input"
         } else if excluded {
             "excluded_by_profile"
@@ -1009,7 +1015,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             "uncertain_scope"
         };
         file_changes.push(json!({"file":file,"classification":classification,"binary":binary,"base_sha256":old.map(|s|&s.sha),"head_sha256":new.map(|s|&s.sha)}));
-        if embedded || (!excluded && !declaration_only && !documentation) {
+        if !environment_change && (embedded || (!excluded && !declaration_only && !documentation)) {
             scope_issues.push(issue(
                 "uncertain_file_scope",
                 json!({"file":file,"classification":classification,"binary":binary,"base_sha256":old.map(|s|&s.sha),"head_sha256":new.map(|s|&s.sha)}),
@@ -1160,7 +1166,14 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                 basic::annotate(&mut value, analysis, &symbol.file);
             }
             if let Some(boundary) = analysis.services.nodes.get(&id) {
-                value["service_boundary"] = boundary.clone();
+                if symbol.kind == "environment_input" {
+                    value["environment_input"] = boundary.clone();
+                    value["analysis_level"] = json!("basic_file");
+                    value["language"] = json!("kubernetes");
+                    value["test_classification"] = json!("not_analyzed");
+                } else {
+                    value["service_boundary"] = boundary.clone();
+                }
                 value["revision"] = json!(crate::digest(&value));
             }
             entries.push(value);
@@ -1599,8 +1612,9 @@ fn pack_encoding(
     }
     report["coverage"]["budget_omitted"] = json!(total - selected.len());
     if total != selected.len() {
+        // Packet coverage and reuse proofs depend on what fits. Impact was
+        // decided by the full analysis and must not depend on this budget.
         report["coverage"]["complete"] = json!(false);
-        report["impact"] = json!("incomplete");
     }
     if let (Some(scopes), Some(required)) = (scopes, scope_requirements.as_ref()) {
         scopes.finish(required, &mut selected, &mut report);
@@ -2356,6 +2370,53 @@ mod tests {
     }
 
     #[test]
+    fn analysis_impact_is_independent_of_full_and_delta_packet_budgets() {
+        for (impact, complete) in [
+            ("potential_impact", true),
+            ("incomplete", false),
+            ("no_changes_in_scope", true),
+        ] {
+            let count = if impact == "no_changes_in_scope" {
+                0
+            } else {
+                20
+            };
+            let entries: Vec<_> = (0..count).map(|i| json!({"id":format!("entry{i}"),"revision":"r","repository_id":"repo","text":"func F() int { return 1 }\n".repeat(8)})).collect();
+            let issues = if complete {
+                json!([])
+            } else {
+                json!([{"reason":"unsupported_source_language_or_contract"}])
+            };
+            let report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":complete,"issues":issues},"impact":impact});
+            for budget in [2000, 8000, 64000] {
+                let (full, receipt) = pack(report.clone(), budget, None, None).unwrap();
+                let (delta, delta_receipt) =
+                    pack(report.clone(), budget, Some(&receipt), None).unwrap();
+                for packet in [&full, &delta] {
+                    assert_eq!(packet["impact"], impact, "budget={budget}");
+                    assert_eq!(packet["risk_schema"], "graphicle.review-risk.v2");
+                    assert!(text::count(&packet.to_string()) <= budget);
+                    assert_eq!(packet["coverage"]["issues"], issues);
+                    let omitted = packet["coverage"]["budget_omitted"].as_u64().unwrap();
+                    assert_eq!(packet["coverage"]["complete"], complete && omitted == 0);
+                    if count > 0 && budget == 2000 {
+                        assert!(omitted > 0);
+                    }
+                    if budget == 64000 {
+                        assert_eq!(omitted, 0);
+                    }
+                }
+                assert_eq!(receipt["entries"], delta_receipt["entries"]);
+                assert_eq!(receipt["coverage_complete"], full["coverage"]["complete"]);
+                assert_eq!(
+                    delta_receipt["coverage_complete"],
+                    delta["coverage"]["complete"]
+                );
+            }
+        }
+    }
+
+    #[test]
     fn large_review_packets_remain_bounded() {
         let entries: Vec<_> = (0..20_000).map(|i| json!({"id":format!("{i:064x}"),"revision":"r","repository_id":"repo","text":"func F() int { return 1 }\n".repeat(8)})).collect();
         let report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
@@ -2365,7 +2426,8 @@ mod tests {
         assert!(text::count(&packet.to_string()) <= 16_000);
         assert_eq!(packet["coverage"]["required_entries"], 20_000);
         assert!(packet["coverage"]["budget_omitted"].as_u64().unwrap() > 0);
-        assert_eq!(packet["impact"], "incomplete");
+        assert_eq!(packet["impact"], "potential_impact");
+        assert_eq!(packet["coverage"]["complete"], false);
     }
 
     #[test]

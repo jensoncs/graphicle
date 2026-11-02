@@ -10,6 +10,22 @@ versioned together at 0.2.0.
 
 ### Review correctness and performance
 
+- Analyze Kubernetes literal env values and Go/Python reads by default for
+  single-application, single-workload repositories, with candidate provenance and conservative
+  fallback on ambiguity. Explicit pinned environment scopes link env values
+  to compiler-resolved Go reads and callers, including separately pinned
+  deployment repositories. Value-only edits can narrow context selection;
+  dynamic reads, overrides and unresolved inputs keep conservative fallback.
+  Python supports import-bound `os.getenv`, `os.environ[...]` and
+  `os.environ.get`, linking reader files and their import consumers. Shadowing,
+  dynamic keys and mutations retain uncertainty. Reports include per-scope
+  binding counts, blockers and exact source citations; the environment model
+  marker is v2 and Python parse caches refresh at extraction revision 8.
+
+- Keep the full-analysis impact verdict when response packing omits context.
+  Risk schema v2 distinguishes this from v1's budget-dependent verdict;
+  packet coverage and per-entry reuse proofs remain incomplete when context is cut.
+
 - Add compact status and commit receipts, bounded missing-upload pages, authorized
   snapshot source reuse, versioned review risk fields, structured errors, and
   source ranking/packing diagnostics for review integrations. See the

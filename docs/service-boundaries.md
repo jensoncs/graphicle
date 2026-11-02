@@ -155,3 +155,158 @@ not copied. CodeGraphContext's MIT regression
 `93c9685bff9151f50a3121e9913e5ba2d27c1191` was adapted into the Rust per-caller
 service-target test. Its copyright and permission notice are retained in
 `crates/graphicle/licenses/CodeGraphContext-MIT.txt`.
+
+## Literal environment inputs (v2)
+
+Environment analysis runs by default in pinned review (`graph.impact` /
+`impact.report`). Without a service manifest, Graphicle discovers Kubernetes YAML
+or JSON within a repository containing Go or Python environment operations. It
+links a single admitted application root (one Go module or Python project) to a
+single workload with a single container. Python discovery also works without a
+project manifest; multiple Python project roots remain ambiguous. The
+association is labelled `same_repository_candidate`, with `service: null` and
+no manifest assertion; it does not invent a production/staging identity or prove
+runtime ownership. Existing literal-value and compiler completeness checks still
+control whether selection can narrow.
+
+Multiple modules, workloads or containers, and incomplete discovery retain
+conservative scope with `environment_auto_scope_ambiguous`. Automatic discovery
+never joins separate repositories. Use an explicit scope to resolve ownership
+or join an admitted deployment repository. An existing service manifest is
+authoritative: discovery does not override it, including invalid manifests or
+an explicit empty `environment_scopes` list. This provides an explicit opt-out.
+
+`graphicle.service-boundaries.v2` accepts the existing `bindings` plus optional
+`environment_scopes`. Existing v1 manifests keep their behavior. Ordinary
+question-based `context` retrieval does not acquire deployment bindings from
+this extension. Application `config.json` keys are not automatically linked to
+code readers: their edits retain existing conservative scope.
+
+An explicit environment scope assigns one pinned Kubernetes container to one
+admitted application root. Matching variable names alone never establishes ownership.
+For example, add this manifest to the application repository:
+
+```json
+{
+  "format": "graphicle.service-boundaries.v2",
+  "inventory_complete": true,
+  "bindings": [],
+  "environment_scopes": [{
+    "id": "checkout-env",
+    "service": {
+      "namespace": "commerce",
+      "name": "checkout",
+      "environment": "production",
+      "configuration": "deployment-v1"
+    },
+    "module": ".",
+    "deployment": {
+      "directory": "deploy",
+      "file": "checkout/deployment.yaml",
+      "container": "checkout"
+    }
+  }]
+}
+```
+
+`module` must be in that application's pin `modules` (normally `.` for Python). `deployment.directory` is
+an optional **already admitted pin directory**, permitting a separate deployment
+repository; omission means the application's own pin. No host files are read.
+The parser checks the deployment namespace against `service.namespace` and
+records the workload kind/name and container. Service and environment ownership
+remain assertions made by this manifest, not discovered runtime facts. Include
+only one scope per module and deployment file in a request; multiple competing
+scopes (including production and staging for the same module) remain ambiguous.
+
+The deployment must be one YAML or JSON document containing a `v1/Pod`, an
+`apps/v1` Deployment/StatefulSet/DaemonSet, or a `batch/v1` Job/CronJob. Each env
+entry must have a unique literal `name` (at most 200 characters, matching
+`[A-Za-z_][A-Za-z0-9_]*`) and string `value`. Typed Go calls to
+`os.Getenv("KEY")` and `os.LookupEnv("KEY")` produce `reads_environment` edges
+from their containing declarations to the corresponding configuration input.
+Import aliases are supported; comments, strings and local objects named `os`
+do not create reads. Normal compiler call edges then bring in callers.
+
+Python supports `os.getenv("KEY")`, `os.environ["KEY"]` and
+`os.environ.get("KEY")`, including `import os as alias` and direct imports such
+as `from os import getenv as read` / `from os import environ as env`. `getenv`
+also accepts a literal `key=` argument. Reads use the existing Python file nodes
+and incoming import edges, so context contains the reader file and its importing
+files. Evidence is `python_import_binding`, not compiler resolution or proven
+runtime calls.
+
+Only unconditional module-level imports establish Python bindings. Rebinding
+or shadowing an alias anywhere in the file withholds that alias conservatively;
+conditional/wildcard imports, escaped bindings, dynamic execution, parse/operation
+limits, and a pinned local `os.py` / `os/__init__.py` remain explicit uncertainty.
+Unresolved non-`os` imports and unsupported `os` APIs also prevent narrowing;
+known read links can still be supplied with these limitations. Interpolated,
+escaped, concatenated and nonliteral keys are unresolved. Environment assignment,
+deletion, `update`, `clear`, `pop`, `setdefault`, `putenv` and `unsetenv` prevent
+narrowing. Python basic-analysis limitations still apply; import hooks, dynamic
+execution and monkey-patching are not proved absent.
+
+Environment entries carry `kind: "environment_input"`,
+`analysis_level: "basic_file"`, and `environment_input` metadata with the key,
+service (null for automatic candidates), workload, manifest identity when
+supplied, and exact admitted declaration bytes.
+Dependency steps carry the typed Go read location and configuration provenance.
+No env values are added to counters; ordinary source citations remain subject
+to existing admission policy. Secret files and live process environments are
+not imported by this feature.
+
+For a value-only edit, Graphicle can replace repository-wide fallback with the
+mapped inputs and their consumers. Both snapshots must have the same valid
+scope, env names/order, deployment structure and exact bytes outside the env
+declarations. Added/removed keys, image/command changes, other-container edits,
+namespace changes, embedded files, incomplete admissions or compiler inventories, unsupported
+consumer languages, and ambiguous scopes retain conservative fallback.
+`envFrom`, `valueFrom` (including ConfigMaps and Secrets), aliases, duplicate YAML
+keys, multi-document YAML, Kubernetes `$(...)` expansion and unresolved Helm
+expressions also retain fallback. Ambiguous inline Unicode citation positions
+are refused; Unicode on other lines is supported. No Helm rendering or override
+evaluation runs.
+
+Dynamic Go keys, `os.Environ`, unbound keys, `Setenv`/`Unsetenv`/`Clearenv`, and
+unresolved indirect/external call sites prevent narrowing. Even when narrowing
+is eligible, `environment_analysis_limitations` remains explicit: image defaults,
+indirect library behavior and actual deployment state are not proved. This
+improves source selection; it does not make environment risk analysis complete.
+
+Each side reports `service_graph.{base,head}.environment` with a stable model
+identifier `literal_go_python_reads_and_kubernetes_values_v2`, `narrowable_files`, and
+per-scope counters. Counts are `null` when the deployment could not be
+validated/parsed, rather than claiming zero reads. Otherwise they count
+discovered facts; `issues` and `narrowing_eligible` qualify their completeness:
+
+| Field | Meaning |
+| --- | --- |
+| `declared_keys` | Distinct parsed literal env declarations |
+| `literal_reads` | Typed Go or import-bound Python reads with a supported literal key |
+| `resolved_reads` | Read sites linked to an admitted input and owner |
+| `unresolved_reads` | Dynamic reads, unbound keys, missing owners or edge-limit omissions |
+| `runtime_overrides` | Recognized Go or Python environment mutation sites |
+| `narrowing_eligible` | This snapshot has no blocker for value-only selection; both snapshots must still match |
+| `issues` | Machine-readable reasons for this scope's blockers |
+
+Limits are 128 scopes per request side, 1 MiB / 20,000 YAML events / depth 64 per
+source, 1,024 env declarations per container, and existing graph/packet bounds.
+A malformed or bounded-out input remains explicit uncertainty. Default discovery
+uses only admitted sources and never imports live environment values or secrets.
+
+The regression fixture in `tests/it/environment_impact.rs` compares the same
+value-only edit with explicit empty scopes (discovery disabled) and a supplied
+scope, at a 64,000-token budget. A separate regression verifies automatic
+selection without a manifest. With
+100 unrelated functions it produces **213 → 7 entry/diff candidates (96.7%
+fewer)** and **116–118 → 0 budget omissions** across recorded runs (packing
+varies slightly with generated fixture identities). The affected reader and caller are
+both retained; none of the 100 unrelated functions is retained. Candidate counts
+include omitted entries, so the result is not an artifact of packet trimming.
+These are controlled fixture measurements, not production PR results.
+
+The Python regression uses a reader file, an importing file, an unrelated env
+reader and 30 unrelated source files. Automatic mapping reduces **67 → 7
+entry/diff candidates (89.6%)**, retains both affected files and excludes all 30
+unrelated files. Python consumers remain file-granular. The environment model
+marker is v2 to distinguish these measurements from the earlier Go-only model.

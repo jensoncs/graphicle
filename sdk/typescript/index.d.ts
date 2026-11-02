@@ -87,7 +87,7 @@ export interface ReviewEntry extends Result {
     "conservative_scope" | "historical_cochange"})[];
 }
 export interface ReviewPacket extends Result {
-  risk_schema: "graphicle.review-risk.v1";
+  risk_schema: "graphicle.review-risk.v1" | "graphicle.review-risk.v2";
   format: "graphicle.review.v1"; packet_id: string; previous_packet_id: string | null;
   base: SnapshotPin[]; head: SnapshotPin[]; profile: ReviewProfile;
   impact: "potential_impact" | "no_changes_in_scope" | "incomplete";

@@ -80,8 +80,8 @@ head in one target automatically share retained content by digest.
 
 ## Risk measurements
 
-Packets carry `risk_schema:"graphicle.review-risk.v1"`. The machine contract is
-[review-risk-v1.json](schemas/review-risk-v1.json). It specifies the measurement
+Packets carry `risk_schema:"graphicle.review-risk.v2"`. The machine contract is
+[review-risk-v2.json](schemas/review-risk-v2.json). It specifies the measurement
 subset and permits other packet fields. Consumers must record this marker and the
 service version. Changes to enum values or their meaning require a new schema
 version; additive unrelated packet fields do not.
@@ -92,7 +92,22 @@ version; additive unrelated packet fields do not.
 | --- | --- |
 | `potential_impact` | Selected changes may affect supplied context; not a defect verdict. |
 | `no_changes_in_scope` | No selected changes in the analyzed scope. |
-| `incomplete` | Analysis cannot establish the complete requested impact. |
+| `incomplete` | Analysis or source admission cannot establish the complete requested impact. |
+
+In v2, `impact` is decided from the full analysis of the supplied snapshot set,
+before trimming entries and diffs to the response budget. Packing cannot change
+it. `coverage.budget_omitted` counts entries and diffs that did not fit;
+`coverage.complete` remains false when either analysis or packet coverage is
+incomplete. Per-entry `review_basis` still becomes incomplete when supporting
+context is omitted. A `potential_impact` packet with omitted context therefore
+does not justify skipping review or treating the delivered context as complete.
+
+The historical [v1 schema](schemas/review-risk-v1.json) used `incomplete` for both
+analysis gaps and packet trimming. Record the schema marker when comparing
+builds; consumers that recognize only v1 must add v2 before interpreting the new
+verdict. Basic-language limitations, unavailable inputs, and `scope_complete:false`
+admission remain genuine analysis gaps in v2. This change does not turn impact
+into a risk-severity or defect prediction.
 
 Every delivered entry has:
 

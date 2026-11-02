@@ -27,6 +27,7 @@ pub mod engine_types;
 pub mod erlang;
 /// Opt-in `--precise` evidence levels on call edges.
 pub mod evidence;
+pub mod environment;
 pub mod fortran;
 pub mod go;
 pub mod go_types;

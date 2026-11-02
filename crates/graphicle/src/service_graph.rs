@@ -24,11 +24,11 @@ struct Citation {
 
 #[derive(Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
 #[serde(deny_unknown_fields)]
-struct Service {
-    namespace: String,
-    name: String,
-    environment: String,
-    configuration: String,
+pub(super) struct Service {
+    pub(super) namespace: String,
+    pub(super) name: String,
+    pub(super) environment: String,
+    pub(super) configuration: String,
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -100,6 +100,8 @@ struct Manifest {
     #[serde(default)]
     inventory_complete: bool,
     bindings: Vec<Binding>,
+    #[serde(default)]
+    environment_scopes: Vec<super::environment::Scope>,
 }
 
 pub(super) struct Edge {
@@ -115,16 +117,18 @@ pub(super) struct Links {
     pub nodes: BTreeMap<String, Value>,
     pub manifests: BTreeMap<String, String>,
     pub issues: Vec<Value>,
+    pub environment: super::environment::State,
 }
 impl Links {
     pub fn active(&self) -> bool {
-        !self.manifests.is_empty()
+        !self.manifests.is_empty() || self.environment.active()
     }
     pub fn summary(&self) -> Value {
-        json!({"enabled":self.active(),"manifests":self.manifests,"boundaries":self.nodes.len(),
+        json!({"enabled":self.active(),"manifests":self.manifests,"boundaries":self.nodes.values().filter(|n| n.get("key").is_none()).count(),
             "resolved_relationships":self.edges.iter().filter(|e| matches!(e.relation,"http_calls"|"grpc_calls"|"event_delivers")).count(),
-            "unresolved":self.issues.len(),"authority":"pinned_configuration_assertions",
-            "runtime_observed":false,"inventory_verified":false})
+            "unresolved":self.issues.len(),"authority":if self.manifests.is_empty() && self.environment.active(){"same_repository_candidate"}else{"pinned_configuration_assertions"},
+            "runtime_observed":false,"inventory_verified":false,
+            "environment":self.environment.summary()})
     }
 }
 
@@ -134,7 +138,7 @@ struct Endpoint {
     provenance: Value,
 }
 
-fn identifier(value: &str) -> bool {
+pub(super) fn identifier(value: &str) -> bool {
     !value.is_empty()
         && value.len() <= 200
         && value
@@ -382,6 +386,7 @@ pub(super) fn attach(input: &Input, a: &mut Analysis) -> Result<()> {
     let mut endpoints = vec![];
     let mut parsed = BTreeMap::new();
     let mut attempted = 0;
+    let mut environment_scopes = vec![];
     let mut owner_index: BTreeMap<(String, usize, usize), BTreeSet<String>> = BTreeMap::new();
     for (id, (_, symbol)) in &a.symbols {
         if matches!(symbol.kind.as_str(), "function" | "method" | "closure") {
@@ -400,8 +405,13 @@ pub(super) fn attach(input: &Input, a: &mut Analysis) -> Result<()> {
         let manifest = (source.content.bytes().len() <= 512 * 1024)
             .then(|| serde_json::from_slice::<Manifest>(source.content.bytes()).ok())
             .flatten();
-        let Some(m) = manifest.filter(|m| m.format == FORMAT && m.bindings.len() <= MAX_BOUNDARIES)
-        else {
+        let Some(m) = manifest.filter(|m| {
+            (m.format == FORMAT || m.format == "graphicle.service-boundaries.v2")
+                && (m.environment_scopes.is_empty()
+                    || m.format == "graphicle.service-boundaries.v2")
+                && m.bindings.len() <= MAX_BOUNDARIES
+                && m.environment_scopes.len() <= 128
+        }) else {
             links
                 .issues
                 .push(issue("service_manifest_invalid", json!({"file":path})));
@@ -412,6 +422,11 @@ pub(super) fn attach(input: &Input, a: &mut Analysis) -> Result<()> {
                 .issues
                 .push(issue("service_inventory_incomplete", json!({"file":path})));
         }
+        environment_scopes.extend(
+            m.environment_scopes
+                .into_iter()
+                .map(|scope| (pin.clone(), scope, m.inventory_complete)),
+        );
         let mut ids = BTreeSet::new();
         let duplicates: BTreeSet<_> = m
             .bindings
@@ -644,13 +659,11 @@ pub(super) fn attach(input: &Input, a: &mut Analysis) -> Result<()> {
             });
         }
     }
-    if !links.active() {
-        return Ok(());
-    }
     for pin in &input.pins {
-        if !links
-            .manifests
-            .contains_key(&format!("{}/{}", pin.directory, MANIFEST))
+        if !links.manifests.is_empty()
+            && !links
+                .manifests
+                .contains_key(&format!("{}/{}", pin.directory, MANIFEST))
         {
             links.issues.push(issue(
                 "service_inventory_unavailable",
@@ -740,6 +753,7 @@ pub(super) fn attach(input: &Input, a: &mut Analysis) -> Result<()> {
         links.nodes.get_mut(&endpoint.id).unwrap()["resolution"] = json!({
             "status":if targets.is_empty(){"unresolved"}else if partial{"partial"}else{"configured_targets"},"targets":targets});
     }
+    super::environment::attach(input, a, &mut links, environment_scopes)?;
     a.issues.extend(links.issues.iter().cloned());
     a.services = links;
     Ok(())
