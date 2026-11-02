@@ -238,6 +238,49 @@ fn external_package_failures_are_distinct_from_local_discovery_and_type_errors()
         "{reasons:?}"
     );
     assert_eq!(packet["impact"], "incomplete");
+    let summary = &packet["coverage"]["analysis_diagnostics"]["head"]["go"];
+    assert_eq!(summary["incomplete_package_instances"], 1);
+    assert_eq!(summary["unavailable_external_package_instances"], 1);
+    assert!(
+        summary["examples"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|d| d["cause"] == "outside_snapshot")
+    );
+}
+
+#[test]
+fn diagnostic_summary_separates_one_broken_package_from_many_references() {
+    let f = Fixture::new();
+    let repo = f.repo("diagnostic-amplification");
+    let code = format!(
+        "package tax\n{}",
+        (0..1000)
+            .map(|i| format!("func F{i}() {{ MissingImplementation() }}\n"))
+            .collect::<String>()
+    );
+    let pin = f.pin(&repo, "app", 'a', &[("go.mod", MOD), ("code.go", &code)]);
+    let args = request(&repo, vec![pin.clone()], vec![pin]);
+    let packet = f.run(&args);
+    let summary = &packet["coverage"]["analysis_diagnostics"]["head"]["go"];
+    assert_eq!(summary["incomplete_package_instances"], 1);
+    assert_eq!(summary["type_check_failed_package_instances"], 1);
+    assert_eq!(summary["incomplete_package_references"], 1000);
+    assert!(
+        summary["examples"]
+            .to_string()
+            .contains("undefined: MissingImplementation"),
+        "{summary}"
+    );
+    assert!(summary["examples"].as_array().unwrap().len() <= 8);
+    assert_eq!(packet["impact"], "incomplete");
+    let cached = f.run(&args);
+    assert_eq!(cached["analysis_cache"]["head_hit"], true);
+    assert_eq!(
+        cached["coverage"]["analysis_diagnostics"],
+        packet["coverage"]["analysis_diagnostics"]
+    );
 }
 
 #[test]

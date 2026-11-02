@@ -152,5 +152,27 @@ func TestReviewExternalDiagnosticsStillRequireLocalTypeChecking(t *testing.T) {
 		if (err != nil) != strings.Contains(source, "wrong type") {
 			t.Fatalf("type-check validity lost: %s: %v", source, err)
 		}
+		if err != nil {
+			if len(collector.world.Diagnostics) != 1 || collector.world.Diagnostics[0].Cause != "type_error" || collector.world.Diagnostics[0].File != "code.go" || !strings.Contains(collector.world.Diagnostics[0].Message, "wrong type") {
+				t.Fatalf("lost actionable compiler diagnostic: %+v", collector.world.Diagnostics)
+			}
+		}
+	}
+}
+
+func TestReviewDiagnosticExamplesAreBoundedAndKeepMultipleCauses(t *testing.T) {
+	r := &reviewCollector{root: "/private/snapshot", world: &reviewWorld{}}
+	for i := 0; i < 100; i++ {
+		r.diagnostic(fmt.Sprintf("p%d", i), "discovery_error", "", 0, "/private/snapshot/"+strings.Repeat("λ", 600))
+	}
+	r.diagnostic("app", "type_error", "app/code.go", 4, "undefined: GeneratedType")
+	if r.world.DiagnosticCount != 101 || len(r.world.Diagnostics) != 9 {
+		t.Fatalf("invalid bounds: %+v", r.world)
+	}
+	if strings.Contains(r.world.Diagnostics[0].Message, r.root) || len([]rune(r.world.Diagnostics[0].Message)) > 513 {
+		t.Fatal("unbounded or temporary-path diagnostic")
+	}
+	if r.world.Diagnostics[8].Cause != "type_error" {
+		t.Fatal("discovery failures crowded out source errors")
 	}
 }

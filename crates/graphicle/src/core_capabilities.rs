@@ -43,6 +43,7 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
         "review_compact_provenance": "graphicle.service-provenance.v1",
         "change_impact_scope": "pinned-go-snapshot-sets-v1",
         "review_source_admission": "exhaustive-withheld-paths-go-build-v1",
+        "review_analysis_diagnostics": "bounded-go-errors-and-python-causes-v1",
         "basic_change_impact": {"languages":["terraform","helm","bash","python","rust"],"granularity":"file-module-chart","compiler_resolution":false},
         "business_context": true,
         "business_context_scope": "static-candidates-and-pinned-history-v1",

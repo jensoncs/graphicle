@@ -95,6 +95,42 @@ reproduced here, so the local byte-saving fixture is not a production latency cl
 
 ## Risk measurements
 
+`coverage.analysis_diagnostics.base/head` separates native failures from their
+effects on graph references, before packet trimming:
+
+- `go.incomplete_package_instances`, `discovery_incomplete_package_instances`,
+  `type_check_failed_package_instances`, and `unavailable_external_package_instances`
+  count distinct `(consumer build, import path)` pairs. These sets overlap.
+- `go.incomplete_package_references` counts unresolved calls/references whose
+  containing package failed analysis. A single broken package can contribute
+  thousands of these; they are not thousands of independently broken packages.
+- `go.examples` preserves bounded compiler diagnostics with `package`, `cause`,
+  `consumer_build`, `message`, and source `file`/`line` where available. Causes
+  include `discovery_error`, `missing_package`, `outside_snapshot`, `import_cycle`,
+  `parse_error`, `type_error`, and `unsupported_cgo`. Import errors can cascade;
+  examples are evidence, not automatic root-cause classification.
+- `python_environment.incomplete_files` counts files, and `files_by_cause`
+  distinguishes parser/analysis availability, dynamic execution, ambiguous or
+  escaping bindings, unsupported imports, operation limits, and local `os`
+  modules. A file may contribute to several causes. Its examples carry paths
+  and causes, not inferred missing environment files.
+
+Native Go diagnostics retain at most 32 examples per consumer build, three per
+package, eight per cause, and 512 message characters plus a truncation marker.
+Each side's response samples at most eight examples per language family under a
+shared allowance of `max_tokens / 32`; omission counts remain explicit. Counts
+describe observed diagnostics, not unique root causes. Example selection rotates
+through causes so missing-dependency messages cannot consume every slot. Cached
+compiler facts retain diagnostics. Existing issue counts, completeness, risk
+verdicts and reuse barriers are unchanged.
+
+`build.info.review_analysis_diagnostics` advertises
+`bounded-go-errors-and-python-causes-v1`. To investigate the live probes, retain
+these summaries along with source-admission counts and exact snapshot/build
+identities. A missing generated declaration, absent import and source type error
+can then be distinguished using compiler evidence rather than the total limit
+count. The b0773acb probe alone does not establish which inputs were missing.
+
 Packets carry `risk_schema:"graphicle.review-risk.v2"`. The machine contract is
 [review-risk-v2.json](schemas/review-risk-v2.json). It specifies the measurement
 subset and permits other packet fields. Consumers must record this marker and the

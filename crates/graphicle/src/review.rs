@@ -18,6 +18,9 @@ use std::{
 #[path = "review_admission.rs"]
 pub(crate) mod admission;
 
+#[path = "review_diagnostics.rs"]
+mod diagnostics;
+
 #[path = "review_reuse.rs"]
 mod reuse;
 #[path = "service_graph.rs"]
@@ -156,6 +159,10 @@ struct Call {
 }
 #[derive(Deserialize)]
 struct World {
+    #[serde(default)]
+    diagnostics: Vec<Value>,
+    #[serde(default)]
+    diagnostic_count: usize,
     root: String,
     symbols: Vec<Symbol>,
     calls: Vec<Call>,
@@ -190,6 +197,8 @@ fn cacheable_facts(facts: &Facts) -> bool {
 }
 
 struct Analysis {
+    diagnostics: Vec<Value>,
+    diagnostic_count: usize,
     symbols: BTreeMap<String, (String, Symbol)>,
     calls: Vec<(String, Call)>,
     packages: Vec<Value>,
@@ -392,6 +401,8 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result
         .collect();
     let request = json!({"roots":roots,"goos":profile.goos,"goarch":profile.goarch,"tags":profile.tags,"tests":profile.tests,"workspace":profile.workspace});
     let mut out = Analysis {
+        diagnostics:vec![],
+        diagnostic_count:0,
         symbols: BTreeMap::new(),
         calls: vec![],
         packages: vec![],
@@ -441,6 +452,11 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result
     out.analyzer = facts.analyzer;
     out.toolchain = facts.toolchain;
     for world in facts.worlds {
+        out.diagnostic_count += world.diagnostic_count;
+        for mut diagnostic in world.diagnostics {
+            diagnostic["consumer_build"] = json!(world.root);
+            out.diagnostics.push(diagnostic);
+        }
         for mut input in world.inputs {
             input["consumer_build"] = json!(world.root);
             out.inputs.push(input);
@@ -1225,7 +1241,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     let complete = issues.is_empty();
     Ok(
         json!({"format":FORMAT,"base":base.pins,"head":head.pins,"profile":r.profile,"analyzer":a.analyzer,"toolchain":{"base":a.toolchain,"head":b.toolchain},"changes":changes,"correspondence":correspondence,"dependency_binding_changed":dependency_changed,
-        "diffs":diffs,"entries":entries,"file_changes":file_changes,"package_instances":{"base":a.packages,"head":b.packages},"service_graph":{"base":a.services.summary(),"head":b.services.summary()},"coverage":{"complete":complete,"source_admission":{"base":admission_a,"head":admission_b},"scope":"supplied snapshot set; Go compiler facts and basic Terraform/Helm/Bash/Python/Rust source dependencies","behavioral_propagation_proven":false,"path_selection":"shortest_example_per_direction","issues":issues,"max_depth":r.max_depth},
+        "diffs":diffs,"entries":entries,"file_changes":file_changes,"package_instances":{"base":a.packages,"head":b.packages},"service_graph":{"base":a.services.summary(),"head":b.services.summary()},"coverage":{"complete":complete,"source_admission":{"base":admission_a,"head":admission_b},"analysis_diagnostics":{"base":diagnostics::summary(a,r.max_tokens/32),"head":diagnostics::summary(b,r.max_tokens/32)},"scope":"supplied snapshot set; Go compiler facts and basic Terraform/Helm/Bash/Python/Rust source dependencies","behavioral_propagation_proven":false,"path_selection":"shortest_example_per_direction","issues":issues,"max_depth":r.max_depth},
         "impact":if !complete{"incomplete"}else if seeds_a.is_empty()&&seeds_b.is_empty()&&diffs.is_empty()&&!dependency_changed{"no_changes_in_scope"}else{"potential_impact"}}),
     )
 }
@@ -2276,7 +2292,7 @@ mod tests {
 
     #[test]
     fn graph_bound_counts_unique_links_and_preserves_call_site_evidence() {
-        let mut analysis = Analysis { symbols:BTreeMap::new(),calls:vec![],packages:vec![],issues:vec![],analyzer:String::new(),toolchain:String::new(),inputs:vec![],raw:None,services:services::Links::default() };
+        let mut analysis = Analysis { diagnostics:vec![],diagnostic_count:0,symbols:BTreeMap::new(),calls:vec![],packages:vec![],issues:vec![],analyzer:String::new(),toolchain:String::new(),inputs:vec![],raw:None,services:services::Links::default() };
         for name in ["caller", "supplier", "other"] {
             let symbol: Symbol = serde_json::from_value(json!({"key":name,"file":"app/main.go","package":"app","name":name,"kind":"function","parent":"","start":0,"end":1,"body_start":0,"line":1,"end_line":1,"revision":"r","signature":"s","implementation":"i","correspondence":"c"})).unwrap();
             analysis.symbols.insert(key("world", name), ("world".into(), symbol));

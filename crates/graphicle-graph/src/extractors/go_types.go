@@ -90,14 +90,19 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 	m := l.meta[path]
 	if m == nil {
 		if l.review != nil {
+			l.review.diagnostic(path, "missing_package", "", 0, "Package missing from selected go list metadata")
 			return nil, fmt.Errorf("package missing from selected build: %s", path)
 		}
 		return l.fallback.Import(path)
 	}
 	if l.review != nil && !m.Standard && !l.review.allowed(m.Dir) {
+		l.review.diagnostic(path, "outside_snapshot", "", 0, "Package source is outside the admitted snapshots")
 		return nil, fmt.Errorf("package outside pinned snapshots: %s", path)
 	}
 	if l.busy[path] {
+		if l.review != nil {
+			l.review.diagnostic(path, "import_cycle", "", 0, "Import cycle in selected packages")
+		}
 		return nil, fmt.Errorf("import cycle: %s", path)
 	}
 	l.busy[path] = true
@@ -106,12 +111,31 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 	for _, name := range m.GoFiles {
 		f, err := parser.ParseFile(l.fset, filepath.Join(m.Dir, name), nil, 0)
 		if err != nil {
+			if l.review != nil {
+				l.review.diagnostic(path, "parse_error", l.review.relative(filepath.Join(m.Dir, name)), 0, err.Error())
+			}
 			return nil, err
 		}
 		files = append(files, f)
 	}
 	info := &types.Info{Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}, Types: map[ast.Expr]types.TypeAndValue{}}
-	conf := types.Config{Importer: mappedImporter{l, m.ImportMap}, Sizes: l.sizes, Error: func(error) {}}
+	conf := types.Config{Importer: mappedImporter{l, m.ImportMap}, Sizes: l.sizes, Error: func(err error) {
+		if l.review == nil {
+			return
+		}
+		file, line, message := "", 0, ""
+		if diagnostic, ok := err.(types.Error); ok {
+			position := diagnostic.Fset.PositionFor(diagnostic.Pos, false)
+			if l.review.allowed(position.Filename) {
+				file = l.review.relative(position.Filename)
+				line = position.Line
+			}
+			message = diagnostic.Msg
+		} else {
+			message = err.Error()
+		}
+		l.review.diagnostic(path, "type_error", file, line, message)
+	}}
 	if m.Module != nil && m.Module.GoVersion != "" {
 		conf.GoVersion = "go" + m.Module.GoVersion
 	}

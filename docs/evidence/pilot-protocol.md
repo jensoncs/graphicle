@@ -93,3 +93,24 @@ path validation, multipart overlap, embedded credentials, commit/policy isolatio
 cached-fact reassessment, schema migration, and invalidation by older writers.
 The runtime now declares the already-locked `glob` dependency directly to match
 Go embed patterns conservatively.
+
+## Diagnostic follow-up (2026-11-03)
+
+One synthetic Go package with 1,000 calls to an undefined function produces
+1,000 `incomplete_package` reference limitations. The new per-side summary
+reports **one** incomplete package instance, **one** failed type-check instance,
+and **1,000** affected references, with a bounded `undefined: MissingImplementation`
+compiler example. Impact remains incomplete. An exact compiler-cache replay
+retains the same diagnostic summary.
+
+Separate fixtures cover unavailable external imports, healthy snapshots with no
+diagnostics, message/count bounds, temporary-path removal, preservation of source
+errors when dependency discovery is noisy, and Python file/cause accounting even
+when no diagnostic examples fit. The fields and sampling contract are documented
+in [risk measurements](../pilot-protocol.md#risk-measurements).
+
+This establishes that reported limit totals can be amplified by reference count;
+it does not establish how many packages failed in the production probes or whether
+generated source was missing. Those conclusions require the exact admitted
+snapshots or compiler diagnostics from the next probe. The change adds visibility,
+not a claim of improved risk completeness or Nexus latency.

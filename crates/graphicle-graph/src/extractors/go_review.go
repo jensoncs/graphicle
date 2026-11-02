@@ -79,13 +79,22 @@ type reviewPackage struct {
 	Files         []string          `json:"files"`
 	Imports       map[string]string `json:"imports"`
 }
+type reviewDiagnostic struct {
+	Package string `json:"package"`
+	Cause   string `json:"cause"`
+	File    string `json:"file,omitempty"`
+	Line    int    `json:"line,omitempty"`
+	Message string `json:"message"`
+}
 type reviewWorld struct {
-	Root     string          `json:"root"`
-	Symbols  []reviewSymbol  `json:"symbols"`
-	Calls    []reviewCall    `json:"calls"`
-	Packages []reviewPackage `json:"packages"`
-	Issues   []string        `json:"issues"`
-	Inputs   []reviewInput   `json:"inputs"`
+	Diagnostics     []reviewDiagnostic `json:"diagnostics,omitempty"`
+	DiagnosticCount int                `json:"diagnostic_count"`
+	Root            string             `json:"root"`
+	Symbols         []reviewSymbol     `json:"symbols"`
+	Calls           []reviewCall       `json:"calls"`
+	Packages        []reviewPackage    `json:"packages"`
+	Issues          []string           `json:"issues"`
+	Inputs          []reviewInput      `json:"inputs"`
 }
 type reviewInput struct {
 	File    string `json:"file"`
@@ -93,12 +102,36 @@ type reviewInput struct {
 	Role    string `json:"role"`
 }
 type reviewCollector struct {
-	externalErrors map[string]bool
-	root           string
-	allowedRoots   []string
-	world          *reviewWorld
-	concreteTypes  []*types.Named
-	interfaceCalls []interfaceCall
+	diagnosticCauses   map[string]int
+	diagnosticPackages map[string]int
+	externalErrors     map[string]bool
+	root               string
+	allowedRoots       []string
+	world              *reviewWorld
+	concreteTypes      []*types.Named
+	interfaceCalls     []interfaceCall
+}
+
+// Keep actionable compiler evidence separately from per-reference limitations.
+// Counts include every observed diagnostic; examples are bounded per build and
+// package so one noisy package cannot consume the complete sample.
+func (r *reviewCollector) diagnostic(path, cause, file string, line int, message string) {
+	r.world.DiagnosticCount++
+	if r.diagnosticPackages == nil {
+		r.diagnosticPackages = map[string]int{}
+		r.diagnosticCauses = map[string]int{}
+	}
+	if len(r.world.Diagnostics) >= 32 || r.diagnosticPackages[path] >= 3 || r.diagnosticCauses[cause] >= 8 {
+		return
+	}
+	r.diagnosticPackages[path]++
+	r.diagnosticCauses[cause]++
+	message = strings.ReplaceAll(message, r.root+string(filepath.Separator), "")
+	chars := []rune(message)
+	if len(chars) > 512 {
+		message = string(chars[:512]) + "…"
+	}
+	r.world.Diagnostics = append(r.world.Diagnostics, reviewDiagnostic{Package: path, Cause: cause, File: file, Line: line, Message: message})
 }
 
 type interfaceCall struct {
@@ -918,7 +951,7 @@ func runReview(req reviewRequest) {
 		Version   string        `json:"analyzer"`
 		Toolchain string        `json:"toolchain"`
 		Worlds    []reviewWorld `json:"worlds"`
-	}{Version: "graphicle-go-review-v8"}
+	}{Version: "graphicle-go-review-v9"}
 	version, _ := exec.Command("go", "version").Output()
 	result.Toolchain = strings.TrimSpace(string(version))
 	var allowed []string
@@ -1000,7 +1033,19 @@ func runReview(req reviewRequest) {
 			}
 		}
 		collector.externalErrors = reviewExternalErrors(l.meta, collector.allowed)
-		for path, m := range l.meta {
+		metadataPaths := make([]string, 0, len(l.meta))
+		for path := range l.meta {
+			metadataPaths = append(metadataPaths, path)
+		}
+		sort.Strings(metadataPaths)
+		for _, path := range metadataPaths {
+			m := l.meta[path]
+			if m.Error != nil {
+				collector.diagnostic(path, "discovery_error", "", 0, m.Error.Err)
+			}
+			if len(m.CgoFiles) > 0 {
+				collector.diagnostic(path, "unsupported_cgo", "", 0, "Selected package requires cgo")
+			}
 			if !m.Standard && !collector.allowed(m.Dir) && !reviewLocalPackage(path, l.meta, collector.allowed) {
 				world.Issues = append(world.Issues, "unavailable_external_package:"+path)
 			} else if reviewDiscoveryIncomplete(m, collector.externalErrors) {

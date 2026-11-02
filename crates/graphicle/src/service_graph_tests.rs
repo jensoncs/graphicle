@@ -8,6 +8,8 @@ fn fixture(specs: &[(&str, Value)]) -> (Input, Analysis) {
         bindings: vec![],
     };
     let mut a = Analysis {
+        diagnostics:vec![],
+        diagnostic_count:0,
         symbols: BTreeMap::new(),
         calls: vec![],
         packages: vec![],
