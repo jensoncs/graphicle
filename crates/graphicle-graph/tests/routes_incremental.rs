@@ -135,3 +135,128 @@ fn incremental_extract_keeps_route_prefixes_from_other_files() {
     assert!(!stdout.contains("route mounts changed"), "{stdout}");
     assert_eq!(routes(&root), ["GET /v2/items", "GET /v2/items/{item_id}"]);
 }
+
+#[test]
+fn incremental_requests_replace_links_after_url_and_helper_edits() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    let root = canonical(dir.path());
+    let client = "function load(path) { return fetch('/inventory'+path); }\nfunction caller() { const endpoint='/orders'; return load(endpoint); }\n";
+    write(&root, "client.ts", client);
+    write(
+        &root,
+        "server.ts",
+        "const app=express();\napp.get('/inventory/orders',handler);\napp.get('/inventory/items',handler);\napp.get('/archive/items',handler);\nfunction handler() {}\n",
+    );
+    let destinations = || {
+        let graph: Value =
+            serde_json::from_str(&fs::read_to_string(root.join(".graphicle/graph.json")).unwrap())
+                .unwrap();
+        let nodes = graph["nodes"].as_array().unwrap();
+        let caller = nodes
+            .iter()
+            .find(|n| n["label"] == "caller()")
+            .expect("real caller declaration");
+        let mut paths: Vec<_> = graph["links"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["source"] == caller["id"] && e["relation"] == "http_calls")
+            .map(|e| {
+                nodes.iter().find(|n| n["id"] == e["target"]).unwrap()["route_path"]
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect();
+        paths.sort();
+        paths
+    };
+    extract(&root);
+    assert_eq!(destinations(), ["/inventory/orders"]);
+    write(&root, "client.ts", &client.replace("'/orders'", "'/items'"));
+    extract(&root);
+    assert_eq!(destinations(), ["/inventory/items"]);
+    write(
+        &root,
+        "client.ts",
+        &client
+            .replace("'/orders'", "'/items'")
+            .replace("'/inventory'", "'/archive'"),
+    );
+    extract(&root);
+    assert_eq!(destinations(), ["/archive/items"]);
+    // Making the argument dynamic removes the previously resolved link.
+    write(
+        &root,
+        "client.ts",
+        &client.replace("const endpoint='/orders'", "const endpoint=unknownPath"),
+    );
+    extract(&root);
+    assert!(destinations().is_empty());
+}
+
+#[test]
+fn next_manifest_changes_enable_and_disable_routes() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    let root = canonical(dir.path());
+    write(&root, "package.json", "{}");
+    write(&root, "app/api/items/route.ts", "export function GET() {}");
+    extract(&root);
+    assert!(routes(&root).is_empty());
+    write(&root, "package.json", r#"{"dependencies":{"next":"15"}}"#);
+    extract(&root);
+    assert_eq!(routes(&root), ["GET /api/items"]);
+    write(&root, "app/api/items/route.ts", "export function POST() {}");
+    extract(&root);
+    assert_eq!(routes(&root), ["POST /api/items"]);
+    write(&root, "package.json", "{}");
+    extract(&root);
+    assert!(routes(&root).is_empty());
+    write(&root, "package.json", r#"{"dependencies":{"next":"15"}}"#);
+    extract(&root);
+    assert_eq!(routes(&root), ["POST /api/items"]);
+    fs::remove_file(root.join("package.json")).unwrap();
+    extract(&root);
+    assert!(routes(&root).is_empty());
+}
+
+#[test]
+fn firebase_edits_replace_boundary_facts() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let dir = tempfile::tempdir().unwrap();
+    let root = canonical(dir.path());
+    let kinds = || {
+        let graph: Value =
+            serde_json::from_str(&fs::read_to_string(root.join(".graphicle/graph.json")).unwrap())
+                .unwrap();
+        graph["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|n| n["boundary_kind"].as_str().map(str::to_owned))
+            .collect::<Vec<_>>()
+    };
+    write(
+        &root,
+        "functions.ts",
+        "import {onMessagePublished} from 'firebase-functions/v2/pubsub'; export const orders=onMessagePublished('orders', () => {});",
+    );
+    extract(&root);
+    assert_eq!(kinds(), ["pubsub"]);
+    write(
+        &root,
+        "functions.ts",
+        "import {onCall} from 'firebase-functions/v2/https'; export const orders=onCall(() => {});",
+    );
+    extract(&root);
+    assert_eq!(kinds(), ["callable"]);
+    write(
+        &root,
+        "functions.ts",
+        "import {onCall} from 'firebase-functions/v2/https'; const orders=onCall(() => {});",
+    );
+    extract(&root);
+    assert!(kinds().is_empty());
+}

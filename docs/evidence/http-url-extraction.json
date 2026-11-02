@@ -1,0 +1,468 @@
+{
+  "kind": "synthetic_acceptance_not_held_out",
+  "baseline": {
+    "head_commit": "f217492479fe3ac0bc402233d187f521ca9c9181",
+    "state": "working tree including prior uncommitted HTTP method fix; HEAD alone is not the baseline",
+    "ast_schema": 18,
+    "source_sha256": {
+      "crates/graphicle-graph/src/extractors/routes.rs": "0bfa1965933c9c2f83ca0659b88bec6ebb4fb0d0b6464da62bb2d7a251d01afe",
+      "crates/graphicle-graph/src/cache.rs": "ad9efea6b62bacd7f115f205dff61946d7dfd31a80ae840f72550686917262a1"
+    }
+  },
+  "after_source_sha256": {
+    "crates/graphicle-graph/src/extractors/routes.rs": "eed92135e8656539217421b5e8e8d4add8d4c44c69a33b8fabe902cfd2e78534",
+    "crates/graphicle-graph/src/extractors/routes/js_requests.rs": "f1a05c17fe733a9940fd10516a179a801f38dfcb57b85e3948c7b28e171be2bc",
+    "crates/graphicle-graph/src/cache.rs": "f5b73a94efd37b91af250f0d335df2b9631f5252bfb04983d215030b0f5cebd6"
+  },
+  "fixture": "crates/graphicle-memory/tests/http_url_extraction.rs",
+  "fixture_sha256": "50758426e2dd6b48a3b10888bd84f3e6c16b924a2a0e8506cd0fdb1e6d164559",
+  "rust": "1.94.1",
+  "platform": "aarch64-apple-darwin",
+  "features": "no-default-features",
+  "scope": "selected caller HTTP route/request extraction and actual workspace HTTP linking; caller declarations seeded; no runtime traffic, production recall or speed measurement",
+  "before": {
+    "cases": [
+      {
+        "case": "direct control",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "const URL",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "const alias",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "module prefix",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "template prefix",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "inline concatenation",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "Axios config variable",
+        "expected": [
+          "inventory POST /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "named helper",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "arrow helper",
+        "expected": [
+          "inventory POST /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "typed helper",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "local helper",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "mutable URL",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "reassigned URL",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "parameter shadow",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "block shadow",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "use before initialization",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic initializer",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic concatenation",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic template",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "member URL",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "escaped URL",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "reassigned helper",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "helper shadow",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "conditional helper",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "recursive helper",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic helper argument",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "imported helper",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic helper method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "multiple statements",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      }
+    ],
+    "expected_links": 11,
+    "correct_links": 1,
+    "false_links": 0
+  },
+  "after": {
+    "cases": [
+      {
+        "case": "direct control",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "const URL",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "const alias",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "module prefix",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "template prefix",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "inline concatenation",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "Axios config variable",
+        "expected": [
+          "inventory POST /inventory/orders"
+        ],
+        "actual": [
+          "inventory POST /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "named helper",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "arrow helper",
+        "expected": [
+          "inventory POST /inventory/orders"
+        ],
+        "actual": [
+          "inventory POST /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "typed helper",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "local helper",
+        "expected": [
+          "inventory GET /inventory/orders"
+        ],
+        "actual": [
+          "inventory GET /inventory/orders"
+        ],
+        "request_facts": 1
+      },
+      {
+        "case": "mutable URL",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "reassigned URL",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "parameter shadow",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "block shadow",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "use before initialization",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic initializer",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic concatenation",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic template",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "member URL",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "escaped URL",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "reassigned helper",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "helper shadow",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "conditional helper",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "recursive helper",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic helper argument",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "imported helper",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "dynamic helper method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      },
+      {
+        "case": "multiple statements",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0
+      }
+    ],
+    "expected_links": 11,
+    "correct_links": 11,
+    "false_links": 0
+  },
+  "previous_method_benchmark": {
+    "expected_links": 12,
+    "correct_links": 12,
+    "false_links": 0,
+    "local_false_links": 0
+  },
+  "validation": {
+    "route_unit_tests": 23,
+    "incremental_route_tests": 3,
+    "acceptance_tests": 2,
+    "changed_rust_formatting": "passed",
+    "git_diff_check": "passed",
+    "strict_clippy": "4 pre-existing errors in unchanged Helm and Go-route files; no new production-code lint reported",
+    "full_ci": "not verified"
+  }
+}

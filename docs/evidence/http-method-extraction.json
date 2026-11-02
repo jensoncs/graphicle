@@ -1,0 +1,426 @@
+{
+  "kind": "synthetic_acceptance_not_held_out",
+  "baseline_commit": "f217492479fe3ac0bc402233d187f521ca9c9181",
+  "fixture": "crates/graphicle-memory/tests/http_method_extraction.rs",
+  "fixture_sha256": "9844f97c805b2247d5710bdeef97de3b89c134fd73eae1949112e08c748b9078",
+  "rust": "1.94.1",
+  "platform": "aarch64-apple-darwin",
+  "features": "no-default-features",
+  "scope": "AST HTTP route/request extraction and workspace HTTP linking; caller declaration nodes seeded; no deployed traffic or performance measurement",
+  "before": {
+    "cases": [
+      {
+        "case": "existing axios.post",
+        "expected": [
+          "api POST"
+        ],
+        "actual": [
+          "api POST"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "fetch default",
+        "expected": [
+          "api GET"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "fetch empty options",
+        "expected": [
+          "api GET"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "fetch headers only",
+        "expected": [
+          "api GET"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "fetch post",
+        "expected": [
+          "api POST"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "fetch lowercase",
+        "expected": [
+          "api DELETE"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "fetch multiline",
+        "expected": [
+          "api PATCH"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "fetch quoted key",
+        "expected": [
+          "api HEAD"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "fetch duplicate key",
+        "expected": [
+          "api PUT"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "axios default",
+        "expected": [
+          "api GET"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "axios url options",
+        "expected": [
+          "api POST"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "axios config",
+        "expected": [
+          "api DELETE"
+        ],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "dynamic method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 1
+      },
+      {
+        "case": "dynamic options",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 1
+      },
+      {
+        "case": "shorthand method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 1
+      },
+      {
+        "case": "spread options",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 1
+      },
+      {
+        "case": "computed key",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 1
+      },
+      {
+        "case": "method getter",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 1
+      },
+      {
+        "case": "inherited method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 1
+      },
+      {
+        "case": "axios dynamic method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 1
+      },
+      {
+        "case": "axios dynamic url",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "duplicate services",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 1
+      }
+    ],
+    "expected_links": 12,
+    "correct_links": 1,
+    "false_links": 0,
+    "local_false_links": 8
+  },
+  "after": {
+    "cases": [
+      {
+        "case": "existing axios.post",
+        "expected": [
+          "api POST"
+        ],
+        "actual": [
+          "api POST"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "fetch default",
+        "expected": [
+          "api GET"
+        ],
+        "actual": [
+          "api GET"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "fetch empty options",
+        "expected": [
+          "api GET"
+        ],
+        "actual": [
+          "api GET"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "fetch headers only",
+        "expected": [
+          "api GET"
+        ],
+        "actual": [
+          "api GET"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "fetch post",
+        "expected": [
+          "api POST"
+        ],
+        "actual": [
+          "api POST"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "fetch lowercase",
+        "expected": [
+          "api DELETE"
+        ],
+        "actual": [
+          "api DELETE"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "fetch multiline",
+        "expected": [
+          "api PATCH"
+        ],
+        "actual": [
+          "api PATCH"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "fetch quoted key",
+        "expected": [
+          "api HEAD"
+        ],
+        "actual": [
+          "api HEAD"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "fetch duplicate key",
+        "expected": [
+          "api PUT"
+        ],
+        "actual": [
+          "api PUT"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "axios default",
+        "expected": [
+          "api GET"
+        ],
+        "actual": [
+          "api GET"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "axios url options",
+        "expected": [
+          "api POST"
+        ],
+        "actual": [
+          "api POST"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "axios config",
+        "expected": [
+          "api DELETE"
+        ],
+        "actual": [
+          "api DELETE"
+        ],
+        "request_facts": 1,
+        "local_links": 1
+      },
+      {
+        "case": "dynamic method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "dynamic options",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "shorthand method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "spread options",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "computed key",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "method getter",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "inherited method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "axios dynamic method",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "axios dynamic url",
+        "expected": [],
+        "actual": [],
+        "request_facts": 0,
+        "local_links": 0
+      },
+      {
+        "case": "duplicate services",
+        "expected": [],
+        "actual": [],
+        "request_facts": 1,
+        "local_links": 1
+      }
+    ],
+    "expected_links": 12,
+    "correct_links": 12,
+    "false_links": 0,
+    "local_false_links": 0
+  },
+  "validation": {
+    "passed": {
+      "acceptance_tests": 1,
+      "route_unit_tests": 18,
+      "incremental_route_tests": 2,
+      "workspace_http_tests": 3,
+      "changed_rust_formatting": true,
+      "git_diff_check": true
+    },
+    "not_clean": [
+      "repository-wide formatting: existing unchanged-file differences",
+      "strict Clippy: existing collapsible_if and ptr_arg findings"
+    ],
+    "not_verified": [
+      "all-feature tests and Clippy: offline attempt stopped at uncached adler32",
+      "cargo-deny: tool not installed"
+    ]
+  }
+}

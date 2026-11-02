@@ -15,7 +15,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 /// Bump when AST cache-key semantics change independently of the package
-/// version; 17 adds imported calls from named JS/TS class methods.
+/// version; 20 adds framework endpoint and Firebase boundary discovery.
+/// 19 propagates immutable JS/TS request URLs and simple local helpers.
+/// 18 extracts static fetch/Axios methods and rejects dynamic options.
+/// 17 adds imported calls from named JS/TS class methods.
 /// 16 adds bounded Helm expression references.
 /// 15 adds static Helm helper/value references and chart cache scope.
 /// 14 rebuilds Go resolution previously degraded by a missing user
@@ -45,7 +48,7 @@ use std::{
 /// resolved to; 7 invalidated records whose source paths leaked a walked
 /// directory alias when the extraction root was canonicalized (6 added
 /// receiver shadows).
-pub const AST_CACHE_SCHEMA: i64 = 17;
+pub const AST_CACHE_SCHEMA: i64 = 20;
 /// Where an AST entry lists the `target_file` stamps that named an existing
 /// file when it was written; a hit whose target is gone is a miss (#4185).
 pub const CACHED_TARGETS_KEY: &str = "_cached_target_files";

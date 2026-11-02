@@ -1,0 +1,931 @@
+{
+  "kind": "synthetic_acceptance_not_held_out",
+  "baseline": {
+    "git_head": "f217492479fe3ac0bc402233d187f521ca9c9181",
+    "working_tree": "Prior uncommitted method and URL/helper improvements; schema 19. HEAD alone does not reproduce this baseline.",
+    "source_sha256": {
+      "crates/graphicle-graph/src/extractors/routes.rs": "eed92135e8656539217421b5e8e8d4add8d4c44c69a33b8fabe902cfd2e78534",
+      "crates/graphicle-graph/src/extractors/routes/js_requests.rs": "f1a05c17fe733a9940fd10516a179a801f38dfcb57b85e3948c7b28e171be2bc",
+      "crates/graphicle-graph/src/cache.rs": "f5b73a94efd37b91af250f0d335df2b9631f5252bfb04983d215030b0f5cebd6"
+    }
+  },
+  "after_schema": 20,
+  "rust": "1.94.1",
+  "platform": "aarch64-apple-darwin",
+  "features": "no-default-features",
+  "scope": "39 fixed synthetic framework inventory cases. No symbol nodes seeded; route resolver only. Separate full-engine tests verify handlers, calls, incremental changes and workspace linking. Counts are endpoint/boundary facts, not production recall or runtime performance.",
+  "fixture": "crates/graphicle-graph/tests/framework_routes.rs::framework_inventory_acceptance",
+  "final_source_sha256": {
+    "crates/graphicle-graph/src/extractors/routes.rs": "5b0e020d0b20f1aa02a61302fcf4fa461a9c741293e6dbf6dd0bd1b124b17882",
+    "crates/graphicle-graph/src/cache.rs": "77a7b861efd883ff3c18524a0d5da8448635ebb920c897bea604d0e2f17a8c5f",
+    "crates/graphicle-graph/tests/framework_routes.rs": "37675a6bc33e3972b80cdf60ee360dd20d50d6c5803fd1bcef5a7f5ca7d89c9c",
+    "crates/graphicle-graph/tests/routes_incremental.rs": "62c9495f500358ee9d9dfecc665382879a145170a7b3dc9be29a892d653c047f",
+    "crates/graphicle-memory/tests/framework_http_extraction.rs": "0e212e6ac773a7bcfcff7e0865f4c62ea5e65ef5b2f70e1665022bac1a714375",
+    "crates/graphicle-graph/src/extractors/routes/frameworks/java.rs": "a6addebf685afa9942bee95b280692e265364d4f55cacb0ea82822228faa8ae7",
+    "crates/graphicle-graph/src/extractors/routes/frameworks/javascript.rs": "9fba9756232a2cac307b27634e9757f56bb6ff1decf538b84d92b3433041806c",
+    "crates/graphicle-graph/src/extractors/routes/frameworks/mod.rs": "e431fc61aeea019ff55362e48481bbaf9e3f7437596d55e0c8640bc05b068319",
+    "crates/graphicle-graph/src/extractors/routes/frameworks/rust.rs": "d8e735da040305c2c54c85d71127739dd3c86c24a23f026501c67c3b9cdace1d"
+  },
+  "summary": {
+    "actix": {
+      "cases": 4,
+      "expected": 2,
+      "correct_before": 0,
+      "correct_after": 2,
+      "unexpected_before": 0,
+      "unexpected_after": 0
+    },
+    "axum": {
+      "cases": 5,
+      "expected": 3,
+      "correct_before": 0,
+      "correct_after": 3,
+      "unexpected_before": 0,
+      "unexpected_after": 0
+    },
+    "firebase": {
+      "cases": 12,
+      "expected": 7,
+      "correct_before": 0,
+      "correct_after": 7,
+      "unexpected_before": 0,
+      "unexpected_after": 0
+    },
+    "lookalike": {
+      "cases": 1,
+      "expected": 0,
+      "correct_before": 0,
+      "correct_after": 0,
+      "unexpected_before": 0,
+      "unexpected_after": 0
+    },
+    "next": {
+      "cases": 10,
+      "expected": 5,
+      "correct_before": 0,
+      "correct_after": 5,
+      "unexpected_before": 0,
+      "unexpected_after": 0
+    },
+    "spring": {
+      "cases": 7,
+      "expected": 6,
+      "correct_before": 0,
+      "correct_after": 6,
+      "unexpected_before": 0,
+      "unexpected_after": 0
+    }
+  },
+  "before": [
+    {
+      "case": 0,
+      "family": "next",
+      "file": "app/api/items/route.ts",
+      "expected": [
+        "route GET /api/items"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 1,
+      "family": "next",
+      "file": "src/app/(public)/api/items/[id]/route.ts",
+      "expected": [
+        "route POST /api/items/{id}"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 2,
+      "family": "next",
+      "file": "app/api/files/[...path]/route.js",
+      "expected": [
+        "route GET /api/files/{path:path}"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 3,
+      "family": "next",
+      "file": "pages/api/items/index.ts",
+      "expected": [
+        "route ANY /api/items"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 4,
+      "family": "next",
+      "file": "pages/api/items/[id].ts",
+      "expected": [
+        "route ANY /api/items/{id}"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 5,
+      "family": "next",
+      "file": "app/api/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 6,
+      "family": "next",
+      "file": "app/api/page.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 7,
+      "family": "next",
+      "file": "app/_private/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 8,
+      "family": "next",
+      "file": "app/(.)photos/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 9,
+      "family": "next",
+      "file": "app/api/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 10,
+      "family": "lookalike",
+      "file": "app/api/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 11,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [
+        "route GET /api/items"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 12,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [
+        "route GET /a",
+        "route GET /b",
+        "route POST /a",
+        "route POST /b"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 13,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [
+        "route POST /items"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 14,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 15,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 16,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 17,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 18,
+      "family": "actix",
+      "file": "server.rs",
+      "expected": [
+        "route GET /items"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 19,
+      "family": "actix",
+      "file": "server.rs",
+      "expected": [
+        "route POST /items"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 20,
+      "family": "actix",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 21,
+      "family": "actix",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 22,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [
+        "route GET /items",
+        "route POST /items"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 23,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [
+        "route DELETE /items/{id}"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 24,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 25,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 26,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 27,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_function callable checkout"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 28,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_function http webhook"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 29,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_trigger schedule cleanup"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 30,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_trigger firestore created"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 31,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_trigger pubsub received"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 32,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_function callable checkout"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 33,
+      "family": "firebase",
+      "file": "client.ts",
+      "expected": [
+        "cloud_call callable checkout"
+      ],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 34,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 35,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 36,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 37,
+      "family": "firebase",
+      "file": "client.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 38,
+      "family": "firebase",
+      "file": "client.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    }
+  ],
+  "after": [
+    {
+      "case": 0,
+      "family": "next",
+      "file": "app/api/items/route.ts",
+      "expected": [
+        "route GET /api/items"
+      ],
+      "actual": [
+        "route GET /api/items"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 1,
+      "family": "next",
+      "file": "src/app/(public)/api/items/[id]/route.ts",
+      "expected": [
+        "route POST /api/items/{id}"
+      ],
+      "actual": [
+        "route POST /api/items/{id}"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 2,
+      "family": "next",
+      "file": "app/api/files/[...path]/route.js",
+      "expected": [
+        "route GET /api/files/{path:path}"
+      ],
+      "actual": [
+        "route GET /api/files/{path:path}"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 3,
+      "family": "next",
+      "file": "pages/api/items/index.ts",
+      "expected": [
+        "route ANY /api/items"
+      ],
+      "actual": [
+        "route ANY /api/items"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 4,
+      "family": "next",
+      "file": "pages/api/items/[id].ts",
+      "expected": [
+        "route ANY /api/items/{id}"
+      ],
+      "actual": [
+        "route ANY /api/items/{id}"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 5,
+      "family": "next",
+      "file": "app/api/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 6,
+      "family": "next",
+      "file": "app/api/page.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 7,
+      "family": "next",
+      "file": "app/_private/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 8,
+      "family": "next",
+      "file": "app/(.)photos/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 9,
+      "family": "next",
+      "file": "app/api/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 10,
+      "family": "lookalike",
+      "file": "app/api/route.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 11,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [
+        "route GET /api/items"
+      ],
+      "actual": [
+        "route GET /api/items"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 12,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [
+        "route GET /a",
+        "route GET /b",
+        "route POST /a",
+        "route POST /b"
+      ],
+      "actual": [
+        "route GET /a",
+        "route GET /b",
+        "route POST /a",
+        "route POST /b"
+      ],
+      "correct": 4,
+      "unexpected": 0
+    },
+    {
+      "case": 13,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [
+        "route POST /items"
+      ],
+      "actual": [
+        "route POST /items"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 14,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 15,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 16,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 17,
+      "family": "spring",
+      "file": "Items.java",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 18,
+      "family": "actix",
+      "file": "server.rs",
+      "expected": [
+        "route GET /items"
+      ],
+      "actual": [
+        "route GET /items"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 19,
+      "family": "actix",
+      "file": "server.rs",
+      "expected": [
+        "route POST /items"
+      ],
+      "actual": [
+        "route POST /items"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 20,
+      "family": "actix",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 21,
+      "family": "actix",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 22,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [
+        "route GET /items",
+        "route POST /items"
+      ],
+      "actual": [
+        "route GET /items",
+        "route POST /items"
+      ],
+      "correct": 2,
+      "unexpected": 0
+    },
+    {
+      "case": 23,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [
+        "route DELETE /items/{id}"
+      ],
+      "actual": [
+        "route DELETE /items/{id}"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 24,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 25,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 26,
+      "family": "axum",
+      "file": "server.rs",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 27,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_function callable checkout"
+      ],
+      "actual": [
+        "cloud_function callable checkout"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 28,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_function http webhook"
+      ],
+      "actual": [
+        "cloud_function http webhook"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 29,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_trigger schedule cleanup"
+      ],
+      "actual": [
+        "cloud_trigger schedule cleanup"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 30,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_trigger firestore created"
+      ],
+      "actual": [
+        "cloud_trigger firestore created"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 31,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_trigger pubsub received"
+      ],
+      "actual": [
+        "cloud_trigger pubsub received"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 32,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [
+        "cloud_function callable checkout"
+      ],
+      "actual": [
+        "cloud_function callable checkout"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 33,
+      "family": "firebase",
+      "file": "client.ts",
+      "expected": [
+        "cloud_call callable checkout"
+      ],
+      "actual": [
+        "cloud_call callable checkout"
+      ],
+      "correct": 1,
+      "unexpected": 0
+    },
+    {
+      "case": 34,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 35,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 36,
+      "family": "firebase",
+      "file": "functions.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 37,
+      "family": "firebase",
+      "file": "client.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    },
+    {
+      "case": 38,
+      "family": "firebase",
+      "file": "client.ts",
+      "expected": [],
+      "actual": [],
+      "correct": 0,
+      "unexpected": 0
+    }
+  ],
+  "verification": {
+    "focused_tests_passed": 34,
+    "native_library": {
+      "passed": 340,
+      "ignored": 3,
+      "failed": 0,
+      "features": [
+        "grammar-objc",
+        "grammar-elixir",
+        "grammar-commonlisp"
+      ]
+    },
+    "native_integration": {
+      "framework": 3,
+      "incremental": 5
+    },
+    "memory_acceptance_tests": 3,
+    "strict_engine_clippy": "Blocked by 4 pre-existing library findings: helm/expressions.rs:148, helm.rs:690, helm.rs:781, routes/go.rs:115. No new library findings in final strict check.",
+    "all_feature_ci": "unverified"
+  }
+}

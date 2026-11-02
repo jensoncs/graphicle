@@ -10,6 +10,21 @@ versioned together at 0.2.0.
 
 ### Review correctness and performance
 
+- Discover Next.js, Spring, Actix and Axum HTTP endpoints through the existing
+  route pass, and inventory Firebase callable/HTTP functions and event triggers
+  without guessing deployment wiring. Refresh routes when Next manifests change.
+  See the [consolidated extraction measurements](docs/evidence/extraction-improvements.md).
+
+- Follow immutable JS/TS URL bindings and simple same-file request helpers when
+  extracting HTTP dependencies. Dynamic inputs and reassigned helpers remain
+  unresolved. See the [29-case acceptance measurement](docs/evidence/http-url-extraction.md).
+
+- Extract literal HTTP methods and default GET requests from `fetch` and Axios,
+  including Axios config objects. Cross-repository linking now retains these
+  request facts; dynamic options no longer match an arbitrary local method.
+  The [22-case acceptance measurement](docs/evidence/http-method-extraction.md)
+  records coverage and false links before and after the change.
+
 - Add opt-in, snapshot-bound secondary context in Python and TypeScript SDKs; failures preserve primary review context and never grant review-scope reductions.
 - Add Go statement control/data-flow queries, isolated architectural what-if previews, and local function-binding rename previews with source/configuration revalidation.
 

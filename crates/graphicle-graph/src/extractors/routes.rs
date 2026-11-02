@@ -14,6 +14,10 @@
 //! `@router.post`, `@bp.route("/p", methods=[...])`, `@app.websocket`),
 //! `add_api_route`/`add_url_rule`, Django `path()`/`re_path()` in files that
 //! define `urlpatterns`, and Express-style calls (`app.get("/p", handler)`).
+//! Framework adapters also read Next.js file/export conventions, Spring mapping
+//! annotations, Actix attributes and Axum route builders. These require static
+//! project/import identity. Firebase exports and callable clients are separate
+//! cloud boundary facts, with deployment identity unresolved (see [`frameworks`]).
 //!
 //! A route's path carries the prefixes of the routers it is mounted through,
 //! in any file of the corpus: the router's own (`APIRouter(prefix=...)`,
@@ -50,6 +54,11 @@
 //! return, and `with TestClient(...) as c` are followed. Conditional returns,
 //! reassigned application bindings and factories requiring arguments remain
 //! unresolved, without falling back to an unrelated route with the same URL.
+//!
+//! JS/TS request URLs also follow same-file immutable string bindings,
+//! concatenation/templates and single-return request helpers. Evaluation is
+//! bounded and does not follow mutable bindings or imported helpers; see
+//! [`js_requests`]. Inferred route matches retain the existing ambiguity rules.
 use crate::extractors::parse_cache;
 use crate::extractors::resolution::source_key;
 use crate::ids::make_id;
@@ -65,7 +74,9 @@ use std::{
 };
 use tree_sitter::Node;
 
+mod frameworks;
 mod go;
+mod js_requests;
 
 /// `--routes` / `GRAPHICLE_ROUTES=1`.
 pub static ENABLED: AtomicBool = AtomicBool::new(false);
@@ -96,6 +107,8 @@ const UNKNOWN: &str = "{}";
 /// How a framework joins the prefixes of a route's routers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Kind {
+    /// A framework adapter already composed the declared endpoint path.
+    Declared,
     /// FastAPI and Starlette: prefixes are concatenated.
     FastApi,
     /// Flask: a registration's `url_prefix` replaces the blueprint's own,
@@ -223,7 +236,7 @@ struct Route {
     handler: Option<(String, usize)>,
 }
 
-/// A request with a literal path.
+/// A request with a literal or statically resolved path.
 #[derive(Debug, Clone)]
 struct Request {
     file: String,
@@ -435,6 +448,66 @@ fn pair_key(p: Node, src: &[u8]) -> Option<String> {
     literal(k, src).or_else(|| Some(text(k, src).to_string()))
 }
 
+/// An own option in a plain JS object. The outer None means a spread,
+/// computed key or prototype could supply/override it; Some(None) means it
+/// is absent. Duplicate literal keys follow JavaScript's last-write rule.
+fn request_option<'t>(object: Node<'t>, key: &str, src: &[u8]) -> Option<Option<Node<'t>>> {
+    if object.kind() != "object" || object.has_error() {
+        return None;
+    }
+    let mut value = None;
+    let mut cursor = object.walk();
+    for property in object.named_children(&mut cursor) {
+        if property.kind() == "comment" {
+            continue;
+        }
+        let name = match property.kind() {
+            "pair" => property.child_by_field_name("key")?,
+            "shorthand_property_identifier" => property,
+            "method_definition" => property.child_by_field_name("name")?,
+            _ => return None,
+        };
+        if !matches!(
+            name.kind(),
+            "property_identifier" | "shorthand_property_identifier" | "string" | "number"
+        ) {
+            return None;
+        }
+        let name = literal(name, src).unwrap_or_else(|| text(name, src).to_string());
+        // `literal` preserves escape spellings; an escaped key could be
+        // "method" even when its raw spelling differs. Don't infer absence.
+        if name == "__proto__" || name.contains('\\') {
+            return None;
+        }
+        if name == key {
+            value = Some(property.child_by_field_name("value").unwrap_or(property));
+        }
+    }
+    Some(value)
+}
+
+/// Fetch and Axios default to GET only when the supplied literal options
+/// cannot override the method. Dynamic methods are never wildcard matches.
+fn request_method(options: Option<Node>, src: &[u8], client: &str) -> Option<String> {
+    let method = match options {
+        None => "GET".into(),
+        Some(options) => match request_option(options, "method", src)? {
+            None => "GET".into(),
+            Some(value) => literal(value, src)?,
+        },
+    };
+    // Fetch normalizes six standard verbs, but PATCH is case-sensitive.
+    // Axios uppercases its method when issuing the request.
+    if client == "fetch" && method.eq_ignore_ascii_case("patch") && method != "PATCH" {
+        return None;
+    }
+    let method = method.to_ascii_uppercase();
+    VERBS
+        .iter()
+        .any(|verb| method.eq_ignore_ascii_case(verb))
+        .then_some(method)
+}
+
 fn lexical(p: &Path) -> PathBuf {
     crate::detect_ignore::absolute_lexical(p)
 }
@@ -460,6 +533,8 @@ fn relative(from: &Path, to: &Path) -> String {
 fn language(path: &Path) -> Option<(&'static str, tree_sitter::Language)> {
     Some(match crate::extract_languages::suffix(path).as_str() {
         ".go" => ("go", tree_sitter_go::LANGUAGE.into()),
+        ".java" => ("java", tree_sitter_java::LANGUAGE.into()),
+        ".rs" => ("rust", tree_sitter_rust::LANGUAGE.into()),
         ".py" => ("python", tree_sitter_python::LANGUAGE.into()),
         ".js" | ".jsx" | ".mjs" | ".cjs" => ("javascript", tree_sitter_javascript::LANGUAGE.into()),
         ".ts" | ".mts" | ".cts" => (
@@ -693,6 +768,7 @@ struct Scan<'a> {
     python: bool,
     django: bool,
     names: ScopeNames,
+    js_requests: js_requests::Resolver<'a>,
     facts: Facts,
     routes: Vec<Route>,
     requests: Vec<Request>,
@@ -726,6 +802,14 @@ impl Scan<'_> {
 
     fn text_name(&self, n: Node) -> String {
         self.name(n, text(n, self.src))
+    }
+
+    fn request_url(&self, expression: Node) -> Option<String> {
+        if self.python {
+            literal(expression, self.src)
+        } else {
+            self.js_requests.url(expression, &self.names, self.src)
+        }
     }
 
     fn route(
@@ -1531,6 +1615,15 @@ impl Scan<'_> {
             }
         }
         // Requests.
+        if !self.python && !member {
+            if let Some((method, url)) = self.js_requests.request(n, &self.names, self.src)
+                && looks_like_path(&url)
+            {
+                self.request(n, Some(method), url);
+            }
+            return;
+        }
+        let first_url = pos.first().and_then(|p| self.request_url(*p));
         let method = if member
             && (client_receiver(obj) || self.facts.clients.contains_key(&self.name(n, obj)))
         {
@@ -1539,7 +1632,7 @@ impl Scan<'_> {
             } else if name == "request" {
                 // requests.request("GET", url)
                 let m = first.clone().map(|m| m.to_uppercase());
-                let url = pos.get(1).and_then(|p| literal(*p, self.src));
+                let url = pos.get(1).and_then(|p| self.request_url(*p));
                 if let (Some(m), Some(url)) = (m, url.filter(|u| looks_like_path(u))) {
                     self.request(n, Some(m), url);
                 }
@@ -1549,13 +1642,11 @@ impl Scan<'_> {
             } else {
                 None
             }
-        } else if !member && (name == "fetch" || name == "axios") {
-            Some(None)
         } else {
             None
         };
         if let Some(method) = method
-            && let Some(url) = first.filter(|u| looks_like_path(u))
+            && let Some(url) = first_url.filter(|u| looks_like_path(u))
         {
             self.request(n, method, url);
         }
@@ -1661,8 +1752,21 @@ fn scan_parsed(path: &Path, python: bool, parsed: &super::engine_parser::Parsed)
     if path.extension().is_some_and(|e| e == "go") {
         return go::scan(path, parsed);
     }
+    if path.extension().is_some_and(|e| e == "java" || e == "rs") {
+        return Scanned {
+            facts: Facts::default(),
+            routes: vec![],
+            requests: vec![],
+        };
+    }
     let src = parsed.source.as_slice();
     let file = path.to_string_lossy().to_string();
+    let names = ScopeNames::collect(parsed.tree.root_node(), src, python);
+    let js_requests = if python {
+        js_requests::Resolver::default()
+    } else {
+        js_requests::Resolver::new(parsed.tree.root_node(), &names, src)
+    };
     let mut scan = Scan {
         file: &file,
         dir: lexical(path)
@@ -1672,7 +1776,8 @@ fn scan_parsed(path: &Path, python: bool, parsed: &super::engine_parser::Parsed)
         src,
         python,
         django: python && String::from_utf8_lossy(src).contains("urlpatterns"),
-        names: ScopeNames::collect(parsed.tree.root_node(), src, python),
+        names,
+        js_requests,
         facts: Facts {
             python,
             ..Default::default()
@@ -2099,6 +2204,9 @@ impl Corpus {
     /// The paths a route of file `f` is served at, and the other files that
     /// shaped them.
     fn served(&mut self, f: usize, r: &Route) -> (Vec<(String, Key)>, Vec<usize>) {
+        if r.kind == Kind::Declared {
+            return (vec![(r.path.clone(), (f, r.router.clone()))], vec![]);
+        }
         let mut via = vec![];
         let key = if r.kind == Kind::Django {
             (f, DJANGO.to_string())
@@ -2172,7 +2280,7 @@ impl Corpus {
             let joined = match m.kind {
                 Kind::Express => express_join(prefix, &path),
                 Kind::Flask => flask_rule(m.prefix.as_deref(), &path),
-                Kind::FastApi | Kind::Django => concat(prefix, &path),
+                Kind::FastApi | Kind::Django | Kind::Declared => concat(prefix, &path),
             };
             self.up(&m.parent, m.kind, joined, chain, via, out);
         }
@@ -2305,10 +2413,14 @@ impl StoredMounts {
     /// shaped a stored route's path from another file, or now mounts a
     /// router.
     pub fn moved_by(&self, changed: &[PathBuf]) -> bool {
-        self.routes
-            && changed
-                .iter()
-                .any(|p| self.files.contains(&lexical(p)) || (p.is_file() && freshly_mounts(p)))
+        // A manifest can enable Next discovery even when no routes existed.
+        changed
+            .iter()
+            .any(|p| p.file_name().is_some_and(|n| n == "package.json"))
+            || self.routes
+                && changed
+                    .iter()
+                    .any(|p| self.files.contains(&lexical(p)) || (p.is_file() && freshly_mounts(p)))
     }
 }
 
@@ -2334,7 +2446,15 @@ pub fn resolve(
         .filter(|p| language(p).is_some())
         .cloned()
         .collect::<Vec<_>>();
-    let scanned = parse_cache::par_map(&own, |p| scan(p));
+    let projects = frameworks::Projects::new(paths, nodes, context, root);
+    let scanned = parse_cache::par_map(&own, |p| {
+        let (tag, language) = language(p)?;
+        let parsed = parse_cache::parse(p, tag, language)?;
+        let mut scanned = scan_parsed(p, tag == "python", &parsed);
+        let (routes, boundaries) = frameworks::scan(p, tag, &parsed, &projects);
+        scanned.routes.extend(routes);
+        Some((scanned, boundaries))
+    });
     // An incremental run's unchanged files: the ones that may mount a
     // router are read now, any other when an import reaches it.
     let own_files = own.iter().map(|p| lexical(p)).collect::<Vec<_>>();
@@ -2365,10 +2485,11 @@ pub fn resolve(
     let mut routes = vec![];
     let mut requests = vec![];
     for (i, sc) in scanned.into_iter().enumerate() {
-        let Some(sc) = sc else {
+        let Some((sc, boundaries)) = sc else {
             corpus.set(i, None);
             continue;
         };
+        nodes.extend(boundaries);
         routes.extend(sc.routes.into_iter().map(|r| (i, r)));
         requests.extend(sc.requests);
         corpus.set(i, Some(sc.facts));
@@ -2519,6 +2640,9 @@ pub fn resolve(
                     "route_path": path, "_route_apps": [application_relative], "_origin": "ast"});
             if !mounts.is_empty() {
                 node["_route_mounts"] = json!(mounts);
+            }
+            if r.kind == Kind::Declared {
+                node["framework"] = json!(r.router);
             }
             nodes.push(node);
             declared.push((id.clone(), key.clone(), r.method.clone(), segments(&path)));
@@ -2682,6 +2806,53 @@ pub fn resolve(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn request_methods_keep_javascript_option_semantics() {
+        let dir = tempfile::tempdir().unwrap();
+        let cases = [
+            (r#"fetch('/orders', {method:'patch'})"#, None),
+            (r#"axios('/orders', {method:'patch'})"#, Some("PATCH")),
+            (r#"fetch('/orders', {"m\u0065thod":'POST'})"#, None),
+            (r#"fetch('/orders', {method:`${verb}`})"#, None),
+            (r#"fetch('/orders', {method:'POST', method:verb})"#, None),
+            (
+                r#"fetch('/orders', {method:verb, method:'POST'})"#,
+                Some("POST"),
+            ),
+            (
+                r#"fetch('/orders', {method:'GET', get method() {return verb;}})"#,
+                None,
+            ),
+            (
+                r#"axios({url:'/old', url:'/orders', method:'POST'})"#,
+                Some("POST"),
+            ),
+            (r#"axios({url:'/orders', ...options, method:'POST'})"#, None),
+        ];
+        for (i, (call, method)) in cases.iter().enumerate() {
+            let path = dir.path().join(format!("case{i}.ts"));
+            std::fs::write(&path, format!("function caller() {{ return {call}; }}")).unwrap();
+            let parsed = scan(&path).unwrap();
+            let actual: Vec<_> = parsed
+                .requests
+                .iter()
+                .map(|r| (r.path.as_str(), r.method.as_deref()))
+                .collect();
+            let expected: Vec<_> = method
+                .map(|method| ("/orders", Some(method)))
+                .into_iter()
+                .collect();
+            assert_eq!(actual, expected, "{call}");
+        }
+        let path = dir.path().join("shadow.ts");
+        std::fs::write(
+            &path,
+            "function caller(fetch, axios) { fetch('/orders'); axios('/orders'); }",
+        )
+        .unwrap();
+        assert!(scan(&path).unwrap().requests.is_empty());
+    }
 
     #[test]
     fn routes_handlers_and_requests_across_frameworks() {
