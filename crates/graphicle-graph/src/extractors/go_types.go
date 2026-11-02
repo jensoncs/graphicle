@@ -420,6 +420,18 @@ func sortedKeys(values map[string]bool) []string {
 func moduleMode(root, workspace string) string {
 	if workspace != "" && workspace != "off" {
 		root = filepath.Dir(workspace)
+	} else {
+		// A selected package subtree still uses its owning module's vendor tree.
+		for {
+			if info, err := os.Stat(filepath.Join(root, "go.mod")); err == nil && !info.IsDir() {
+				break
+			}
+			parent := filepath.Dir(root)
+			if parent == root {
+				break
+			}
+			root = parent
+		}
 	}
 	if info, err := os.Stat(filepath.Join(root, "vendor", "modules.txt")); err == nil && !info.IsDir() {
 		return "-mod=vendor"

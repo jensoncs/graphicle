@@ -95,6 +95,18 @@ reproduced here, so the local byte-saving fixture is not a production latency cl
 
 ## Risk measurements
 
+`coverage.issue_histogram` counts **all** issues before `coverage.issues` is
+reduced to 20 examples. `groups` contains `{reason, cause?, count}` rows; native
+Go package suffixes are grouped under their common reason. `counted` equals
+`coverage.issue_count`, and the group counts plus `other_count` always sum to it.
+The same limitation on base and head counts twice, as it does in `issue_count`.
+This is occurrence accounting, not a count of distinct root causes. At most 128
+groups are emitted; `other_groups` and `other_count` account for any additional
+groups. Counts include selection/scope issues as well as native analysis and
+basic-language issues. Budget omissions remain separately counted in
+`coverage.budget_omitted`. `build.info.review_issue_histogram` advertises
+`full-analysis-reason-cause-counts-v1`.
+
 `coverage.analysis_diagnostics.base/head` separates native failures from their
 effects on graph references, before packet trimming:
 

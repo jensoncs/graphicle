@@ -44,6 +44,8 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
         "change_impact_scope": "pinned-go-snapshot-sets-v1",
         "review_source_admission": "exhaustive-withheld-paths-go-build-v1",
         "review_analysis_diagnostics": "bounded-go-errors-and-python-causes-v1",
+        "review_issue_histogram": "full-analysis-reason-cause-counts-v1",
+        "review_go_roots": "admitted-module-discovery-v1",
         "basic_change_impact": {"languages":["terraform","helm","bash","python","rust"],"granularity":"file-module-chart","compiler_resolution":false},
         "business_context": true,
         "business_context_scope": "static-candidates-and-pinned-history-v1",

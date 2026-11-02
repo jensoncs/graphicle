@@ -262,6 +262,20 @@ review**; CGO is disabled. Provide pinned local replacements, a workspace, or
 a vendor tree for the dependency source. An arbitrary compatible checkout is never substituted
 for an installed version. Missing dependencies remain unresolved.
 
+Review selects Go working directories from admitted `go.mod` files. The default
+`modules:["."]` discovers nested modules, including repositories without a
+top-level module; each nested module gets its own compiler invocation. Explicit
+subdirectory scopes can use an admitted ancestor module and its vendor tree.
+Discovery skips nested `vendor`, `testdata`, dot-prefixed and underscore-prefixed
+directories unless explicitly selected, and respects the existing Helm-source
+classification. Discovery is bounded to 64 roots per pinned repository.
+
+A repository with no selected module does not run Go analysis. Ordinary Go files
+without an admitted module retain a `go_source_without_module` limitation instead
+of fabricated compiler failures; files outside explicitly selected module scopes
+retain `go_source_outside_module_scope`. A `go.work` file alone is not a module.
+`build.info.review_go_roots` advertises `admitted-module-discovery-v1`.
+
 For a non-vendored repository, prepare each pinned revision separately with Go's
 native vendoring in a disposable source copy before admission. An offline
 preparation can use an explicit module cache with `GOPROXY=off`, `GOVCS=*:off`,
@@ -580,3 +594,14 @@ labelled source candidates, not verified service/environment ownership.
 Ambiguous or cross-repository mappings require pinned service manifest v2;
 ordinary context retrieval does not infer these deployment scopes. See [environment inputs](service-boundaries.md#literal-environment-inputs-v2)
 for the manifest, supported syntax, fallback rules and measurement counters.
+
+Direct calls to established `os.path` bindings for lexical operations (`join`,
+`basename`, `dirname`, `split`, `splitext`, `splitdrive`, `splitroot`, `normpath`,
+`normcase`, `isabs`, `commonpath`, `commonprefix`) do not create environment-binding
+escape warnings. `import os as alias` is supported. Arguments are still checked:
+passing `os` or `os.environ` remains an escape, and nested `os.getenv` calls still
+produce environment reads. `expandvars`, `expanduser`, stored function/module
+aliases, dynamic attributes, conditional imports and monkey-patching remain
+conservative. This does not change Python package or re-export resolution, nor
+remove `basic_analysis_limitations`. Structural revision 9 invalidates older
+cached parses so the warning fix takes effect on the next sync.

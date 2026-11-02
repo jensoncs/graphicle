@@ -15,6 +15,8 @@ mod environment_impact;
 mod basic_impact;
 #[path = "source_admission.rs"]
 mod source_admission;
+#[path = "go_admission.rs"]
+mod go_admission;
 
 struct Fixture {
     _dir: tempfile::TempDir,

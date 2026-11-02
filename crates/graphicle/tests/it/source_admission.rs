@@ -267,6 +267,24 @@ fn diagnostic_summary_separates_one_broken_package_from_many_references() {
     assert_eq!(summary["incomplete_package_instances"], 1);
     assert_eq!(summary["type_check_failed_package_instances"], 1);
     assert_eq!(summary["incomplete_package_references"], 1000);
+    let histogram = &packet["coverage"]["issue_histogram"];
+    assert_eq!(histogram["counted"], packet["coverage"]["issue_count"]);
+    let groups = histogram["groups"].as_array().unwrap();
+    assert_eq!(
+        groups
+            .iter()
+            .find(|g| g["reason"] == "unresolved_edge" && g["cause"] == "incomplete_package")
+            .unwrap()["count"],
+        2000
+    ); // Both pinned sides, before sampling.
+    assert_eq!(
+        groups
+            .iter()
+            .map(|g| g["count"].as_u64().unwrap())
+            .sum::<u64>()
+            + histogram["other_count"].as_u64().unwrap(),
+        histogram["counted"].as_u64().unwrap()
+    );
     assert!(
         summary["examples"]
             .to_string()

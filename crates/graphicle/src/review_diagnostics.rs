@@ -4,6 +4,35 @@ use graphicle_memory::text;
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
+/// Counts every issue before the public example list is truncated. Native Go
+/// reasons suffix their package identity after ':', which is not a new cause.
+pub(super) fn histogram(issues: &[Value]) -> Value {
+    let mut counts = BTreeMap::new();
+    for issue in issues {
+        let reason = s(issue, "reason");
+        let reason = reason.split_once(':').map_or(reason, |(reason, _)| reason);
+        *counts
+            .entry((reason, s(&issue["detail"], "cause")))
+            .or_insert(0usize) += 1;
+    }
+    let mut groups = vec![];
+    let mut other_count = 0;
+    let mut other_groups = 0;
+    for ((reason, cause), count) in counts {
+        if groups.len() == 128 {
+            other_count += count;
+            other_groups += 1;
+            continue;
+        }
+        let mut group = json!({"reason":reason,"count":count});
+        if !cause.is_empty() {
+            group["cause"] = json!(cause);
+        }
+        groups.push(group);
+    }
+    json!({"counted":issues.len(),"groups":groups,"other_count":other_count,"other_groups":other_groups})
+}
+
 pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
     let packages = |prefix: &str| {
         analysis
@@ -107,6 +136,44 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn histogram_counts_all_causes_and_bounds_unknown_groups() {
+        let mut issues = vec![
+            json!({"reason":"incomplete_package:one"}),
+            json!({"reason":"incomplete_package:two"}),
+        ];
+        issues.extend(
+            (0..1000).map(
+                |_| json!({"reason":"unresolved_edge","detail":{"cause":"incomplete_package"}}),
+            ),
+        );
+        issues.extend((0..200).map(|i| json!({"reason":format!("other_{i}")})));
+        let result = histogram(&issues);
+        assert_eq!(result["counted"], 1202);
+        let groups = result["groups"].as_array().unwrap();
+        assert_eq!(groups.len(), 128);
+        assert_eq!(
+            groups
+                .iter()
+                .find(|g| g["reason"] == "incomplete_package")
+                .unwrap()["count"],
+            2
+        );
+        assert_eq!(
+            groups
+                .iter()
+                .map(|g| g["count"].as_u64().unwrap())
+                .sum::<u64>()
+                + result["other_count"].as_u64().unwrap(),
+            1202
+        );
+        let ordinary = histogram(&issues[..1002]);
+        assert_eq!(
+            ordinary["groups"][1],
+            json!({"reason":"unresolved_edge","cause":"incomplete_package","count":1000})
+        );
+    }
 
     #[test]
     fn python_counts_files_and_causes_before_example_trimming() {

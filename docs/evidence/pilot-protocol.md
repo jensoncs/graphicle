@@ -114,3 +114,39 @@ it does not establish how many packages failed in the production probes or wheth
 generated source was missing. Those conclusions require the exact admitted
 snapshots or compiler diagnostics from the next probe. The change adds visibility,
 not a claim of improved risk completeness or Nexus latency.
+
+## Confirmed-fix regression fixtures (2026-11-03)
+
+- A non-module repository with a Go example skips the compiler and reports
+  `go_source_without_module`; the spurious external-package/type-check pair is
+  absent. A repository with two nested modules and no top-level `go.mod` analyses
+  both modules, with no root-discovery failure.
+- An app → local database package → external dependency chain has two failed
+  local package instances before dependency admission. Admitting a matching
+  `vendor/modules.txt` and dependency source reduces failed local packages,
+  type-check failures and incomplete-package references to zero. A changed
+  caller then reports `potential_impact`. Selecting package subdirectories also
+  uses the owning module's vendor tree. This tests Graphicle's consumption of
+  prepared sources; cache verification and source preparation belong to the
+  collector, including Sentinel #603.
+- Twenty Python modules containing direct lexical `os.path.join` calls produce
+  zero environment-incomplete file warnings. A changed deployment environment
+  value still selects its actual reader and caller and excludes those twenty
+  unrelated modules. Environment expansion, binding escape, dynamic access,
+  conditional imports and monkey-patching retain uncertainty. Basic Python
+  analysis still reports incomplete impact.
+- The 1,000-reference Go fixture accounts for all 2,000 failed-package references
+  across base and head in `coverage.issue_histogram`, despite the 20-example
+  issue list. Group counts plus `other_count` equal the full issue count; more
+  than 128 distinct groups retain explicit overflow accounting.
+
+These are local synthetic regressions, not results for the eight production PRs.
+The parser revision advances to 9, so existing source parses refresh once on
+their next sync. Native facts also get a new cache identity for module discovery.
+
+Validation: 54 runtime review unit tests, 76 review integration tests (including
+focused reruns), and four Go helper tests passed. The inline service-flow test
+previously assumed the complete composed path always fit its fixed flow budget;
+it now requires explicit omission accounting when it does not fit. The compact
+provenance test still requires the full composed path. Production flow packing
+was not changed.

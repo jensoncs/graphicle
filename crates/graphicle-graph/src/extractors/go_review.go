@@ -951,7 +951,7 @@ func runReview(req reviewRequest) {
 		Version   string        `json:"analyzer"`
 		Toolchain string        `json:"toolchain"`
 		Worlds    []reviewWorld `json:"worlds"`
-	}{Version: "graphicle-go-review-v9"}
+	}{Version: "graphicle-go-review-v10"}
 	version, _ := exec.Command("go", "version").Output()
 	result.Toolchain = strings.TrimSpace(string(version))
 	var allowed []string

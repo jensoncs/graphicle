@@ -84,12 +84,6 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
     )
 }
 
-pub(super) fn has_go(input: &Input) -> bool {
-    input.sources.keys().any(|p| {
-        (p.ends_with(".go") || p.ends_with("/go.mod") || p.ends_with("/go.work"))
-            && language(input, p) != Some("helm")
-    })
-}
 
 fn world(path: &str) -> String {
     format!("basic:{}", path.split('/').next().unwrap_or(""))

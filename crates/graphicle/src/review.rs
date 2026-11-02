@@ -18,6 +18,9 @@ use std::{
 #[path = "review_admission.rs"]
 pub(crate) mod admission;
 
+#[path = "review_go.rs"]
+mod go;
+
 #[path = "review_diagnostics.rs"]
 mod diagnostics;
 
@@ -384,21 +387,8 @@ fn analyze(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<An
 }
 
 fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<Analysis> {
-    let roots: Vec<_> = input
-        .pins
-        .iter()
-        .flat_map(|p| {
-            p.modules
-                .iter()
-                .filter(move |m| {
-                    let root = if *m == "." { format!("{}/",p.directory) } else { format!("{}/{m}/",p.directory) };
-                    input.sources.keys().any(|path| path.starts_with(&root)
-                        && (path.ends_with(".go") || path.ends_with("/go.mod"))
-                        && basic::language(input,path)!=Some("helm"))
-                })
-                .map(move |m| json!({"directory":p.directory,"module":m}))
-        })
-        .collect();
+    let scope = go::scope(input)?;
+    let roots = scope.roots;
     let request = json!({"roots":roots,"goos":profile.goos,"goarch":profile.goarch,"tags":profile.tags,"tests":profile.tests,"workspace":profile.workspace});
     let mut out = Analysis {
         diagnostics:vec![],
@@ -413,7 +403,8 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result
         raw: None,
         services: services::Links::default(),
     };
-    if !basic::has_go(input) {
+    out.issues.extend(scope.issues);
+    if roots.is_empty() {
         out.analyzer = "source-only".into();
         out.toolchain = "none".into();
         return Ok(out);
@@ -1425,6 +1416,7 @@ fn pack_encoding(
     let total = entries.len() + diffs.len();
     let issues = std::mem::take(report["coverage"]["issues"].as_array_mut().unwrap());
     report["coverage"]["issue_count"] = json!(issues.len());
+    report["coverage"]["issue_histogram"] = diagnostics::histogram(&issues);
     report["coverage"]["issues"] = json!(issues.iter().take(20).collect::<Vec<_>>());
     let changes = report["changes"].take();
     let deleted: BTreeSet<_> = changes
@@ -1985,11 +1977,11 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
             })
         })?;
     }
-    let identity = (basic::has_go(&base) || basic::has_go(&head)).then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
+    let identity = (!go::scope(&base)?.roots.is_empty() || !go::scope(&head)?.roots.is_empty()).then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
         .map(|v| crate::digest(&v));
     let fact_key = |input: &Input| {
         identity.as_ref().map(|identity|crate::digest(&json!({
-        "identity":identity,"profile":r.profile,"fact_policy":"pinned-type-diagnostics-basic-roots-v2",
+        "identity":identity,"profile":r.profile,"fact_policy":"pinned-type-diagnostics-module-roots-v3",
         "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.snapshot,p.policy_sha256])).collect::<Vec<_>>(),
         "sources":input.sources.iter().map(|(path,s)|json!([path,s.repository,s.sha])).collect::<Vec<_>>() })))
     };

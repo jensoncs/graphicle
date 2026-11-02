@@ -56,6 +56,105 @@ text = 'environment.get("NOT_A_READ")'
         assert!(span.contains("TIMEOUT") && !span.contains("NOT_A_READ"));
     }
 }
+
+#[test]
+fn lexical_os_path_calls_do_not_create_environment_escapes() {
+    for method in [
+        "join",
+        "basename",
+        "dirname",
+        "split",
+        "splitext",
+        "splitdrive",
+        "splitroot",
+        "normpath",
+        "normcase",
+        "isabs",
+        "commonpath",
+        "commonprefix",
+    ] {
+        let args = match method {
+            "join" => "'a','b'",
+            "commonpath" | "commonprefix" => "['a','b']",
+            _ => "'a'",
+        };
+        let code = format!(
+            "import os as runtime\nvalue = runtime.path.{method}({args})\nkey = runtime.getenv('TIMEOUT')\n"
+        );
+        let parsed = structure::analyze("paths.py", &code).unwrap();
+        assert_eq!(
+            parsed["environment"]["issues"],
+            json!([]),
+            "{method}: {parsed}"
+        );
+        assert_eq!(
+            parsed["environment"]["operations"]
+                .as_array()
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(parsed["environment"]["operations"][0]["key"], "TIMEOUT");
+    }
+    for code in [
+        "import os\nx=os.path.expandvars('$TIMEOUT')\n",
+        "import os\nx=os.path.expanduser('~')\n",
+        "import os\nx=os.path\n",
+        "import os\nf=os.path.join\n",
+        "import os\nx=os.path.join(os, 'b')\n",
+        "import os\nx=os.path.join(os.environ, 'b')\n",
+        "import os\nx=getattr(os,'path').join('a','b')\n",
+        "import os\nos.path.join = replacement\nx=os.path.join('a','b')\n",
+        "import os\ndef f(os):\n    return os.path.join('a','b')\n",
+        "if enabled:\n    import os\nx=os.path.join('a','b')\n",
+    ] {
+        let parsed = structure::analyze("paths.py", code).unwrap();
+        assert!(
+            !parsed["environment"]["issues"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
+            "{code}: {parsed}"
+        );
+    }
+}
+
+#[test]
+fn ordinary_path_modules_no_longer_disable_environment_narrowing() {
+    let f = Fixture::new();
+    let repo = f.repo("python-lexical-paths");
+    let paths: Vec<_> = (0..20)
+        .map(|i| {
+            (
+                format!("paths_{i}.py"),
+                format!("import os\ndef path():\n    return os.path.join('root','{i}')\n"),
+            )
+        })
+        .collect();
+    let build = |commit, deploy: &str| {
+        let mut files = vec![
+            ("settings.py", SETTINGS),
+            ("caller.py", CALLER),
+            ("deployment.yaml", deploy),
+        ];
+        files.extend(paths.iter().map(|(p, c)| (p.as_str(), c.as_str())));
+        f.pin(&repo, "app", commit, &files)
+    };
+    let packet = f.run(&request_full(
+        &repo,
+        build('a', DEPLOY),
+        build('b', &DEPLOY.replace("\"10\"", "\"20\"")),
+    ));
+    assert!(!issue(&packet, "python_environment_incomplete"), "{packet}");
+    assert!(names(&packet).contains(&"settings.py"));
+    assert!(names(&packet).contains(&"caller.py"));
+    assert!(!names(&packet).iter().any(|p| p.starts_with("paths_")));
+    assert_eq!(
+        packet["coverage"]["analysis_diagnostics"]["head"]["python_environment"]["incomplete_files"],
+        0
+    );
+    assert_eq!(packet["impact"], "incomplete"); // Basic analysis remains qualified.
+}
 #[test]
 fn python_rebinding_and_conditional_imports_do_not_invent_standard_library_reads() {
     for code in [

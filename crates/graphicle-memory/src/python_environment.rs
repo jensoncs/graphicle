@@ -99,6 +99,42 @@ fn written(node: Node<'_>) -> bool {
     true
 }
 
+// Lexical path operations do not read environment variables. Restrict this to
+// direct calls on an established os binding: expandvars/expanduser, escaping the
+// module/function, dynamic attributes and monkey-patched aliases stay unknown.
+fn lexical_path_call(
+    function: Node<'_>,
+    raw: &[u8],
+    imports: &BTreeMap<String, Import>,
+    unsafe_names: &BTreeSet<String>,
+    at: usize,
+) -> bool {
+    let Some((path, method)) = attribute(function, raw) else {
+        return false;
+    };
+    if !matches!(
+        method,
+        "join"
+            | "basename"
+            | "dirname"
+            | "split"
+            | "splitext"
+            | "splitdrive"
+            | "splitroot"
+            | "normpath"
+            | "normcase"
+            | "isabs"
+            | "commonpath"
+            | "commonprefix"
+    ) {
+        return false;
+    }
+    let Some((os, "path")) = attribute(path, raw) else {
+        return false;
+    };
+    binding(os, raw, imports, unsafe_names, at) == Some(Binding::Os)
+}
+
 pub(super) fn analyze(root: Node<'_>, raw: &[u8], limits: &Limits) -> Value {
     let mut issues = BTreeSet::new();
     let mut nodes = vec![];
@@ -239,6 +275,9 @@ pub(super) fn analyze(root: Node<'_>, raw: &[u8], limits: &Limits) -> Value {
         let mut operation = None;
         if node.kind() == "call" {
             if let Some(function) = node.child_by_field_name("function") {
+                if lexical_path_call(function, raw, &imports, &unsafe_names, node.start_byte()) {
+                    consumed.insert((function.start_byte(), function.end_byte()));
+                }
                 let target = binding(function, raw, &imports, &unsafe_names, node.start_byte());
                 let env_method = attribute(function, raw).filter(|(object, _)| {
                     binding(*object, raw, &imports, &unsafe_names, node.start_byte())
