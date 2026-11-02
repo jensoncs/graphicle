@@ -312,18 +312,6 @@ pub fn packet(
     repository: &Value,
     args: &Value,
 ) -> Result<Option<(Snapshot, Value)>> {
-    packet_on(db, p, repository, args, false)
-}
-
-/// A memory seed uses the same indexed lexical search and static lift, without
-/// the code/identifier arms or another property-graph search, like `context_on`.
-fn packet_on(
-    db: &Connection,
-    p: &Principal,
-    repository: &Value,
-    args: &Value,
-    seed_only: bool,
-) -> Result<Option<(Snapshot, Value)>> {
     if ineligible(args)?.is_some() {
         return Ok(None);
     }
@@ -334,8 +322,7 @@ fn packet_on(
         [id],
         |r| r.get(0),
     )?;
-    let property_search = !seed_only
-        && args["graph_retrieval"] != false
+    let property_search = args["graph_retrieval"] != false
         && (args["graph_retrieval"] == true || (reviewed && args["memory_retrieval"] != false));
     let heads = crate::store::heads(db, id)?;
     let Some((mut index, coverage)) =
@@ -416,11 +403,110 @@ fn packet_on(
     let state = digest(
         &json!({"sources":memory::state(&docs.list),"memories":memories.iter().map(|m|json!([m["id"],m["revision"],m["state"],m["stale"]])).collect::<Vec<_>>(),"reviewed_state":memory::reviewed_state_for(db,repository,&memories)?}),
     );
-    let claim_memories = property_search.then(|| memories.clone());
-    let mut memories = memories;
-    if args["memory_retrieval"] == false {
-        memories.clear();
+    // The rows `rank` scores besides the index's: the connector documents'
+    // passages, and the reviewed memories `context` reads (as `context_on`
+    // filters them).
+    let connector_snapshot = Snapshot {
+        repository: repository.clone(),
+        documents: docs.list[first_connector..].to_vec(),
+        memories: Vec::new(),
+        graph: Value::Null,
+        state: String::new(),
+    };
+    let connector_rows = if connector_snapshot.documents.is_empty() {
+        Vec::new()
+    } else {
+        query::passages(&connector_snapshot)?.rows
+    };
+    // The full memory seed applies question-dependent selection above these
+    // bounds. At the passage bound a connector catalogue may already have
+    // been truncated, so conservatively keep the full path there as well.
+    if property_search
+        && (docs.list.len() > graphicle_memory::ingest::MAX_DOCUMENTS
+            || index.totals().passages as usize + connector_rows.len()
+                >= graphicle_memory::ingest::MAX_PASSAGES)
+    {
+        return Ok(None);
     }
+    let prepared = Prepared {
+        index,
+        memories,
+        graph,
+        saved_edges,
+        state,
+        connector_rows,
+        property_search,
+    };
+    let mut packet = packet_on(db, repository, args, &prepared, &mut docs, false)?;
+    packet["freshness"] = json!(crate::invalidation::repository_freshness(
+        db,
+        &p.workspace,
+        id
+    )?);
+    let totals = prepared.index.totals();
+    packet["passage_index"] = json!({"status":"ready","files":prepared.index.files.len(),
+        "passages":totals.passages,"read_here":coverage.missing.len(),
+        "loaded_files":docs.loaded.iter().filter(|id| id.starts_with("file:")).count()});
+    // Keep the checked text of every file read by either search for callers
+    // that cite the packet from its returned snapshot.
+    let snap = Snapshot {
+        repository: repository.clone(),
+        documents: docs.list,
+        memories: if args["memory_retrieval"] == false {
+            Vec::new()
+        } else {
+            prepared.memories
+        },
+        graph: prepared.graph,
+        state: prepared.state,
+    };
+    Ok(Some((snap, packet)))
+}
+
+/// Request-local, authorized catalogue. Both searches borrow it; nothing
+/// survives the request's transaction or bypasses the next request's ACL and
+/// freshness checks. Documents are shared separately because text loads are
+/// lazy and must be visible to both the seed and the final query.
+struct Prepared {
+    index: Index,
+    memories: Vec<Value>,
+    graph: Value,
+    saved_edges: Option<crate::query_graph::FileEdges>,
+    state: String,
+    connector_rows: Vec<Value>,
+    property_search: bool,
+}
+
+impl Prepared {
+    fn snapshot(&self, repository: &Value, documents: Vec<Value>, args: &Value) -> Snapshot {
+        Snapshot {
+            repository: repository.clone(),
+            documents,
+            memories: if args["memory_retrieval"] == false {
+                Vec::new()
+            } else {
+                self.memories.clone()
+            },
+            graph: self.graph.clone(),
+            state: self.state.clone(),
+        }
+    }
+}
+
+/// A memory seed keeps its own ranking options and static lift, without
+/// the code/identifier arms or another property-graph search.
+fn packet_on(
+    db: &Connection,
+    repository: &Value,
+    args: &Value,
+    prepared: &Prepared,
+    docs: &mut Documents,
+    seed_only: bool,
+) -> Result<Value> {
+    let id = s(repository, "id");
+    let index = &prepared.index;
+    let connector_rows = &prepared.connector_rows;
+    let saved_edges = &prepared.saved_edges;
     let question = string(args, "question", 16000)?;
     let focus = crate::code_question::focus(args, question)?;
     let query_text = focus.text.clone();
@@ -489,51 +575,14 @@ fn packet_on(
             Ok(texts)
         };
         crate::phase::phase("context_identifiers", || {
-            crate::identifier_arm::arm_indexed(db, id, &index, &mut text, args, question, query)
+            crate::identifier_arm::arm_indexed(db, id, index, &mut text, args, question, query)
         })?
     };
-    // The rows `rank` scores besides the index's: the connector documents'
-    // passages, and the reviewed memories `context` reads (as `context_on`
-    // filters them).
-    let connector_snapshot = Snapshot {
-        repository: repository.clone(),
-        documents: docs.list[first_connector..].to_vec(),
-        memories: Vec::new(),
-        graph: Value::Null,
-        state: String::new(),
-    };
-    let connector_rows = if connector_snapshot.documents.is_empty() {
-        Vec::new()
-    } else {
-        query::passages(&connector_snapshot)?.rows
-    };
-    // The full memory seed applies question-dependent selection above these
-    // bounds. At the passage bound a connector catalogue may already have
-    // been truncated, so conservatively keep the full path there as well.
-    if property_search
-        && (docs.list.len() > graphicle_memory::ingest::MAX_DOCUMENTS
-            || index.totals().passages as usize + connector_rows.len()
-                >= graphicle_memory::ingest::MAX_PASSAGES)
-    {
-        return Ok(None);
-    }
     let mut rankings = json!({});
-    if property_search {
-        let catalogue = Snapshot {
-            repository: repository.clone(),
-            documents: docs.list.clone(),
-            memories: memories.clone(),
-            graph: graph.clone(),
-            state: state.clone(),
-        };
+    if !seed_only && prepared.property_search {
+        let catalogue = prepared.snapshot(repository, docs.list.clone(), args);
         if let Some(property_graph) = crate::phase::phase("context_memory_graph", || {
-            crate::graph::for_indexed_query(
-                db,
-                repository,
-                &catalogue,
-                args,
-                claim_memories.as_deref().unwrap_or_default(),
-            )
+            crate::graph::for_indexed_query(db, repository, &catalogue, args, &prepared.memories)
         })? {
             if let Some(report) = property_graph.get("degraded") {
                 let mut status = report.clone();
@@ -546,20 +595,7 @@ fn packet_on(
                         if args["memory_retrieval"] == false {
                             seed_args["memory_retrieval"] = json!(false);
                         }
-                        let (seed_snapshot, seed) = packet_on(db, p, repository, &seed_args, true)?
-                            .ok_or_else(|| Error::bad("Memory seed index unavailable"))?;
-                        // Reuse the seed's checked text and account for every
-                        // file it read, including files absent from final hits.
-                        for document in seed_snapshot.documents {
-                            if !s(&document, "content").is_empty()
-                                && let Some(&at) = docs.by_id.get(s(&document, "id"))
-                                && docs.list[at]["sha256"] == document["sha256"]
-                            {
-                                docs.loaded.insert(s(&document, "id").to_string());
-                                docs.list[at]["content"] = document["content"].clone();
-                            }
-                        }
-                        Ok(seed)
+                        packet_on(db, repository, &seed_args, prepared, docs, true)
                     })
                 })?;
                 let reached: BTreeSet<String> = distances
@@ -600,7 +636,7 @@ fn packet_on(
     if args["memory_retrieval"] != false {
         let at = graphicle_memory::temporal::instant(&crate::now()).map_err(Error::bad)?;
         let mut recalled = 0usize;
-        for memory in &memories {
+        for memory in &prepared.memories {
             if !crate::structured_memory::context_allows(memory, args, at)?
                 || memory["stale"] == true
                 || memory["state"] != "reviewed"
@@ -652,7 +688,7 @@ fn packet_on(
     let lexical = crate::phase::phase("context_lexical", || {
         bm25(
             db,
-            &index,
+            index,
             &terms,
             "",
             &|p| p.length,
@@ -684,7 +720,7 @@ fn packet_on(
             Some((
                 side,
                 crate::phase::phase("context_speaker", || {
-                    bm25(db, &index, &terms, prefix, length, &spoken, None, &identity)
+                    bm25(db, index, &terms, prefix, length, &spoken, None, &identity)
                 })?,
             ))
         }
@@ -773,7 +809,7 @@ fn packet_on(
             ));
         }
     }
-    for row in &connector_rows {
+    for row in connector_rows {
         let at = order
             .get(s(&row["source"], "id"))
             .copied()
@@ -788,13 +824,7 @@ fn packet_on(
     let report =
         json!({"passage_limit_reached":false,"omitted_documents":0,"omitted_documents_are":"none"});
     let shared = Passages::from_parts(rows, report);
-    let mut snap = Snapshot {
-        repository: repository.clone(),
-        documents: docs.list.clone(),
-        memories,
-        graph,
-        state,
-    };
+    let snap = prepared.snapshot(repository, docs.list.clone(), args);
     // The lift's edges: the snapshot's file relationships, as `context_on`
     // filters them.
     let graph_enabled = args["graph_retrieval"] != false;
@@ -804,7 +834,7 @@ fn packet_on(
         Vec::new()
     };
     let documents = RefCell::new(docs);
-    let index_ref = &index;
+    let index_ref = index;
     // The passages of the files the lift reaches (by path, with the hop that
     // reaches each) that `rank` can keep: past MAX_FUSED of them, each is
     // scored as `rank` scores it ([`lift_choice`]) and the best MAX_FUSED are
@@ -921,8 +951,14 @@ fn packet_on(
     if !identifiers.defining.is_empty() {
         rankings[crate::code_question::DEFINING] = json!(identifiers.defining);
     }
-    let lookup =
-        crate::doc_links::Lookup::new(db, id).with_folder(crate::folders::current_folder(db, id)?);
+    let lookup = if seed_only {
+        None
+    } else {
+        Some(
+            crate::doc_links::Lookup::new(db, id)
+                .with_folder(crate::folders::current_folder(db, id)?),
+        )
+    };
     let mut packet = crate::phase::phase("context_assemble", || {
         query::context_indexed(
             &snap,
@@ -930,26 +966,13 @@ fn packet_on(
             rankings,
             if seed_only { None } else { Some(&arm) },
             shared,
-            if seed_only { None } else { Some(&lookup) },
+            lookup.as_ref(),
             &mut indexed,
         )
     })?;
     packet["local_dense"] = json!({"status":"disabled"});
     packet["identifier_arm"] = identifiers.report;
-    packet["freshness"] = json!(crate::invalidation::repository_freshness(
-        db,
-        &p.workspace,
-        id
-    )?);
-    packet["passage_index"] = json!({"status":"ready","files":index.files.len(),
-        "passages":totals.passages,"read_here":coverage.missing.len(),
-        "loaded_files":documents.borrow().loaded.iter().filter(|id| id.starts_with("file:")).count()});
-    drop(indexed);
-    // The snapshot holds the text of every file the packet read, its sources
-    // among them (the workspace scope cites them from it), as the full
-    // path's holds every file's.
-    snap.documents = documents.into_inner().list;
-    Ok(Some((snap, packet)))
+    Ok(packet)
 }
 
 /// Whether a question to `repository` takes the passage index's path, and

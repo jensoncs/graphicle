@@ -109,6 +109,10 @@ impl Home {
 
     /// The JSON the program prints in the repository, with `env` set.
     fn json(&self, args: &[&str], env: &[(&str, &str)]) -> Value {
+        self.json_with_log(args, env).0
+    }
+
+    fn json_with_log(&self, args: &[&str], env: &[(&str, &str)]) -> (Value, String) {
         let mut command = Command::new(env!("CARGO_BIN_EXE_graphicle"));
         crate::child_env::home(&mut command, &self.home)
             .current_dir(&self.app)
@@ -136,12 +140,13 @@ impl Home {
             "{args:?}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
-        serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
+        let packet = serde_json::from_slice(&output.stdout).unwrap_or_else(|_| {
             panic!(
                 "{args:?} printed no JSON: {}",
                 String::from_utf8_lossy(&output.stdout)
             )
-        })
+        });
+        (packet, String::from_utf8_lossy(&output.stderr).into_owned())
     }
 }
 
@@ -227,6 +232,25 @@ fn reviewed_memory_uses_the_index_without_changing_graph_recall() {
         reused
     };
     let packet = compare(json!({}));
+    let (traced, log) = h.json_with_log(
+        &[
+            "call",
+            "context",
+            "--arguments",
+            arguments.to_str().unwrap(),
+        ],
+        &[("GRAPHICLE_PHASE_TIMINGS", "1")],
+    );
+    assert_eq!(traced, packet);
+    // The graph seed must run, but the index and saved relationships are
+    // opened only once for the whole request.
+    for phase in [
+        "context_memory_seed",
+        "context_index",
+        "snapshot_file_edges",
+    ] {
+        assert_eq!(log.matches(&format!("phase={phase} ")).count(), 1, "{log}");
+    }
     assert_eq!(packet["passage_index"]["status"], "ready");
     assert!(packet["passage_index"]["loaded_files"].as_u64().unwrap() < 50);
     assert_eq!(packet["mechanisms"]["graph_local_searched"], true);
@@ -249,6 +273,23 @@ fn reviewed_memory_uses_the_index_without_changing_graph_recall() {
     compare(json!({"graph_retrieval":true,"memory_retrieval":false}));
     compare(json!({"graph_retrieval":false}));
     compare(json!({"mode":"relationships","needs":["registry"]}));
+    // Both searches must see files added to the in-memory index when the
+    // stored index is behind, without rebuilding that addition for the seed.
+    std::fs::write(
+        h.app.join("unrelated/other_000.txt"),
+        "New gauge registry guidance.",
+    )
+    .unwrap();
+    h.json(&["sync", "."], &[]);
+    // Sync always maintains the index, so simulate an incomplete index by
+    // removing this one file's catalogue entry from the test store.
+    assert_eq!(store.connect().unwrap().execute(
+        "DELETE FROM am_passage_files WHERE repository_id=? AND path='unrelated/other_000.txt'",
+        [&repository],
+    ).unwrap(), 1);
+    let missing = compare(json!({}));
+    assert_eq!(missing["passage_index"]["read_here"], 1);
+    assert_eq!(missing["mechanisms"]["graph_local_searched"], true);
     // A changed dependency must invalidate the memory even after layouts
     // have been saved; identical output alone would not detect stale recall.
     std::fs::write(h.app.join("hub.py"), HUB.replace("gauge", "counter")).unwrap();
