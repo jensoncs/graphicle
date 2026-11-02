@@ -10,6 +10,17 @@ pub(super) struct Scope {
     pub issues: Vec<Value>,
 }
 
+/// Preserve existing cache identities when the collector has no exclusions.
+pub(super) fn with_exclusions(mut identity: Value, input: &Input) -> Value {
+    let exclusions: Vec<_> = input.pins.iter().filter(|p| !p.excluded_modules.is_empty())
+        .map(|p| json!({"repository_id":p.repository_id,"directory":p.directory,"modules":p.excluded_modules}))
+        .collect();
+    if !exclusions.is_empty() {
+        identity["excluded_modules"] = json!(exclusions);
+    }
+    identity
+}
+
 fn within(path: &str, directory: &str) -> bool {
     path == directory
         || path
@@ -41,13 +52,28 @@ pub(super) fn scope(input: &Input) -> Result<Scope> {
             })
             .collect();
         let mut selected = BTreeSet::new();
+        // Only actual admitted module roots can be excluded: excluding an
+        // arbitrary package directory cannot change go list ./... semantics.
+        let excluded: BTreeSet<_> = pin
+            .excluded_modules
+            .iter()
+            .filter_map(|relative| {
+                let root = if relative == "." {
+                    pin.directory.clone()
+                } else {
+                    format!("{}/{relative}", pin.directory)
+                };
+                modules.contains(root.as_str()).then_some(root)
+            })
+            .collect();
+        let is_excluded = |path: &str| excluded.iter().any(|root| within(path, root));
         for requested in &pin.modules {
             let directory = if requested == "." {
                 pin.directory.clone()
             } else {
                 format!("{}/{requested}", pin.directory)
             };
-            if modules.iter().any(|module| within(&directory, module)) {
+            if !is_excluded(&directory) && modules.iter().any(|module| within(&directory, module)) {
                 selected.insert(directory.clone());
             }
             // A repository can have nested modules but no top-level module.
@@ -55,10 +81,16 @@ pub(super) fn scope(input: &Input) -> Result<Scope> {
             for module in &modules {
                 if let Some(relative) = module.strip_prefix(&format!("{directory}/"))
                     && !ignored(relative)
+                    && !is_excluded(module)
                 {
                     selected.insert((*module).to_string());
                 }
             }
+        }
+        if !excluded.is_empty() {
+            out.issues.push(issue("go_module_excluded", json!({"directory":pin.directory,
+                "modules":excluded.iter().map(|root|root.strip_prefix(&format!("{}/",pin.directory)).unwrap_or(".")).collect::<Vec<_>>(),
+                "scope":"excluded from root discovery; admitted dependency sources remain available"})));
         }
         if selected.len() > 64 {
             return Err(Error::bad(
@@ -80,6 +112,9 @@ pub(super) fn scope(input: &Input) -> Result<Scope> {
             .filter(|p| within(p, &pin.directory) && p.ends_with(".go"))
         {
             if basic::language(input, path) == Some("helm") {
+                continue;
+            }
+            if is_excluded(path) {
                 continue;
             }
             if selected.iter().any(|root| within(path, root)) {

@@ -14,7 +14,7 @@ export interface Context extends Result {evidence: Evidence[]; memories: Result[
 /** Immutable source binding admitted through sync.prepare/upload/commit. */
 export interface SnapshotPin {
   repository_id: string; directory: string; commit: string;
-  snapshot: string; policy_sha256: string; modules?: readonly string[];
+  snapshot: string; policy_sha256: string; modules?: readonly string[]; excluded_modules?: readonly string[];
 }
 export interface ReviewProfile {
   goos: string; goarch: string; tags?: readonly string[]; tests?: boolean; workspace?: string;
@@ -91,6 +91,8 @@ export interface ReviewPacket extends Result {
   format: "graphicle.review.v1"; packet_id: string; previous_packet_id: string | null;
   base: SnapshotPin[]; head: SnapshotPin[]; profile: ReviewProfile;
   impact: "potential_impact" | "no_changes_in_scope" | "incomplete";
+  empty_reason?: "unsupported_source_language_or_contract" | "no_changes_in_scope" |
+    "analysis_incomplete" | "budget_omitted" | "unchanged_from_previous_packet" | "diff_only" | "no_selected_entries";
   changes: Result & {count: number}; coverage: Result & {complete: boolean; budget_omitted: number};
   entries: ReviewEntry[]; diffs: Result[]; invalidated: Result[]; unchanged: string[]; tokens: number;
   context_order: string[];

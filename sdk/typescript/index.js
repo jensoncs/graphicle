@@ -98,6 +98,7 @@ export async function applyReviewDelta(previous, packet) {
   const result = structuredClone(packet);
   for (const c of ["entries", "diffs"]) result[c] = order.filter(id => current.get(id)[0] === c).map(id => structuredClone(current.get(id)[1]));
   result.unchanged = []; result.invalidated = [];
+  if (result.entries.length) delete result.empty_reason;
   delete result.tokens;
   return materializeServiceProvenance(result);
 }

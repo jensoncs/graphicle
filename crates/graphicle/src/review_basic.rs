@@ -414,7 +414,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
         for unresolved in graph["unresolved"].as_array().into_iter().flatten() {
             out.issues.push(issue(
                 "basic_unresolved_import",
-                json!({"directory":repo,"input":unresolved}),
+                json!({"directory":repo,"cause":s(unresolved,"reason"),"language":files.get(&format!("{repo}/{}",s(unresolved,"source"))),"input":unresolved}),
             ));
         }
     }

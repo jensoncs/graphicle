@@ -14,9 +14,9 @@ mod python_environment;
 
 /// The revision stored with every parse a repository sync caches
 /// (`repo_parses`): a new value re-parses cached files once. Bump it whenever
-/// the analysis output changes. 9: direct lexical os.path calls no longer
-/// create false Python environment-binding escape diagnostics.
-pub const REVISION: &str = "graphicle-static-rust-9";
+/// the analysis output changes. 10: direct os separator constants and filesystem
+/// encoding calls no longer create false environment-binding escape diagnostics.
+pub const REVISION: &str = "graphicle-static-rust-10";
 
 /// Per-file analysis limits. No limit fails an analysis: a
 /// file past one is analysed as far as the limit allows, its analysis is

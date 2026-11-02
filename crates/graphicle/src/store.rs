@@ -214,6 +214,8 @@ struct SyncDocument {
     sha: String,
     analyze: bool,
     chunk: bool,
+    revision_reparse: bool,
+    reused_parse: bool,
 }
 
 /// Documents a commit loads, analyses and chunks at a time (at most
@@ -788,7 +790,7 @@ impl Store {
             // over; only new content is verified, loaded and parsed.
             let mut documents: Vec<SyncDocument> = Vec::new();
             let mut parsed = db.prepare_cached(
-                "SELECT EXISTS(SELECT 1 FROM repo_parses WHERE repository_id=? AND path=? AND sha256=? AND revision IN (?,?))",
+                "SELECT revision FROM repo_parses WHERE repository_id=? AND path=? AND sha256=?",
             )?;
             let mut chunked = db.prepare_cached(
                 "SELECT EXISTS(SELECT 1 FROM repo_chunks WHERE repository_id=? AND path=? AND sha256=?)",
@@ -805,10 +807,10 @@ impl Store {
                     return Err(Error::conflict("Upload missing sources before committing"));
                 }
                 let binary: bool = db.query_row("SELECT typeof(content)='blob' FROM repo_objects WHERE repository_id=? AND sha256=?",params![identifier,sha],|r|r.get(0))?;
-                let analyzed: bool = parsed.query_row(
-                    params![identifier, path, sha, current[0], current[1]],
-                    |r| r.get(0),
-                )?;
+                let previous: Option<String> = parsed.query_row(
+                    params![identifier, path, sha], |r| r.get(0),
+                ).optional()?;
+                let analyzed = previous.as_deref().is_some_and(|revision| current.contains(&revision));
                 let has_chunks: bool =
                     chunked.query_row(params![identifier, path, sha], |r| r.get(0))?;
                 documents.push(SyncDocument {
@@ -816,10 +818,22 @@ impl Store {
                     sha: sha.to_string(),
                     analyze: !binary && !analyzed,
                     chunk: !binary && !has_chunks,
+                    revision_reparse: !binary && !analyzed && previous.is_some(),
+                    reused_parse: !binary && analyzed,
                 });
             }
             Ok((sync, documents))
         })?;
+        let parsed_files = documents.iter().filter(|d| d.analyze).count();
+        let revision_reparsed_files = documents.iter().filter(|d| d.revision_reparse).count();
+        let analysis_cache = json!({
+            "structural_revision":current[0],
+            "cache_rebuilt":revision_reparsed_files > 0,
+            "parsed_files":parsed_files,
+            "revision_reparsed_files":revision_reparsed_files,
+            "uncached_files":parsed_files - revision_reparsed_files,
+            "reused_files":documents.iter().filter(|d|d.reused_parse).count()
+        });
         let work: Vec<&SyncDocument> = documents.iter().filter(|d| d.analyze || d.chunk).collect();
         let mut start = 0;
         while start < work.len() {
@@ -902,7 +916,7 @@ impl Store {
         self.authorized(workspace,token,"collect",|db,p| {
             let repository=repo(db,p,string(args,"repository_id",100)?)?;let identifier=s(&repository,"id");
             let state:String=db.query_row("SELECT state FROM repo_syncs WHERE id=? AND repository_id=?",params![s(&sync,"id"),identifier],|r|r.get(0))?;
-            if state=="complete" {return Ok(json!({"snapshot":sync["snapshot"],"current_snapshot":repository["snapshot"],"replayed":true}));}
+            if state=="complete" {return Ok(json!({"snapshot":sync["snapshot"],"current_snapshot":repository["snapshot"],"replayed":true,"analysis_cache":analysis_cache}));}
             if state!="pending" || repository["snapshot"]!=sync["expected_snapshot"] {return Err(Error::conflict("A newer sync finished first"));}
             let before=heads(db,identifier)?;
             let changed:Vec<String>=documents.iter().filter(|d|before.get(&d.path)!=Some(&d.sha)).map(|d|d.path.clone()).collect();
@@ -926,7 +940,7 @@ impl Store {
             let projection=crate::jobs::enqueue_projection(db,identifier,p,s(&sync,"snapshot"),&metadata)?;
             // A head set that was already projected (a file edited, then restored) gets no new projection to clear the markers above.
             crate::graph_projection::clear_stale_when_current(db,identifier)?;
-            let mut result=json!({"snapshot":sync["snapshot"],"changed":changed,"removed":removed,"files":documents.len(),"replayed":false,"projection_job":projection});
+            let mut result=json!({"snapshot":sync["snapshot"],"changed":changed,"removed":removed,"files":documents.len(),"replayed":false,"projection_job":projection,"analysis_cache":analysis_cache});
             let (limited,skipped)=analysis_report(db,identifier)?;
             if !limited.is_empty() {result["limited"]=json!(limited);}
             if !skipped.is_empty() {result["skipped"]=json!(skipped);}

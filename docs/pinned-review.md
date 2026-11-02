@@ -276,6 +276,16 @@ of fabricated compiler failures; files outside explicitly selected module scopes
 retain `go_source_outside_module_scope`. A `go.work` file alone is not a module.
 `build.info.review_go_roots` advertises `admitted-module-discovery-v1`.
 
+Collectors can set `excluded_modules:["feature-agent/evals/context/repos/odin"]`
+on each pin to exclude admitted module roots (and their descendants) from root
+discovery. Paths are relative to that pin, at most 64, and must name directories
+with an admitted `go.mod` to take effect. These are explicit collector decisions;
+Graphicle does not infer that every `eval` or `fixture` directory is irrelevant.
+Sources remain admitted and available if an included package imports them.
+`go_module_excluded` records the omitted analysis scope and retains incomplete
+impact; it does not turn an intentionally partial analysis into a complete one.
+Exclusions are part of the compiler-cache and review identity.
+
 For a non-vendored repository, prepare each pinned revision separately with Go's
 native vendoring in a disposable source copy before admission. An offline
 preparation can use an explicit module cache with `GOPROXY=off`, `GOVCS=*:off`,
@@ -598,10 +608,13 @@ for the manifest, supported syntax, fallback rules and measurement counters.
 Direct calls to established `os.path` bindings for lexical operations (`join`,
 `basename`, `dirname`, `split`, `splitext`, `splitdrive`, `splitroot`, `normpath`,
 `normcase`, `isabs`, `commonpath`, `commonprefix`) do not create environment-binding
-escape warnings. `import os as alias` is supported. Arguments are still checked:
+escape warnings. Direct `os.sep`/`os.pathsep` reads and direct
+`os.fsdecode`/`os.fsencode` calls follow the same rule; values and filesystem
+encodings are not evaluated. `import os as alias` is supported. Arguments are still checked:
 passing `os` or `os.environ` remains an escape, and nested `os.getenv` calls still
-produce environment reads. `expandvars`, `expanduser`, stored function/module
+produce environment reads. `abspath`, `realpath`, `relpath`, `expandvars`,
+`expanduser`, stored function/module
 aliases, dynamic attributes, conditional imports and monkey-patching remain
 conservative. This does not change Python package or re-export resolution, nor
-remove `basic_analysis_limitations`. Structural revision 9 invalidates older
+remove `basic_analysis_limitations`. Structural revision 10 invalidates older
 cached parses so the warning fix takes effect on the next sync.

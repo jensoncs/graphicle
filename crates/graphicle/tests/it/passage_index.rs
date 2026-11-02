@@ -164,6 +164,210 @@ fn listed(packet: &Value, field: &str, key: &str) -> Vec<String> {
 }
 
 #[test]
+fn reviewed_memory_uses_the_index_without_changing_graph_recall() {
+    let mut files = vec![("hub.py".to_string(), HUB.to_string())];
+    for i in 0..24 {
+        files.push((format!("spokes/spoke_{i:03}.py"), spoke(i)));
+    }
+    for i in 0..350 {
+        files.push((
+            format!("unrelated/other_{i:03}.txt"),
+            "Distant unrelated orchard notes.\n".repeat(30),
+        ));
+    }
+    let h = Home::new(&files);
+    h.json(&["sync", "."], &[]);
+    let arguments = h.home.join("arguments.json");
+    let call = |operation: &str, args: Value, env: &[(&str, &str)]| {
+        std::fs::write(&arguments, args.to_string()).unwrap();
+        h.json(
+            &[
+                "call",
+                operation,
+                "--arguments",
+                arguments.to_str().unwrap(),
+            ],
+            env,
+        )
+    };
+    let note = call(
+        "note",
+        json!({"title":"Metric registration policy",
+        "body":"Gauge metrics must use the central registry through hub_metric_register.",
+        "dependencies":["hub.py"]}),
+        &[],
+    );
+    assert_eq!(note["state"], "reviewed");
+    let store = graphicle_runtime::store::Store::open(&h.data).unwrap();
+    let db = store.connect().unwrap();
+    let repository: String = db
+        .query_row("SELECT id FROM repo_projects", [], |r| r.get(0))
+        .unwrap();
+    assert!(graphicle_runtime::indexed_query::ready(&db, &repository).unwrap());
+    assert_eq!(
+        graphicle_runtime::indexed_query::readiness(&db, &repository).unwrap()["state"],
+        "ready"
+    );
+    assert_eq!(
+        graphicle_runtime::indexed_query::hook_route(&db, &repository).unwrap(),
+        graphicle_runtime::indexed_query::HookRoute::Full
+    );
+    drop(db);
+    let compare = |extra: Value| {
+        let mut args = json!({"question":"Where does hub_metric_register register the gauge metric?",
+            "debug_candidates":400});
+        args.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        let reused = call("context", args.clone(), &[]);
+        let full = call("context", args, &[("GRAPHICLE_PASSAGE_INDEX", "0")]);
+        let mut comparable = reused.clone();
+        comparable.as_object_mut().unwrap().remove("passage_index");
+        assert_eq!(comparable, full);
+        reused
+    };
+    let packet = compare(json!({}));
+    assert_eq!(packet["passage_index"]["status"], "ready");
+    assert!(packet["passage_index"]["loaded_files"].as_u64().unwrap() < 50);
+    assert_eq!(packet["mechanisms"]["graph_local_searched"], true);
+    assert!(
+        packet["mechanisms"]["graph_candidate_passages"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+    assert!(
+        packet["memories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["id"] == note["id"])
+    );
+    compare(json!({"include":["file:hub.py"]}));
+    compare(json!({"max_tokens":256,"max_chars":2000}));
+    compare(json!({"graph_retrieval":true}));
+    compare(json!({"graph_retrieval":true,"memory_retrieval":false}));
+    compare(json!({"graph_retrieval":false}));
+    compare(json!({"mode":"relationships","needs":["registry"]}));
+    // A changed dependency must invalidate the memory even after layouts
+    // have been saved; identical output alone would not detect stale recall.
+    std::fs::write(h.app.join("hub.py"), HUB.replace("gauge", "counter")).unwrap();
+    h.json(&["sync", "."], &[]);
+    let changed = compare(json!({}));
+    assert!(
+        !changed["memories"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["id"] == note["id"])
+    );
+}
+
+#[test]
+fn indexed_claims_keep_cited_quotes_and_recheck_connector_permissions() {
+    use graphicle_runtime::{
+        claims, local, memory,
+        store::{Store, repo, s},
+    };
+    let quote = "Mira manages the midnight response.";
+    let h = Home::new(&[(
+        "notes.txt".into(),
+        format!("{}\n{quote}", "Unrelated history.\n".repeat(500)),
+    )]);
+    h.json(&["sync", "."], &[]);
+    let store = Store::open(&h.data).unwrap();
+    let session = local::session(&store, false).unwrap();
+    let repository: String = store
+        .connect()
+        .unwrap()
+        .query_row("SELECT id FROM repo_projects", [], |r| r.get(0))
+        .unwrap();
+    let args = |mut value: Value| {
+        value["repository_id"] = json!(repository);
+        value
+    };
+    let connector = store.connector_add(&session.workspace, &session.capability,
+        &args(json!({"name":"Private fixture", "kind":"jsonl", "config":{"acl":{"workspace_readers":true,"credentials":[]}}}))).unwrap();
+    let private_quote = "Mira's access code is Copperfern.";
+    store.import_documents(&session.workspace, &session.capability,
+        &args(json!({"connector_id":connector["id"],"mode":"delta","documents":[{"id":"access","title":"Mira access","content":private_quote}]}))).unwrap();
+    let connector_source = format!("connector:{}:access", s(&connector, "id"));
+    for (source, statement, relation, object) in [
+        ("file:notes.txt", quote, "manages", "midnight response"),
+        (
+            connector_source.as_str(),
+            private_quote,
+            "access_code",
+            "Copperfern",
+        ),
+    ] {
+        let proposed = store.authorized(&session.workspace, &session.capability, "propose", |db, principal| {
+            let repository = repo(db, principal, &repository)?;
+            let docs = memory::documents(db, &repository, principal)?;
+            let sources: Vec<Value> = docs.iter().filter(|d| d["id"] == source)
+                .map(|d| json!({"id":d["id"],"text":d["content"],"sha256":d["sha256"]})).collect();
+            claims::propose(db, &repository, principal, &json!([{
+                "statement":statement,"subject":"Mira","relation":relation,"object":object,
+                "speaker":"user","modality":"report","conditions":[],"action":"ADD","target_id":null,
+                "valid_at":null,"invalid_at":null,"time_basis":"unknown","anchor_id":null,
+                "evidence":[{"id":source,"quote":statement}]
+            }]), &sources, &[], &json!({"model":"fixture"}))
+        }).unwrap();
+        let draft = &proposed["drafts"][0];
+        store
+            .review_memory(
+                &session.workspace,
+                &session.capability,
+                &args(json!({
+                    "memory_id":draft["memory_id"],"expected_revision":draft["revision"],
+                    "decision":"approve","maintainer":"Fixture","reason":"Checked original quote"
+                })),
+            )
+            .unwrap();
+    }
+    let path = h.home.join("claims-question.json");
+    let request = args(
+        json!({"question":"What does Mira manage and what is her access code?", "debug_candidates":400}),
+    );
+    std::fs::write(&path, request.to_string()).unwrap();
+    let call = ["call", "context", "--arguments", path.to_str().unwrap()];
+    let mut indexed = h.json(&call, &[]);
+    assert_eq!(indexed["passage_index"]["status"], "ready");
+    assert!(indexed["markdown"].as_str().unwrap().contains(quote));
+    assert!(indexed.to_string().contains("Copperfern"));
+    indexed.as_object_mut().unwrap().remove("passage_index");
+    assert_eq!(indexed, h.json(&call, &[("GRAPHICLE_PASSAGE_INDEX", "0")]));
+
+    let reader = store
+        .grant(
+            &session.workspace,
+            &session.capability,
+            &json!({"label":"Reader","role":"reader"}),
+        )
+        .unwrap();
+    let read = || {
+        store
+            .project_context(&session.workspace, s(&reader, "capability"), &request)
+            .unwrap()
+    };
+    assert!(read().to_string().contains("Copperfern"));
+    store.connector_sharing(&session.workspace, &session.capability,
+        &args(json!({"connector_id":connector["id"],"acl":{"workspace_readers":false,"credentials":[]}}))).unwrap();
+    let hidden = read();
+    assert_eq!(hidden["passage_index"]["status"], "ready");
+    assert!(!hidden.to_string().contains("Copperfern"));
+    assert!(hidden["markdown"].as_str().unwrap().contains(quote));
+    store
+        .revoke(&session.workspace, &session.capability, s(&reader, "id"))
+        .unwrap();
+    assert!(
+        store
+            .project_context(&session.workspace, s(&reader, "capability"), &request)
+            .is_err()
+    );
+}
+
+#[test]
 fn a_lift_past_what_rank_keeps_gives_the_full_paths_candidates() {
     let mut files = vec![("hub.py".to_string(), HUB.to_string())];
     for i in 0..150 {

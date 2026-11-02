@@ -93,7 +93,41 @@ pages currently rescan the manifest and check each unique object; repeated pages
 are another cost to measure. The reported Nexus 252-second sync has not been
 reproduced here, so the local byte-saving fixture is not a production latency claim.
 
+`sync.commit.analysis_cache` (also forwarded by local `sync`) reports
+`structural_revision`, `parsed_files`, `reused_files`, `revision_reparsed_files`,
+and `uncached_files`. Counts describe nonbinary files in that invocation;
+`parsed_files = revision_reparsed_files + uncached_files`. `cache_rebuilt` is true
+when an existing parse for the same path/hash had an obsolete revision and was
+reparsed. This includes changes to analysis limits and retries of transient
+failures, not just parser releases. Cold admission is `uncached_files`, not a
+revision rebuild. A partially completed sync retry counts only its remaining
+work. A replayed `sync.prepare` with no sync ID did no parsing and needs no
+commit. Compact commit replies retain these counters.
+
+Record these sync counters alongside the review packet; review-time
+`analysis_cache.base_hit/head_hit` describes a different cache of Go compiler
+facts. A historical sync rebuild must not be attributed to each later review.
+`build.info.sync_analysis_cache` advertises `parse-reuse-and-rebuild-counts-v1`.
+
 ## Risk measurements
+
+When `entries` is empty, `empty_reason` explains why. It is separate from
+`impact`, and diffs may still be present:
+
+| Value | Meaning |
+| --- | --- |
+| `unsupported_source_language_or_contract` | No source entries were available and unsupported inputs exist; inspect the histogram for types. |
+| `no_changes_in_scope` | Full analysis found no changes in its scope. |
+| `analysis_incomplete` | No source entries were available and analysis has limitations. |
+| `budget_omitted` | Entries existed but none fit the packet. |
+| `unchanged_from_previous_packet` | Selected entries were already delivered under the prior receipt. |
+| `diff_only` | No entries are delivered, but diffs are. |
+| `no_selected_entries` | No entries or diffs were selected; inspect impact and coverage. |
+
+An unsupported TypeScript-only review stays `impact: incomplete`; an explained
+empty packet is an ingestion outcome, not a successful risk assessment. The
+field is absent on nonempty entry arrays. `build.info.review_empty_reason`
+advertises `entry-delivery-reasons-v1`.
 
 `coverage.issue_histogram` counts **all** issues before `coverage.issues` is
 reduced to 20 examples. `groups` contains `{reason, cause?, count}` rows; native
@@ -107,8 +141,43 @@ basic-language issues. Budget omissions remain separately counted in
 `coverage.budget_omitted`. `build.info.review_issue_histogram` advertises
 `full-analysis-reason-cause-counts-v1`.
 
+For `unsupported_source_language_or_contract`, histogram groups additionally
+contain `extension` and `side` (`base` or `head`). Extension labels are lowercase,
+without the dot; `""` means no extension and `<overlong>` represents suffixes
+longer than 32 bytes. `cause` identifies the first matching detection rule:
+
+- `contract_extension`: `.proto`.
+- `assembly_extension`: `.s` or `.S`.
+- `build_filename`: `Makefile` or `Dockerfile`.
+- `shebang`: an otherwise unsupported file beginning with `#!`.
+- `code_extension`: another extension classified as code, including SQL and
+  plain JSON/YAML outside a supported Terraform/Helm context.
+
+These labels explain existing detection; they do not add language support or
+change completeness. When unsupported issues exist, the histogram also includes
+`unsupported_count` (all occurrences, including overflow groups),
+`unsupported_examples` (at most eight `{file, side, extension, cause}` rows), and
+`unsupported_examples_omitted` (`unsupported_count` minus example count).
+Examples represent emitted groups, prefer prevalent groups, deduplicate the same
+path/extension/cause across sides, and share a token allowance of `max_tokens / 64`.
+Counts remain independent of this allowance and of the 20-issue sample. An
+unchanged unsupported file counts once per side; examples are not a distinct-file
+census. `build.info.review_unsupported_inputs` advertises `extension-cause-side-v1`.
+
 `coverage.analysis_diagnostics.base/head` separates native failures from their
 effects on graph references, before packet trimming:
+
+- `python_imports.unresolved_occurrences`, `files`, and `by_cause` count every
+  unresolved Python import occurrence, distinct source file, and resolver cause.
+  `modules` contains at most eight token-bounded `{module, cause, count}` groups;
+  `module_groups` and `module_groups_omitted` account for the rest. Sampling
+  balances causes and prefers frequent modules within each cause. These names
+  are import spellings, not inferred package-manager distributions.
+  `external_or_unresolved` includes standard-library and third-party imports
+  absent from the admitted source, as well as missing local candidates. It is
+  not evidence of a package-layout bug. `ambiguous` means multiple candidates.
+  Histogram rows for `basic_unresolved_import` also carry `language` and `cause`.
+  The `python_imports` object is absent when there are no unresolved Python imports.
 
 - `go.incomplete_package_instances`, `discovery_incomplete_package_instances`,
   `type_check_failed_package_instances`, and `unavailable_external_package_instances`

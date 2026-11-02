@@ -4,21 +4,52 @@ use graphicle_memory::text;
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
+pub(super) fn file_extension(path: &str) -> String {
+    let extension = std::path::Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    // Shebangs can make arbitrary suffixes unsupported. Keep labels bounded.
+    if extension.len() > 32 {
+        "<overlong>".into()
+    } else {
+        extension.to_ascii_lowercase()
+    }
+}
+
 /// Counts every issue before the public example list is truncated. Native Go
 /// reasons suffix their package identity after ':', which is not a new cause.
-pub(super) fn histogram(issues: &[Value]) -> Value {
+pub(super) fn histogram(issues: &[Value], example_tokens: usize) -> Value {
     let mut counts = BTreeMap::new();
+    let mut unsupported_count = 0;
     for issue in issues {
         let reason = s(issue, "reason");
         let reason = reason.split_once(':').map_or(reason, |(reason, _)| reason);
-        *counts
-            .entry((reason, s(&issue["detail"], "cause")))
-            .or_insert(0usize) += 1;
+        let detail = &issue["detail"];
+        let unsupported = reason == "unsupported_source_language_or_contract";
+        let dimensions = if unsupported {
+            Some((s(detail, "extension"), s(detail, "side")))
+        } else if reason == "basic_unresolved_import" {
+            Some((s(detail, "language"), ""))
+        } else {
+            None
+        };
+        let entry = counts
+            .entry((reason, s(detail, "cause"), dimensions))
+            .or_insert((0usize, None::<&Value>));
+        entry.0 += 1;
+        if unsupported {
+            unsupported_count += 1;
+            if entry.1.is_none() && !s(detail, "file").is_empty() {
+                entry.1 = Some(detail);
+            }
+        }
     }
     let mut groups = vec![];
+    let mut candidates = vec![];
     let mut other_count = 0;
     let mut other_groups = 0;
-    for ((reason, cause), count) in counts {
+    for ((reason, cause, dimensions), (count, example)) in counts {
         if groups.len() == 128 {
             other_count += count;
             other_groups += 1;
@@ -28,12 +59,79 @@ pub(super) fn histogram(issues: &[Value]) -> Value {
         if !cause.is_empty() {
             group["cause"] = json!(cause);
         }
+        if let Some((extension, side)) = dimensions {
+            if reason == "basic_unresolved_import" {
+                group["language"] = json!(extension);
+            } else {
+                group["extension"] = json!(extension);
+                group["side"] = json!(side);
+            }
+            if let Some(example) = example {
+                candidates.push((
+                    count,
+                    json!({"file":example["file"],"side":side,"extension":extension,"cause":cause}),
+                ));
+            }
+        }
         groups.push(group);
     }
-    json!({"counted":issues.len(),"groups":groups,"other_count":other_count,"other_groups":other_groups})
+    let mut result = json!({"counted":issues.len(),"groups":groups,"other_count":other_count,"other_groups":other_groups});
+    if unsupported_count > 0 {
+        // One representative per group; prefer prevalent types and avoid using
+        // the limited sample twice for the same path on base and head.
+        candidates.sort_by_key(|(count, example)| (std::cmp::Reverse(*count), example.to_string()));
+        let mut seen = BTreeSet::new();
+        let mut examples = vec![];
+        let mut used = 0;
+        for (_, example) in candidates {
+            let cost = text::count(&example.to_string()) + 1;
+            if examples.len() == 8 || used + cost > example_tokens {
+                continue;
+            }
+            let key = (
+                s(&example, "file").to_owned(),
+                s(&example, "extension").to_owned(),
+                s(&example, "cause").to_owned(),
+            );
+            if !seen.insert(key) {
+                continue;
+            }
+            used += cost;
+            examples.push(example);
+        }
+        result["unsupported_count"] = json!(unsupported_count);
+        result["unsupported_examples_omitted"] = json!(unsupported_count - examples.len());
+        result["unsupported_examples"] = json!(examples);
+    }
+    result
 }
 
 pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
+    let mut import_files = BTreeSet::new();
+    let mut import_causes = BTreeMap::<&str, usize>::new();
+    let mut import_modules = BTreeMap::new();
+    for issue in &analysis.issues {
+        let detail = &issue["detail"];
+        if issue["reason"] != "basic_unresolved_import" || detail["language"] != "python" {
+            continue;
+        }
+        let input = &detail["input"];
+        import_files.insert((s(detail, "directory"), s(input, "source")));
+        *import_causes.entry(s(input, "reason")).or_default() += 1;
+        *import_modules
+            .entry((s(input, "module"), s(input, "reason")))
+            .or_insert(0usize) += 1;
+    }
+    let mut modules: Vec<_> = import_modules
+        .into_iter()
+        .map(|((module, cause), count)| json!({"module":module,"cause":cause,"count":count}))
+        .collect();
+    modules.sort_by_key(|m| {
+        (
+            std::cmp::Reverse(m["count"].as_u64().unwrap()),
+            m.to_string(),
+        )
+    });
     let packages = |prefix: &str| {
         analysis
             .issues
@@ -98,6 +196,13 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
         }
         examples
     };
+    let import_budget = if modules.is_empty() {
+        0
+    } else {
+        example_tokens / 4
+    };
+    let module_examples = sample(&modules, import_budget);
+    let example_tokens = example_tokens - import_budget;
     let go_examples = sample(
         &analysis.diagnostics,
         if python_files.is_empty() {
@@ -114,7 +219,7 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
             example_tokens / 2
         },
     );
-    json!({
+    let mut result = json!({
         "go":{
             "incomplete_package_instances":packages("incomplete_package:"),
             "discovery_incomplete_package_instances":packages("incomplete_discovery:"),
@@ -130,12 +235,101 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
             "file_examples_omitted":python_files.len().saturating_sub(python_examples.len()),
             "examples":python_examples
         }
-    })
+    });
+    if !import_files.is_empty() {
+        result["python_imports"] = json!({
+            "unresolved_occurrences":import_causes.values().sum::<usize>(),
+            "files":import_files.len(),"by_cause":import_causes,
+            "module_groups":modules.len(),"module_groups_omitted":modules.len()-module_examples.len(),
+            "modules":module_examples
+        });
+    }
+    result
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn unsupported(file: &str, side: &str, cause: &str) -> Value {
+        json!({"reason":"unsupported_source_language_or_contract","detail":{
+            "file":file,"side":side,"extension":file_extension(file),"cause":cause
+        }})
+    }
+
+    #[test]
+    fn unsupported_counts_are_full_and_independent_of_example_budget() {
+        let mut issues = vec![];
+        for side in ["base", "head"] {
+            for i in 0..24 {
+                issues.push(unsupported(&format!("db/{i}.SQL"), side, "code_extension"));
+            }
+            issues.push(unsupported("api.proto", side, "contract_extension"));
+            issues.push(unsupported("Dockerfile", side, "build_filename"));
+        }
+        let full = histogram(&issues, 10000);
+        let empty = histogram(&issues, 0);
+        assert_eq!(full["groups"], empty["groups"]);
+        assert_eq!(full["counted"], 52);
+        assert_eq!(full["unsupported_count"], 52);
+        assert_eq!(empty["unsupported_examples"], json!([]));
+        assert_eq!(empty["unsupported_examples_omitted"], 52);
+        let groups = full["groups"].as_array().unwrap();
+        assert_eq!(groups.len(), 6);
+        for side in ["base", "head"] {
+            assert!(
+                groups.contains(&json!({"reason":"unsupported_source_language_or_contract",
+                "cause":"code_extension","extension":"sql","side":side,"count":24}))
+            );
+        }
+        // One representative per type, deduplicated across sides.
+        assert_eq!(full["unsupported_examples"].as_array().unwrap().len(), 3);
+        assert_eq!(full["unsupported_examples"][0]["extension"], "sql");
+        assert_eq!(full["unsupported_examples_omitted"], 49);
+    }
+
+    #[test]
+    fn unsupported_samples_and_group_overflow_are_bounded_and_accounted() {
+        let mut issues: Vec<_> = (0..140)
+            .map(|i| unsupported(&format!("script.ext{i:03}"), "head", "shebang"))
+            .collect();
+        issues.push(unsupported(
+            &format!("{}.sql", "a/".repeat(1000)),
+            "head",
+            "code_extension",
+        ));
+        let result = histogram(&issues, 1000);
+        let groups = result["groups"].as_array().unwrap();
+        assert_eq!(groups.len(), 128);
+        assert_eq!(result["other_groups"], 13);
+        assert_eq!(result["other_count"], 13);
+        assert_eq!(
+            groups
+                .iter()
+                .map(|g| g["count"].as_u64().unwrap())
+                .sum::<u64>()
+                + 13,
+            141
+        );
+        assert_eq!(result["unsupported_count"], 141);
+        let examples = result["unsupported_examples"].as_array().unwrap();
+        assert_eq!(examples.len(), 8);
+        assert_eq!(result["unsupported_examples_omitted"], 133);
+        assert!(
+            examples
+                .iter()
+                .map(|e| text::count(&e.to_string()) + 1)
+                .sum::<usize>()
+                <= 1000
+        );
+        assert!(examples.iter().all(|e| s(e, "file").len() < 100));
+        assert_eq!(file_extension("schema.SQL"), "sql");
+        assert_eq!(file_extension("Dockerfile"), "");
+        assert_eq!(
+            file_extension(&format!("file.{}", "x".repeat(33))),
+            "<overlong>"
+        );
+    }
 
     #[test]
     fn histogram_counts_all_causes_and_bounds_unknown_groups() {
@@ -149,7 +343,7 @@ mod tests {
             ),
         );
         issues.extend((0..200).map(|i| json!({"reason":format!("other_{i}")})));
-        let result = histogram(&issues);
+        let result = histogram(&issues, 0);
         assert_eq!(result["counted"], 1202);
         let groups = result["groups"].as_array().unwrap();
         assert_eq!(groups.len(), 128);
@@ -168,7 +362,7 @@ mod tests {
                 + result["other_count"].as_u64().unwrap(),
             1202
         );
-        let ordinary = histogram(&issues[..1002]);
+        let ordinary = histogram(&issues[..1002], 0);
         assert_eq!(
             ordinary["groups"][1],
             json!({"reason":"unresolved_edge","cause":"incomplete_package","count":1000})

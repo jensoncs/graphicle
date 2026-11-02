@@ -102,7 +102,7 @@ fn written(node: Node<'_>) -> bool {
 // Lexical path operations do not read environment variables. Restrict this to
 // direct calls on an established os binding: expandvars/expanduser, escaping the
 // module/function, dynamic attributes and monkey-patched aliases stay unknown.
-fn lexical_path_call(
+fn lexical_os_call(
     function: Node<'_>,
     raw: &[u8],
     imports: &BTreeMap<String, Import>,
@@ -112,6 +112,9 @@ fn lexical_path_call(
     let Some((path, method)) = attribute(function, raw) else {
         return false;
     };
+    if matches!(method, "fsdecode" | "fsencode") {
+        return binding(path, raw, imports, unsafe_names, at) == Some(Binding::Os);
+    }
     if !matches!(
         method,
         "join"
@@ -275,7 +278,7 @@ pub(super) fn analyze(root: Node<'_>, raw: &[u8], limits: &Limits) -> Value {
         let mut operation = None;
         if node.kind() == "call" {
             if let Some(function) = node.child_by_field_name("function") {
-                if lexical_path_call(function, raw, &imports, &unsafe_names, node.start_byte()) {
+                if lexical_os_call(function, raw, &imports, &unsafe_names, node.start_byte()) {
                     consumed.insert((function.start_byte(), function.end_byte()));
                 }
                 let target = binding(function, raw, &imports, &unsafe_names, node.start_byte());
@@ -324,6 +327,13 @@ pub(super) fn analyze(root: Node<'_>, raw: &[u8], limits: &Limits) -> Value {
                     ));
                     consumed.insert((function.start_byte(), function.end_byte()));
                 }
+            }
+        } else if node.kind() == "attribute" {
+            if let Some((object, "sep" | "pathsep")) = attribute(node, raw)
+                && binding(object, raw, &imports, &unsafe_names, node.start_byte())
+                    == Some(Binding::Os)
+            {
+                consumed.insert((node.start_byte(), node.end_byte()));
             }
         } else if node.kind() == "subscript" {
             if let Some(object) = node.child_by_field_name("value") {

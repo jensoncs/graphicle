@@ -17,6 +17,10 @@ mod basic_impact;
 mod source_admission;
 #[path = "go_admission.rs"]
 mod go_admission;
+#[path = "unsupported_inputs.rs"]
+mod unsupported_inputs;
+#[path = "sync_diagnostics.rs"]
+mod sync_diagnostics;
 
 struct Fixture {
     _dir: tempfile::TempDir,

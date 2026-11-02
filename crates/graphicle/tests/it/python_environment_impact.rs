@@ -120,6 +120,82 @@ fn lexical_os_path_calls_do_not_create_environment_escapes() {
 }
 
 #[test]
+fn os_constants_and_encoding_calls_keep_real_environment_operations() {
+    let code = "import os as runtime\na=runtime.sep\nb=runtime.pathsep\nc=runtime.fsdecode(b'path')\nd=runtime.fsencode('path')\nruntime.environ['PYTHONPATH']=runtime.pathsep.join(['a','b'])\nx=runtime.getenv('TIMEOUT')\n";
+    let parsed = structure::analyze("paths.py", code).unwrap();
+    assert_eq!(parsed["environment"]["issues"], json!([]));
+    let operations = parsed["environment"]["operations"].as_array().unwrap();
+    assert_eq!(operations.len(), 2);
+    assert!(
+        operations
+            .iter()
+            .any(|o| o["kind"] == "write" && o["key"] == "PYTHONPATH")
+    );
+    assert!(
+        operations
+            .iter()
+            .any(|o| o["kind"] == "read" && o["key"] == "TIMEOUT")
+    );
+    for code in [
+        "import os\nx=os.path.abspath('x')\n",
+        "import os\nx=os.path.realpath('x')\n",
+        "import os\nx=os.path.relpath('x')\n",
+        "import os\nos.sep=replacement\nx=os.sep\n",
+        "import os\nos.fsdecode=replacement\nx=os.fsdecode(b'x')\n",
+        "import os\nx=os.fsdecode(os)\n",
+        "import os\nf=os.fsencode\n",
+        "if enabled:\n    import os\nx=os.sep\n",
+    ] {
+        let parsed = structure::analyze("paths.py", code).unwrap();
+        assert!(
+            !parsed["environment"]["issues"]
+                .as_array()
+                .unwrap()
+                .is_empty(),
+            "{code}"
+        );
+    }
+}
+
+#[test]
+fn python_import_diagnostics_separate_missing_modules_from_environment_use() {
+    let f = Fixture::new();
+    let repo = f.repo("python-import-diagnostics");
+    let pin = f.pin(
+        &repo,
+        "app",
+        'a',
+        &[
+            (
+                "app.py",
+                "import os\nimport unavailable_dependency\nfrom pkg import helper\nx=os.sep\n",
+            ),
+            ("pkg/__init__.py", ""),
+            ("pkg/helper.py", "def work(): pass\n"),
+        ],
+    );
+    let packet = f.run(&request(&repo, vec![pin.clone()], vec![pin]));
+    let imports = &packet["coverage"]["analysis_diagnostics"]["head"]["python_imports"];
+    assert_eq!(imports["unresolved_occurrences"], 2); // os is external too.
+    assert_eq!(imports["by_cause"]["external_or_unresolved"], 2);
+    assert_eq!(imports["files"], 1);
+    assert!(
+        imports["modules"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|m| m["module"] == "unavailable_dependency")
+    );
+    assert_eq!(
+        packet["coverage"]["analysis_diagnostics"]["head"]["python_environment"]["incomplete_files"],
+        0
+    );
+    assert!(packet["coverage"]["issue_histogram"]["groups"].as_array().unwrap().contains(&json!({
+        "reason":"basic_unresolved_import","language":"python","cause":"external_or_unresolved","count":4
+    })));
+}
+
+#[test]
 fn ordinary_path_modules_no_longer_disable_environment_narrowing() {
     let f = Fixture::new();
     let repo = f.repo("python-lexical-paths");

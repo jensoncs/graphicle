@@ -2799,6 +2799,9 @@ pub fn project_packet(
     // One chunking of the snapshot serves `graph_local`'s seed and
     // walk, the dense arm and the query itself; past
     // the per-question bounds the question chooses what it reads.
+    crate::phase::phase("context_layout_cache", || {
+        crate::passage_index::reuse_layouts(db, s(repository, "id"), &snap.documents)
+    })?;
     let shared = crate::phase::phase("context_passages", || {
         passages_for(&mut snap, query).map(Some)
     })?;

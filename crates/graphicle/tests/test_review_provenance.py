@@ -54,7 +54,10 @@ class ProvenanceTests(unittest.TestCase):
         self.assertEqual(full["entries"][0]["service_boundary"]["resolution"], {"status": "unresolved"})
         delta = {**packet, "packet_id": "two", "previous_packet_id": "one", "entries": [], "unchanged": ["entry"]}
         step["provenance"]["source"]["runtime_observed"] = True
+        delta["empty_reason"] = "unchanged_from_previous_packet"
         result = apply_review_delta(full, delta)
+        self.assertNotIn("empty_reason", result)
+        self.assertEqual(delta["empty_reason"], "unchanged_from_previous_packet")
         self.assertFalse(result["entries"][0]["reasons"][0]["steps"][0]["provenance"]["source"]["runtime_observed"])
         delta.pop("service_provenance")
         with self.assertRaisesRegex(ValueError, "Invalid service provenance"):

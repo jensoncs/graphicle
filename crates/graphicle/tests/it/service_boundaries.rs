@@ -153,14 +153,19 @@ fn mixed_protocol_review_and_delta_invalidation(compact: bool) {
     }
     assert_eq!(first["service_graph"]["head"]["resolved_relationships"], 3);
     for repo in &repos {
-        assert!(
-            first["entries"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|e| e["side"] == "head" && e["repository_id"] == *repo),
-            "{first}"
-        );
+        let included = first["entries"].as_array().unwrap().iter()
+            .any(|e| e["side"] == "head" && e["repository_id"] == *repo);
+        if compact {
+            assert!(included, "compact packet omitted a repository");
+        } else if !included {
+            // Inline transitive citations can exceed even the maximum packet
+            // budget. The full graph above must still resolve every relation;
+            // the wire packet must explicitly account for omitted entries.
+            assert_eq!(first["coverage"]["complete"], false);
+            assert!(first["coverage"]["required_entries"].as_u64().unwrap()
+                > first["entries"].as_array().unwrap().len() as u64);
+            assert!(first["coverage"]["budget_omitted"].as_u64().unwrap() > 0);
+        }
     }
     let entries = first["entries"].as_array().unwrap();
     assert!(

@@ -64,6 +64,9 @@ pub struct Pin {
     pub directory: String,
     #[serde(default = "modules")]
     pub modules: Vec<String>,
+    /// Omit these admitted modules from root discovery, not dependency loading.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub excluded_modules: Vec<String>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -260,6 +263,16 @@ fn validate(r: &Request) -> Result<()> {
             }
             if pin.modules.is_empty() || pin.modules.len() > 64 {
                 return Err(Error::bad("Declare 1–64 module roots per repository"));
+            }
+            if pin.excluded_modules.len() > 64 {
+                return Err(Error::bad("Declare at most 64 excluded module roots"));
+            }
+            let mut excluded = BTreeSet::new();
+            for module in &pin.excluded_modules {
+                if module != "." { store::path(module)?; }
+                if !excluded.insert(module) {
+                    return Err(Error::bad("Duplicate excluded module root"));
+                }
             }
             let mut seen = BTreeSet::new();
             for module in &pin.modules {
@@ -524,9 +537,9 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result
     // A byte-reuse hash is not semantic validity. This separate fingerprint
     // covers compiler-owned transitive package dependencies and native inputs.
     let config = crate::digest(
-        &json!({"profile":profile,"analyzer":out.analyzer,"toolchain":out.toolchain,
+        &go::with_exclusions(json!({"profile":profile,"analyzer":out.analyzer,"toolchain":out.toolchain,
         "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.policy_sha256])).collect::<Vec<_>>(),
-        "configuration":input.sources.iter().filter(|(path,_)|matches!(Path::new(path).file_name().and_then(|n|n.to_str()),Some("go.mod"|"go.sum"|"go.work"|"go.work.sum"))).map(|(path,s)|json!([path,s.repository,s.sha])).collect::<Vec<_>>() }),
+        "configuration":input.sources.iter().filter(|(path,_)|matches!(Path::new(path).file_name().and_then(|n|n.to_str()),Some("go.mod"|"go.sum"|"go.work"|"go.work.sum"))).map(|(path,s)|json!([path,s.repository,s.sha])).collect::<Vec<_>>() }),input),
     );
     let nodes: BTreeMap<_, _> = out
         .packages
@@ -1221,10 +1234,12 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                     json!({"side":side,"file":path}),
                 ));
             }
-            if basic::language(input, path).is_none() && unsupported_source(path, source.content.text().unwrap_or("")) {
+            if basic::language(input, path).is_none()
+                && let Some(cause) = unsupported_source_cause(path, source.content.text().unwrap_or(""))
+            {
                 issues.push(issue(
                     "unsupported_source_language_or_contract",
-                    json!({"side":side,"file":path}),
+                    json!({"side":side,"file":path,"extension":diagnostics::file_extension(path),"cause":cause}),
                 ));
             }
         }
@@ -1238,16 +1253,33 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
 }
 
 fn unsupported_source(path: &str, content: &str) -> bool {
+    unsupported_source_cause(path, content).is_some()
+}
+
+// One primary detection rule per issue; the set of unsupported inputs is
+// unchanged. Known contracts/build files take precedence over generic suffixes.
+fn unsupported_source_cause(path: &str, content: &str) -> Option<&'static str> {
     let path_ref = Path::new(path);
     let extension = path_ref.extension().and_then(|e| e.to_str()).unwrap_or("");
-    extension != "go"
-        && (graphicle::analyze::file_category(path) == "code"
-            || matches!(extension, "proto" | "s" | "S")
-            || content.starts_with("#!")
-            || matches!(
-                path_ref.file_name().and_then(|n| n.to_str()),
-                Some("Makefile" | "Dockerfile")
-            ))
+    if extension == "go" {
+        return None;
+    }
+    if extension == "proto" {
+        return Some("contract_extension");
+    }
+    if matches!(extension, "s" | "S") {
+        return Some("assembly_extension");
+    }
+    if matches!(
+        path_ref.file_name().and_then(|n| n.to_str()),
+        Some("Makefile" | "Dockerfile")
+    ) {
+        return Some("build_filename");
+    }
+    if content.starts_with("#!") {
+        return Some("shebang");
+    }
+    (graphicle::analyze::file_category(path) == "code").then_some("code_extension")
 }
 
 /// Optional candidates are costed only against the remaining allowance. A
@@ -1416,7 +1448,7 @@ fn pack_encoding(
     let total = entries.len() + diffs.len();
     let issues = std::mem::take(report["coverage"]["issues"].as_array_mut().unwrap());
     report["coverage"]["issue_count"] = json!(issues.len());
-    report["coverage"]["issue_histogram"] = diagnostics::histogram(&issues);
+    report["coverage"]["issue_histogram"] = diagnostics::histogram(&issues, max_tokens / 64);
     report["coverage"]["issues"] = json!(issues.iter().take(20).collect::<Vec<_>>());
     let changes = report["changes"].take();
     let deleted: BTreeSet<_> = changes
@@ -1737,6 +1769,23 @@ fn pack_encoding(
         .map(|p| p["packet_id"].clone())
         .unwrap_or(Value::Null);
     report["unchanged"] = json!(unchanged);
+    if report["entries"].as_array().is_some_and(Vec::is_empty) {
+        report["empty_reason"] = json!(if receipts.iter().any(|e| e["collection"] == "entries") {
+            "unchanged_from_previous_packet"
+        } else if report["coverage"]["required_entries"].as_u64().unwrap_or(0) > 0 {
+            "budget_omitted"
+        } else if report["coverage"]["issue_histogram"]["unsupported_count"].as_u64().unwrap_or(0) > 0 {
+            "unsupported_source_language_or_contract"
+        } else if report["impact"] == "no_changes_in_scope" {
+            "no_changes_in_scope"
+        } else if report["impact"] == "incomplete" {
+            "analysis_incomplete"
+        } else if report["diffs"].as_array().is_some_and(|v| !v.is_empty()) {
+            "diff_only"
+        } else {
+            "no_selected_entries"
+        });
+    }
     report["invalidated"] = json!(old.values().filter(|e|!retained.contains(s(e,"id"))).map(|e|json!({"id":e["id"],"revision":e["revision"],"collection":e["collection"],"reason":"changed_removed_or_omitted"})).collect::<Vec<_>>());
     report["packet_id"] = json!(crate::digest(&report));
     report["tokens"] = json!(text::count(&report.to_string()) + 8);
@@ -1980,10 +2029,10 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     let identity = (!go::scope(&base)?.roots.is_empty() || !go::scope(&head)?.roots.is_empty()).then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
         .map(|v| crate::digest(&v));
     let fact_key = |input: &Input| {
-        identity.as_ref().map(|identity|crate::digest(&json!({
+        identity.as_ref().map(|identity|crate::digest(&go::with_exclusions(json!({
         "identity":identity,"profile":r.profile,"fact_policy":"pinned-type-diagnostics-module-roots-v3",
         "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.snapshot,p.policy_sha256])).collect::<Vec<_>>(),
-        "sources":input.sources.iter().map(|(path,s)|json!([path,s.repository,s.sha])).collect::<Vec<_>>() })))
+        "sources":input.sources.iter().map(|(path,s)|json!([path,s.repository,s.sha])).collect::<Vec<_>>() }),input)))
     };
     let key_a = fact_key(&base);
     let key_b = fact_key(&head);
@@ -2178,7 +2227,7 @@ pub(crate) fn bind_snapshot(
 
 /// Wire schema shared by the MCP adapter; API and CLI use the same validator.
 pub(crate) fn pin_schema() -> Value {
-    json!({"type":"object","properties":{"repository_id":{"type":"string"},"commit":{"type":"string"},"snapshot":{"type":"string"},"policy_sha256":{"type":"string"},"directory":{"type":"string"},"modules":{"type":"array","items":{"type":"string"}}},"required":["repository_id","commit","snapshot","policy_sha256","directory"],"additionalProperties":false})
+    json!({"type":"object","properties":{"repository_id":{"type":"string"},"commit":{"type":"string"},"snapshot":{"type":"string"},"policy_sha256":{"type":"string"},"directory":{"type":"string"},"modules":{"type":"array","items":{"type":"string"}},"excluded_modules":{"type":"array","maxItems":64,"items":{"type":"string"}}},"required":["repository_id","commit","snapshot","policy_sha256","directory"],"additionalProperties":false})
 }
 pub fn properties() -> Value {
     let pin = pin_schema();
@@ -2661,5 +2710,26 @@ mod tests {
         assert!(!super::unsupported_source("go.mod", "module example/app"));
         assert!(!super::unsupported_source("main.go", "package app"));
         assert!(!super::unsupported_source("README.md", "Documentation"));
+    }
+
+    #[test]
+    fn unsupported_input_causes_preserve_existing_detection_rules() {
+        for (path, content, cause) in [
+            ("query.sql", "select 1", "code_extension"),
+            ("schema.SQL", "", "code_extension"),
+            ("config.yaml", "", "code_extension"),
+            ("config.json", "", "code_extension"),
+            ("service.proto", "", "contract_extension"),
+            ("native.S", "", "assembly_extension"),
+            ("Dockerfile", "", "build_filename"),
+            ("Makefile", "#!/usr/bin/make", "build_filename"),
+            ("entrypoint", "#!/usr/bin/custom", "shebang"),
+        ] {
+            assert_eq!(super::unsupported_source_cause(path, content), Some(cause), "{path}");
+        }
+        // Classification is instrumentation, not an expansion of support or
+        // the unsupported-input set (including its existing case semantics).
+        assert_eq!(super::unsupported_source_cause("service.PROTO", ""), None);
+        assert_eq!(super::unsupported_source_cause("source.go", "#!/usr/bin/custom"), None);
     }
 }

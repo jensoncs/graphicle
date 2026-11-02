@@ -132,6 +132,8 @@ fn an_oversized_file_of_each_kind_is_listed_and_searchable_and_the_sync_succeeds
     let synced = f.sync().unwrap();
     let repository = s(&synced, "repository_id").to_string();
     assert_eq!(synced["files"], 4, "{synced}");
+    assert_eq!(synced["analysis_cache"]["parsed_files"], 4);
+    assert_eq!(synced["analysis_cache"]["cache_rebuilt"], false);
     assert_eq!(synced["excluded"], 3, "{synced}");
     assert_eq!(
         synced["limited"],

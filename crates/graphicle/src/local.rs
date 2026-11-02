@@ -933,6 +933,7 @@ fn sync_folder_with(
     skipped.extend(not_analysed);
     skipped.sort_by(|a, b| s(a, "path").cmp(s(b, "path")));
     let mut result = json!({"repository_id":repository,"files":file_count,"binary_documents":binaries.len(),"original_bytes":binary_bytes,"bytes":bytes,"excluded":excluded.len(),"snapshot":prepared["snapshot"],"replayed":prepared["replayed"]});
+    if let Some(cache) = prepared.get("analysis_cache") { result["analysis_cache"] = cache.clone(); }
     // Files read although an ignore pattern matches them, because Git tracks
     // them (`sync.tracked_ignored`).
     if tracked_read > 0 {
@@ -1182,13 +1183,14 @@ fn send_batches(
             &json!({"repository_id":repository,"sync_id":prepared["sync_id"],"cursor":cursor}),
         )?;
     }
-    crate::phase::phase("sync_commit", || {
+    let committed = crate::phase::phase("sync_commit", || {
         store.sync_commit(
             workspace,
             capability,
             &json!({"repository_id":repository,"sync_id":prepared["sync_id"]}),
         )
     })?;
+    prepared["analysis_cache"] = committed["analysis_cache"].clone();
     Ok(prepared)
 }
 

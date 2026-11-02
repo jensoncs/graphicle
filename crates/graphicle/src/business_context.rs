@@ -870,6 +870,7 @@ mod tests {
             snapshot: "b".repeat(64),
             policy_sha256: "c".repeat(64),
             modules: vec!["included".into()],
+            excluded_modules: vec![],
         };
         let history =
             collect_analysis(root.path(), pin.clone(), &["included/main.go".into()]).unwrap();
@@ -940,6 +941,7 @@ mod tests {
             snapshot: "a".repeat(64),
             policy_sha256: "b".repeat(64),
             modules: vec![".".into()],
+            excluded_modules: vec![],
         };
         // An uncommitted regression must not change the collected source/hash.
         std::fs::write(dir.path().join("access.go"), old).unwrap();
@@ -1092,6 +1094,7 @@ mod tests {
             snapshot: "b".repeat(64),
             policy_sha256: "c".repeat(64),
             modules: vec![".".into()],
+            excluded_modules: vec![],
         };
         let file = FileHistory {
             path: "access.go".into(),

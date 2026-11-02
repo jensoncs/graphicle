@@ -12,7 +12,7 @@
 //! instead: the files that define the code names the prompt gives, from the
 //! code graph's symbols, ranked by those names (`context`'s `graph_only`),
 //! without reading every file. A small project, and a project with reviewed
-//! memory (whose memories only the full path reads), are asked in full
+//! memory whose index is not ready, are asked in full
 //! ([`crate::indexed_query::hook_route`]).
 //!
 //! The hook adds no context, and never holds the prompt up for long: when the
@@ -139,7 +139,7 @@ pub fn run(directory: &Path, payload: &Value) {
 }
 
 /// The note for the person, and its kind, when the hook gave up for time
-/// (on a project with reviewed memory, a sync does not help) or answered
+/// (a memory search cannot use the source-only quick packet) or answered
 /// from the quick packet.
 fn note_for(
     answered: &Answer,
@@ -152,7 +152,7 @@ fn note_for(
         (Answer::TimedOut, HookRoute::Memory) => Some((
             "memory",
             format!(
-                "Graphicle added no project context to this prompt: this project has reviewed memory, so a question reads every file of it, which took longer than {seconds} s. A sync does not change that: raise the budget with `graphicle config set prompt_context.seconds N` (at most {MAX_SECONDS})."
+                "Graphicle added no project context to this prompt: this project's reviewed memory search took longer than {seconds} s. Run `graphicle sync` to refresh its index, or raise the budget with `graphicle config set prompt_context.seconds N` (at most {MAX_SECONDS})."
             ),
         )),
         (Answer::TimedOut, _) => Some((
@@ -380,12 +380,11 @@ mod tests {
         let (kind, note) = note_for(&Answer::TimedOut, HookRoute::Full, wait).unwrap();
         assert_eq!(kind, "time");
         assert!(note.contains("within 10 s"), "{note}");
-        // Reviewed memory: the full path reads every file, and a sync does
-        // not change that.
+        // Reviewed memory is retained even when the index is not ready.
         let (kind, note) = note_for(&Answer::TimedOut, HookRoute::Memory, wait).unwrap();
         assert_eq!(kind, "memory");
         assert!(note.contains("reviewed memory"), "{note}");
-        assert!(note.contains("A sync does not change that"), "{note}");
+        assert!(note.contains("graphicle sync"), "{note}");
         assert!(note.contains("prompt_context.seconds"), "{note}");
     }
 

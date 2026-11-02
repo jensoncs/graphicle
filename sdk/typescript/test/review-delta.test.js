@@ -19,9 +19,11 @@ test("compact service assertions verify hashes and survive unchanged deltas", as
   assert.equal(full.tokens, undefined);
   assert.deepEqual(full.entries[0].service_boundary.citations, leaf.citations);
   assert.deepEqual(full.entries[0].service_boundary.resolution, {status: "unresolved"});
-  const delta = {...packet, packet_id: "two", previous_packet_id: "one", entries: [], unchanged: ["a"]};
+  const delta = {...packet, packet_id: "two", previous_packet_id: "one", entries: [], unchanged: ["a"], empty_reason: "unchanged_from_previous_packet"};
   full.entries[0].reasons[0].steps[0].provenance.source.runtime_observed = true;
   const next = await applyReviewDelta(full, delta);
+  assert.equal(next.empty_reason, undefined);
+  assert.equal(delta.empty_reason, "unchanged_from_previous_packet");
   assert.equal(next.entries[0].reasons[0].steps[0].provenance.source.runtime_observed, false);
   for (const mutate of [
     p => delete p.service_provenance,

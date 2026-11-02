@@ -6,6 +6,8 @@ const invalidBoundary: ServiceTransport = {protocol: "http", authority: "https:/
 void boundaries; void event; void invalidBoundary;
 declare const project: Project;
 const pin: SnapshotPin = {repository_id: "repo", directory: "service", commit: "a".repeat(40), snapshot: "b".repeat(64), policy_sha256: "c".repeat(64)};
+const scopedPin: SnapshotPin = {...pin, excluded_modules: ["evals/copy"]};
+project.impact([scopedPin], [scopedPin], {profile: {goos: "linux", goarch: "amd64"}});
 const profile: ReviewProfile = {goos: "linux", goarch: "amd64", tests: true};
 const report: Promise<ReviewPacket> = project.impact([pin], [pin], {profile, max_tokens: 16000, compact_provenance: true, previous_packet_id: "d".repeat(64)}, {timeoutMs: 120000});
 project.impact([pin], [pin], {profile, business_context: {history: [{

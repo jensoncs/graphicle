@@ -33,6 +33,7 @@ fn fixture(specs: &[(&str, Value)]) -> (Input, Analysis) {
             policy_sha256: "b".repeat(64),
             directory: dir.to_string(),
             modules: vec![".".into()],
+            excluded_modules: vec![],
         };
         input.pins.push(pin);
         for (file, code) in [

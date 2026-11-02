@@ -1,5 +1,72 @@
 use super::*;
 
+#[test]
+fn collector_can_exclude_fixture_module_roots_without_hiding_scope() {
+    let f = Fixture::new();
+    let repo = f.repo("excluded-modules");
+    let pin = f.pin(
+        &repo,
+        "app",
+        'a',
+        &[
+            ("live/go.mod", "module example/live\ngo 1.23\n"),
+            ("live/code.go", "package live\nfunc F() {}\n"),
+            ("evals/copy/go.mod", "module example/copy\ngo 1.23\n"),
+            (
+                "evals/copy/code.go",
+                "package copy\nfunc F() { Missing() }\n",
+            ),
+        ],
+    );
+    let all = f.run(&request(&repo, vec![pin.clone()], vec![pin.clone()]));
+    assert!(
+        all["coverage"]["analysis_diagnostics"]["head"]["go"]["type_check_failed_package_instances"]
+            .as_u64()
+            .unwrap() > 0
+    );
+    let mut excluded = pin;
+    excluded["excluded_modules"] = json!(["evals/copy"]);
+    let packet = f.run(&request(
+        &repo,
+        vec![excluded.clone()],
+        vec![excluded.clone()],
+    ));
+    assert_no_false_go_failure(&packet);
+    assert_eq!(packet["package_instances"]["head_count"], 1);
+    assert!(
+        packet["coverage"]["issues"]
+            .to_string()
+            .contains("go_module_excluded")
+    );
+    assert_eq!(packet["impact"], "incomplete");
+    excluded["excluded_modules"] = json!(["../escape"]);
+    assert!(
+        review::run(
+            &f.store,
+            &f.workspace,
+            &f.token,
+            &request(&repo, vec![excluded.clone()], vec![excluded])
+        )
+        .is_err()
+    );
+}
+
+#[test]
+fn excluded_module_is_still_analyzed_when_imported_by_a_selected_root() {
+    let f = Fixture::new();
+    let repo = f.repo("excluded-dependency");
+    let mut pin=f.pin(&repo,"app",'a',&[
+        ("go.mod","module example/live\ngo 1.23\nrequire example/copy v0.0.0\nreplace example/copy => ./evals/copy\n"),
+        ("code.go","package live\nimport \"example/copy\"\nfunc F() {copy.F()}\n"),
+        ("evals/copy/go.mod","module example/copy\ngo 1.23\n"),
+        ("evals/copy/code.go","package copy\nfunc F() { Missing() }\n"),
+    ]);
+    pin["excluded_modules"] = json!(["evals/copy"]);
+    let packet = f.run(&request(&repo, vec![pin.clone()], vec![pin]));
+    assert_eq!(packet["impact"], "incomplete");
+    assert!(packet["coverage"]["analysis_diagnostics"]["head"]["go"]["type_check_failed_package_instances"].as_u64().unwrap()>0);
+}
+
 fn assert_no_false_go_failure(packet: &Value) {
     let issues = packet["coverage"]["issues"].to_string();
     for reason in [

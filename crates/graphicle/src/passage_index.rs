@@ -40,6 +40,76 @@ pub const FORMAT: i64 = 1;
 /// Characters and tokens of one passage, as `query::passages` lays them out.
 pub const CHARACTERS: usize = 2600;
 pub const TOKENS: usize = 640;
+
+/// The existing escape hatch applies to both indexed ranking and reuse of
+/// saved layouts by the full query path.
+pub(crate) fn enabled() -> bool {
+    !std::env::var("GRAPHICLE_PASSAGE_INDEX").is_ok_and(|v| {
+        matches!(
+            v.trim().to_ascii_lowercase().as_str(),
+            "0" | "false" | "no" | "off"
+        )
+    })
+}
+
+/// Seed the bounded, content-addressed layout cache from the passage index.
+/// Queries that need the full catalogue (including the reviewed-memory graph
+/// walk) still use the ordinary chunker, its integrity checks and its bounds,
+/// but unchanged files do not need tokenization again in a new process.
+/// Only the caller's authorized documents with matching hashes are reused;
+/// missing files and old index formats are laid out normally.
+pub(crate) fn reuse_layouts(
+    db: &Connection,
+    repository: &str,
+    documents: &[Value],
+) -> Result<usize> {
+    if !enabled() {
+        return Ok(0);
+    }
+    let files: BTreeMap<&str, &Value> = documents
+        .iter()
+        .filter(|d| d["source_kind"] == "repository_file")
+        .filter_map(|d| {
+            crate::store::s(d, "id")
+                .strip_prefix("file:")
+                .map(|path| (path, d))
+        })
+        .collect();
+    let heads = files
+        .iter()
+        .map(|(&path, d)| (path.to_string(), crate::store::s(d, "sha256").to_string()))
+        .collect();
+    let Some((index, _)) = Index::open(db, repository, &heads)? else {
+        return Ok(0);
+    };
+    for file in &index.files {
+        let content = crate::store::s(files[file.path.as_str()], "content");
+        // Saved layouts must be safe for the chunker's byte slicing too.
+        if file.passages.iter().any(|p| {
+            p.start >= p.end
+                || p.end > content.len()
+                || !content.is_char_boundary(p.start)
+                || !content.is_char_boundary(p.end)
+        }) {
+            return Err(Error::bad(
+                "The passage index is corrupt; sync the project again",
+            ));
+        }
+        cache::layout(repository, &file.sha, CHARACTERS, TOKENS, || {
+            Ok(file
+                .passages
+                .iter()
+                .map(|p| cache::Span {
+                    start: p.start,
+                    end: p.end,
+                    line: p.line,
+                    end_line: p.end_line,
+                })
+                .collect())
+        })?;
+    }
+    Ok(index.files.len())
+}
 /// Files one segment holds; a first build of a large project writes several.
 const SEGMENT_FILES: usize = 20_000;
 /// Segments past this are merged into one by the next sync.
@@ -997,6 +1067,91 @@ pub fn summary(db: &Connection, repository: &str) -> Result<Value> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn saved_layouts_require_current_hashes_and_keep_source_integrity_checks() {
+        let db = Connection::open_in_memory().unwrap();
+        db.execute_batch("CREATE TABLE repo_projects(id TEXT PRIMARY KEY)")
+            .unwrap();
+        migrate(&db).unwrap();
+        let scope = uuid::Uuid::new_v4().to_string();
+        let content = "Résumé: café and 東京.\n".repeat(500);
+        let sha = graphicle_memory::text::sha256(content.as_bytes());
+        let document = json!({"id":"file:notes.txt","title":"notes.txt",
+            "source_kind":"repository_file","sha256":sha,"content":content});
+        let spans = ingest::spans_of(&content, CHARACTERS, TOKENS).unwrap();
+        let passages: Vec<Passage> = spans
+            .iter()
+            .map(|p| Passage {
+                start: p.start,
+                end: p.end,
+                line: p.line,
+                end_line: p.end_line,
+                ..Passage::default()
+            })
+            .collect();
+        db.execute("INSERT INTO repo_projects VALUES(?)", [&scope])
+            .unwrap();
+        db.execute(
+            "INSERT INTO am_passage_segments VALUES(?,1,?,1,?, '')",
+            params![scope, FORMAT, passages.len()],
+        )
+        .unwrap();
+        db.execute(
+            "INSERT INTO am_passage_files VALUES(?,'notes.txt',?,1,0,?)",
+            params![scope, sha, encode_passages(&passages)],
+        )
+        .unwrap();
+        let request = json!({"scope":scope,"documents":[document],
+            "max_passages":3,"characters":CHARACTERS,"tokens":TOKENS,"prefer":"newest"});
+        let baseline = ingest::chunks(&request).unwrap();
+        cache::clear(&scope).unwrap();
+        assert_eq!(
+            reuse_layouts(&db, &scope, request["documents"].as_array().unwrap()).unwrap(),
+            1
+        );
+        // Prove this is a saved-layout hit, not just equal recomputation.
+        cache::layout(&scope, &sha, CHARACTERS, TOKENS, || {
+            panic!("layout was not reused")
+        })
+        .unwrap();
+        assert_eq!(ingest::chunks(&request).unwrap(), baseline);
+        assert_eq!(baseline["passage_limit_reached"], true);
+
+        let mut changed = document.clone();
+        changed["content"] = json!("A new revision");
+        changed["sha256"] = json!(graphicle_memory::text::sha256(b"A new revision"));
+        assert_eq!(reuse_layouts(&db, &scope, &[changed]).unwrap(), 0);
+        let mut damaged = request.clone();
+        damaged["documents"][0]["content"] = json!("content with the wrong hash");
+        assert!(
+            ingest::chunks(&damaged)
+                .unwrap_err()
+                .to_string()
+                .contains("hash mismatch")
+        );
+
+        db.execute("UPDATE am_passage_segments SET format=?", [FORMAT + 1])
+            .unwrap();
+        assert_eq!(
+            reuse_layouts(&db, &scope, std::slice::from_ref(&document)).unwrap(),
+            0
+        );
+        db.execute("UPDATE am_passage_segments SET format=?", [FORMAT])
+            .unwrap();
+        let bad = vec![Passage {
+            start: 0,
+            end: 2,
+            ..Passage::default()
+        }]; // inside é
+        db.execute(
+            "UPDATE am_passage_files SET spans=?",
+            [encode_passages(&bad)],
+        )
+        .unwrap();
+        assert!(reuse_layouts(&db, &scope, &[document]).is_err());
+        cache::clear(&scope).unwrap();
+    }
 
     #[test]
     fn varints_and_passages_round_trip() {

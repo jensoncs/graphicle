@@ -35,7 +35,9 @@ pub fn from_snapshot(
     principal: &Principal,
     snap: &query::Snapshot,
 ) -> Result<Value> {
-    match build(db, repository, principal, snap, true)? {
+    match build(db, repository, snap, true, || {
+        claims::current(db, repository, principal)
+    })? {
         Built::Graph(graph) => Ok(graph),
         Built::OverBudget(_) => Err(Error::bad(
             "Property graph exceeds its configured node/edge budget",
@@ -49,9 +51,9 @@ pub fn from_snapshot(
 fn build(
     db: &Connection,
     repository: &Value,
-    principal: &Principal,
     snap: &query::Snapshot,
     documents: bool,
+    facts: impl FnOnce() -> Result<Vec<Value>>,
 ) -> Result<Built> {
     let budget = |nodes: usize, edges: Option<usize>| {
         Built::OverBudget(
@@ -93,7 +95,7 @@ fn build(
             edge(&mut edges, from, to, "code", e.clone());
         }
     }
-    let facts = claims::current(db, repository, principal)?;
+    let facts = facts()?;
     let links = rows(
         db,
         "SELECT * FROM am_entity_links WHERE repository_id=?",
@@ -234,6 +236,32 @@ pub fn for_query(
     snap: &query::Snapshot,
     args: &Value,
 ) -> Result<Option<Value>> {
+    for_query_with(db, repository, snap, args, || {
+        claims::current(db, repository, principal)
+    })
+}
+
+/// The unfiltered authorized catalogue already checked by the indexed query.
+/// Filtered queries retain `for_query`'s independent claim visibility rules.
+pub(crate) fn for_indexed_query(
+    db: &Connection,
+    repository: &Value,
+    snap: &query::Snapshot,
+    args: &Value,
+    authorized_memories: &[Value],
+) -> Result<Option<Value>> {
+    for_query_with(db, repository, snap, args, || {
+        claims::current_of(db, repository, authorized_memories)
+    })
+}
+
+fn for_query_with(
+    db: &Connection,
+    repository: &Value,
+    snap: &query::Snapshot,
+    args: &Value,
+    facts: impl FnOnce() -> Result<Vec<Value>>,
+) -> Result<Option<Value>> {
     if args["graph_retrieval"] == false
         || !(args["graph_retrieval"] == true
             || snap
@@ -244,12 +272,10 @@ pub fn for_query(
         return Ok(None);
     }
     let documents = crate::doc_links::Options::parse(args)?.documents();
-    Ok(Some(
-        match build(db, repository, principal, snap, documents)? {
-            Built::Graph(graph) => graph,
-            Built::OverBudget(report) => json!({"degraded": report}),
-        },
-    ))
+    Ok(Some(match build(db, repository, snap, documents, facts)? {
+        Built::Graph(graph) => graph,
+        Built::OverBudget(report) => json!({"degraded": report}),
+    }))
 }
 
 pub fn add_rankings(
@@ -294,7 +320,7 @@ pub fn read(store: &Store, workspace: &str, token: &str, args: &Value) -> Result
     store.authorized(workspace,token,"read",|db,p|{
         let repository=repo(db,p,string(args,"repository_id",100)?)?;
         let snap=query::snapshot(db,&repository,p)?;
-        let graph=match build(db,&repository,p,&snap,true)? {
+        let graph=match build(db,&repository,&snap,true,|| claims::current(db,&repository,p))? {
             Built::Graph(graph)=>graph,
             // Past the property graph's budget a read answers with no nodes
             // and says why (`degraded`), as `graph_local` does, instead of
@@ -341,6 +367,46 @@ pub fn local_rankings_on(
     question: &str,
     passages: Option<&query::Passages>,
 ) -> Result<Value> {
+    let mut prepared = None;
+    let distances = local_distances(graph, question, || {
+        let passages = match passages {
+            Some(passages) => passages,
+            None => prepared.insert(query::passages(snap)?),
+        };
+        query::context_on(
+            snap,
+            &seed_args(graph, question),
+            json!([]),
+            None,
+            None,
+            Some(passages.clone()),
+            None,
+        )
+    })?;
+    let ranking = passages
+        .or(prepared.as_ref())
+        .filter(|_| !distances.is_empty())
+        .map_or_else(Vec::new, |passages| {
+            rank_reached(&snap.documents, &passages.rows, graph, question, &distances)
+        });
+    Ok(json!({"graph_local":ranking}))
+}
+
+pub(crate) fn seed_args(graph: &Value, question: &str) -> Value {
+    let mut args = json!({"question":question,"limit":8,"max_tokens":1500,"max_chars":6000});
+    if graph.get(DOCUMENT_EDGES).is_some() {
+        args["doc_links"] = json!(false);
+    }
+    args
+}
+
+/// The identical four-hop traversal for full and indexed retrieval. The seed
+/// is lazy so a graph with no traversable edges needs no second search.
+pub(crate) fn local_distances(
+    graph: &Value,
+    question: &str,
+    seed: impl FnOnce() -> Result<Value>,
+) -> Result<BTreeMap<String, usize>> {
     let mut adjacency = BTreeMap::<&str, Vec<&str>>::new();
     for edge in graph["edges"].as_array().into_iter().flatten().filter(|e| {
         [
@@ -365,29 +431,9 @@ pub fn local_rankings_on(
             .push(s(edge, "source"));
     }
     if adjacency.is_empty() {
-        return Ok(json!({"graph_local":[]}));
+        return Ok(BTreeMap::new());
     }
-    let owned;
-    let passages = match passages {
-        Some(passages) => passages,
-        None => {
-            owned = query::passages(snap)?;
-            &owned
-        }
-    };
-    let mut seed_args = json!({"question":question,"limit":8,"max_tokens":1500,"max_chars":6000});
-    if graph.get(DOCUMENT_EDGES).is_some() {
-        seed_args["doc_links"] = json!(false);
-    }
-    let seed = query::context_on(
-        snap,
-        &seed_args,
-        json!([]),
-        None,
-        None,
-        Some(passages.clone()),
-        None,
-    )?;
+    let seed = seed()?;
     let mut distances = BTreeMap::<String, usize>::new();
     let mut queue = VecDeque::new();
     for source in seed["evidence"].as_array().into_iter().flatten() {
@@ -438,11 +484,22 @@ pub fn local_rankings_on(
             }
         }
     }
+    Ok(distances)
+}
+
+/// Rank only reached source passages; the indexed caller materializes those
+/// sources on demand, while the full caller already holds the catalogue.
+pub(crate) fn rank_reached(
+    documents: &[Value],
+    candidates: &[Value],
+    graph: &Value,
+    question: &str,
+    distances: &BTreeMap<String, usize>,
+) -> Vec<String> {
     // Only source passages can be reached here (a memory row has no source).
-    let candidates = &passages.rows;
     // Rank the exact cited portions of reached originals ahead of unrelated
     // prefixes. A document-level join must not turn into "read its first page".
-    let docs: BTreeMap<_, _> = snap.documents.iter().map(|d| (s(d, "id"), d)).collect();
+    let docs: BTreeMap<_, _> = documents.iter().map(|d| (s(d, "id"), d)).collect();
     let mut quote_ranges = BTreeMap::<&str, BTreeSet<(usize, usize)>>::new();
     let mut seen_quotes = BTreeSet::new();
     for edge in graph["edges"].as_array().into_iter().flatten().filter(|e| {
@@ -498,7 +555,11 @@ pub fn local_rankings_on(
         })
         .collect::<Vec<_>>();
     ranked.sort();
-    Ok(json!({"graph_local":ranked.into_iter().take(200).map(|(_,_,_,id)|id).collect::<Vec<_>>()}))
+    ranked
+        .into_iter()
+        .take(200)
+        .map(|(_, _, _, id)| id)
+        .collect()
 }
 
 pub fn configure_neo4j(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<Value> {

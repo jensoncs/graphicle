@@ -10,6 +10,16 @@ use std::collections::BTreeMap;
 
 pub fn current(db: &Connection, repository: &Value, p: &Principal) -> Result<Vec<Value>> {
     let memories = memory::list(db, repository, p, true)?;
+    current_of(db, repository, &memories)
+}
+
+/// Active claims backed by an already authorized, freshness-checked memory
+/// catalogue. The indexed query has this catalogue without loading all text.
+pub(crate) fn current_of(
+    db: &Connection,
+    repository: &Value,
+    memories: &[Value],
+) -> Result<Vec<Value>> {
     let allowed: BTreeMap<&str, &Value> = memories
         .iter()
         .filter(|m| m["state"] == "reviewed" && m["stale"] != true)
