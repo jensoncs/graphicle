@@ -286,7 +286,10 @@ fn vendored_dependencies_are_resolved_from_the_pinned_tree() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|c| c["target_file"] == "app/vendor/example/dep/dep.go"
+            .any(|c| c["boundary"]["package"] == "example/dep"
+                && c["boundary"]["version"] == "v1.0.0"
+                && c["boundary"]["symbol"] == "Target"
+                && c.get("target_file").is_none()
                 && c.get("reason").is_none()),
         "{report}"
     );

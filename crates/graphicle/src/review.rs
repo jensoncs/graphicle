@@ -215,6 +215,7 @@ struct Analysis {
     toolchain: String,
     inputs: Vec<Value>,
     raw: Option<Value>,
+    package_cache: crate::review_cache::PackageResult,
     services: services::Links,
 }
 
@@ -392,8 +393,8 @@ fn load(
         Ok(input)
     })
 }
-fn analyze(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<Analysis> {
-    let mut out = analyze_go(input, profile, cached)?;
+fn analyze(input: &Input, profile: &Profile, cached: Option<Value>, packages: &mut crate::review_cache::PackagePool) -> Result<Analysis> {
+    let mut out = analyze_go(input, profile, cached, packages)?;
     basic::extend(input, &mut out)?;
     if out.symbols.len() > 200_000 {
         return Err(Error::bad("Review graph bound exceeded (200000 symbols)"));
@@ -401,10 +402,9 @@ fn analyze(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<An
     Ok(out)
 }
 
-fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result<Analysis> {
+fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages: &mut crate::review_cache::PackagePool) -> Result<Analysis> {
     let scope = go::scope(input)?;
     let roots = scope.roots;
-    let request = json!({"roots":roots,"goos":profile.goos,"goarch":profile.goarch,"tags":profile.tags,"tests":profile.tests,"workspace":profile.workspace});
     let mut out = Analysis {
         diagnostics:vec![],
         diagnostic_count:0,
@@ -416,6 +416,7 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result
         toolchain: String::new(),
         inputs: vec![],
         raw: None,
+        package_cache: crate::review_cache::PackageResult::default(),
         services: services::Links::default(),
     };
     out.issues.extend(scope.issues);
@@ -427,20 +428,18 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result
     let raw = if let Some(facts) = cached {
         Ok(facts)
     } else {
-        let tree = tempfile::tempdir()?;
-        for pin in &input.pins {
-            std::fs::create_dir(tree.path().join(&pin.directory))?;
-        }
-        for (path, source) in &input.sources {
-            let target = tree.path().join(path);
-            std::fs::create_dir_all(target.parent().unwrap())?;
-            local::write_private(&target, source.content.bytes())?;
-        }
+        let cache_identity = if packages.identity.is_empty() { String::new() } else {
+            crate::digest(&go::with_exclusions(json!({"identity":packages.identity,"profile":profile,
+                "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.policy_sha256])).collect::<Vec<_>>()}),input))
+        };
+        let request = json!({"roots":roots,"goos":profile.goos,"goarch":profile.goarch,"tags":profile.tags,"tests":profile.tests,"workspace":profile.workspace,
+            "cache_identity":cache_identity,"package_cache":packages.entries});
+        let tree = crate::phase::phase("review_materialize", || go::materialize(input))?;
         crate::phase::phase("review_native_facts", || {
             graphicle::extractors::go_types::review_encoded(tree.path(), &request)
         })
     };
-    let raw = match raw {
+    let mut raw = match raw {
         Ok(v) => v,
         Err(_) => {
             out.issues
@@ -448,6 +447,11 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result
             return Ok(out);
         }
     };
+    if let Some(encoded) = raw.as_object_mut().and_then(|o| o.remove("dependency_cache")) {
+        // Optional compiler-cache transport never substitutes for source facts.
+        out.package_cache = serde_json::from_value(encoded).unwrap_or_default();
+        packages.absorb(&mut out.package_cache);
+    }
     let facts: Facts = crate::phase::phase("review_decode_facts", || {
         graphicle::extractors::go_types::decode_review_facts(&raw)
     })
@@ -2046,12 +2050,9 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     }
     let identity = (!go::scope(&base)?.roots.is_empty() || !go::scope(&head)?.roots.is_empty()).then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
         .map(|v| crate::digest(&v));
-    let fact_key = |input: &Input| {
-        identity.as_ref().map(|identity|crate::digest(&go::with_exclusions(json!({
-        "identity":identity,"profile":r.profile,"fact_policy":"pinned-type-diagnostics-module-roots-v3",
-        "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.snapshot,p.policy_sha256])).collect::<Vec<_>>(),
-        "sources":input.sources.iter().map(|(path,s)|json!([path,s.repository,s.sha])).collect::<Vec<_>>() }),input)))
-    };
+    let mut package_pool = if identity.is_some() { crate::review_cache::load_packages(store,workspace,token,anchor)? } else { crate::review_cache::PackagePool::default() };
+    package_pool.identity = identity.clone().unwrap_or_default();
+    let fact_key = |input: &Input| identity.as_ref().map(|identity| go::fact_key(input, &r.profile, identity));
     let key_a = fact_key(&base);
     let key_b = fact_key(&head);
     let read_cache = |key: &Option<String>| -> Result<Option<Value>> {
@@ -2063,7 +2064,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     let cached_a = read_cache(&key_a)?;
     let hit_a = cached_a.is_some();
     let mut a = crate::phase::phase("review_analyze_base", || {
-        analyze(&base, &r.profile, cached_a)
+        analyze(&base, &r.profile, cached_a, &mut package_pool)
     })?;
     let cached_b = if key_a.is_some() && key_a == key_b {
         a.raw.clone()
@@ -2072,7 +2073,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     };
     let hit_b = cached_b.is_some();
     let mut b = crate::phase::phase("review_analyze_head", || {
-        analyze(&head, &r.profile, cached_b)
+        analyze(&head, &r.profile, cached_b, &mut package_pool)
     })?;
     crate::phase::phase("review_service_links_base", || services::attach(&base, &mut a))?;
     crate::phase::phase("review_service_links_head", || services::attach(&head, &mut b))?;
@@ -2162,7 +2163,10 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     })?;
     // Execution diagnostics are outside packet identity, like the token count.
     report["analysis_cache"] =
-        json!({"base_hit":hit_a,"head_hit":hit_b,"granularity":"exact_snapshot_set"});
+        json!({"base_hit":hit_a,"head_hit":hit_b,"granularity":"go_inputs_with_file_inventory"});
+    report["analysis_cache"]["packages"] = json!({"scope":"repository","includes_standard_library":true,
+        "base":{"hits":a.package_cache.hits,"misses":a.package_cache.misses,"rejected":a.package_cache.rejected},
+        "head":{"hits":b.package_cache.hits,"misses":b.package_cache.misses,"rejected":b.package_cache.rejected}});
     report["tokens"] = json!(text::count(&report.to_string()) + 8);
     if text::count(&report.to_string()) > r.max_tokens {
         return Err(Error::bad("Review diagnostics exceed token budget"));
@@ -2197,6 +2201,9 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
             store::repo(db,p,s(&row,"repository_id"))?;
         }
         for (input,analysis,key) in [(&base,&a,&key_a),(&head,&b,&key_b)] {
+            if input.bindings.len()==input.pins.len() {
+                crate::review_cache::save_packages(db,anchor,&package_pool,&analysis.package_cache.used,&input.pins)?;
+            }
             if input.bindings.len()==input.pins.len() && let (Some(key),Some(facts))=(key,&analysis.raw) {
                 crate::review_cache::save(db,anchor,key,facts,&input.pins)?;
             }
@@ -2351,7 +2358,7 @@ mod tests {
 
     #[test]
     fn graph_bound_counts_unique_links_and_preserves_call_site_evidence() {
-        let mut analysis = Analysis { diagnostics:vec![],diagnostic_count:0,symbols:BTreeMap::new(),calls:vec![],packages:vec![],issues:vec![],analyzer:String::new(),toolchain:String::new(),inputs:vec![],raw:None,services:services::Links::default() };
+        let mut analysis = Analysis { diagnostics:vec![],diagnostic_count:0,symbols:BTreeMap::new(),calls:vec![],packages:vec![],issues:vec![],analyzer:String::new(),toolchain:String::new(),inputs:vec![],raw:None,package_cache:crate::review_cache::PackageResult::default(),services:services::Links::default() };
         for name in ["caller", "supplier", "other"] {
             let symbol: Symbol = serde_json::from_value(json!({"key":name,"file":"app/main.go","package":"app","name":name,"kind":"function","parent":"","start":0,"end":1,"body_start":0,"line":1,"end_line":1,"revision":"r","signature":"s","implementation":"i","correspondence":"c"})).unwrap();
             analysis.symbols.insert(key("world", name), ("world".into(), symbol));

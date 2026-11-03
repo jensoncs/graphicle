@@ -21,6 +21,8 @@ mod go_admission;
 mod unsupported_inputs;
 #[path = "sync_diagnostics.rs"]
 mod sync_diagnostics;
+#[path = "compiler_cache.rs"]
+mod compiler_cache;
 
 struct Fixture {
     _dir: tempfile::TempDir,

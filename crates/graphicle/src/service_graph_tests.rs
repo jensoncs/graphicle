@@ -18,6 +18,7 @@ fn fixture(specs: &[(&str, Value)]) -> (Input, Analysis) {
         toolchain: "test".into(),
         inputs: vec![],
         raw: None,
+        package_cache: crate::review_cache::PackageResult::default(),
         services: Links::default(),
     };
     for (dir, bindings) in specs {

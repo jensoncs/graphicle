@@ -525,9 +525,16 @@ Never infer completion from carried-forward findings or excerpt presence.
 ### Reuse compiler facts
 
 The store retains up to four compiler fact sets (each at most 64 MiB, stored as
-gzip/base64) per anchor repository. Keys include exact snapshot sets, source hashes, repository/policy
-identity, profile, toolchain, analyzer and helper implementation. Commits do not
-change byte-identical compiler inputs; current binding envelopes are always
+gzip/base64) per anchor repository. Keys include the complete file inventory,
+compiler input hashes, repository/policy identity, profile, toolchain, analyzer
+and helper implementation. Existing `.md`, `.rst`, `.txt`, `.json`, `.yaml` and
+`.yml` content can change without rerunning Go analysis, except `modules.txt`,
+the profile's selected workspace file (regardless of its name), and files beneath
+any package containing a `//go:embed` directive. All content
+beneath such a package remains hashed, including dependencies and files excluded
+by the build profile; this conservatively avoids reimplementing Go embed rules.
+Unknown file formats, native inputs and module/workspace metadata remain hashed.
+Commits and unrelated content edits do not change compiler inputs; current binding envelopes are always
 recomputed. Every read rechecks authorization, retained source and exact spans.
 Deterministic type-check failures can also be cached when discovery succeeded and
 every selected file has a collected package record. Such cache hits retain all
@@ -545,12 +552,47 @@ binding uses a per-package/file declaration index. Traversal reuses declaration
 identities and materializes call-site evidence only for selected paths. `GRAPHICLE_PHASE_TIMINGS=1` reports loading,
 native analysis, decoding, comparison and packing times to local stderr.
 
-`analysis_cache` reports base/head hits and `granularity: "exact_snapshot_set"`.
+`analysis_cache` reports base/head hits and `granularity: "go_inputs_with_file_inventory"`.
 These execution diagnostics are outside semantic packet identity. An unchanged
-base or repeated head can avoid compiler execution. A new source snapshot still
-requires that side's analysis; per-package incremental compiler rebuilding is
-not implemented. Unavailable/incomplete native worlds are not stored as reusable
-fact sets. This cache does not admit missing dependency source.
+base, repeated head, or head with only the unrelated content edits described above
+can avoid compiler execution. Identical compiler inputs on base and head also
+share one analysis within a cold review. Other source languages, configuration
+impact and all current snapshot bindings are recomputed. File additions/deletions
+and changed compiler inputs require fresh owned-package analysis. Reuse across
+requests requires a retained store.
+Discovery/parser/helper failures remain uncached. This cache does not admit
+missing dependency source.
+
+Successful dependency packages, including standard-library packages, additionally
+retain serialized Go types in the same store. This package pool is scoped to the
+anchor repository: at most 4,096 compressed exports / 64 MiB, with at most 4 MiB
+per encoded entry and 3 MiB of expanded export data per entry.
+Each review loads at most 32 MiB and can share newly checked exports between base
+and head. Least-recently-used exports are evicted; deleting any contributing
+snapshot invalidates its exports. Reads recheck access to contributing repositories.
+This requires the caller to preserve `--data-dir` and repository identities across
+reviews; deleting a scratch store discards reuse. It is not a global module
+download service.
+
+Package fingerprints cover selected and ignored/test Go inputs, native and embedded
+files, transitive imports, module/replacement and workspace metadata, build profile,
+repository/policy identity, toolchain and helper implementation. Discovery still
+runs on the admitted source on every compiler-cache miss. Only successfully checked
+packages are exported; cgo packages, incomplete packages and dependencies reaching
+owned code remain on the source path. Missing or refused files cannot be restored
+from this cache. Owned code always receives full source analysis. Invalid exports
+fall back to source checking without hiding diagnostics.
+
+The helper vendors `golang.org/x/tools v0.36.0` (`gcexportdata`, Go 1.23 minimum)
+for Go type serialization and remains offline. It executes no dependency code.
+API boundary targets carry symbol/module identity rather than dependency source
+spans. Compressed cache entries are optional within the existing 64 MiB
+native-output bound. If all entries cannot fit alongside the facts, the helper
+retains a bounded subset (preferring smaller entries) and the hit/miss counters. `analysis_cache.packages` reports base/head hits, misses and
+rejected exports; these execution counters do not affect semantic packet identity.
+Compiler scratch files remain private and are removed after use. Their writes
+do not request crash durability; the authoritative admitted bytes remain in SQLite.
+`review_materialize` phase timing separates that preparation from native checking.
 
 ## Verification
 
@@ -560,6 +602,10 @@ invalidations, repeated packets, identical-tree commits, unavailable snapshots,
 authorization, and token/depth omissions. `tests/go_review.rs` in the engine
 checks exact receiver targets, aliases, build tags, simultaneous dependency
 versions, local replacements, workspace/test variants, and unsafe paths.
+Run `go test -mod=vendor .` in `crates/graphicle-graph/src/extractors` for native
+export-cache equivalence, invalidation, corrupt-data recovery and multi-world
+type-identity checks. Runtime compiler-cache tests also cover persistence,
+authorization, quota enforcement and snapshot deletion.
 Memory tests cover exact nested revisions and hashless shown-context reuse.
 The chain fixture computes call-edge precision/recall, affected-symbol recall,
 and required-context recall at 16,000 tokens. It also checks that applying a

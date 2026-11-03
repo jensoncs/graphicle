@@ -28,12 +28,14 @@ type reviewRoot struct {
 	Module    string `json:"module"`
 }
 type reviewRequest struct {
-	Roots     []reviewRoot `json:"roots"`
-	GOOS      string       `json:"goos"`
-	GOARCH    string       `json:"goarch"`
-	Tags      []string     `json:"tags"`
-	Tests     bool         `json:"tests"`
-	Workspace string       `json:"workspace"`
+	Roots         []reviewRoot      `json:"roots"`
+	GOOS          string            `json:"goos"`
+	GOARCH        string            `json:"goarch"`
+	Tags          []string          `json:"tags"`
+	Tests         bool              `json:"tests"`
+	Workspace     string            `json:"workspace"`
+	CacheIdentity string            `json:"cache_identity"`
+	PackageCache  map[string]string `json:"package_cache"`
 }
 type reviewSymbol struct {
 	Key            string `json:"key"`
@@ -242,7 +244,7 @@ func (r *reviewCollector) expandInterfaces(l *loader) {
 					}
 				}
 				p := l.fset.PositionFor(method.Origin().Pos(), false)
-				if p.IsValid() && r.allowed(p.Filename) {
+				if (p.IsValid() && r.allowed(p.Filename)) || r.dependencyObject(l, method) {
 					index[method.Id()] = append(index[method.Id()], implementation{receiver, method})
 				}
 			}
@@ -274,7 +276,7 @@ func (r *reviewCollector) expandInterfaces(l *loader) {
 		key := lookup{call.contract, call.method.Id()}
 		found, ok := cache[key]
 		if !ok {
-			seen := map[token.Pos]bool{}
+			seen := map[*types.Func]bool{}
 			for _, candidate := range index[key.method] {
 				if checks >= 200_000 {
 					found.limited = true
@@ -284,7 +286,7 @@ func (r *reviewCollector) expandInterfaces(l *loader) {
 				if !types.Implements(candidate.receiver, call.contract) {
 					continue
 				}
-				pos := candidate.method.Origin().Pos()
+				pos := candidate.method.Origin()
 				if seen[pos] {
 					continue
 				}
@@ -369,9 +371,9 @@ func (r *reviewCollector) bind(l *loader, obj types.Object, site *reviewCall) {
 				boundary.Module, boundary.Version = m.Module.Path, m.Module.Version
 			}
 			site.Boundary, site.Reason = boundary, ""
-			if pos.IsValid() && r.allowed(pos.Filename) {
-				site.TargetFile, site.TargetOffset = r.relative(pos.Filename), pos.Offset
-			}
+			// External APIs have identities, not owned declaration spans. Cached
+			// export data intentionally carries no source positions.
+			site.TargetFile, site.TargetOffset = "", 0
 			return
 		}
 	}
@@ -493,8 +495,52 @@ func boundExpression(expr ast.Expr, bindings map[types.Object]ast.Expr, info *ty
 	}
 }
 
+func (r *reviewCollector) packageRecord(m *metadata) reviewPackage {
+	p := reviewPackage{EmbedPatterns: append(append(append([]string{}, m.EmbedPatterns...), m.TestEmbedPatterns...), m.XTestEmbedPatterns...), Dependencies: m.Deps, Path: m.ImportPath, Directory: r.relative(m.Dir), Files: []string{}, Imports: map[string]string{}}
+	p.AnalysisRole = "dependency"
+	if m.Module != nil {
+		p.Module = m.Module.Path
+		p.Version = m.Module.Version
+		if m.Module.Replace != nil {
+			p.Replacement = m.Module.Replace.Path + "@" + m.Module.Replace.Version
+			if m.Module.Replace.Dir != "" {
+				p.Replacement = r.relative(m.Module.Replace.Dir)
+			}
+		}
+	}
+	for _, name := range m.Imports {
+		target := m.ImportMap[name]
+		if target == "" {
+			target = name
+		}
+		p.Imports[name] = target
+	}
+	return p
+}
+
+func (r *reviewCollector) collectDependency(m *metadata, valid bool) {
+	if !valid {
+		r.world.Issues = append(r.world.Issues, "incomplete_package:"+m.ImportPath)
+	}
+	p := r.packageRecord(m)
+	for _, name := range m.GoFiles {
+		file := filepath.Join(m.Dir, name)
+		if !r.allowed(file) {
+			r.world.Issues = append(r.world.Issues, "source_outside_snapshot")
+			continue
+		}
+		p.Files = append(p.Files, r.relative(file))
+	}
+	sort.Strings(p.Files)
+	r.world.Packages = append(r.world.Packages, p)
+}
+
 func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, info *types.Info, valid bool) {
 	owned := r.owns(m.Dir)
+	if !owned {
+		r.collectDependency(m, valid)
+		return
+	}
 	if valid && owned {
 		for _, obj := range info.Defs {
 			if obj == nil || obj.Pkg() == nil || obj.Parent() != obj.Pkg().Scope() {
@@ -518,28 +564,8 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 		bindings = localValueBindings(files, info)
 		flow = functionValueFlow(files, info, bindings)
 	}
-	p := reviewPackage{EmbedPatterns: append(append(append([]string{}, m.EmbedPatterns...), m.TestEmbedPatterns...), m.XTestEmbedPatterns...), Dependencies: m.Deps, Path: m.ImportPath, Directory: r.relative(m.Dir), Files: []string{}, Imports: map[string]string{}}
-	p.AnalysisRole = "dependency"
-	if owned {
-		p.AnalysisRole = "owned"
-	}
-	if m.Module != nil {
-		p.Module = m.Module.Path
-		p.Version = m.Module.Version
-		if m.Module.Replace != nil {
-			p.Replacement = m.Module.Replace.Path + "@" + m.Module.Replace.Version
-			if m.Module.Replace.Dir != "" {
-				p.Replacement = r.relative(m.Module.Replace.Dir)
-			}
-		}
-	}
-	for _, name := range m.Imports {
-		target := m.ImportMap[name]
-		if target == "" {
-			target = name
-		}
-		p.Imports[name] = target
-	}
+	p := r.packageRecord(m)
+	p.AnalysisRole = "owned"
 	for _, f := range files {
 		filename := l.fset.PositionFor(f.Pos(), false).Filename
 		if !r.allowed(filename) {
@@ -788,6 +814,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 					site.Reason = "function_value_budget"
 				}
 				seen := map[token.Pos]bool{}
+				seenFunctions := map[*types.Func]bool{}
 				for _, candidate := range candidates {
 					var pos token.Pos
 					pkg := m.ImportPath
@@ -801,10 +828,17 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 						pos = literal.Pos()
 					}
 					p := l.fset.PositionFor(pos, false)
-					if !p.IsValid() || !r.allowed(p.Filename) || seen[pos] {
-						continue
+					if fn != nil && r.dependencyObject(l, fn) {
+						if seenFunctions[fn.Origin()] {
+							continue
+						}
+						seenFunctions[fn.Origin()] = true
+					} else {
+						if !p.IsValid() || !r.allowed(p.Filename) || seen[pos] {
+							continue
+						}
+						seen[pos] = true
 					}
-					seen[pos] = true
 					possible := site
 					possible.Relation = "may_call"
 					possible.Reason = ""
@@ -879,7 +913,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 				continue
 			}
 			target := l.fset.PositionFor(obj.Pos(), false)
-			if !target.IsValid() || !r.allowed(target.Filename) {
+			if (!target.IsValid() || !r.allowed(target.Filename)) && !r.dependencyObject(l, obj) {
 				continue
 			}
 			caller := owner(id.Pos())
@@ -1010,7 +1044,7 @@ func runReview(req reviewRequest) {
 		Version   string        `json:"analyzer"`
 		Toolchain string        `json:"toolchain"`
 		Worlds    []reviewWorld `json:"worlds"`
-	}{Version: "graphicle-go-review-v12"}
+	}{Version: "graphicle-go-review-v13"}
 	version, _ := exec.Command("go", "version").Output()
 	result.Toolchain = strings.TrimSpace(string(version))
 	var allowed []string
@@ -1021,6 +1055,7 @@ func runReview(req reviewRequest) {
 	if req.Workspace != "" {
 		env = append(env, "GOWORK="+filepath.Join(root, req.Workspace))
 	}
+	packageCache := newReviewPackageCache(req, root)
 	for _, item := range req.Roots {
 		world := reviewWorld{Root: filepath.ToSlash(filepath.Join(item.Directory, item.Module)), Symbols: []reviewSymbol{}, Calls: []reviewCall{}, Packages: []reviewPackage{}, Issues: []string{}, Inputs: []reviewInput{}}
 		collector := &reviewCollector{root: root, allowedRoots: allowed, world: &world}
@@ -1048,7 +1083,8 @@ func runReview(req reviewRequest) {
 		if err != nil {
 			world.Issues = append(world.Issues, "package_discovery_failed")
 		}
-		l := &loader{fset: token.NewFileSet(), meta: map[string]*metadata{}, packages: map[string]*types.Package{}, busy: map[string]bool{}, wanted: map[string]bool{}, sizes: types.SizesFor("gc", req.GOARCH), review: collector}
+		packageCache.world()
+		l := &loader{fset: token.NewFileSet(), meta: map[string]*metadata{}, packages: map[string]*types.Package{}, busy: map[string]bool{}, wanted: map[string]bool{}, sizes: types.SizesFor("gc", req.GOARCH), review: collector, cache: packageCache}
 		l.fallback = importer.ForCompiler(l.fset, "source", nil)
 		dec := json.NewDecoder(bytes.NewReader(data))
 		roots := map[string]bool{}
@@ -1172,15 +1208,23 @@ func runReview(req reviewRequest) {
 			if a.TargetFile != b.TargetFile {
 				return a.TargetFile < b.TargetFile
 			}
-			return a.TargetOffset < b.TargetOffset
+			if a.TargetOffset != b.TargetOffset {
+				return a.TargetOffset < b.TargetOffset
+			}
+			// Nested unresolved calls can share all the fields above. Give the
+			// diagnostic examples a total order across fresh and cached runs.
+			x, _ := json.Marshal(a)
+			y, _ := json.Marshal(b)
+			return string(x) < string(y)
 		})
 		sort.Slice(world.Packages, func(i, j int) bool { return world.Packages[i].Path < world.Packages[j].Path })
 		sort.Strings(world.Issues)
 		result.Worlds = append(result.Worlds, world)
 	}
 	// Stream compressed native facts: source and call-site names repeat heavily.
-	fmt.Fprint(os.Stdout, `{"encoding":"gzip-base64-v1","facts":"`)
-	encoded := base64.NewEncoder(base64.StdEncoding, os.Stdout)
+	output := &countingWriter{writer: os.Stdout}
+	fmt.Fprint(output, `{"encoding":"gzip-base64-v1","facts":"`)
+	encoded := base64.NewEncoder(base64.StdEncoding, output)
 	compressed := gzip.NewWriter(encoded)
 	if err := json.NewEncoder(compressed).Encode(result); err != nil {
 		panic(err)
@@ -1191,7 +1235,9 @@ func runReview(req reviewRequest) {
 	if err := encoded.Close(); err != nil {
 		panic(err)
 	}
-	fmt.Fprintln(os.Stdout, `"}`)
+	fmt.Fprint(output, `"`)
+	packageCache.writeResult(output, 64<<20)
+	fmt.Fprintln(output, `}`)
 }
 
 // Function-value constraints are a bounded, context-insensitive may analysis.
@@ -1482,4 +1528,16 @@ func callableTarget(expr ast.Expr, info *types.Info) *types.Func {
 		return f
 	}
 	return nil
+}
+
+// Count streamed facts without retaining a second copy in memory.
+type countingWriter struct {
+	writer io.Writer
+	bytes  int64
+}
+
+func (w *countingWriter) Write(p []byte) (int, error) {
+	n, err := w.writer.Write(p)
+	w.bytes += int64(n)
+	return n, err
 }

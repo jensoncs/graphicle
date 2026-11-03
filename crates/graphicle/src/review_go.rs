@@ -1,13 +1,33 @@
 //! Select compiler working directories from admitted module files, not suffixes
 //! found anywhere below an otherwise non-Go repository root.
-use super::{Input, basic, issue};
+use super::{Input, Profile, basic, issue};
 use crate::{Error, Result};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
+use std::path::Path;
 
 pub(super) struct Scope {
     pub roots: Vec<Value>,
     pub issues: Vec<Value>,
+}
+
+/// Ephemeral compiler inputs are private, create-only files. They need visibility
+/// to the helper, not crash durability: the authoritative bytes remain in SQLite.
+pub(super) fn materialize(input: &Input) -> Result<tempfile::TempDir> {
+    use std::io::Write;
+    let tree = tempfile::tempdir()?;
+    for pin in &input.pins {
+        std::fs::create_dir(tree.path().join(&pin.directory))?;
+    }
+    for (path, source) in &input.sources {
+        let target = tree.path().join(path);
+        let parent = target.parent().unwrap();
+        std::fs::create_dir_all(parent)?;
+        let mut file = tempfile::NamedTempFile::new_in(parent)?;
+        file.write_all(source.content.bytes())?;
+        file.persist_noclobber(target).map_err(|error| error.error)?;
+    }
+    Ok(tree)
 }
 
 /// Preserve existing cache identities when the collector has no exclusions.
@@ -19,6 +39,59 @@ pub(super) fn with_exclusions(mut identity: Value, input: &Input) -> Value {
         identity["excluded_modules"] = json!(exclusions);
     }
     identity
+}
+
+/// Reuse only native Go facts, never the report or its snapshot bindings.
+/// Keep every path: additions/deletions can affect discovery and embed matches.
+/// Only known documentation/configuration content is omitted, and never below
+/// a package with an embed directive. This deliberately over-invalidates instead
+/// of duplicating Go's directive parser, glob rules, or build-tag selection.
+pub(super) fn fact_key(input: &Input, profile: &Profile, identity: &str) -> String {
+    let embed_directories: BTreeSet<_> = input
+        .sources
+        .iter()
+        .filter_map(|(path, source)| {
+            if path.ends_with(".go")
+                && source
+                    .content
+                    .text()
+                    .is_none_or(|text| text.contains("//go:embed"))
+            {
+                path.rsplit_once('/').map(|(directory, _)| directory)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let sources: Vec<_> = input
+        .sources
+        .iter()
+        .map(|(path, source)| {
+            let file = Path::new(path);
+            let content_only = matches!(
+                file.extension().and_then(|e| e.to_str()),
+                Some("md" | "rst" | "txt" | "json" | "yaml" | "yml")
+            ) && file.file_name().and_then(|n| n.to_str())
+                != Some("modules.txt")
+                && path != &profile.workspace
+                && !embed_directories
+                    .iter()
+                    .any(|directory| within(path, directory));
+            json!([
+                path,
+                source.repository,
+                (!content_only).then_some(&source.sha)
+            ])
+        })
+        .collect();
+    crate::digest(&with_exclusions(
+        json!({
+            "identity":identity,"profile":profile,"fact_policy":"pinned-go-inputs-v4",
+            "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.policy_sha256])).collect::<Vec<_>>(),
+            "sources":sources
+        }),
+        input,
+    ))
 }
 
 fn within(path: &str, directory: &str) -> bool {
@@ -143,4 +216,147 @@ pub(super) fn scope(input: &Input) -> Result<Scope> {
         }
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::review::{Pin, Source};
+    use crate::source_object::Content;
+    use std::collections::BTreeMap;
+
+    fn input(files: &[(&str, &str)]) -> Input {
+        Input {
+            pins: vec![Pin {
+                repository_id: "repo".into(),
+                directory: "app".into(),
+                snapshot: "snapshot".into(),
+                commit: "commit".into(),
+                policy_sha256: "policy".into(),
+                modules: vec![".".into()],
+                excluded_modules: vec![],
+            }],
+            sources: files
+                .iter()
+                .map(|(path, text)| {
+                    (
+                        format!("app/{path}"),
+                        Source {
+                            repository: "repo".into(),
+                            path: (*path).into(),
+                            sha: graphicle_memory::text::sha256(text.as_bytes()),
+                            content: Content::Text((*text).into()),
+                        },
+                    )
+                })
+                .collect::<BTreeMap<_, _>>(),
+            issues: vec![],
+            bindings: vec![],
+        }
+    }
+
+    #[test]
+    fn compiler_scratch_preserves_exact_bytes_permissions_and_cleanup() {
+        let sources = input(&[("main.go", "package app\n"), ("vendor/dep/asset", "\0binary")]);
+        let tree = materialize(&sources).unwrap();
+        let root = tree.path().to_owned();
+        for (path, source) in &sources.sources {
+            let file = root.join(path);
+            assert_eq!(std::fs::read(&file).unwrap(), source.content.bytes());
+            #[cfg(unix)] {
+                use std::os::unix::fs::PermissionsExt;
+                assert_eq!(std::fs::metadata(file).unwrap().permissions().mode() & 0o777, 0o600);
+            }
+        }
+        drop(tree);
+        assert!(!root.exists());
+    }
+
+    #[test]
+    fn cache_identity_preserves_build_and_trust_boundaries() {
+        let profile: Profile =
+            serde_json::from_value(json!({"goos":"linux","goarch":"amd64"})).unwrap();
+        for path in [
+            "code.go",
+            "code_test.go",
+            "go.mod",
+            "go.sum",
+            "go.work",
+            "go.work.sum",
+            "vendor/modules.txt",
+            "native.s",
+            "native.h",
+            "native.c",
+            "native.syso",
+            "unknown.data",
+        ] {
+            assert_ne!(
+                fact_key(&input(&[(path, "before")]), &profile, "helper"),
+                fact_key(&input(&[(path, "after")]), &profile, "helper"),
+                "{path}"
+            );
+        }
+        let original = input(&[("code.go", "package app"), ("README.md", "before")]);
+        let key = fact_key(&original, &profile, "helper");
+        for mutation in ["policy", "repository", "directory", "modules", "exclusions"] {
+            let mut changed = input(&[("code.go", "package app"), ("README.md", "before")]);
+            let pin = &mut changed.pins[0];
+            match mutation {
+                "policy" => pin.policy_sha256.push('x'),
+                "repository" => pin.repository_id.push('x'),
+                "directory" => pin.directory.push('x'),
+                "modules" => pin.modules.push("sub".into()),
+                _ => pin.excluded_modules.push("sub".into()),
+            }
+            assert_ne!(key, fact_key(&changed, &profile, "helper"), "{mutation}");
+        }
+        assert_ne!(key, fact_key(&original, &profile, "new-helper"));
+        let mut changed_profile = profile.clone();
+        changed_profile.tests = true;
+        assert_ne!(key, fact_key(&original, &changed_profile, "helper"));
+        // GOWORK may select a file with any extension, not just go.work.
+        changed_profile.workspace = "app/workspace.json".into();
+        assert_ne!(
+            fact_key(
+                &input(&[("workspace.json", "before")]),
+                &changed_profile,
+                "helper"
+            ),
+            fact_key(
+                &input(&[("workspace.json", "after")]),
+                &changed_profile,
+                "helper"
+            )
+        );
+    }
+
+    #[test]
+    fn cache_identity_keeps_vendor_and_profile_excluded_embeds() {
+        let profile: Profile =
+            serde_json::from_value(json!({"goos":"linux","goarch":"amd64"})).unwrap();
+        let code = "//go:build ignored\n\npackage asset\n//go:embed assets\nvar data string\n";
+        let before = input(&[
+            ("vendor/lib/embed_test.go", code),
+            ("vendor/lib/assets/x.json", "before"),
+            ("deploy.yaml", "before"),
+        ]);
+        let embedded = input(&[
+            ("vendor/lib/embed_test.go", code),
+            ("vendor/lib/assets/x.json", "after"),
+            ("deploy.yaml", "before"),
+        ]);
+        let unrelated = input(&[
+            ("vendor/lib/embed_test.go", code),
+            ("vendor/lib/assets/x.json", "before"),
+            ("deploy.yaml", "after"),
+        ]);
+        assert_ne!(
+            fact_key(&before, &profile, "helper"),
+            fact_key(&embedded, &profile, "helper")
+        );
+        assert_eq!(
+            fact_key(&before, &profile, "helper"),
+            fact_key(&unrelated, &profile, "helper")
+        );
+    }
 }

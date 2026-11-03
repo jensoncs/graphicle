@@ -1,4 +1,5 @@
-// Compiler-backed call targets. This helper uses only the Go standard library.
+// Compiler-backed call targets. The pinned x/tools library serializes types;
+// package selection and type checking use the Go standard library.
 // go list selects the active build; go/types owns declaration and method identity.
 package main
 
@@ -32,17 +33,18 @@ type packageError struct {
 	ImportStack []string
 }
 type metadata struct {
-	Deps                                                        []string
-	Dir, ImportPath, Name                                       string
-	GoFiles, CgoFiles                                           []string
-	IgnoredGoFiles, EmbedFiles, TestEmbedFiles, XTestEmbedFiles []string
-	ImportMap                                                   map[string]string
-	Error                                                       *packageError
-	Module                                                      *moduleMetadata
-	Standard, DepOnly, Incomplete                               bool
-	Imports, TestGoFiles, XTestGoFiles                          []string
-	DepsErrors                                                  []packageError
-	EmbedPatterns, TestEmbedPatterns, XTestEmbedPatterns        []string
+	Deps                                                                                 []string
+	Dir, ImportPath, Name                                                                string
+	GoFiles, CgoFiles                                                                    []string
+	IgnoredGoFiles, EmbedFiles, TestEmbedFiles, XTestEmbedFiles                          []string
+	ImportMap                                                                            map[string]string
+	Error                                                                                *packageError
+	Module                                                                               *moduleMetadata
+	Standard, DepOnly, Incomplete                                                        bool
+	Imports, TestGoFiles, XTestGoFiles                                                   []string
+	DepsErrors                                                                           []packageError
+	EmbedPatterns, TestEmbedPatterns, XTestEmbedPatterns                                 []string
+	CFiles, CXXFiles, MFiles, HFiles, FFiles, SFiles, SwigFiles, SwigCXXFiles, SysoFiles []string
 }
 type site struct {
 	Candidate  bool   `json:"candidate,omitempty"`
@@ -67,6 +69,7 @@ type loader struct {
 	fallback types.Importer
 	sizes    types.Sizes
 	review   *reviewCollector
+	cache    *reviewPackageCache
 }
 
 func (l *loader) Import(path string) (result *types.Package, failure error) {
@@ -107,6 +110,14 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 	}
 	l.busy[path] = true
 	defer delete(l.busy, path)
+	if l.cache != nil {
+		if pkg := l.cache.load(l, path); pkg != nil {
+			if !m.Standard {
+				l.review.collectDependency(m, true)
+			}
+			return pkg, nil
+		}
+	}
 	files := []*ast.File{}
 	for _, name := range m.GoFiles {
 		f, err := parser.ParseFile(l.fset, filepath.Join(m.Dir, name), nil, 0)
@@ -154,6 +165,9 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 	}
 	if valid {
 		l.packages[path] = pkg
+		if l.cache != nil {
+			l.cache.save(l, path, pkg)
+		}
 	}
 	var bindings map[types.Object]ast.Expr
 	var flow *callableFlow

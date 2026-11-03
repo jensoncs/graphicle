@@ -22,7 +22,7 @@ func TestDiscoveryBatchesModuleAndResolvesLinuxHTTP(t *testing.T) {
 	}
 	root := t.TempDir()
 	helper := filepath.Join(root, "helper")
-	build := exec.Command("go", "build", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go")
+	build := exec.Command("go", "build", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go", "go_review_cache.go")
 	build.Env = append(os.Environ(), "GOFLAGS=", "GOWORK=off", "GOENV=off", "GOTOOLCHAIN=local", "CGO_ENABLED=0")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v: %s", err, out)
@@ -185,7 +185,7 @@ func TestPinnedReviewDoesNotConsultBrokenVCSMetadata(t *testing.T) {
 	}
 	root := t.TempDir()
 	helper := filepath.Join(root, "helper")
-	build := exec.Command("go", "build", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go")
+	build := exec.Command("go", "build", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go", "go_review_cache.go")
 	build.Env = append(os.Environ(), "GOFLAGS=", "GOWORK=off", "GOENV=off", "GOTOOLCHAIN=local", "CGO_ENABLED=0")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v: %s", err, out)

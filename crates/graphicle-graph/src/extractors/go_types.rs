@@ -13,6 +13,8 @@ use std::{
     time::Duration,
 };
 
+include!(concat!(env!("OUT_DIR"), "/go_export_sources.rs"));
+
 // One environment policy for helper compilation, extraction and pinned review.
 // Explicit private-module overrides must not bypass GOPROXY=off.
 fn offline_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
@@ -52,6 +54,13 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
             std::fs::write(&review, include_str!("go_review.go")).ok()?;
             let semantic = dir.path().join("semantic.go");
             std::fs::write(&semantic, include_str!("go_semantic.go")).ok()?;
+            let package_cache = dir.path().join("cache.go");
+            std::fs::write(&package_cache, include_str!("go_review_cache.go")).ok()?;
+            for (name, source) in GO_EXPORT_SOURCES {
+                let target = dir.path().join(name);
+                std::fs::create_dir_all(target.parent()?).ok()?;
+                std::fs::write(target, source).ok()?;
+            }
             let host = crate::process::capture(
                 offline_command("go")
                     .args(["env", "-json", "GOHOSTOS", "GOHOSTARCH"])
@@ -65,13 +74,15 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
             let host: Value = serde_json::from_slice(&host.stdout).ok()?;
             let result = crate::process::capture(
                 offline_command("go")
-                    .args(["build", "-o"])
+                    .args(["build", "-mod=vendor", "-o"])
                     .arg(&binary)
                     .arg(&source)
                     .arg(&review)
                     .arg(&semantic)
+                    .arg(&package_cache)
                     .current_dir(dir.path())
-                    .env("GO111MODULE", "off")
+                    .env("GO111MODULE", "on")
+                    .env("GOMODCACHE", dir.path().join("modules"))
                     // Helper compilation must also work in service/benchmark
                     // environments without HOME or a writable user cache.
                     .env("GOCACHE", dir.path().join("build"))
@@ -190,7 +201,8 @@ pub fn review_identity() -> crate::Result<Value> {
     }
     Ok(
         json!({"toolchain":serde_json::from_slice::<Value>(&output.stdout)?,
-        "helper":include_str!("go_types.go"),"review":include_str!("go_review.go"),"semantic":include_str!("go_semantic.go"),"policy":"offline-cgo-disabled-v1"}),
+        "helper":include_str!("go_types.go"),"review":include_str!("go_review.go"),"semantic":include_str!("go_semantic.go"),
+        "package_cache":include_str!("go_review_cache.go"),"export_library":GO_EXPORT_SOURCES,"policy":"offline-cgo-disabled-v1"}),
     )
 }
 

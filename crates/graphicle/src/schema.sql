@@ -491,3 +491,17 @@ CREATE TRIGGER IF NOT EXISTS review_analysis_input_removed AFTER DELETE ON repo_
 BEGIN
     DELETE FROM repo_review_analysis WHERE repository_id=OLD.repository_id AND id=OLD.id;
 END;
+CREATE TABLE IF NOT EXISTS repo_review_package_facts (
+    repository_id TEXT NOT NULL REFERENCES repo_projects(id) ON DELETE CASCADE,
+    id TEXT NOT NULL, data TEXT NOT NULL, sha256 TEXT NOT NULL, used_at TEXT NOT NULL,
+    PRIMARY KEY(repository_id,id));
+CREATE TABLE IF NOT EXISTS repo_review_package_inputs (
+    repository_id TEXT NOT NULL, id TEXT NOT NULL,
+    input_repository TEXT NOT NULL, snapshot TEXT NOT NULL,
+    PRIMARY KEY(repository_id,id,input_repository,snapshot),
+    FOREIGN KEY(repository_id,id) REFERENCES repo_review_package_facts(repository_id,id) ON DELETE CASCADE,
+    FOREIGN KEY(input_repository,snapshot) REFERENCES repo_snapshots(repository_id,sha256) ON DELETE CASCADE);
+CREATE TRIGGER IF NOT EXISTS review_package_input_removed AFTER DELETE ON repo_review_package_inputs
+BEGIN
+    DELETE FROM repo_review_package_facts WHERE repository_id=OLD.repository_id AND id=OLD.id;
+END;

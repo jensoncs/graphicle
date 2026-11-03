@@ -80,6 +80,8 @@ const HISTORY: &[&str] = &[
     "repo_review_coverage",
     "repo_review_analysis",
     "repo_review_analysis_inputs",
+    "repo_review_package_facts",
+    "repo_review_package_inputs",
     "repo_snapshot_bindings",
     "am_identity_audit",
     "am_projection_cleanup",
