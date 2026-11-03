@@ -84,7 +84,6 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
     )
 }
 
-
 fn world(path: &str) -> String {
     format!("basic:{}", path.split('/').next().unwrap_or(""))
 }
@@ -133,6 +132,7 @@ fn link(
     out.calls.push((
         world(from),
         Call {
+            boundary: Value::Null,
             caller: file_key(from),
             target: file_key(to),
             target_file: to.into(),
@@ -223,6 +223,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 for operation in environment["operations"].as_array().into_iter().flatten().cloned()
                     .chain(incomplete.then(||json!({"kind":"read","key":null,"byte_start":0,"byte_end":content.len(),"line":1}))) {
                     out.calls.push((owner.clone(),Call {
+                        boundary: Value::Null,
                         caller:file_key(path),target:String::new(),target_file:String::new(),target_package:String::new(),target_offset:0,
                         spelling:if shadowed_os {String::new()}else{operation["key"].as_str().unwrap_or("").into()},
                         file:path.clone(),start:operation["byte_start"].as_u64().unwrap_or(0) as usize,end:operation["byte_end"].as_u64().unwrap_or(0) as usize,

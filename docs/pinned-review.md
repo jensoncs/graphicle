@@ -296,6 +296,25 @@ policy, build profile, toolchain and generated-file hashes as preparation eviden
 Populating the review server's ambient module cache does not admit dependencies.
 Missing or policy-withheld source still requires an incomplete scope attestation.
 
+Admitted vendored packages are compiler dependencies, not owned implementations.
+Graphicle still discovers and type-checks their selected source and retains their
+package/file inventory, but collects symbols, implementation calls and dynamic
+candidate searches only from owned packages. First-party internal packages and
+local replacements inside the pinned checkout set retain full analysis.
+Compiler-resolved references to vendored and standard-library APIs carry a
+boundary identity (package, module/version when available, symbol and signature)
+instead of an `outside_pinned_scope` issue. Changes to dependency inputs still
+invalidate compiler facts and conservatively select affected owned consumers.
+
+This is API resolution, not proof of library effects or callback dispatch.
+`dependency_effects_unmodeled` qualifies each consumer build using these
+boundaries, including blank-imported vendored packages; coverage remains
+incomplete. Owned dynamic calls, type failures and withheld input gaps remain
+visible. `analysis_diagnostics.go` reports owned/dependency package instance
+counts, resolved dependency references and bounded boundary examples. Source
+admission checks and the per-side byte/file limits below still apply; this does
+not introduce a dependency object store or compiler export-data cache.
+
 Required binary compiler assets can be uploaded with `content_base64` instead of
 `content` in `sync.upload`. Supply exactly one field. Manifest hashes and sizes
 always describe decoded original bytes. The store retains binary objects as bytes;
@@ -330,8 +349,19 @@ classification must still refuse admission. An empty package selection has an ex
 discovery and type-check failures continue to qualify coverage.
 
 The compiler helper refuses symlinks and replacements outside the pinned
-checkout set. Source materialization is bounded to 64 MiB and 20,000 files per
-side; helper execution and output have explicit bounds. Exceeding a hard bound
+checkout set. Each side admits up to 64 MiB of repository source plus 256 MiB
+of Go vendor inputs, with 20,000 files combined and at most 64 MiB per file.
+The vendor allowance applies only below a `vendor/` directory whose parent has
+an admitted `go.mod` and whose `vendor/modules.txt` is also admitted, including
+nested modules. It covers selected embedded and native assets as well as Go
+source. Merely naming a directory `vendor` does not grant the allowance. The
+counters span every pin on a side; base and head are bounded independently.
+`build.info.review_source_limits` advertises the exact byte and file limits
+under scope `owned-and-go-vendor-v1`. This does not exempt any input from
+source-policy, authorization, hash, profile, symlink or replacement checks.
+Store upload and per-file admission limits continue to apply independently.
+Go discovery disables VCS stamping (`-buildvcs=false`): the supplied pins, not
+ambient Git metadata, provide provenance. Helper execution and output have explicit bounds. Exceeding a hard bound
 fails the request; unavailable compiler analysis makes the report incomplete.
 
 ## Read the packet

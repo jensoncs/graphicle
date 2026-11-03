@@ -163,7 +163,7 @@ fn admitted_vendor_sources_restore_the_import_chain_and_cover_subtrees() {
         "package entity\nimport \"example/app/db\"\nfunc Value() int { return db.Value()+1 }\n";
     let head = f.pin(&repo, "app", 'c', &prepared);
     let packet = f.run(&request(&repo, vec![base.clone()], vec![head.clone()]));
-    assert_eq!(packet["impact"], "potential_impact", "{packet}");
+    assert_eq!(packet["impact"], "incomplete", "{packet}");
     let counts = &packet["coverage"]["analysis_diagnostics"]["head"]["go"];
     for name in [
         "incomplete_package_instances",
@@ -182,5 +182,156 @@ fn admitted_vendor_sources_restore_the_import_chain_and_cover_subtrees() {
     b["modules"] = a["modules"].clone();
     let subtree = f.run(&request(&repo, vec![a], vec![b]));
     assert_no_false_go_failure(&subtree);
-    assert_eq!(subtree["impact"], "potential_impact", "{subtree}");
+    assert_eq!(subtree["impact"], "incomplete", "{subtree}");
+}
+
+#[test]
+fn dependency_changes_invalidate_owned_consumers_without_expanding_dependency_bodies() {
+    let f = Fixture::new();
+    let repo = f.repo("dependency-boundary");
+    let files = [
+        (
+            "go.mod",
+            "module example/app\ngo 1.23\nrequire example/dep v1.0.0\n",
+        ),
+        (
+            "code.go",
+            "package app\nimport \"example/dep\"\nfunc Use() int {return dep.Target()}\nfunc Caller() int {return Use()}\n",
+        ),
+        (
+            "vendor/modules.txt",
+            "# example/dep v1.0.0\n## explicit; go 1.23\nexample/dep\n",
+        ),
+        (
+            "vendor/example/dep/dep.go",
+            "package dep\nfunc Target() int {return 1}\n",
+        ),
+    ];
+    let base = f.pin(&repo, "app", 'a', &files);
+    let mut changed = files;
+    changed[1].1 = "package app\nimport \"example/dep\"\nfunc Use() int {return dep.Target()+1}\nfunc Caller() int {return Use()}\n";
+    let head = f.pin(&repo, "app", 'b', &changed);
+    let packet = f.run(&request(&repo, vec![base.clone()], vec![head.clone()]));
+    assert!(has(&packet, "head", ".Use"));
+    assert!(has(&packet, "head", ".Caller"));
+    assert!(!has(&packet, "head", ".Target"));
+    let go = &packet["coverage"]["analysis_diagnostics"]["head"]["go"];
+    assert_eq!(go["resolved_dependency_references"], 1);
+    assert_eq!(go["dependency_package_instances"], 1);
+    assert_eq!(go["incomplete_package_references"], 0);
+    assert_eq!(
+        go["dependency_boundary_examples"][0]["target"]["symbol"],
+        "Target"
+    );
+    assert!(
+        packet["coverage"]["issues"]
+            .to_string()
+            .contains("dependency_effects_unmodeled")
+    );
+    assert_eq!(packet["coverage"]["complete"], false);
+    let warm = f.run(&request(&repo, vec![base.clone()], vec![head]));
+    assert_eq!(warm["analysis_cache"]["head_hit"], true);
+    assert_eq!(warm["packet_id"], packet["packet_id"]);
+    changed = files;
+    changed[3].1 = "package dep\nfunc Target() int {return 99}\n";
+    let upgrade = f.pin(&repo, "app", 'c', &changed);
+    let packet = f.run(&request(&repo, vec![base], vec![upgrade]));
+    assert_eq!(packet["analysis_cache"]["head_hit"], false);
+    assert!(has(&packet, "head", ".Use"));
+    assert!(has(&packet, "head", ".Caller"));
+    assert!(!has(&packet, "head", ".Target"));
+    assert!(
+        packet["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["side"] == "head")
+            .any(|e| e["reasons"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|r| r["reason"] == "conservative_scope"))
+    );
+}
+
+#[test]
+fn opaque_standard_library_callbacks_keep_coverage_incomplete() {
+    let f = Fixture::new();
+    let repo = f.repo("standard-callback");
+    let files = [
+        ("go.mod", "module example/app\ngo 1.23\n"),
+        (
+            "code.go",
+            "package app\nimport \"encoding/json\"\ntype V struct{}\nfunc (V) MarshalJSON() ([]byte,error) {return []byte(\"1\"),nil}\nfunc Encode() ([]byte,error) {return json.Marshal(V{})}\n",
+        ),
+    ];
+    let base = f.pin(&repo, "app", 'a', &files);
+    let modified = files[1].1.replace("[]byte(\"1\")", "[]byte(\"2\")");
+    let head = f.pin(
+        &repo,
+        "app",
+        'b',
+        &[("go.mod", files[0].1), ("code.go", &modified)],
+    );
+    let packet = f.run(&request(&repo, vec![base], vec![head]));
+    assert!(
+        packet["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["side"] == "head" && s(e, "name").contains("MarshalJSON"))
+    );
+    assert_eq!(packet["impact"], "incomplete");
+    let go = &packet["coverage"]["analysis_diagnostics"]["head"]["go"];
+    assert_eq!(go["resolved_dependency_references"], 1);
+    assert_eq!(
+        go["dependency_boundary_examples"][0]["target"]["kind"],
+        "standard_library"
+    );
+    assert!(
+        !packet["coverage"]["issues"]
+            .to_string()
+            .contains("outside_pinned_scope")
+    );
+    assert!(
+        packet["coverage"]["issues"]
+            .to_string()
+            .contains("dependency_effects_unmodeled")
+    );
+}
+
+#[test]
+fn large_vendor_assets_are_admitted_without_losing_owned_go_impact() {
+    let f = Fixture::new();
+    let repo = f.repo("large-vendor");
+    let module = b"module example/app\ngo 1.23\nrequire example/dep v1.0.0\n";
+    let before = b"package app\nimport \"example/dep\"\nfunc Use() int {return dep.Value()}\nfunc Caller() int {return Use()}\n";
+    let after = b"package app\nimport \"example/dep\"\nfunc Use() int {return dep.Value()+1}\nfunc Caller() int {return Use()}\n";
+    let vendor = b"# example/dep v1.0.0\n## explicit; go 1.23\nexample/dep\n";
+    let dependency = b"package dep\nimport \"embed\"\n//go:embed data/*.bin\nvar Files embed.FS\nfunc Value() int {return 1}\n";
+    // 72 MiB materialized, despite object-store deduplication of equal blobs.
+    let blob = vec![0u8; 8 * 1024 * 1024];
+    let names: Vec<_> = (0..9).map(|n| format!("vendor/example/dep/data/{n}.bin")).collect();
+    let mut files: Vec<(&str, &[u8])> = vec![("go.mod",module),("code.go",before),
+        ("vendor/modules.txt",vendor),("vendor/example/dep/code.go",dependency)];
+    files.extend(names.iter().map(|p| (p.as_str(),blob.as_slice())));
+    let base = f.pin_bytes(&repo,"app",&"a".repeat(40),&files);
+    files[1].1 = after;
+    let head = f.pin_bytes(&repo,"app",&"b".repeat(40),&files);
+    let packet = f.run(&request(&repo,vec![base.clone()],vec![head.clone()]));
+    assert_no_false_go_failure(&packet);
+    assert!(has(&packet,"head",".Use"));
+    assert!(has(&packet,"head",".Caller"));
+    assert!(!has(&packet,"head",".Value"));
+    assert_eq!(packet["coverage"]["analysis_diagnostics"]["head"]["go"]["dependency_package_instances"],1);
+    let warm = f.run(&request(&repo,vec![base],vec![head]));
+    assert_eq!(warm["analysis_cache"]["base_hit"],true);
+    assert_eq!(warm["analysis_cache"]["head_hit"],true);
+    assert_eq!(warm["packet_id"],packet["packet_id"]);
+    // An arbitrary folder named vendor cannot use the larger allowance.
+    files.retain(|(path,_)| *path != "vendor/modules.txt");
+    let unmarked = f.pin_bytes(&repo,"app",&"c".repeat(40),&files);
+    let error = review::run(&f.store,&f.workspace,&f.token,
+        &request(&repo,vec![unmarked.clone()],vec![unmarked])).unwrap_err();
+    assert!(error.to_string().contains("64 MiB of repository source"), "{error}");
 }

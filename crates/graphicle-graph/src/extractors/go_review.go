@@ -52,23 +52,36 @@ type reviewSymbol struct {
 	Implementation string `json:"implementation"`
 	Correspondence string `json:"correspondence"`
 }
+
+// A compiler-resolved API reference whose implementation is outside review
+// ownership. It does not assert absence of callbacks or other library effects.
+type reviewBoundary struct {
+	Package   string `json:"package"`
+	Module    string `json:"module,omitempty"`
+	Version   string `json:"version,omitempty"`
+	Symbol    string `json:"symbol"`
+	Signature string `json:"signature"`
+	Kind      string `json:"kind"`
+}
 type reviewCall struct {
-	Caller         string `json:"caller"`
-	Target         string `json:"target,omitempty"`
-	TargetFile     string `json:"target_file,omitempty"`
-	TargetOffset   int    `json:"target_offset"`
-	TargetPackage  string `json:"target_package,omitempty"`
-	Spelling       string `json:"spelling"`
-	File           string `json:"file"`
-	Start          int    `json:"start"`
-	End            int    `json:"end"`
-	Line           int    `json:"line"`
-	Relation       string `json:"relation"`
-	Reason         string `json:"reason,omitempty"`
-	Evidence       string `json:"evidence,omitempty"`
-	DiscardedError bool   `json:"discarded_error,omitempty"`
+	Boundary       *reviewBoundary `json:"boundary,omitempty"`
+	Caller         string          `json:"caller"`
+	Target         string          `json:"target,omitempty"`
+	TargetFile     string          `json:"target_file,omitempty"`
+	TargetOffset   int             `json:"target_offset"`
+	TargetPackage  string          `json:"target_package,omitempty"`
+	Spelling       string          `json:"spelling"`
+	File           string          `json:"file"`
+	Start          int             `json:"start"`
+	End            int             `json:"end"`
+	Line           int             `json:"line"`
+	Relation       string          `json:"relation"`
+	Reason         string          `json:"reason,omitempty"`
+	Evidence       string          `json:"evidence,omitempty"`
+	DiscardedError bool            `json:"discarded_error,omitempty"`
 }
 type reviewPackage struct {
+	AnalysisRole  string            `json:"analysis_role"`
 	EmbedPatterns []string          `json:"embed_patterns"`
 	Dependencies  []string          `json:"dependencies"`
 	Path          string            `json:"path"`
@@ -235,15 +248,10 @@ func (r *reviewCollector) expandInterfaces(l *loader) {
 			}
 		}
 	}
-	// Allocate the bounded implementation search to application call sites before
-	// vendored internals, and discarded error contracts before other calls.
+	// Prioritize discarded error contracts within the owned call sites.
 	// Within either priority group, order is stable source order.
 	sort.Slice(r.interfaceCalls, func(i, j int) bool {
 		a, b := r.world.Calls[r.interfaceCalls[i].index], r.world.Calls[r.interfaceCalls[j].index]
-		av, bv := strings.Contains(a.File, "/vendor/"), strings.Contains(b.File, "/vendor/")
-		if av != bv {
-			return !av
-		}
 		if a.DiscardedError != b.DiscardedError {
 			return a.DiscardedError
 		}
@@ -298,10 +306,8 @@ func (r *reviewCollector) expandInterfaces(l *loader) {
 				break
 			}
 			candidate := r.world.Calls[call.index]
-			p := l.fset.PositionFor(method.Origin().Pos(), false)
-			candidate.TargetFile, candidate.TargetOffset = r.relative(p.Filename), p.Offset
-			candidate.TargetPackage = method.Pkg().Path()
 			candidate.Relation, candidate.Reason, candidate.Evidence = "may_call", "", "interface_implementation"
+			r.bind(l, method.Origin(), &candidate)
 			r.world.Calls = append(r.world.Calls, candidate)
 			emitted++
 		}
@@ -325,6 +331,57 @@ func (r *reviewCollector) allowed(p string) bool {
 	}
 	return false
 }
+
+// Vendoring admits compiler inputs, not ownership of their implementations.
+// Test DepOnly is deliberately not used: first-party internal packages and
+// explicitly pinned local replacements still receive full analysis.
+func (r *reviewCollector) owns(path string) bool {
+	for _, root := range r.allowedRoots {
+		relative, err := filepath.Rel(root, path)
+		if err != nil || relative == ".." || strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+			continue
+		}
+		vendor := false
+		for _, part := range strings.Split(filepath.ToSlash(relative), "/") {
+			if part == "vendor" {
+				vendor = true
+				break
+			}
+		}
+		if !vendor {
+			return true
+		}
+	}
+	return false
+}
+
+func (r *reviewCollector) bind(l *loader, obj types.Object, site *reviewCall) {
+	pos := l.fset.PositionFor(obj.Pos(), false)
+	if obj.Pkg() != nil {
+		site.TargetPackage = obj.Pkg().Path()
+		if m := l.meta[site.TargetPackage]; m != nil && (m.Standard || !r.owns(m.Dir)) {
+			boundary := &reviewBoundary{Package: site.TargetPackage, Symbol: obj.Name(),
+				Signature: types.ObjectString(obj, func(p *types.Package) string { return p.Path() }), Kind: "vendored"}
+			if m.Standard {
+				boundary.Kind = "standard_library"
+			}
+			if m.Module != nil {
+				boundary.Module, boundary.Version = m.Module.Path, m.Module.Version
+			}
+			site.Boundary, site.Reason = boundary, ""
+			if pos.IsValid() && r.allowed(pos.Filename) {
+				site.TargetFile, site.TargetOffset = r.relative(pos.Filename), pos.Offset
+			}
+			return
+		}
+	}
+	if pos.IsValid() && r.owns(pos.Filename) {
+		site.TargetFile, site.TargetOffset, site.Reason = r.relative(pos.Filename), pos.Offset, ""
+	} else {
+		site.Reason = "outside_pinned_scope"
+	}
+}
+
 func formatted(fs *token.FileSet, n ast.Node) []byte {
 	var b bytes.Buffer
 	if n == nil {
@@ -437,7 +494,8 @@ func boundExpression(expr ast.Expr, bindings map[types.Object]ast.Expr, info *ty
 }
 
 func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, info *types.Info, valid bool) {
-	if valid {
+	owned := r.owns(m.Dir)
+	if valid && owned {
 		for _, obj := range info.Defs {
 			if obj == nil || obj.Pkg() == nil || obj.Parent() != obj.Pkg().Scope() {
 				continue
@@ -454,9 +512,17 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 	if !valid {
 		r.world.Issues = append(r.world.Issues, "incomplete_package:"+m.ImportPath)
 	}
-	bindings := localValueBindings(files, info)
-	flow := functionValueFlow(files, info, bindings)
+	var bindings map[types.Object]ast.Expr
+	var flow *callableFlow
+	if owned {
+		bindings = localValueBindings(files, info)
+		flow = functionValueFlow(files, info, bindings)
+	}
 	p := reviewPackage{EmbedPatterns: append(append(append([]string{}, m.EmbedPatterns...), m.TestEmbedPatterns...), m.XTestEmbedPatterns...), Dependencies: m.Deps, Path: m.ImportPath, Directory: r.relative(m.Dir), Files: []string{}, Imports: map[string]string{}}
+	p.AnalysisRole = "dependency"
+	if owned {
+		p.AnalysisRole = "owned"
+	}
 	if m.Module != nil {
 		p.Module = m.Module.Path
 		p.Version = m.Module.Version
@@ -480,13 +546,16 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 			r.world.Issues = append(r.world.Issues, "source_outside_snapshot")
 			continue
 		}
+		relative := r.relative(filename)
+		p.Files = append(p.Files, relative)
+		if !owned {
+			continue
+		}
 		source, err := os.ReadFile(filename)
 		if err != nil {
 			r.world.Issues = append(r.world.Issues, "unreadable_source")
 			continue
 		}
-		relative := r.relative(filename)
-		p.Files = append(p.Files, relative)
 		var local []reviewSymbol
 		add := func(n ast.Node, name, kind string, body *ast.BlockStmt, identifier *ast.Ident) {
 			a, z := l.fset.PositionFor(n.Pos(), false), l.fset.PositionFor(n.End(), false)
@@ -694,17 +763,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 					contract, dynamic = recv.Type().Underlying().(*types.Interface)
 				}
 				if !dynamic {
-					p := l.fset.PositionFor(target.Origin().Pos(), false)
-					if target.Pkg() != nil {
-						site.TargetPackage = target.Pkg().Path()
-					}
-					if p.IsValid() && r.allowed(p.Filename) {
-						site.TargetFile = r.relative(p.Filename)
-						site.TargetOffset = p.Offset
-						site.Reason = ""
-					} else {
-						site.Reason = "outside_pinned_scope"
-					}
+					r.bind(l, target.Origin(), &site)
 				}
 			}
 			if literal, ok := fun.(*ast.FuncLit); ok && valid {
@@ -723,7 +782,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 					site.Reason = "interface_dispatch"
 					r.interfaceCalls = append(r.interfaceCalls, interfaceCall{len(r.world.Calls), contract, method})
 				}
-			} else if valid && site.Caller != "" && site.TargetFile == "" {
+			} else if valid && site.Caller != "" && site.TargetFile == "" && site.Boundary == nil {
 				candidates, limited := flow.candidates(call.Fun)
 				if limited {
 					site.Reason = "function_value_budget"
@@ -732,7 +791,8 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 				for _, candidate := range candidates {
 					var pos token.Pos
 					pkg := m.ImportPath
-					if fn := callableTarget(candidate, info); fn != nil {
+					fn := callableTarget(candidate, info)
+					if fn != nil {
 						pos = fn.Origin().Pos()
 						if fn.Pkg() != nil {
 							pkg = fn.Pkg().Path()
@@ -749,6 +809,9 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 					possible.Relation = "may_call"
 					possible.Reason = ""
 					possible.TargetFile, possible.TargetOffset, possible.TargetPackage = r.relative(p.Filename), p.Offset, pkg
+					if fn != nil {
+						r.bind(l, fn.Origin(), &possible)
+					}
 					r.world.Calls = append(r.world.Calls, possible)
 				}
 			}
@@ -771,13 +834,10 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 				continue
 			}
 			site := reviewCall{Caller: owner(id.Pos()), File: relative, Start: a.Offset, End: l.fset.PositionFor(id.End(), false).Offset, Line: a.Line, Spelling: id.Name, Relation: "uses_value"}
-			target := l.fset.PositionFor(obj.Pos(), false)
 			if !valid {
 				site.Reason = "incomplete_package"
-			} else if !target.IsValid() || !r.allowed(target.Filename) {
-				site.Reason = "outside_pinned_scope"
 			} else {
-				site.TargetFile, site.TargetOffset, site.TargetPackage = r.relative(target.Filename), target.Offset, obj.Pkg().Path()
+				r.bind(l, obj, &site)
 			}
 			if site.Caller == "" {
 				site.Reason = "package_initialization"
@@ -802,13 +862,10 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 				continue
 			}
 			site := reviewCall{Caller: caller, File: relative, Start: a.Offset, End: l.fset.PositionFor(id.End(), false).Offset, Line: a.Line, Spelling: id.Name, Relation: "references_callable"}
-			target := l.fset.PositionFor(fn.Origin().Pos(), false)
 			if !valid {
 				site.Reason = "incomplete_package"
-			} else if !target.IsValid() || !r.allowed(target.Filename) {
-				site.Reason = "outside_pinned_scope"
 			} else {
-				site.TargetFile, site.TargetOffset, site.TargetPackage = r.relative(target.Filename), target.Offset, fn.Pkg().Path()
+				r.bind(l, fn.Origin(), &site)
 			}
 			r.world.Calls = append(r.world.Calls, site)
 		}
@@ -829,7 +886,9 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 			if caller == "" {
 				continue
 			}
-			r.world.Calls = append(r.world.Calls, reviewCall{Caller: caller, TargetFile: r.relative(target.Filename), TargetOffset: target.Offset, TargetPackage: obj.Pkg().Path(), File: relative, Start: a.Offset, End: l.fset.PositionFor(id.End(), false).Offset, Line: a.Line, Spelling: id.Name, Relation: "uses_type"})
+			site := reviewCall{Caller: caller, File: relative, Start: a.Offset, End: l.fset.PositionFor(id.End(), false).Offset, Line: a.Line, Spelling: id.Name, Relation: "uses_type"}
+			r.bind(l, obj, &site)
+			r.world.Calls = append(r.world.Calls, site)
 		}
 		r.world.Symbols = append(r.world.Symbols, local...)
 	}
@@ -951,7 +1010,7 @@ func runReview(req reviewRequest) {
 		Version   string        `json:"analyzer"`
 		Toolchain string        `json:"toolchain"`
 		Worlds    []reviewWorld `json:"worlds"`
-	}{Version: "graphicle-go-review-v10"}
+	}{Version: "graphicle-go-review-v12"}
 	version, _ := exec.Command("go", "version").Output()
 	result.Toolchain = strings.TrimSpace(string(version))
 	var allowed []string
@@ -970,7 +1029,9 @@ func runReview(req reviewRequest) {
 			result.Worlds = append(result.Worlds, world)
 			continue
 		}
-		args := []string{"list", "-e", "-deps", "-json", moduleMode(filepath.Join(root, item.Directory, item.Module), func() string {
+		// Snapshot provenance comes from the authorized pins, never ambient Git
+		// metadata. VCS stamping is a binary-build concern, not a type input.
+		args := []string{"list", "-buildvcs=false", "-e", "-deps", "-json", moduleMode(filepath.Join(root, item.Directory, item.Module), func() string {
 			if req.Workspace != "" {
 				return filepath.Join(root, req.Workspace)
 			}
@@ -1073,7 +1134,7 @@ func runReview(req reviewRequest) {
 			site := &world.Calls[i]
 			// Environment operations bind to configuration inputs in the review
 			// layer, not to a Go declaration in the admitted source tree.
-			if site.Reason != "" || site.Relation == "reads_environment" || site.Relation == "writes_environment" {
+			if site.Reason != "" || site.Boundary != nil || site.Relation == "reads_environment" || site.Relation == "writes_environment" {
 				continue
 			}
 			var targets []string

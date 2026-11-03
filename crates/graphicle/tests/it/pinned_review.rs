@@ -77,7 +77,10 @@ impl Fixture {
         let policy = text::sha256(b"fixture source admission v1");
         let begin=self.store.sync_prepare(&self.workspace,&self.token,&json!({"repository_id":repo,"expected_snapshot":state["repository"]["snapshot"],"metadata":{"commit":commit,"policy_sha256":policy,"scope_complete":true},"manifest":files.iter().map(|(p,c)|json!({"path":p,"sha256":text::sha256(c),"bytes":c.len()})).collect::<Vec<_>>()})).unwrap();
         if !begin["sync_id"].is_null() {
-            self.store.sync_upload(&self.workspace,&self.token,&json!({"repository_id":repo,"sync_id":begin["sync_id"],"files":files.iter().map(|(p,c)|json!({"path":p,"content_base64":STANDARD.encode(c)})).collect::<Vec<_>>()})).unwrap();
+            // At most eight default-limit (8 MiB) files per upload request.
+            for chunk in files.chunks(8) {
+                self.store.sync_upload(&self.workspace,&self.token,&json!({"repository_id":repo,"sync_id":begin["sync_id"],"files":chunk.iter().map(|(p,c)|json!({"path":p,"content_base64":STANDARD.encode(c)})).collect::<Vec<_>>()})).unwrap();
+            }
             self.store
                 .sync_commit(
                     &self.workspace,

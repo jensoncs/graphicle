@@ -203,6 +203,22 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
     };
     let module_examples = sample(&modules, import_budget);
     let example_tokens = example_tokens - import_budget;
+    let boundaries: Vec<_> = analysis
+        .calls
+        .iter()
+        .filter(|(_, call)| !call.boundary.is_null())
+        .map(|(world, call)| {
+            json!({"consumer_build":world,"file":call.file,"line":call.line,
+            "relation":call.relation,"target":call.boundary})
+        })
+        .collect();
+    let boundary_budget = if boundaries.is_empty() {
+        0
+    } else {
+        example_tokens / 4
+    };
+    let boundary_examples = sample(&boundaries, boundary_budget);
+    let example_tokens = example_tokens - boundary_budget;
     let go_examples = sample(
         &analysis.diagnostics,
         if python_files.is_empty() {
@@ -221,6 +237,11 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
     );
     let mut result = json!({
         "go":{
+            "owned_package_instances":analysis.packages.iter().filter(|p| p["analysis_role"] == "owned").count(),
+            "dependency_package_instances":analysis.packages.iter().filter(|p| p["analysis_role"] == "dependency").count(),
+            "resolved_dependency_references":boundaries.len(),
+            "dependency_boundary_examples_omitted":boundaries.len().saturating_sub(boundary_examples.len()),
+            "dependency_boundary_examples":boundary_examples,
             "incomplete_package_instances":packages("incomplete_package:"),
             "discovery_incomplete_package_instances":packages("incomplete_discovery:"),
             "type_check_failed_package_instances":packages("type_check_failed:"),

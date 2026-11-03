@@ -142,6 +142,8 @@ struct Symbol {
 }
 #[derive(Clone, Serialize, Deserialize)]
 struct Call {
+    #[serde(default, skip_serializing_if = "Value::is_null")]
+    boundary: Value,
     caller: String,
     #[serde(default)]
     target: String,
@@ -352,7 +354,7 @@ fn load(
     profile: &Profile,
 ) -> Result<Input> {
     store.authorized_read(workspace,token,"read",|db,principal|{
-        let mut input=Input{pins:pins.to_vec(),sources:BTreeMap::new(),issues:vec![],bindings:vec![]};let mut bytes=0usize;
+        let mut input=Input{pins:pins.to_vec(),sources:BTreeMap::new(),issues:vec![],bindings:vec![]};let mut budget=admission::SourceBudget::default();
         for pin in pins {
             if store::repo(db,principal,&pin.repository_id).is_err(){input.issues.push(issue("unavailable_snapshot",json!(pin.directory)));continue}
             let row=store::one(db,"SELECT manifest,metadata FROM repo_snapshots WHERE repository_id=? AND sha256=?",params![pin.repository_id,pin.snapshot])?;
@@ -380,11 +382,11 @@ fn load(
                 store::path(path)?;
                 if local::excluded_source_path(path) {input.issues.push(issue("excluded_source",json!(pin.directory)));continue}
                 let size=entry["bytes"].as_u64().ok_or_else(||Error::bad("Invalid source size"))?;
-                if size>MAX_SOURCE_BYTES as u64||bytes+size as usize>MAX_SOURCE_BYTES||input.sources.len()>=MAX_FILES{return Err(Error::bad("Review source bound exceeded (64 MiB / 20000 files per side)"));}
+                budget.reserve(size, admission::vendored(path, files))?;
                 let source=crate::source_object::load(db,&pin.repository_id,s(entry,"sha256"))?;
                 let Some(content)=source else {input.issues.push(issue("missing_source_object",json!(pin.directory)));continue};
                 if content.bytes().len()!=size as usize{return Err(Error::conflict("Pinned source failed integrity verification"));}
-                bytes+=content.bytes().len();input.sources.insert(format!("{}/{}",pin.directory,path),Source{repository:pin.repository_id.clone(),path:path.clone(),sha:s(entry,"sha256").into(),content});
+                input.sources.insert(format!("{}/{}",pin.directory,path),Source{repository:pin.repository_id.clone(),path:path.clone(),sha:s(entry,"sha256").into(),content});
             }
         }
         Ok(input)
@@ -456,6 +458,22 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>) -> Result
     out.analyzer = facts.analyzer;
     out.toolchain = facts.toolchain;
     for world in facts.worlds {
+        let dependency_packages = world
+            .packages
+            .iter()
+            .filter(|p| p["analysis_role"] == "dependency")
+            .count();
+        let boundary_references = world.calls.iter().filter(|c| !c.boundary.is_null()).count();
+        if dependency_packages > 0 || boundary_references > 0 {
+            // API identity is resolved; library implementation effects and
+            // callbacks are not modeled. Keep that scope limitation explicit
+            // rather than making an issue for every dependency-internal call.
+            out.issues.push(issue("dependency_effects_unmodeled", json!({
+                "consumer_build":world.root, "dependency_packages":dependency_packages,
+                "resolved_references":boundary_references,
+                "scope":"dependency API resolution only; implementation effects and callbacks are not proven"
+            })));
+        }
         out.diagnostic_count += world.diagnostic_count;
         for mut diagnostic in world.diagnostics {
             diagnostic["consumer_build"] = json!(world.root);

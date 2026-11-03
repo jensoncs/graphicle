@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"go/token"
@@ -174,5 +176,74 @@ func TestReviewDiagnosticExamplesAreBoundedAndKeepMultipleCauses(t *testing.T) {
 	}
 	if r.world.Diagnostics[8].Cause != "type_error" {
 		t.Fatal("discovery failures crowded out source errors")
+	}
+}
+
+func TestPinnedReviewDoesNotConsultBrokenVCSMetadata(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("VCS sentinel uses a POSIX shell")
+	}
+	root := t.TempDir()
+	helper := filepath.Join(root, "helper")
+	build := exec.Command("go", "build", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go")
+	build.Env = append(os.Environ(), "GOFLAGS=", "GOWORK=off", "GOENV=off", "GOTOOLCHAIN=local", "CGO_ENABLED=0")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build: %v: %s", err, out)
+	}
+	app := filepath.Join(root, "app")
+	for _, directory := range []string{filepath.Join(app, ".git"), filepath.Join(root, "bin")} {
+		if err := os.MkdirAll(directory, 0700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for name, content := range map[string]string{"go.mod": "module example/app\ngo 1.23\n", "main.go": "package main\nfunc main() {}\n"} {
+		if err := os.WriteFile(filepath.Join(app, name), []byte(content), 0600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	gitLog := filepath.Join(root, "git-called")
+	script := "#!/bin/sh\nprintf called > \"$VCS_TEST_LOG\"\nexit 128\n"
+	if err := os.WriteFile(filepath.Join(root, "bin/git"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(map[string]any{"review": reviewRequest{Roots: []reviewRoot{{Directory: "app", Module: "."}}, GOOS: "linux", GOARCH: "amd64"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := exec.Command(helper)
+	run.Dir = root
+	run.Stdin = bytes.NewReader(payload)
+	run.Env = append(os.Environ(), "PATH="+filepath.Join(root, "bin")+string(os.PathListSeparator)+os.Getenv("PATH"), "VCS_TEST_LOG="+gitLog,
+		"GOENV=off", "GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOVCS=*:off", "CGO_ENABLED=0")
+	output, err := run.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var envelope struct {
+		Facts string `json:"facts"`
+	}
+	if err = json.Unmarshal(output, &envelope); err != nil {
+		t.Fatal(err)
+	}
+	packed, err := base64.StdEncoding.DecodeString(envelope.Facts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader, err := gzip.NewReader(bytes.NewReader(packed))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+	var result struct {
+		Worlds []reviewWorld `json:"worlds"`
+	}
+	if err = json.NewDecoder(reader).Decode(&result); err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Worlds) != 1 || len(result.Worlds[0].Issues) != 0 || len(result.Worlds[0].Symbols) != 1 {
+		t.Fatalf("invalid compiler facts: %+v", result)
+	}
+	if _, err = os.Stat(gitLog); !os.IsNotExist(err) {
+		t.Fatalf("pinned analysis consulted Git: %v", err)
 	}
 }

@@ -43,6 +43,7 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
         "review_compact_provenance": "graphicle.service-provenance.v1",
         "change_impact_scope": "pinned-go-snapshot-sets-v1",
         "review_source_admission": "exhaustive-withheld-paths-go-build-v1",
+        "review_source_limits": crate::review::admission::source_limits(),
         "review_analysis_diagnostics": "bounded-go-errors-and-python-causes-v1",
         "review_issue_histogram": "full-analysis-reason-cause-counts-v1",
         "review_unsupported_inputs": "extension-cause-side-v1",

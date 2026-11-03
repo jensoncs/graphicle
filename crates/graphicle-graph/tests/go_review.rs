@@ -528,3 +528,105 @@ fn callback_constraint_exhaustion_is_explicit_and_suppresses_storage_guesses() {
     }
     assert!(!calls.iter().any(|c|c["spelling"] == "box.Run" && c["relation"] == "may_call"));
 }
+
+#[test]
+fn dependency_bodies_do_not_enter_the_owned_graph_but_inputs_and_types_remain() {
+    let mut dependency = String::from(
+        "package dep\nimport \"strings\"\nfunc Target() int {return len(strings.TrimSpace(\" x \"))}\n",
+    );
+    for i in 0..300 {
+        dependency.push_str(&format!(
+            "func Internal{i}() string {{return strings.TrimSpace(\" x \")}}\n"
+        ));
+    }
+    let root = tree(&[
+        (
+            "app/go.mod",
+            "module example/app\ngo 1.23\nrequire example/dep v1.0.0\n",
+        ),
+        (
+            "app/main.go",
+            "package app\nimport (\"example/dep\"; \"example/app/internal/own\")\nfunc Use() int {return dep.Target()+own.Value()}\n",
+        ),
+        (
+            "app/internal/own/code.go",
+            "package own\nfunc Value() int {return 2}\n",
+        ),
+        (
+            "app/vendor/modules.txt",
+            "# example/dep v1.0.0\n## explicit; go 1.23\nexample/dep\n",
+        ),
+        ("app/vendor/example/dep/dep.go", &dependency),
+    ]);
+    std::fs::write(root.path().join("app/indirect.go"), r#"package app
+import "example/dep"
+type Promoted struct { dep.Base }
+func Dynamic(flag bool) int { f := dep.Target; if flag { f = dep.Other }; return f() }
+func Interface(x interface{ Run() int }) int { return x.Run() }
+"#).unwrap();
+    dependency.push_str("func Other() int {return 2}\ntype Base struct{}\nfunc (Base) Run() int {return 3}\n");
+    std::fs::write(root.path().join("app/vendor/example/dep/dep.go"), &dependency).unwrap();
+    let report = run(&root, &["app"], &[], false, "");
+    let world = &report["worlds"][0];
+    assert!(world["issues"].as_array().unwrap().is_empty(), "{report}");
+    assert!(
+        world["symbols"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| !s["file"].as_str().unwrap().contains("/vendor/"))
+    );
+    assert!(
+        world["calls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|c| !c["file"].as_str().unwrap().contains("/vendor/"))
+    );
+    let calls = world["calls"].as_array().unwrap();
+    assert!(!calls.iter().any(|c| c["reason"] == "ambiguous_or_missing_declaration"), "{report}");
+    for name in ["Target", "Other", "Run"] {
+        assert!(calls.iter().any(|c| c["relation"] == "may_call" && c["boundary"]["symbol"] == name && c.get("reason").is_none()), "{name}: {report}");
+    }
+    let boundary = calls
+        .iter()
+        .find(|c| c["boundary"]["symbol"] == "Target")
+        .unwrap();
+    assert_eq!(boundary["boundary"]["package"], "example/dep");
+    assert_eq!(boundary["boundary"]["module"], "example/dep");
+    assert_eq!(boundary["boundary"]["version"], "v1.0.0");
+    assert!(boundary.get("reason").is_none());
+    assert!(boundary.get("target").is_none());
+    assert!(
+        calls
+            .iter()
+            .any(|c| c["target_file"] == "app/internal/own/code.go" && c.get("target").is_some())
+    );
+    assert!(
+        world["packages"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p["path"] == "example/dep"
+                && p["analysis_role"] == "dependency"
+                && p["files"][0] == "app/vendor/example/dep/dep.go")
+    );
+    assert!(
+        world["inputs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|i| i["file"] == "app/vendor/example/dep/dep.go" && i["role"] == "selected")
+    );
+    std::fs::write(
+        root.path().join("app/vendor/example/dep/dep.go"),
+        "package dep\nfunc Target() int {return \"wrong\"}\n",
+    )
+    .unwrap();
+    let broken = run(&root, &["app"], &[], false, "");
+    assert!(
+        broken["worlds"][0]["issues"]
+            .to_string()
+            .contains("type_check_failed:example/app")
+    );
+}

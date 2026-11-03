@@ -118,7 +118,12 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 		}
 		files = append(files, f)
 	}
-	info := &types.Info{Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}, Types: map[ast.Expr]types.TypeAndValue{}}
+	// Dependencies are still parsed and checked, but their per-expression
+	// annotations are not retained for a graph we do not build.
+	var info *types.Info
+	if l.review == nil || l.review.owns(m.Dir) {
+		info = &types.Info{Defs: map[*ast.Ident]types.Object{}, Uses: map[*ast.Ident]types.Object{}, Selections: map[*ast.SelectorExpr]*types.Selection{}, Types: map[ast.Expr]types.TypeAndValue{}}
+	}
 	conf := types.Config{Importer: mappedImporter{l, m.ImportMap}, Sizes: l.sizes, Error: func(err error) {
 		if l.review == nil {
 			return

@@ -4,6 +4,75 @@ use crate::{Error, Result, local, store};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
+const MAX_VENDOR_BYTES: usize = 256 * 1024 * 1024;
+
+pub(crate) fn source_limits() -> Value {
+    json!({"scope":"owned-and-go-vendor-v1",
+        "owned_bytes_per_side":super::MAX_SOURCE_BYTES,
+        "vendor_bytes_per_side":MAX_VENDOR_BYTES,
+        "files_per_side":super::MAX_FILES,
+        "bytes_per_file":super::MAX_SOURCE_BYTES})
+}
+
+// Directory spelling alone is not dependency provenance. Only an admitted Go
+// module with its sibling vendor manifest receives the separate byte allowance.
+// This is resource accounting, never a source-policy or integrity exemption.
+pub(super) fn vendored(path: &str, files: &serde_json::Map<String, Value>) -> bool {
+    let mut prefix = String::new();
+    for component in path.split('/') {
+        if component == "vendor"
+            && files.contains_key(&format!("{prefix}go.mod"))
+            && files.contains_key(&format!("{prefix}vendor/modules.txt"))
+        {
+            return true;
+        }
+        prefix.push_str(component);
+        prefix.push('/');
+    }
+    false
+}
+
+#[derive(Default)]
+pub(super) struct SourceBudget {
+    owned_bytes: usize,
+    vendor_bytes: usize,
+    files: usize,
+}
+impl SourceBudget {
+    // Count every admitted manifest entry before loading it, including missing
+    // objects; missing bytes cannot create additional allowance for other pins.
+    pub(super) fn reserve(&mut self, bytes: u64, vendor: bool) -> Result<()> {
+        if bytes > super::MAX_SOURCE_BYTES as u64 {
+            return Err(Error::bad("Review source bound exceeded (64 MiB per file)"));
+        }
+        if self.files >= super::MAX_FILES {
+            return Err(Error::bad(
+                "Review source bound exceeded (20000 files per side, source and vendor combined)",
+            ));
+        }
+        let (used, limit, message) = if vendor {
+            (
+                &mut self.vendor_bytes,
+                MAX_VENDOR_BYTES,
+                "Review source bound exceeded (256 MiB of Go vendor inputs per side)",
+            )
+        } else {
+            (
+                &mut self.owned_bytes,
+                super::MAX_SOURCE_BYTES,
+                "Review source bound exceeded (64 MiB of repository source per side)",
+            )
+        };
+        let next = used
+            .checked_add(bytes as usize)
+            .filter(|n| *n <= limit)
+            .ok_or_else(|| Error::bad(message))?;
+        *used = next;
+        self.files += 1;
+        Ok(())
+    }
+}
+
 pub(super) struct Binding {
     pub pin: Pin,
     pub complete: bool,
@@ -173,6 +242,61 @@ pub(super) fn assess(input: &Input, analysis: &Analysis, side: &str) -> (Vec<Val
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn source_and_vendor_budgets_are_separate_bounded_and_shared_by_pins() {
+        const MIB: u64 = 1024 * 1024;
+        let mut budget = SourceBudget::default();
+        // The largest observed closure plus largest owned tree both fit.
+        budget.reserve(21 * MIB, false).unwrap();
+        budget.reserve(60 * MIB, true).unwrap();
+        budget.reserve(38 * MIB, true).unwrap();
+        budget.reserve(43 * MIB, false).unwrap();
+        assert!(budget.reserve(1, false).is_err());
+        for bytes in [60, 60, 38] {
+            budget.reserve(bytes * MIB, true).unwrap();
+        }
+        assert!(budget.reserve(1, true).is_err());
+        assert!(SourceBudget::default().reserve(u64::MAX, true).is_err());
+        assert!(SourceBudget::default().reserve(65 * MIB, true).is_err());
+        let mut count = SourceBudget::default();
+        for n in 0..super::super::MAX_FILES {
+            count.reserve(0, n % 2 == 0).unwrap();
+        }
+        assert!(count.reserve(0, true).is_err());
+        assert!(count.reserve(0, false).is_err());
+    }
+
+    #[test]
+    fn vendor_allowance_requires_matching_admitted_module_and_manifest() {
+        let manifest = json!({"go.mod":{}, "vendor/modules.txt":{},
+            "nested/go.mod":{}, "nested/vendor/modules.txt":{}});
+        let files = manifest.as_object().unwrap();
+        for path in [
+            "vendor/modules.txt",
+            "vendor/example/dep/code.go",
+            "nested/vendor/example/dep/data.bin",
+        ] {
+            assert!(vendored(path, files), "{path}");
+        }
+        for path in [
+            "own.go",
+            "vendor.go",
+            "myvendor/code.go",
+            "examples/vendor/code.go",
+            "nested/vendorish/code.go",
+        ] {
+            assert!(!vendored(path, files), "{path}");
+        }
+        assert!(!vendored(
+            "vendor/example/dep/code.go",
+            json!({"go.mod":{}}).as_object().unwrap()
+        ));
+        assert!(!vendored(
+            "vendor/example/dep/code.go",
+            json!({"vendor/modules.txt":{}}).as_object().unwrap()
+        ));
+    }
 
     #[test]
     fn embed_patterns_include_directory_descendants_and_hidden_files() {
