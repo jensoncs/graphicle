@@ -175,11 +175,21 @@ pub(crate) fn sensitive(name: &str) -> bool {
 /// Source admission checks directory policy separately from credential filenames.
 /// A public package directory named `credentials` is not a credential file.
 pub(crate) fn excluded_source_path(path: &str) -> bool {
+    excluded_pinned_source_path(path)
+        || path.split('/').any(|p| SKIPPED_NAMES.contains(&p))
+}
+
+/// A pinned manifest already selects the inputs. Discovery hints such as
+/// `target`, `build`, and `dist` cannot classify an admitted package or embed
+/// as build output. Keep credential and private-tool exclusions independently.
+pub(crate) fn excluded_pinned_source_path(path: &str) -> bool {
     skipped_file(path)
         || sensitive(path.rsplit('/').next().unwrap_or(path))
-        || path
-            .split('/')
-            .any(|p| p.starts_with(".env") || p == "secrets" || SKIPPED_NAMES.contains(&p))
+        || path.split('/').any(|p| {
+            p.starts_with(".env")
+                || matches!(p, "secrets" | ".git" | ".ssh" | ".aws" | ".azure"
+                    | ".codex" | ".graphicle" | ".graphicle-graph" | "graphify-out")
+        })
 }
 
 /// Files a folder sync never reads, by their folder-relative path: the
@@ -1498,6 +1508,66 @@ pub fn restore(backup: &std::path::Path, directory: &std::path::Path) -> Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn pinned_input_policy_separates_discovery_hints_from_private_paths() {
+        for directory in ["target", "build", "dist", "lib64", "node_modules", "venv"] {
+            for name in ["code.go", "native.s", "header.h", "assets/message.txt"] {
+                assert!(!excluded_pinned_source_path(&format!(
+                    "vendor/example/dep/{directory}/{name}"
+                )));
+            }
+        }
+        assert!(!excluded_pinned_source_path(
+            "vendor/google.golang.org/grpc/credentials/code.go"
+        ));
+        for directory in [
+            ".git",
+            ".ssh",
+            ".aws",
+            ".azure",
+            ".codex",
+            ".graphicle",
+            ".graphicle-graph",
+            "graphify-out",
+            "secrets",
+            ".env.production",
+        ] {
+            assert!(excluded_pinned_source_path(&format!(
+                "internal/build/{directory}/code.go"
+            )));
+        }
+        for name in [
+            ".env",
+            ".env.go",
+            "credentials",
+            "credentials.json",
+            "secrets.json",
+            "local-session.json",
+            "client.key",
+            "client.pem",
+            ".netrc",
+            ".npmrc",
+            ".pypirc",
+            ".claude/settings.local.json",
+        ] {
+            assert!(excluded_pinned_source_path(&format!(
+                "vendor/example/dep/target/{name}"
+            )));
+        }
+        assert!(excluded_pinned_source_path(&format!(
+            "internal/build/code.go{}",
+            crate::agent_files::BACKUP_SUFFIX
+        )));
+        // Folder discovery and shared-bundle admission keep their existing policy.
+        for path in [
+            "internal/build/code.go",
+            "vendor/example/dep/target/code.go",
+            "dist/asset.txt",
+        ] {
+            assert!(excluded_source_path(path));
+        }
+    }
 
     fn git(root: &Path, args: &[&str]) {
         let status = std::process::Command::new("git")

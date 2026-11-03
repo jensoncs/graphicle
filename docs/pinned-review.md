@@ -349,7 +349,14 @@ classification must still refuse admission. An empty package selection has an ex
 discovery and type-check failures continue to qualify coverage.
 
 The compiler helper refuses symlinks and replacements outside the pinned
-checkout set. Each side admits up to 64 MiB of repository source plus 256 MiB
+checkout set. Pinned review does not apply folder-discovery build-output hints
+(`target`, `build`, `dist`, etc.) to admitted manifest paths. It materializes Go,
+native and embedded inputs under those names before Go selects the build files.
+Credential filenames, secret directories, VCS and private-tool directories remain
+excluded. Local folder discovery and shared-bundle admission retain their existing
+skip policies.
+
+Each side admits up to 64 MiB of repository source plus 256 MiB
 of Go vendor inputs, with 20,000 files combined and at most 64 MiB per file.
 The vendor allowance applies only below a `vendor/` directory whose parent has
 an admitted `go.mod` and whose `vendor/modules.txt` is also admitted, including

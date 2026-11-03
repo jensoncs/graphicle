@@ -1,6 +1,85 @@
 use super::*;
 
 #[test]
+fn pinned_go_packages_under_build_output_names_keep_types_and_embeds() {
+    let f = Fixture::new();
+    let repo = f.repo("pinned-build-names");
+    let files = [
+        (
+            "go.mod",
+            "module example/app\ngo 1.23\nrequire example/dep v1.0.0\n",
+        ),
+        (
+            "main.go",
+            "package app\nimport (\"example/app/internal/build\";\"example/dep/pkg/target\";\"example/dep/krusty\")\nfunc Value() int {return build.Value()+target.Value()+krusty.Value()}\n",
+        ),
+        (
+            "internal/build/code.go",
+            "package build\nimport _ \"embed\"\n//go:embed assets/dist/message.txt\nvar Message string\nfunc Value() int {return len(Message)}\n",
+        ),
+        (
+            "internal/build/assets/dist/message.txt",
+            "admitted embedded input",
+        ),
+        (
+            "vendor/modules.txt",
+            "# example/dep v1.0.0\n## explicit; go 1.23\nexample/dep/pkg/target\nexample/dep/internal/target\nexample/dep/krusty\n",
+        ),
+        (
+            "vendor/example/dep/pkg/target/code.go",
+            "package target\nfunc Value() int {return 1}\n",
+        ),
+        (
+            "vendor/example/dep/internal/target/code.go",
+            "package target\nfunc Value() int {return 2}\n",
+        ),
+        (
+            "vendor/example/dep/krusty/code.go",
+            "package krusty\nimport \"example/dep/internal/target\"\nfunc Value() int {return target.Value()}\n",
+        ),
+    ];
+    let base = f.pin(&repo, "app", 'a', &files);
+    let changed = files[2].1.replace("len(Message)", "len(Message)+1");
+    let mut next = files;
+    next[2].1 = &changed;
+    let head = f.pin(&repo, "app", 'b', &next);
+    let args = request(&repo, vec![base], vec![head]);
+    let packet = f.run(&args);
+    for side in ["base", "head"] {
+        let counts = &packet["coverage"]["analysis_diagnostics"][side]["go"];
+        for name in [
+            "incomplete_package_instances",
+            "type_check_failed_package_instances",
+            "incomplete_package_references",
+            "unavailable_external_package_instances",
+        ] {
+            assert_eq!(counts[name], 0, "{side} {name}: {counts}");
+        }
+        assert_eq!(counts["owned_package_instances"], 2);
+        assert_eq!(counts["dependency_package_instances"], 3);
+    }
+    assert!(
+        !packet["coverage"]["issues"]
+            .to_string()
+            .contains("excluded_source")
+    );
+    assert!(
+        packet["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|entry| entry["side"] == "head"
+                && entry["file"] == "internal/build/code.go"
+                && s(entry, "name").ends_with(".Value"))
+    );
+    // Corrected input inventory must also remain valid on cache reuse.
+    let cached = f.run(&args);
+    assert_eq!(cached["analysis_cache"]["base_hit"], true);
+    assert_eq!(cached["analysis_cache"]["head_hit"], true);
+    assert_eq!(cached["packet_id"], packet["packet_id"]);
+}
+
+#[test]
 fn collector_can_exclude_fixture_module_roots_without_hiding_scope() {
     let f = Fixture::new();
     let repo = f.repo("excluded-modules");

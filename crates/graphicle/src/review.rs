@@ -381,7 +381,7 @@ fn load(
             let files=manifest.as_object().ok_or_else(||Error::bad("Invalid stored source manifest"))?;
             for (path,entry) in files {
                 store::path(path)?;
-                if local::excluded_source_path(path) {input.issues.push(issue("excluded_source",json!(pin.directory)));continue}
+                if local::excluded_pinned_source_path(path) {input.issues.push(issue("excluded_source",json!(pin.directory)));continue}
                 let size=entry["bytes"].as_u64().ok_or_else(||Error::bad("Invalid source size"))?;
                 budget.reserve(size, admission::vendored(path, files))?;
                 let source=crate::source_object::load(db,&pin.repository_id,s(entry,"sha256"))?;
