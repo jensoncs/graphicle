@@ -9,6 +9,8 @@ const pin: SnapshotPin = {repository_id: "repo", directory: "service", commit: "
 const scopedPin: SnapshotPin = {...pin, excluded_modules: ["evals/copy"]};
 project.impact([scopedPin], [scopedPin], {profile: {goos: "linux", goarch: "amd64"}});
 const profile: ReviewProfile = {goos: "linux", goarch: "amd64", tests: true};
+project.impact([pin], [pin], {profile, provided_diff: [{side:"head", repository_id:pin.repository_id,
+  file:"main.go", file_sha256:"e".repeat(64), line_start:1, line_end:10}]});
 const report: Promise<ReviewPacket> = project.impact([pin], [pin], {profile, max_tokens: 16000, compact_provenance: true, previous_packet_id: "d".repeat(64)}, {timeoutMs: 120000});
 project.impact([pin], [pin], {profile, business_context: {history: [{
   format: "graphicle.business-history.v1", pin, shallow: false,

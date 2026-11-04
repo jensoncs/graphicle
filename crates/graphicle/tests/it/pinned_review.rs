@@ -23,6 +23,8 @@ mod unsupported_inputs;
 mod sync_diagnostics;
 #[path = "compiler_cache.rs"]
 mod compiler_cache;
+#[path = "provided_diff.rs"]
+mod provided_diff;
 
 struct Fixture {
     _dir: tempfile::TempDir,

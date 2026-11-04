@@ -567,6 +567,7 @@ mod tests {
             business_context: None,
             reuse_text: false,
             reviewed_entries: vec![],
+            provided_diff: vec![],
         };
         compare(base, head, &analysis(base), &analysis(head), &request).unwrap()
     }

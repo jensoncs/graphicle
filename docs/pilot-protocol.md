@@ -120,6 +120,7 @@ When `entries` is empty, `empty_reason` explains why. It is separate from
 | `no_changes_in_scope` | Full analysis found no changes in its scope. |
 | `analysis_incomplete` | No source entries were available and analysis has limitations. |
 | `budget_omitted` | Entries existed but none fit the packet. |
+| `already_provided_in_diff` | All candidate entries were fully covered by caller-declared diff spans. |
 | `unchanged_from_previous_packet` | Selected entries were already delivered under the prior receipt. |
 | `diff_only` | No entries are delivered, but diffs are. |
 | `no_selected_entries` | No entries or diffs were selected; inspect impact and coverage. |
@@ -289,6 +290,47 @@ cannot be reported by a terminated Graphicle process. Delegated engine commands
 retain their own CLI contract.
 
 ## Source ranking diagnostics
+
+Pinned reviews can opt in to supplemental context with `provided_diff`. Omit it
+for the existing full review behavior. Each range names the exact admitted file
+on one side and the inclusive, one-based lines already supplied to the reviewer:
+
+```json
+{"provided_diff":[{"side":"head","repository_id":"REPOSITORY_ID",
+  "file":"pkg/service.go","file_sha256":"FULL_FILE_SHA256",
+  "line_start":40,"line_end":58}]}
+```
+
+There are at most 4,096 ranges. Invalid sides, paths, hashes, repositories or
+line bounds are rejected. Overlapping and adjacent ranges merge; a gap remains
+uncovered. Only entries whose complete byte span lies in those lines are
+excluded before packing. A function partially overlapping a diff remains
+eligible. A raw hunk is excluded only when every nonempty base/head span is
+covered, so declaring head lines alone cannot suppress deleted or old context.
+Send only ranges actually present in the review prompt, after any diff trimming.
+
+`coverage.provided_diff` reports `entries`, `diffs`, and normalized `ranges`.
+These exclusions are separate from `budget_omitted_entries`
+and `budget_omitted_diffs`. Original `required_entries`/`required_diffs` count
+the full candidates: each equals selected (including unchanged delta entries)
+plus provided-diff exclusions plus budget omissions. Packing ranks and cutoffs
+apply to the remaining eligible candidates. `current_head.provided_diff` counts
+excluded current-head change seeds.
+
+The full graph still determines `impact`. The declaration is a caller assertion
+that text was supplied, not a completed-review attestation: excluded context
+keeps packet coverage and affected component reuse proofs incomplete. Its
+fingerprint participates in `review_reuse.context_sha256` and receipt identity. Deltas invalidate entries
+removed by this option and restore them when requested again; never accumulate
+the old packet's excluded entries into the supplemental view.
+`build.info.review_provided_diff` advertises `fully-covered-spans-v1`.
+
+For the next Sentinel probe, hold admitted snapshots, token budget and diff
+prompt constant; compare entry counts and source-token counts inside versus
+outside the supplied diff, then review citations/usefulness. The option removes
+known duplication; usefulness still needs production measurement.
+The extra accounting can cross a packing threshold at very small budgets, so
+this option does not guarantee a higher entry count on every request.
 
 Each context source and its evidence record carries `rank`, `rank_score`, and
 `score_kind`. `rank` is its one-based packing input position, preserved if display

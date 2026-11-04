@@ -26,6 +26,9 @@ export interface ReviewOptions {
   /** Share repeated pinned service assertions automatically when beneficial. */
   compact_provenance?: boolean;
   reviewed_entries?: readonly string[];
+  /** Exact pinned diff spans already present in the reviewer's context. */
+  provided_diff?: readonly {side: "base" | "head"; repository_id: string; file: string;
+    file_sha256: string; line_start: number; line_end: number}[];
 }
 /** Source-backed deployment assertions in the admitted graphicle-services.json. */
 export interface ServiceCitation {
@@ -92,7 +95,7 @@ export interface ReviewPacket extends Result {
   base: SnapshotPin[]; head: SnapshotPin[]; profile: ReviewProfile;
   impact: "potential_impact" | "no_changes_in_scope" | "incomplete";
   empty_reason?: "unsupported_source_language_or_contract" | "no_changes_in_scope" |
-    "analysis_incomplete" | "budget_omitted" | "unchanged_from_previous_packet" | "diff_only" | "no_selected_entries";
+    "analysis_incomplete" | "budget_omitted" | "unchanged_from_previous_packet" | "diff_only" | "no_selected_entries" | "already_provided_in_diff";
   changes: Result & {count: number}; coverage: Result & {complete: boolean; budget_omitted: number};
   entries: ReviewEntry[]; diffs: Result[]; invalidated: Result[]; unchanged: string[]; tokens: number;
   context_order: string[];

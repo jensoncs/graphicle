@@ -36,6 +36,8 @@ mod environment;
 mod basic;
 #[path = "review_provenance.rs"]
 mod provenance;
+#[path = "review_diff_context.rs"]
+mod diff_context;
 
 const FORMAT: &str = "graphicle.review.v1";
 pub const RISK_SCHEMA: &str = "graphicle.review-risk.v2";
@@ -92,7 +94,7 @@ pub struct Request {
     #[serde(default = "budget")]
     pub max_tokens: usize,
     /// Receipt issued by this store to this principal. Arbitrary client-supplied
-    /// shown spans cannot suppress current evidence.
+    /// shown spans do not certify review coverage.
     #[serde(default)]
     pub previous_packet_id: Option<String>,
     /// Request-local historical assertions and conservative static domain cues.
@@ -108,6 +110,9 @@ pub struct Request {
     /// never that a human/model actually completed a review.
     #[serde(default)]
     pub reviewed_entries: Vec<String>,
+    /// Opt in to omitting full source spans already supplied in the review diff.
+    #[serde(default)]
+    pub provided_diff: Vec<diff_context::Span>,
 }
 #[derive(Clone)]
 struct Source {
@@ -1498,6 +1503,14 @@ fn pack_encoding(
     let required_callers = entries.iter().filter(|e| is_call_consumer(e)).count();
     report["coverage"]["required_entries"] = json!(entries.len());
     report["coverage"]["required_diffs"] = json!(diffs.len());
+    // Count requirements before exclusions so caller-provided context cannot
+    // manufacture complete scope/reuse proofs. Budget omissions count only
+    // candidates still eligible for this supplemental packet.
+    let provided_head = entries.iter().filter(|e| is_head_change(e) && e["_provided_diff"] == true).count();
+    entries.retain(|e| e["_provided_diff"] != true);
+    diffs.retain(|e| e["_provided_diff"] != true);
+    let eligible_entries = entries.len();
+    let eligible_diffs = diffs.len();
     let total = entries.len() + diffs.len();
     let issues = std::mem::take(report["coverage"]["issues"].as_array_mut().unwrap());
     report["coverage"]["issue_count"] = json!(issues.len());
@@ -1726,7 +1739,10 @@ fn pack_encoding(
         .iter()
         .filter(|(c, e)| *c == "entries" && is_head_change(e))
         .count();
-    report["coverage"]["current_head"] = json!({"required":required_head,"selected":head_selected,"complete":required_head==head_selected,"minimum_tokens_with_hunk_reserve":minimum_head_tokens,"usable":required_head==0 || head_selected>0});
+    report["coverage"]["current_head"] = json!({"required":required_head,"selected":head_selected,"complete":required_head==head_selected,"minimum_tokens_with_hunk_reserve":minimum_head_tokens,"usable":required_head==0 || head_selected>0 || provided_head>0});
+    if report["coverage"].get("provided_diff").is_some() {
+        report["coverage"]["current_head"]["provided_diff"] = json!(provided_head);
+    }
     let contracts_selected = selected.iter().filter(|(_, e)| is_call_contract(e)).count();
     report["coverage"]["call_contracts"]["selected"] = json!(contracts_selected);
     report["coverage"]["call_contracts"]["complete"] = json!(contracts_selected == required_contracts);
@@ -1737,8 +1753,8 @@ fn pack_encoding(
     }
     report["coverage"]["budget_omitted"] = json!(total - selected.len());
     let selected_entries = selected.iter().filter(|(c, _)| *c == "entries").count();
-    report["coverage"]["budget_omitted_entries"] = json!(report["coverage"]["required_entries"].as_u64().unwrap() as usize - selected_entries);
-    report["coverage"]["budget_omitted_diffs"] = json!(report["coverage"]["required_diffs"].as_u64().unwrap() as usize - (selected.len() - selected_entries));
+    report["coverage"]["budget_omitted_entries"] = json!(eligible_entries - selected_entries);
+    report["coverage"]["budget_omitted_diffs"] = json!(eligible_diffs - (selected.len() - selected_entries));
     let selected_ranks: BTreeSet<_> = selected.iter().map(|(_, e)| ranks[s(e, "id")]).collect();
     report["coverage"]["packing"]["first_omitted_rank"] = json!((1..=total).find(|rank| !selected_ranks.contains(rank)));
     report["coverage"]["packing"]["last_selected_rank"] = json!(selected_ranks.last());
@@ -1854,8 +1870,10 @@ fn pack_encoding(
     if report["entries"].as_array().is_some_and(Vec::is_empty) {
         report["empty_reason"] = json!(if receipts.iter().any(|e| e["collection"] == "entries") {
             "unchanged_from_previous_packet"
-        } else if report["coverage"]["required_entries"].as_u64().unwrap_or(0) > 0 {
+        } else if eligible_entries > 0 {
             "budget_omitted"
+        } else if report["coverage"]["provided_diff"]["entries"].as_u64().unwrap_or(0) > 0 {
+            "already_provided_in_diff"
         } else if report["coverage"]["issue_histogram"]["unsupported_count"].as_u64().unwrap_or(0) > 0 {
             "unsupported_source_language_or_contract"
         } else if report["impact"] == "no_changes_in_scope" {
@@ -2089,6 +2107,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     let head = crate::phase::phase("review_load_head", || {
         load(store, workspace, token, &r.head, &r.profile)
     })?;
+    let provided_diff = diff_context::Context::new(&r.provided_diff, &base, &head)?;
     if let Some(options) = &r.business_context {
         crate::business_context::validate(options, &r.base, &r.head, |pin, path| {
             [&base, &head].into_iter().find_map(|input| {
@@ -2205,10 +2224,10 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         });
         report["business_context"]["omitted_peer_suggestions"] = json!(omitted);
     }
-    let context_sha = crate::digest(
-        &json!({"business_context":r.business_context,"execution_coverage":coverage_ids,"source_admission":report["coverage"]["source_admission"],
-            "service_graph":{"base":a.services.summary(),"head":b.services.summary()}}),
-    );
+    let mut context = json!({"business_context":r.business_context,"execution_coverage":coverage_ids,"source_admission":report["coverage"]["source_admission"],
+            "service_graph":{"base":a.services.summary(),"head":b.services.summary()}});
+    if let Some(identity) = provided_diff.identity() { context["provided_diff"] = json!(identity); }
+    let context_sha = crate::digest(&context);
     let scopes = crate::phase::phase("review_reuse_scopes", || {
         reuse::annotate(&mut report, &a, &b)
     });
@@ -2217,6 +2236,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     });
     report["review_reuse"] = json!({"eligible":reusable,"requested":r.reviewed_entries.len(),"context_sha256":context_sha,"not_a_review_verdict":true,"policy":"resolved_component_with_complete_context_v1"});
     report["text_reuse"] = json!(r.reuse_text);
+    provided_diff.annotate(&mut report);
     if r.compact_provenance { report["_compact_provenance"] = json!(true); }
     let (mut report, receipt) = crate::phase::phase("review_pack", || {
         pack(report, r.max_tokens, previous.as_ref(), Some(&scopes))
@@ -2316,7 +2336,7 @@ pub(crate) fn pin_schema() -> Value {
 }
 pub fn properties() -> Value {
     let pin = pin_schema();
-    json!({"base":{"type":"array","items":pin,"minItems":1,"maxItems":64},"head":{"type":"array","items":pin,"minItems":1,"maxItems":64},"profile":{"type":"object","properties":{"goos":{"type":"string"},"goarch":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}},"tests":{"type":"boolean"},"workspace":{"type":"string"}},"required":["goos","goarch"],"additionalProperties":false},"max_depth":{"type":"integer","minimum":0,"maximum":32},"max_tokens":{"type":"integer","minimum":512,"maximum":64000},"previous_packet_id":{"type":"string"},"reuse_text":{"type":"boolean"},"compact_provenance":{"type":"boolean","description":"Share repeated pinned service assertions when beneficial; clients must support service_provenance references"},"reviewed_entries":{"type":"array","maxItems":1000,"items":{"type":"string"}},"business_context":crate::business_context::schema(),"repo":{"type":"string"}})
+    json!({"base":{"type":"array","items":pin,"minItems":1,"maxItems":64},"head":{"type":"array","items":pin,"minItems":1,"maxItems":64},"profile":{"type":"object","properties":{"goos":{"type":"string"},"goarch":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}},"tests":{"type":"boolean"},"workspace":{"type":"string"}},"required":["goos","goarch"],"additionalProperties":false},"max_depth":{"type":"integer","minimum":0,"maximum":32},"max_tokens":{"type":"integer","minimum":512,"maximum":64000},"previous_packet_id":{"type":"string"},"reuse_text":{"type":"boolean"},"compact_provenance":{"type":"boolean","description":"Share repeated pinned service assertions when beneficial; clients must support service_provenance references"},"reviewed_entries":{"type":"array","maxItems":1000,"items":{"type":"string"}},"provided_diff":diff_context::schema(),"business_context":crate::business_context::schema(),"repo":{"type":"string"}})
 }
 
 #[cfg(test)]

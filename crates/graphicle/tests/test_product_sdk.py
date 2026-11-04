@@ -131,6 +131,10 @@ def test_python_impact_contract_rejects_episode_ids_before_transport(monkeypatch
                                          "previous_packet_id": "d" * 64, "business_context": {"history": []}})
     asyncio.run(AsyncProject(project).impact([pin], [pin], profile=profile))
     assert calls[-1][1] == {"repository_id": "anchor", "base": [pin], "head": [pin], "profile": profile}
+    provided = [{"side": "head", "repository_id": "anchor", "file": "main.go",
+                 "file_sha256": "e" * 64, "line_start": 1, "line_end": 10}]
+    project.impact([pin], [pin], profile=profile, provided_diff=provided)
+    assert calls[-1][1]["provided_diff"] == provided
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="Node is required for cross-SDK integration")

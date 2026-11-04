@@ -434,6 +434,7 @@ class Project:
                business_context: Optional[Mapping[str, Any]] = None,
                reuse_text: Optional[bool] = None,
                compact_provenance: Optional[bool] = None,
+               provided_diff: Optional[Sequence[Mapping[str, Any]]] = None,
                reviewed_entries: Optional[Sequence[str]] = None) -> Dict[str, Any]:
         """Review pinned snapshot sets using an explicit Go build profile.
 
@@ -445,6 +446,8 @@ class Project:
         array carries pinned, caller-attested Git assertions from review-history.
         compact_provenance=True lets the server share repeated service assertions
         automatically. apply_review_delta restores the inline citation view.
+        provided_diff declares exact pinned file hashes and inclusive line ranges
+        already supplied to the reviewer; fully covered entries yield their budget.
         """
         for pins in (base, head):
             if (isinstance(pins, (str, bytes)) or not isinstance(pins, Sequence)
@@ -458,6 +461,7 @@ class Project:
                                         "previous_packet_id": previous_packet_id,
                                         "business_context": business_context, "reuse_text": reuse_text,
                                         "compact_provenance": compact_provenance,
+                                        "provided_diff": provided_diff,
                                         "reviewed_entries": reviewed_entries}))
 
     def export_memories(self) -> Dict[str, Any]:

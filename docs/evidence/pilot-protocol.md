@@ -150,3 +150,33 @@ previously assumed the complete composed path always fit its fixed flow budget;
 it now requires explicit omission accounting when it does not fit. The compact
 provenance test still requires the full composed path. Production flow packing
 was not changed.
+
+## Supplemental diff context (2026-11-04)
+
+The Sentinel handoff reports 524 of 623 delivered entries overlapping its diff
+on build 54920c9b. The opt-in `provided_diff` implementation is locally tested
+against that baseline; these measurements are synthetic, not a new Sentinel probe.
+
+The fixture changes a 300-statement Go function, with a caller and dependency
+in separate unchanged files. Declaring the exact base/head changed-file ranges
+removes both duplicate function entries and their raw hunk. Full graph impact
+stays `potential_impact`; packet/reuse completeness stays conservative.
+
+| Token budget | Additional entries, default | With provided diff |
+| --- | ---: | ---: |
+| 3,500 | 2 | 1 |
+| 5,000 | 1 | 3 |
+| 6,500 | 2 | 4 |
+
+Counts include both pinned sides, not distinct files. At 3,500 tokens the added
+accounting crosses a packing threshold; this is not a universal count increase.
+The improvement at the larger budgets needs confirmation using Sentinel's real
+prompt-visible ranges and unchanged admission/budget settings.
+
+Tests also cover partial ranges, gaps, merging adjacent ranges, invalid hashes
+and bounds, base/head separation, identical files in different repositories,
+delta invalidation/restoration, and unchanged behavior when the option is absent.
+Validation: 65 review unit tests, 100 review integration tests, the Python SDK
+transport check and TypeScript type checks passed, with focused reruns after edits.
+Nexus latency, interface-dispatch completeness and Dora's file-level-only output
+remain open; this option addresses duplicate context, not those analysis gaps.
