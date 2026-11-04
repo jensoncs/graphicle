@@ -848,3 +848,108 @@ verified; a live eight-PR probe and longer memory/idle qualification remain
 before production rollout. No production settings were changed.
 
 [Raw samples, pins, source hashes, aggregates and validation results](review-worker-isolation-soak-20261105.json).
+
+## Longer retained-process memory investigation (2026-11-05)
+
+The [memory driver](../../crates/graphicle/tools/benchmark_review_memory.py)
+extends the same archived Nexus #963 and platform-rbac #638 fixtures to thirty
+unseen synthetic heads per repository, with one request at a time. It uses the
+same binary as the worker-isolation soak. No runtime behavior or production
+settings change. The shared admission helper now accepts a head count; its
+existing eleven-head default is unchanged.
+
+Each case has a one-minute pre-admission baseline, one priming review, three
+groups of ten new-head reviews separated by one-minute idle pauses, ten cached
+replays of the final head, and another idle pause. The server then restarts
+against the same persisted store, idles, replays the same cached head, and idles
+again. Fresh CLI controls for heads 1, 15 and 30 run only after both servers have
+stopped, from independent copies of the pre-review cache state. Packet equality
+excludes only `analysis_cache` and `tokens`; budgets and base/head cache behavior
+are checked separately. Jobs remain queued, no connectors or models run, and
+original archive stores are read-only.
+
+Native macOS `libproc` samples only the known server and its recursively
+discovered children every 250 ms. It records RSS, physical footprint and thread
+counts without collecting command lines. Process-tree sums can double-count
+shared pages; short-lived children between samples and descendants reparented
+outside the tree can be missed. The samples are not an exact high-water mark.
+Physical footprint and RSS are different OS accounting measures, neither a count
+of live Rust objects. Heap inspection through `vmmap` was unavailable under the
+local process permissions. Sampling was checked with a known live 48 MiB
+allocation and parent/child discovery before the timed run.
+
+The fixture uses constant-sized source trees and unchanged dependency inputs.
+It does not cover repository churn, large varied edits, concurrent admission,
+production Linux allocator behavior, or an indefinitely running service.
+
+The main probe completed ninety reviews: sixty new heads, two priming calls,
+twenty cached replays, two cached replays after restart, and six fresh CLI
+controls. All twenty-eight same-pin packet comparisons passed. All expected
+base/head cache states and token budgets passed; maximum server packet size was
+7,708 / 8,000 tokens. Queued/retry jobs were unchanged and no background graph
+projection or model calls ran.
+
+| Case | New-head batch peak server RSS, heads 1–10 / 11–20 / 21–30 | Maximum sampled new-head process-tree RSS | New-head batch median latency |
+| --- | ---: | ---: | ---: |
+| Nexus #963 | 945.8 / 775.7 / 795.1 MiB | 1,379.9 MiB | 12.88 / 12.57 / 12.72 s |
+| platform-rbac #638 | 776.0 / 702.4 / 701.7 MiB | 1,013.7 MiB | 10.25 / 10.28 / 10.89 s |
+
+These are sampled peaks within the new-head requests, not memory limits or
+exact process high-water marks. Platform-rbac's final batch was about 6% slower
+than its first; no causal performance conclusion is drawn from this uncontrolled
+host run. Both repositories' later batches remained below their initial peak
+server RSS.
+
+| Case | Idle RSS after heads 10 / 20 / 30 | Idle physical footprint after heads 10 / 20 / 30 |
+| --- | ---: | ---: |
+| Nexus #963 | 735.0 / 727.2 / 759.0 MiB | 194.9 / 182.0 / 212.0 MiB |
+| platform-rbac #638 | 649.3 / 631.5 / 596.6 MiB | 171.8 / 145.3 / 100.0 MiB |
+
+Every completed idle window had zero sampled children and ended with twenty
+server threads, the same as its startup baseline. In several windows an RSS
+drop coincided with the thread count falling at about ten seconds. The HTTP
+command handler uses `spawn_blocking`; the locked Tokio 1.53.3 implementation's
+default blocking-thread keep-alive is ten seconds. This is consistent with
+thread-associated retention being released on retirement, but does not establish
+ownership of all remaining memory. Full compiler facts stayed at four entries;
+dependency exports stayed at 1,127 / 57.0 MiB on Nexus and 995 / 20.1 MiB on
+platform-rbac at all three checkpoints.
+
+The ten cached replays took median 2.31 s on Nexus and 2.00 s on platform-rbac.
+After their idle pause, RSS was 684.7 and 720.1 MiB respectively. A fresh process
+using the same store produced the same packet in 2.31 and 2.02 s, then settled
+at 483.0 and 504.6 MiB idle RSS. Physical footprint tells a different story:
+Nexus was 136.7 MiB before restart and 152.0 MiB after, while platform-rbac was
+207.1 and 197.6 MiB. Lower RSS after restart does not by itself demonstrate that
+live application allocations were accumulating.
+
+Platform-rbac's ten cached replays ended on rising RSS, so an additional
+[cached-burst driver](../../crates/graphicle/tools/benchmark_review_cached_memory.py)
+ran fifty uninterrupted cached requests in a fresh process with a private copy
+of the final store. Every packet matched the original and every call hit both
+full-analysis caches. This tested whether the short run had stopped during a
+temporary rise:
+
+| Cached requests | Peak sampled server RSS | Peak sampled physical footprint | Median latency |
+| --- | ---: | ---: | ---: |
+| 1–10 | 705.4 MiB | 457.6 MiB | 2.07 s |
+| 11–20 | 941.4 MiB | 559.9 MiB | 2.09 s |
+| 21–30 | 1,011.5 MiB | 630.0 MiB | 2.05 s |
+| 31–40 | 925.5 MiB | 541.9 MiB | 2.05 s |
+| 41–50 | 668.1 MiB | 257.7 MiB | 2.04 s |
+
+Memory fell during continued requests, without a restart or an intentional idle
+gap. After sixty seconds idle it settled at 569.2 MiB RSS / 156.8 MiB physical
+footprint. Cache counts/payload sizes and job states remained unchanged.
+
+Across both experiments, 140 reviews and 78 semantic packet comparisons passed.
+The five process traces contain 7,025 samples; maximum interval was 264 ms and
+maximum sampling work was 2.49 ms. All temporary servers stopped. No confirmed
+leak or steadily rising retained baseline was found in these workloads. High RSS
+retention and later reclamation are observable; exact allocation ownership remains
+unproven. No allocator tuning or automatic RSS-based restart policy is introduced.
+Keep one in-flight review per process and qualify process-tree/cgroup memory on
+Sentinel's Linux host before setting production memory limits. Longer varied
+new-head traffic without periodic idle pauses remains outside this test.
+
+[Per-request measurements, idle endpoints, pins, hashes and checks](retained-review-memory-20261105.json).

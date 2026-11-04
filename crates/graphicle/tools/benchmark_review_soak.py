@@ -41,7 +41,7 @@ def job_state(store):
         return db.execute('SELECT id,kind,state,attempt,lease_token,lease_until FROM am_jobs ORDER BY id').fetchall()
 
 
-def prepare_heads(client, work, case):
+def prepare_heads(client, work, case, head_count=11):
     request = json.loads(Path(case['next_request']).read_text())
     assert len(request['head']) == len(request['base']) == 1
     pin = request['head'][0]
@@ -62,7 +62,7 @@ def prepare_heads(client, work, case):
     # Synthetic pins do not claim a new collection/verification of dependencies.
     metadata.pop('dependency_preparation', None)
     requests = []
-    for index in range(11):
+    for index in range(head_count):
         content = original + b'\nconst ' + marker + b' = ' + str(index).encode() + b'\n'
         updated = {**manifest, path: {'sha256': hashlib.sha256(content).hexdigest(), 'bytes': len(content)}}
         commit = hashlib.sha1(f'graphicle synthetic soak {case["name"]} {index}'.encode()).hexdigest()
@@ -77,7 +77,7 @@ def prepare_heads(client, work, case):
         next_request = {**request, 'head': [{**pin, 'commit': commit, 'snapshot': expected}]}
         requests.append(next_request)
         save(work.parent / f'request-{index}.json', next_request)
-    assert len({r['head'][0]['snapshot'] for r in requests}) == 11
+    assert len({r['head'][0]['snapshot'] for r in requests}) == head_count
     return requests
 
 
