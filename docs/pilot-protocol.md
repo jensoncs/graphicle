@@ -109,6 +109,16 @@ Record these sync counters alongside the review packet; review-time
 facts. A historical sync rebuild must not be attributed to each later review.
 `build.info.sync_analysis_cache` advertises `parse-reuse-and-rebuild-counts-v1`.
 
+Full Go-analysis cache hits do not load the dependency-export pool. On a full
+analysis cache miss in a Go review, the pool is loaded once and base-created exports
+remain available to head analysis. With `GRAPHICLE_PHASE_TIMINGS=1`, that load is
+reported as `review_load_package_cache`; it is absent when both sides hit the full cache.
+Verified, unchanged cache payloads refresh usage and snapshot bindings without
+re-encoding or resubmitting the payload. Evicted or replaced rows fall back to a
+normal save, and newly compiled exports replace rejected data. Checksums, source
+authorization, final snapshot-retention checks and cache limits still apply.
+These savings concern review-time caches, not dependency preparation or sync.
+
 ## Risk measurements
 
 When `entries` is empty, `empty_reason` explains why. It is separate from

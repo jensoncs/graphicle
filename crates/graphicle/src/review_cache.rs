@@ -20,6 +20,9 @@ const PACKAGE_COUNT: usize = 4096;
 pub(crate) struct PackagePool {
     pub identity: String,
     pub entries: BTreeMap<String, String>,
+    // Checksums verified on load or written in the final transaction. Native
+    // replacements invalidate these, including repaired export data.
+    persisted: BTreeMap<String, String>,
 }
 
 #[derive(Default, Deserialize)]
@@ -43,6 +46,9 @@ impl PackagePool {
             let total = bytes - previous + data.len();
             if total > PACKAGE_BYTES || (previous == 0 && self.entries.len() >= PACKAGE_COUNT) {
                 continue;
+            }
+            if self.entries.get(&key) != Some(&data) {
+                self.persisted.remove(&key);
             }
             self.entries.insert(key, data);
             bytes = total;
@@ -82,6 +88,7 @@ pub(crate) fn load_packages(
             let sha: String = row.get(2)?;
             if graphicle_memory::text::sha256(data.as_bytes()) != sha { continue; }
             bytes += data.len();
+            pool.persisted.insert(key.clone(), sha);
             pool.entries.insert(key, data);
         }
         Ok(pool)
@@ -92,10 +99,11 @@ pub(crate) fn load_packages(
 pub(crate) fn save_packages(
     db: &Connection,
     anchor: &str,
-    pool: &PackagePool,
+    pool: &mut PackagePool,
     used: &[String],
     pins: &[Pin],
 ) -> Result<()> {
+    if used.is_empty() { return Ok(()); }
     for key in used.iter().take(PACKAGE_COUNT) {
         let Some(data) = pool.entries.get(key) else {
             continue;
@@ -103,7 +111,14 @@ pub(crate) fn save_packages(
         if store::hash(key).is_err() || data.len() > PACKAGE_ENTRY_BYTES {
             continue;
         }
-        db.execute("INSERT INTO repo_review_package_facts(repository_id,id,data,sha256,used_at) VALUES(?,?,?,?,?) ON CONFLICT(repository_id,id) DO UPDATE SET data=excluded.data,sha256=excluded.sha256,used_at=excluded.used_at", params![anchor,key,data,graphicle_memory::text::sha256(data.as_bytes()),crate::now()])?;
+        let refreshed = if let Some(sha) = pool.persisted.get(key) {
+            db.execute("UPDATE repo_review_package_facts SET used_at=? WHERE repository_id=? AND id=? AND sha256=?",params![crate::now(),anchor,key,sha])? > 0
+        } else { false };
+        if !refreshed {
+            let sha = graphicle_memory::text::sha256(data.as_bytes());
+            db.execute("INSERT INTO repo_review_package_facts(repository_id,id,data,sha256,used_at) VALUES(?,?,?,?,?) ON CONFLICT(repository_id,id) DO UPDATE SET data=excluded.data,sha256=excluded.sha256,used_at=excluded.used_at", params![anchor,key,data,sha,crate::now()])?;
+            pool.persisted.insert(key.clone(), sha);
+        }
         for pin in pins {
             db.execute("INSERT OR IGNORE INTO repo_review_package_inputs(repository_id,id,input_repository,snapshot) VALUES(?,?,?,?)",params![anchor,key,pin.repository_id,pin.snapshot])?;
         }
@@ -119,7 +134,7 @@ pub(crate) fn load(
     token: &str,
     anchor: &str,
     key: &str,
-) -> Result<Option<Value>> {
+) -> Result<Option<(Value, String)>> {
     store.authorized_read(workspace, token, "read", |db, principal| {
         store::repo(db, principal, anchor)?;
         let Some(row) = store::one(db, "SELECT facts,sha256 FROM repo_review_analysis WHERE repository_id=? AND id=?", params![anchor,key])? else {return Ok(None)};
@@ -127,7 +142,8 @@ pub(crate) fn load(
             if store::repo(db,principal,s(&input,"input_repository")).is_err() {return Ok(None)}
         }
         let facts:Value=serde_json::from_str(s(&row,"facts"))?;
-        Ok((crate::digest(&facts)==s(&row,"sha256")).then_some(facts))
+        let sha = s(&row,"sha256");
+        Ok((crate::digest(&facts)==sha).then(|| (facts,sha.to_owned())))
     })
 }
 
@@ -138,13 +154,20 @@ pub(crate) fn save(
     key: &str,
     facts: &Value,
     pins: &[Pin],
+    verified_sha: Option<&str>,
 ) -> Result<()> {
-    let encoded = facts.to_string();
-    // Match the native transport bound; facts use gzip/base64 on this boundary.
-    if encoded.len() > 64 * 1024 * 1024 {
-        return Ok(());
+    // A cache hit was already checksummed on load. Refresh it without encoding
+    // the transport again. If concurrent eviction/replacement removed that row,
+    // restore the validated facts after the caller's final retention checks.
+    let refreshed = if let Some(sha) = verified_sha {
+        db.execute("UPDATE repo_review_analysis SET used_at=? WHERE repository_id=? AND id=? AND sha256=?",params![crate::now(),anchor,key,sha])? > 0
+    } else { false };
+    if !refreshed {
+        let encoded = facts.to_string();
+        // Match the native transport bound; facts use gzip/base64 here.
+        if encoded.len() > 64 * 1024 * 1024 { return Ok(()); }
+        db.execute("INSERT INTO repo_review_analysis(repository_id,id,facts,sha256,used_at) VALUES(?,?,?,?,?) ON CONFLICT(repository_id,id) DO UPDATE SET facts=excluded.facts,sha256=excluded.sha256,used_at=excluded.used_at",params![anchor,key,encoded,crate::digest(facts),crate::now()])?;
     }
-    db.execute("INSERT INTO repo_review_analysis(repository_id,id,facts,sha256,used_at) VALUES(?,?,?,?,?) ON CONFLICT(repository_id,id) DO UPDATE SET used_at=excluded.used_at",params![anchor,key,encoded,crate::digest(facts),crate::now()])?;
     for pin in pins {
         db.execute("INSERT OR IGNORE INTO repo_review_analysis_inputs(repository_id,id,input_repository,snapshot) VALUES(?,?,?,?)",params![anchor,key,pin.repository_id,pin.snapshot])?;
     }
@@ -156,6 +179,80 @@ pub(crate) fn save(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    #[ignore = "manual before/after cache-persistence benchmark"]
+    fn cache_persistence_benchmark() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let ws = store.create_workspace("cache-persistence-benchmark").unwrap();
+        let repo = store.register(s(&ws,"id"), s(&ws,"capability"), &json!({"project_key":"bench","name":"bench"})).unwrap();
+        let anchor = s(&repo,"id");
+        let mut pool = PackagePool::default();
+        for n in 0..8 {
+            pool.entries.insert(format!("{n:064x}"), "x".repeat(4 * 1024 * 1024));
+        }
+        let used: Vec<_> = pool.entries.keys().cloned().collect();
+        let facts = json!({"opaque_compiler_transport":"x".repeat(16 * 1024 * 1024)});
+        let key = "a".repeat(64);
+        store.transaction(|db| {
+            save_packages(db,anchor,&mut pool,&used,&[])?;
+            save(db,anchor,&key,&facts,&[],None)
+        }).unwrap();
+        let (_, verified) = load(&store,s(&ws,"id"),s(&ws,"capability"),anchor,&key).unwrap().unwrap();
+        for kind in ["packages_32mib", "analysis_16mib"] {
+            let mut elapsed = vec![];
+            for n in 0..8 {
+                let start = std::time::Instant::now();
+                store.transaction(|db| {
+                    if kind == "packages_32mib" { save_packages(db,anchor,&mut pool,&used,&[]) }
+                    else { save(db,anchor,&key,&facts,&[],Some(&verified)) }
+                }).unwrap();
+                if n > 0 { elapsed.push(start.elapsed().as_secs_f64() * 1000.0); }
+            }
+            eprintln!("cache_persistence_benchmark kind={kind} samples_ms={elapsed:?}");
+        }
+    }
+
+    #[test]
+    fn cache_refresh_restores_evicted_rows_and_replaces_changed_payloads() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let ws = store.create_workspace("cache-refresh").unwrap();
+        let repo = store.register(s(&ws,"id"),s(&ws,"capability"),&json!({"project_key":"refresh","name":"refresh"})).unwrap();
+        let anchor = s(&repo,"id");
+        let key = "a".repeat(64);
+        let facts = json!({"facts":"verified"});
+        let mut pool = PackagePool::default();
+        pool.entries.insert(key.clone(), "original".into());
+        store.transaction(|db| {
+            save_packages(db,anchor,&mut pool,std::slice::from_ref(&key),&[])?;
+            save(db,anchor,&key,&facts,&[],None)
+        }).unwrap();
+        let (_, verified) = load(&store,s(&ws,"id"),s(&ws,"capability"),anchor,&key).unwrap().unwrap();
+        pool = load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor).unwrap();
+        for eviction in [false, true] {
+            store.transaction(|db| {
+                if eviction {
+                    db.execute("DELETE FROM repo_review_analysis", [])?;
+                    db.execute("DELETE FROM repo_review_package_facts", [])?;
+                } else {
+                    db.execute("UPDATE repo_review_analysis SET sha256='changed'", [])?;
+                    db.execute("UPDATE repo_review_package_facts SET sha256='changed'", [])?;
+                }
+                save(db,anchor,&key,&facts,&[],Some(&verified))?;
+                save_packages(db,anchor,&mut pool,std::slice::from_ref(&key),&[])?;
+                Ok(())
+            }).unwrap();
+            assert_eq!(load(&store,s(&ws,"id"),s(&ws,"capability"),anchor,&key).unwrap().unwrap().0, facts);
+            assert_eq!(load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor).unwrap().entries[&key], "original");
+        }
+        let mut repaired = PackageResult::default();
+        repaired.entries.insert(key.clone(), "repaired by native compiler".into());
+        pool.absorb(&mut repaired);
+        store.transaction(|db| save_packages(db,anchor,&mut pool,std::slice::from_ref(&key),&[])).unwrap();
+        assert_eq!(load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor).unwrap().entries[&key], "repaired by native compiler");
+    }
 
     #[test]
     fn package_pool_enforces_entry_and_total_bounds() {
@@ -219,7 +316,7 @@ mod tests {
         store.transaction(|db| {
             db.execute("INSERT INTO repo_snapshots VALUES(?,?,'{}','{}',?)",params![input,"snapshot",crate::now()])?;
             let pin: Pin = serde_json::from_value(json!({"repository_id":input,"snapshot":"snapshot","commit":"commit","policy_sha256":"policy","directory":"input"})).unwrap();
-            save_packages(db,anchor,&pool,std::slice::from_ref(&key),&[pin])?;
+            save_packages(db,anchor,&mut pool,std::slice::from_ref(&key),&[pin])?;
             Ok(())
         }).unwrap();
         assert_eq!(
@@ -261,7 +358,7 @@ mod tests {
             for n in 0..PACKAGE_COUNT + 2 {
                 db.execute("INSERT INTO repo_review_package_facts VALUES(?,?,?,?,?)",params![anchor,format!("{n:064x}"),"x",graphicle_memory::text::sha256(b"x"),"old"])?;
             }
-            save_packages(db,anchor,&pool,std::slice::from_ref(&key),&[])?;
+            save_packages(db,anchor,&mut pool,std::slice::from_ref(&key),&[])?;
             let (count,oldest): (usize,usize) = db.query_row("SELECT count(*),sum(id=?) FROM repo_review_package_facts WHERE repository_id=?",params![format!("{:064x}",0),anchor],|r|Ok((r.get(0)?,r.get(1)?)))?;
             assert_eq!(count,PACKAGE_COUNT);
             assert_eq!(oldest,0);

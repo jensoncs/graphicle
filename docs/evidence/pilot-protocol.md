@@ -225,3 +225,51 @@ including byte-boundary/hash/side isolation, partial-hunk budget checks,
 uncertain-scope ordering, packet bounds, schema validation and stable delta
 selection. Production usefulness and latency require the same pinned probe
 with unchanged admission, budgets and prompt-visible ranges.
+
+## Review cache refresh measurements (2026-11-04)
+
+Compared fcddad5 with two cache optimizations: defer loading dependency exports
+until a full-analysis miss, and refresh verified cache rows without encoding or
+resubmitting unchanged payloads. Base-created exports still serve head analysis.
+Native replacements invalidate the saved checksum; eviction or a changed stored
+checksum triggers a normal save. Snapshot bindings are retained on refresh.
+
+Local macOS Rust 1.94.1 **unoptimized test binaries**, sequential runs in both
+orders. Each arm has 14 measured iterations across two runs, after one warm-up
+per run. Source and payload sizes are identical; generated repository IDs vary
+between fixtures. These measurements are not the eight-PR production probe.
+
+| Operation | Baseline median | Changed median | Reduction |
+| --- | ---: | ---: | ---: |
+| Warm review, 32 MiB historical dependency pool | 967.4 ms | 139.6 ms | 85.6% |
+| Warm review, empty dependency pool (control) | 144.7 ms | 138.9 ms | 4.0% |
+| Refresh 32 MiB dependency payloads only | 845.1 ms | 47.2 ms | 94.4% |
+| Refresh 16 MiB analysis payload only | 837.2 ms | 15.1 ms | 98.2% |
+
+The review fixture runs real pinned Go analysis once, then measures
+`review::run` on full-analysis hits. Historical export payloads are synthetic,
+unused blobs to exercise the bounded loader. The persistence measurements use
+opaque synthetic payloads and exclude loading/checksum validation, which still
+happens when reading the cache. They are separate microbenchmarks, not components
+to add together. The empty-pool control remains roughly unchanged.
+
+No vendoring, admission/sync or CLI startup is included. Release-build and
+production savings remain unmeasured; these results do not establish that Nexus
+fits the 180-second pilot budget. Cold type-checking work is unchanged.
+
+[Raw samples and measurement metadata](review-cache-refresh-benchmark.json).
+Reproduce with the ignored `warm_review_cache_benchmark` integration test and
+`cache_persistence_benchmark` unit test, using `--ignored --nocapture
+--test-threads=1` and the same build profile for both revisions. Run timing tests
+separately from compilation and other test workloads.
+
+Validation: 74 unit tests and 125 integration tests passed across the broad
+review run and focused rerun. Coverage includes unchanged-payload write guards,
+full hits with an unusable optional export pool, cached/fresh packet equality,
+native corruption repair, eviction/replacement fallback, access revocation,
+snapshot removal and compiler-input invalidation. The broad run exposed an
+existing 3,500-token packing assertion that also failed on the unchanged
+baseline: randomized IDs can make the second affordable outside entry the base
+caller. That test now requires the current dependency at 5,000/6,500 tokens and
+retains the outside-context/current-caller requirements at 3,500. Packing code
+was not changed. `git diff --check` passed.

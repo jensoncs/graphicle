@@ -2160,28 +2160,38 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     }
     let identity = (!go::scope(&base)?.roots.is_empty() || !go::scope(&head)?.roots.is_empty()).then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
         .map(|v| crate::digest(&v));
-    let mut package_pool = if identity.is_some() { crate::review_cache::load_packages(store,workspace,token,anchor)? } else { crate::review_cache::PackagePool::default() };
-    package_pool.identity = identity.clone().unwrap_or_default();
     let fact_key = |input: &Input| identity.as_ref().map(|identity| go::fact_key(input, &r.profile, identity));
     let key_a = fact_key(&base);
     let key_b = fact_key(&head);
-    let read_cache = |key: &Option<String>| -> Result<Option<Value>> {
+    let read_cache = |key: &Option<String>| -> Result<Option<(Value, String)>> {
         match key {
             Some(key) => crate::review_cache::load(store, workspace, token, anchor, key),
             None => Ok(None),
         }
     };
-    let cached_a = read_cache(&key_a)?;
+    let (cached_a, checksum_a) = read_cache(&key_a)?.unzip();
     let hit_a = cached_a.is_some();
+    let load_packages = || crate::phase::phase("review_load_package_cache", || {
+        crate::review_cache::load_packages(store,workspace,token,anchor)
+    });
+    // Full cached facts need no dependency exports. Keep one shared pool for
+    // native misses so base-created exports still accelerate head analysis.
+    let loaded_packages = identity.is_some() && !hit_a;
+    let mut package_pool = if loaded_packages { load_packages()? } else { crate::review_cache::PackagePool::default() };
+    package_pool.identity = identity.clone().unwrap_or_default();
     let mut a = crate::phase::phase("review_analyze_base", || {
         analyze(&base, &r.profile, cached_a, &mut package_pool)
     })?;
-    let cached_b = if key_a.is_some() && key_a == key_b {
-        a.raw.clone()
+    let (cached_b, checksum_b) = if key_a.is_some() && key_a == key_b {
+        (a.raw.clone(), checksum_a.clone())
     } else {
-        read_cache(&key_b)?
+        read_cache(&key_b)?.unzip()
     };
     let hit_b = cached_b.is_some();
+    if identity.is_some() && !hit_b && !loaded_packages {
+        package_pool = load_packages()?;
+        package_pool.identity = identity.clone().unwrap_or_default();
+    }
     let mut b = crate::phase::phase("review_analyze_head", || {
         analyze(&head, &r.profile, cached_b, &mut package_pool)
     })?;
@@ -2313,12 +2323,12 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
             let row=store::one(db,"SELECT repository_id FROM repo_review_coverage WHERE id=?",[id])?.ok_or_else(||Error::conflict("Coverage removed during review; retry"))?;
             store::repo(db,p,s(&row,"repository_id"))?;
         }
-        for (input,analysis,key) in [(&base,&a,&key_a),(&head,&b,&key_b)] {
+        for (input,analysis,key,checksum) in [(&base,&a,&key_a,&checksum_a),(&head,&b,&key_b,&checksum_b)] {
             if input.bindings.len()==input.pins.len() {
-                crate::review_cache::save_packages(db,anchor,&package_pool,&analysis.package_cache.used,&input.pins)?;
+                crate::review_cache::save_packages(db,anchor,&mut package_pool,&analysis.package_cache.used,&input.pins)?;
             }
             if input.bindings.len()==input.pins.len() && let (Some(key),Some(facts))=(key,&analysis.raw) {
-                crate::review_cache::save(db,anchor,key,facts,&input.pins)?;
+                crate::review_cache::save(db,anchor,key,facts,&input.pins,checksum.as_deref())?;
             }
         }
         db.execute("INSERT OR IGNORE INTO repo_review_packets(id,repository_id,principal_hash,receipt,created_at) VALUES(?,?,?,?,?)",params![s(&report,"packet_id"),anchor,p.hash,receipt.to_string(),crate::now()])?;

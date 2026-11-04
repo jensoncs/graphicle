@@ -39,6 +39,10 @@ fn dependency_exports_survive_owned_edits_and_match_fresh_analysis() {
     assert_eq!(first["analysis_cache"]["packages"]["base"]["misses"], 1);
     assert_eq!(first["analysis_cache"]["packages"]["head"]["hits"], 1);
     assert_eq!(first["analysis_cache"]["head_hit"], false);
+    f.store.transaction(|db| {
+        db.execute_batch("CREATE TRIGGER unchanged_exports_not_rewritten BEFORE UPDATE OF data,sha256 ON repo_review_package_facts BEGIN SELECT RAISE(ABORT,'unchanged export payload rewritten'); END;")?;
+        Ok(())
+    }).unwrap();
     clear_facts(&f);
     let warm = f.run(&args);
     assert_eq!(warm["analysis_cache"]["packages"]["base"]["hits"], 1);
@@ -63,6 +67,28 @@ fn dependency_exports_survive_owned_edits_and_match_fresh_analysis() {
             Ok(())
         })
         .unwrap();
+}
+
+#[test]
+fn full_analysis_hits_do_not_depend_on_unused_export_payloads() {
+    let f = Fixture::new();
+    let repo = f.repo("full-cache-no-export-load");
+    let old = "package tax\nimport \"example/dep\"\nfunc F() int {return dep.T{}.F()}\n";
+    let base = dependency_pin(&f, &repo, 'a', old);
+    let head = dependency_pin(&f, &repo, 'b', &old.replace("return dep", "return 2+dep"));
+    let args = request(&repo, vec![base], vec![head]);
+    let expected = comparable(f.run(&args));
+    f.store.transaction(|db| {
+        // Invalid SQLite type would fail the export loader. Full cached facts
+        // remain independently verified and do not need this optional pool.
+        db.execute("UPDATE repo_review_package_facts SET data=zeroblob(8)", [])?;
+        db.execute_batch("CREATE TRIGGER cached_facts_not_rewritten BEFORE UPDATE OF facts,sha256 ON repo_review_analysis BEGIN SELECT RAISE(ABORT,'cached facts rewritten'); END;")?;
+        Ok(())
+    }).unwrap();
+    let warm = f.run(&args);
+    assert_eq!(warm["analysis_cache"]["base_hit"], true);
+    assert_eq!(warm["analysis_cache"]["head_hit"], true);
+    assert_eq!(comparable(warm), expected);
 }
 
 #[test]
@@ -121,6 +147,43 @@ fn clear_facts(f: &Fixture) {
             Ok(())
         })
         .unwrap();
+}
+
+#[test]
+#[ignore = "manual before/after warm-review benchmark"]
+fn warm_review_cache_benchmark() {
+    let f = Fixture::new();
+    let repo = f.repo("warm-cache-benchmark");
+    let old = "package tax\nimport \"example/dep\"\nfunc F() int {return dep.T{}.F()}\n";
+    let base = dependency_pin(&f, &repo, 'a', old);
+    let head = dependency_pin(&f, &repo, 'b', &old.replace("return dep", "return 2+dep"));
+    let args = request(&repo, vec![base], vec![head]);
+    let expected = comparable(f.run(&args));
+    for mib in [0, 32] {
+        f.store.transaction(|db| {
+            db.execute("DELETE FROM repo_review_package_facts", [])?;
+            // Historical, unused exports exercise the bounded pool loader.
+            // They are opaque synthetic payloads, not native compiler inputs.
+            let data = "x".repeat(4 * 1024 * 1024);
+            let sha = text::sha256(data.as_bytes());
+            for n in 0..mib / 4 {
+                db.execute("INSERT INTO repo_review_package_facts VALUES(?,?,?,?,?)",
+                    rusqlite::params![repo, format!("{n:064x}"), data, sha, "old"])?;
+            }
+            Ok(())
+        }).unwrap();
+        let mut elapsed = vec![];
+        for n in 0..8 {
+            let start = std::time::Instant::now();
+            let packet = review::run(&f.store, &f.workspace, &f.token, &args).unwrap();
+            let ms = start.elapsed().as_secs_f64() * 1000.0;
+            assert_eq!(packet["analysis_cache"]["base_hit"], true);
+            assert_eq!(packet["analysis_cache"]["head_hit"], true);
+            assert_eq!(comparable(packet), expected);
+            if n > 0 { elapsed.push(ms); }
+        }
+        eprintln!("warm_review_cache_benchmark dependency_pool_mib={mib} samples_ms={elapsed:?}");
+    }
 }
 
 #[test]
