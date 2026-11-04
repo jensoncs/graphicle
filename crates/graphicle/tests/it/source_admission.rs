@@ -246,8 +246,29 @@ fn external_package_failures_are_distinct_from_local_discovery_and_type_errors()
             .as_array()
             .unwrap()
             .iter()
-            .any(|d| d["cause"] == "outside_snapshot")
+            .any(|d| d["cause"] == "discovery_error" && d["package"] == "unavailable.invalid/dependency")
     );
+    assert!(!summary["examples"].as_array().unwrap().iter().any(|d| d["cause"] == "outside_snapshot"));
+}
+
+#[test]
+fn template_discovery_errors_preserve_incomplete_coverage_without_phantom_type_failures() {
+    let f = Fixture::new();
+    let repo = f.repo("template-discovery");
+    let pin = f.pin(&repo, "app", 'a', &[
+        ("go.mod", MOD),
+        ("code.go", "package tax\nfunc F() int { return 1 }\n"),
+        ("templates/{{name}}/code.go", "package template\nfunc F() {}\n"),
+    ]);
+    let packet = f.run(&request(&repo, vec![pin.clone()], vec![pin]));
+    assert_eq!(packet["coverage"]["complete"], false, "{packet}");
+    let summary = &packet["coverage"]["analysis_diagnostics"]["head"]["go"];
+    assert_eq!(summary["type_check_failed_package_instances"], 0, "{summary}");
+    assert_eq!(summary["unavailable_external_package_instances"], 0, "{summary}");
+    assert_eq!(summary["package_failures"]["packages_by_cause"]["discovery_error"], 1, "{summary}");
+    assert!(packet["coverage"]["issues"].as_array().unwrap().iter().any(|i|
+        i["reason"] == "incomplete_discovery:example/tax/templates/{{name}}"
+    ), "{packet}");
 }
 
 #[test]
@@ -267,6 +288,10 @@ fn diagnostic_summary_separates_one_broken_package_from_many_references() {
     assert_eq!(summary["incomplete_package_instances"], 1);
     assert_eq!(summary["type_check_failed_package_instances"], 1);
     assert_eq!(summary["incomplete_package_references"], 1000);
+    assert_eq!(summary["package_failures"]["count"], 1);
+    assert_eq!(summary["package_failures"]["packages_by_cause"]["type_error"], 1);
+    assert_eq!(summary["package_failures"]["examples"][0]["causes"]["type_error"], 1000);
+    assert_eq!(summary["package_failures"]["examples_omitted"], 0);
     let histogram = &packet["coverage"]["issue_histogram"];
     assert_eq!(histogram["counted"], packet["coverage"]["issue_count"]);
     let groups = histogram["groups"].as_array().unwrap();

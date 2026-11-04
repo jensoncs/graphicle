@@ -174,6 +174,43 @@ fn each_consumer_uses_its_own_package_instance_and_local_override() {
     }
 }
 #[test]
+fn discovery_only_templates_are_not_phantom_type_checks_or_external_packages() {
+    for with_valid_package in [false, true] {
+        let root = tree(&[
+            ("app/go.mod", "module example/app\ngo 1.23\n"),
+            ("app/templates/{{name}}/main.go", "package template\nfunc Template() {}\n"),
+        ]);
+        if with_valid_package {
+            std::fs::write(root.path().join("app/main.go"), "package app\nfunc Entry() {}\n").unwrap();
+        }
+        let report = run(&root, &["app"], &[], false, "");
+        let world = &report["worlds"][0];
+        let issues = world["issues"].as_array().unwrap();
+        assert!(issues.iter().any(|v| v == "incomplete_discovery:example/app/templates/{{name}}"), "{report}");
+        assert!(!issues.iter().any(|v| v.as_str().unwrap().starts_with("type_check_failed:") || v.as_str().unwrap().starts_with("unavailable_external_package:")), "{report}");
+        assert_eq!(world["package_diagnostics"]["example/app/templates/{{name}}"]["discovery_error"], 1, "{report}");
+        assert!(!world["diagnostics"].as_array().unwrap().iter().any(|v| v["cause"] == "outside_snapshot"), "{report}");
+        assert_eq!(world["symbols"].as_array().unwrap().len(), usize::from(with_valid_package));
+    }
+}
+
+#[test]
+fn undiscovered_dependencies_still_fail_importers_without_claiming_snapshot_escape() {
+    let root = tree(&[
+        ("app/go.mod", "module example/app\ngo 1.23\n"),
+        ("app/main.go", "package app\nimport \"example/missing\"\nfunc Entry() { missing.Run() }\n"),
+    ]);
+    let report = run(&root, &["app"], &[], false, "");
+    let world = &report["worlds"][0];
+    let issues = world["issues"].as_array().unwrap();
+    assert!(issues.iter().any(|v| v == "unavailable_external_package:example/missing"), "{report}");
+    assert!(issues.iter().any(|v| v == "type_check_failed:example/app"), "{report}");
+    assert_eq!(world["package_diagnostics"]["example/missing"]["discovery_error"], 1, "{report}");
+    assert!(world["package_diagnostics"]["example/app"]["type_error"].as_u64().unwrap() > 0, "{report}");
+    assert!(!world["diagnostics"].as_array().unwrap().iter().any(|v| v["cause"] == "outside_snapshot"), "{report}");
+}
+
+#[test]
 fn workspace_tests_and_unsafe_replacements_have_explicit_results() {
     let root = tree(&[
         ("app/go.mod", "module example/app\ngo 1.23\n"),

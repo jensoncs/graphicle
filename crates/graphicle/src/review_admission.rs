@@ -43,30 +43,30 @@ impl SourceBudget {
     // objects; missing bytes cannot create additional allowance for other pins.
     pub(super) fn reserve(&mut self, bytes: u64, vendor: bool) -> Result<()> {
         if bytes > super::MAX_SOURCE_BYTES as u64 {
-            return Err(Error::bad("Review source bound exceeded (64 MiB per file)"));
+            return Err(Error::bad(format!("Review source bound exceeded (64 MiB per file): bytes_per_file actual={bytes} limit={}", super::MAX_SOURCE_BYTES)));
         }
         if self.files >= super::MAX_FILES {
-            return Err(Error::bad(
-                "Review source bound exceeded (20000 files per side, source and vendor combined)",
-            ));
+            return Err(Error::bad(format!(
+                "Review source bound exceeded (20000 files per side, source and vendor combined): files_per_side actual={} limit={}", self.files + 1, super::MAX_FILES,
+            )));
         }
         let (used, limit, message) = if vendor {
             (
                 &mut self.vendor_bytes,
                 MAX_VENDOR_BYTES,
-                "Review source bound exceeded (256 MiB of Go vendor inputs per side)",
+                "Review source bound exceeded (256 MiB of Go vendor inputs per side): vendor_bytes_per_side",
             )
         } else {
             (
                 &mut self.owned_bytes,
                 super::MAX_SOURCE_BYTES,
-                "Review source bound exceeded (64 MiB of repository source per side)",
+                "Review source bound exceeded (64 MiB of repository source per side): owned_bytes_per_side",
             )
         };
         let next = used
             .checked_add(bytes as usize)
             .filter(|n| *n <= limit)
-            .ok_or_else(|| Error::bad(message))?;
+            .ok_or_else(|| Error::bad(format!("{message} actual={} limit={limit}", *used as u64 + bytes)))?;
         *used = next;
         self.files += 1;
         Ok(())
@@ -252,18 +252,20 @@ mod tests {
         budget.reserve(60 * MIB, true).unwrap();
         budget.reserve(38 * MIB, true).unwrap();
         budget.reserve(43 * MIB, false).unwrap();
-        assert!(budget.reserve(1, false).is_err());
+        let owned = budget.reserve(1, false).unwrap_err();
+        assert!(owned.message.contains("owned_bytes_per_side actual=67108865 limit=67108864"));
         for bytes in [60, 60, 38] {
             budget.reserve(bytes * MIB, true).unwrap();
         }
-        assert!(budget.reserve(1, true).is_err());
+        let vendor = budget.reserve(1, true).unwrap_err();
+        assert!(vendor.message.contains("vendor_bytes_per_side actual=268435457 limit=268435456"));
         assert!(SourceBudget::default().reserve(u64::MAX, true).is_err());
         assert!(SourceBudget::default().reserve(65 * MIB, true).is_err());
         let mut count = SourceBudget::default();
         for n in 0..super::super::MAX_FILES {
             count.reserve(0, n % 2 == 0).unwrap();
         }
-        assert!(count.reserve(0, true).is_err());
+        assert!(count.reserve(0, true).unwrap_err().message.contains("files_per_side actual=20001 limit=20000"));
         assert!(count.reserve(0, false).is_err());
     }
 

@@ -48,7 +48,7 @@ pub fn capture_bounded(
             exceeded |= keep != n;
         }
         if exceeded {
-            Err(io::Error::other("command output bound exceeded"))
+            Err(io::Error::new(io::ErrorKind::FileTooLarge, "command output bound exceeded"))
         } else {
             Ok(bytes)
         }

@@ -23,10 +23,30 @@ fn typescript_only_packet_explains_empty_entries_without_claiming_complete_impac
         "unsupported_source_language_or_contract"
     );
     assert_eq!(packet["impact"], "incomplete");
+    assert_eq!(packet["coverage"]["budget_omitted_entries"], 0);
     assert_eq!(
         packet["coverage"]["issue_histogram"]["unsupported_count"],
         2
     );
+}
+
+#[test]
+fn unsupported_entries_are_distinct_from_omitted_raw_diffs() {
+    let f = Fixture::new();
+    let repo = f.repo("unsupported-large-diff");
+    let before = "export const a = 1;\n".repeat(4000);
+    let after = "export const a = 2;\n".repeat(4000);
+    let base = f.pin(&repo, "app", 'a', &[("index.ts", &before)]);
+    let head = f.pin(&repo, "app", 'b', &[("index.ts", &after)]);
+    let mut args = request(&repo, vec![base], vec![head]);
+    args["max_tokens"] = json!(3825);
+    let packet = f.run(&args);
+    assert_eq!(packet["empty_reason"], "unsupported_source_language_or_contract");
+    assert_eq!(packet["coverage"]["required_entries"], 0);
+    assert_eq!(packet["coverage"]["budget_omitted_entries"], 0);
+    assert!(packet["coverage"]["budget_omitted_diffs"].as_u64().unwrap() > 0);
+    assert_eq!(packet["coverage"]["budget_omitted"], packet["coverage"]["budget_omitted_diffs"]);
+    assert!(text::count(&packet.to_string()) <= 3825);
 }
 
 #[test]

@@ -123,27 +123,56 @@ pub fn semantic(request: &Value) -> crate::Result<Value> {
 /// helper shares go/types resolution with extraction, but records build inputs,
 /// exact declarations and every call site instead of graph-name guesses.
 pub fn review(root: &Path, request: &Value) -> crate::Result<Value> {
-    decode_review_facts(&review_encoded(root, request)?)
+    decode_review_facts(&review_encoded(root, request).map_err(|e| crate::Error::from(e.to_string()))?)
 }
 
 /// Bounded compressed facts, also suitable for immutable cache storage.
-pub fn review_encoded(root: &Path, request: &Value) -> crate::Result<Value> {
-    let (_helper_dir, binary) = helper().ok_or("Go compiler helper unavailable")?;
-    let cache = tempfile::tempdir()?;
+pub fn review_encoded(root: &Path, request: &Value) -> Result<Value, ReviewFailure> {
+    let (_helper_dir, binary) = helper().ok_or_else(|| ReviewFailure::new("helper_unavailable"))?;
+    let cache = tempfile::tempdir().map_err(|_| ReviewFailure::new("scratch_unavailable"))?;
     let output = crate::process::capture_bounded(
         offline_command(&binary)
             .current_dir(root)
             .env("GOMODCACHE", cache.path().join("modules"))
             .env("GOCACHE", cache.path().join("build")),
-        Duration::from_secs(120),
-        Some(serde_json::to_vec(&json!({"review":request}))?),
-        64 * 1024 * 1024,
-    )?;
-    if !output.success || output.stdout.len() > 64 * 1024 * 1024 {
-        return Err("Go review analysis failed or exceeded its output bound".into());
+        Duration::from_secs(REVIEW_TIMEOUT_SECONDS),
+        Some(serde_json::to_vec(&json!({"review":request})).map_err(|_| ReviewFailure::new("invalid_request"))?),
+        REVIEW_OUTPUT_BYTES,
+    ).map_err(ReviewFailure::process)?;
+    if !output.success {
+        let mut failure = ReviewFailure::new("helper_exit");
+        failure.detail["exit_code"] = json!(output.code);
+        return Err(failure);
     }
-    Ok(serde_json::from_slice(&output.stdout)?)
+    serde_json::from_slice(&output.stdout).map_err(|_| ReviewFailure::new("invalid_output"))
 }
+
+const REVIEW_TIMEOUT_SECONDS: u64 = 120;
+const REVIEW_OUTPUT_BYTES: usize = 64 * 1024 * 1024;
+
+/// Bounded machine diagnostics, without forwarding subprocess source/stderr.
+#[derive(Debug)]
+pub struct ReviewFailure {
+    pub detail: Value,
+}
+impl ReviewFailure {
+    fn new(cause: &str) -> Self {
+        Self { detail: json!({"stage":"go_compiler_analysis","cause":cause}) }
+    }
+    fn process(error: std::io::Error) -> Self {
+        match error.kind() {
+            std::io::ErrorKind::TimedOut => Self { detail: json!({"stage":"go_compiler_analysis","cause":"timeout","limit_seconds":REVIEW_TIMEOUT_SECONDS}) },
+            std::io::ErrorKind::FileTooLarge => Self { detail: json!({"stage":"go_compiler_analysis","cause":"output_bound","limit_bytes_per_stream":REVIEW_OUTPUT_BYTES}) },
+            _ => Self::new("process_io"),
+        }
+    }
+}
+impl std::fmt::Display for ReviewFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Go review analysis unavailable: {}", self.detail)
+    }
+}
+impl std::error::Error for ReviewFailure {}
 
 /// Decode directly to typed facts without a second JSON object tree.
 /// Both transport and expanded bytes are bounded; corrupt streams fail closed.
@@ -358,6 +387,17 @@ mod fact_encoding_tests {
     use super::*;
     use base64::Engine;
     use std::io::Write;
+    #[test]
+    fn compiler_failures_name_the_bound_without_forwarding_process_output() {
+        let timeout = ReviewFailure::process(std::io::Error::new(std::io::ErrorKind::TimedOut, "private source"));
+        assert_eq!(timeout.detail["cause"], "timeout");
+        assert_eq!(timeout.detail["limit_seconds"], 120);
+        let output = ReviewFailure::process(std::io::Error::new(std::io::ErrorKind::FileTooLarge, "private source"));
+        assert_eq!(output.detail["cause"], "output_bound");
+        assert_eq!(output.detail["limit_bytes_per_stream"], 64 * 1024 * 1024);
+        assert!(!output.to_string().contains("private source"));
+        assert!(!timeout.to_string().contains("private source"));
+    }
     fn encoded(raw: &[u8]) -> Value {
         let mut gzip = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         gzip.write_all(raw).unwrap();

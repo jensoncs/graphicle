@@ -102,14 +102,15 @@ type reviewDiagnostic struct {
 	Message string `json:"message"`
 }
 type reviewWorld struct {
-	Diagnostics     []reviewDiagnostic `json:"diagnostics,omitempty"`
-	DiagnosticCount int                `json:"diagnostic_count"`
-	Root            string             `json:"root"`
-	Symbols         []reviewSymbol     `json:"symbols"`
-	Calls           []reviewCall       `json:"calls"`
-	Packages        []reviewPackage    `json:"packages"`
-	Issues          []string           `json:"issues"`
-	Inputs          []reviewInput      `json:"inputs"`
+	PackageDiagnostics map[string]map[string]int `json:"package_diagnostics,omitempty"`
+	Diagnostics        []reviewDiagnostic        `json:"diagnostics,omitempty"`
+	DiagnosticCount    int                       `json:"diagnostic_count"`
+	Root               string                    `json:"root"`
+	Symbols            []reviewSymbol            `json:"symbols"`
+	Calls              []reviewCall              `json:"calls"`
+	Packages           []reviewPackage           `json:"packages"`
+	Issues             []string                  `json:"issues"`
+	Inputs             []reviewInput             `json:"inputs"`
 }
 type reviewInput struct {
 	File    string `json:"file"`
@@ -132,6 +133,14 @@ type reviewCollector struct {
 // package so one noisy package cannot consume the complete sample.
 func (r *reviewCollector) diagnostic(path, cause, file string, line int, message string) {
 	r.world.DiagnosticCount++
+	// Keep every package's cause counts even when message examples are full.
+	if r.world.PackageDiagnostics == nil {
+		r.world.PackageDiagnostics = map[string]map[string]int{}
+	}
+	if r.world.PackageDiagnostics[path] == nil {
+		r.world.PackageDiagnostics[path] = map[string]int{}
+	}
+	r.world.PackageDiagnostics[path][cause]++
 	if r.diagnosticPackages == nil {
 		r.diagnosticPackages = map[string]int{}
 		r.diagnosticCauses = map[string]int{}
@@ -997,6 +1006,12 @@ func (r *reviewCollector) preflight(env []string) error {
 // failure in every importer. Unknown/local failures remain conservative; the
 // independent go/types result must still succeed before a package is valid.
 func reviewLocalPackage(path string, all map[string]*metadata, allowed func(string) bool) bool {
+	// ./... can return an error-only root (for example an unrendered template)
+	// without a directory or module. It is a local discovery failure, not a
+	// missing external dependency. DepOnly distinguishes imported packages.
+	if m := all[path]; m != nil && !m.DepOnly {
+		return true
+	}
 	for _, m := range all {
 		if m.Module != nil && allowed(m.Module.Dir) && (path == m.Module.Path || strings.HasPrefix(path, m.Module.Path+"/")) {
 			return true
@@ -1044,22 +1059,35 @@ func runReview(req reviewRequest) {
 		Version   string        `json:"analyzer"`
 		Toolchain string        `json:"toolchain"`
 		Worlds    []reviewWorld `json:"worlds"`
-	}{Version: "graphicle-go-review-v13"}
+	}{Version: "graphicle-go-review-v15"}
 	version, _ := exec.Command("go", "version").Output()
 	result.Toolchain = strings.TrimSpace(string(version))
 	var allowed []string
+	seenRoots := map[string]bool{}
 	for _, item := range req.Roots {
-		allowed = append(allowed, filepath.Join(root, item.Directory))
+		directory := filepath.Join(root, item.Directory)
+		if !seenRoots[directory] {
+			allowed = append(allowed, directory)
+			seenRoots[directory] = true
+		}
 	}
 	env := append(os.Environ(), "GOOS="+req.GOOS, "GOARCH="+req.GOARCH)
 	if req.Workspace != "" {
 		env = append(env, "GOWORK="+filepath.Join(root, req.Workspace))
 	}
-	packageCache := newReviewPackageCache(req, root)
+	// All compiler worlds share this immutable materialized tree and environment.
+	// Check the complete pin set once, retaining the same fail-closed behavior for
+	// every world. A multi-module repository must not rescan every pin per module.
+	preflight := (&reviewCollector{root: root, allowedRoots: allowed}).preflight(env)
+	cacheRequest := req
+	if preflight != nil {
+		cacheRequest.CacheIdentity = ""
+	}
+	packageCache := newReviewPackageCache(cacheRequest, root)
 	for _, item := range req.Roots {
 		world := reviewWorld{Root: filepath.ToSlash(filepath.Join(item.Directory, item.Module)), Symbols: []reviewSymbol{}, Calls: []reviewCall{}, Packages: []reviewPackage{}, Issues: []string{}, Inputs: []reviewInput{}}
 		collector := &reviewCollector{root: root, allowedRoots: allowed, world: &world}
-		if collector.preflight(env) != nil {
+		if preflight != nil {
 			world.Issues = append(world.Issues, "unsafe_or_invalid_module_configuration")
 			result.Worlds = append(result.Worlds, world)
 			continue
@@ -1125,7 +1153,9 @@ func runReview(req reviewRequest) {
 				}
 			}
 			l.meta[m.ImportPath] = &m
-			if !m.DepOnly {
+			// Error-only go list records have no source to type-check. Preserve
+			// their discovery diagnostic below instead of inventing another failure.
+			if !m.DepOnly && !(m.Error != nil && m.Dir == "") {
 				roots[m.ImportPath] = true
 			}
 		}

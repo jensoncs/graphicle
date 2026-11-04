@@ -138,6 +138,37 @@ failures remain incomplete. External code is still restricted to admitted
 snapshots: merely placing it in a host module cache does not authorize Graphicle
 to use it. This diagnostic fix alone cannot make an uncheckable build complete.
 
+Error-only `go list` records with no package directory remain discovery failures;
+they are not additionally counted as type-check failures or source outside the
+snapshots. An importer that cannot type-check because of a missing dependency
+still records its own type-check failure. Module configuration and symlink safety
+checks cover the whole immutable pin set once, before any compiler world runs.
+
+`coverage.analysis_diagnostics.<side>.go.package_failures` inventories failing
+package instances by consumer build and import path. Each example has native
+status codes and compiler diagnostic cause counts (`type_error`, `parse_error`,
+`outside_snapshot`, `missing_package`, `import_cycle`, `discovery_error`, or
+`unsupported_cgo`). Causes are collected before message sampling. The inventory
+count, digest and `packages_by_cause` cover all failures; `examples_omitted`
+explicitly counts packages whose details cannot fit the diagnostic allowance.
+Increasing `max_tokens` allows more package details. Empty cause maps mean there
+was no more specific native diagnostic; the status remains authoritative.
+This inventory also includes discovery and unavailable-package failures that
+never produced a compiler package instance. Its count can therefore exceed
+`incomplete_package_instances`; a discovery failure is not proof that a package
+body was type checked. Unrendered template paths can fail discovery even when
+all application packages type check.
+
+Graphicle consumes dependency source prepared by the collector; it does not run
+`go mod download` or `go mod vendor`. Collector preparation deadlines and its
+`vendor_failed`/`bound` statuses are distinct from Graphicle's compiler deadline.
+`compiler_analysis_unavailable.detail` names the compiler stage and cause,
+including `timeout` with `limit_seconds` (120), or `output_bound` with
+`limit_bytes_per_stream` (64 MiB). It never forwards arbitrary process stderr.
+Source admission errors name the corresponding `build.info.review_source_limits`
+field, actual value and limit. Persistent compiler reuse requires a persistent
+data directory and stable repository identities, as described below.
+
 Existing source limits, permissions, upload validation, and compare-and-swap
 sync checks apply. Retain both sides' source objects until review completes;
 a missing or expired retained snapshot makes the review incomplete.
@@ -463,9 +494,39 @@ before treating the packet as a complete dependency slice. Selective reuse has a
 separate per-file proof described below; it never changes this global flag. Deletion-only and non-compiler-input
 changes may legitimately require no head declaration.
 
-If required content does not fit, `budget_omitted` is nonzero and impact is
-`incomplete`. Increase the budget or narrow the explicitly declared scope;
-fewer tokens alone is not a successful review.
+When tokens are scarce, repeated issue examples are removed before source code;
+the issue histogram and completeness flags remain unchanged, and
+`issue_examples_omitted` reports the missing examples. Code declarations and
+diff hunks remain whole, preserving exact-span and reuse proofs.
+If even the smallest measured code candidate cannot fit, optional compiler,
+package-failure, dependency-boundary, unsupported-file and Python diagnostic
+samples also yield to source. Their full counts, causes and explicit omission
+counts remain. This does not guarantee an entry at every budget: required
+identities, controls and an exact declaration must still fit together.
+`coverage.packing.metadata_tokens` measures the preselection envelope with empty
+entries/diffs (and a zero placeholder for the count itself).
+`control_reserve_tokens` is the additional packing allowance for later selection
+and delta controls. `first_entry_tokens` reports the first candidate's packing
+cost before optional history. These explain allocation; they are not an additive
+decomposition of final wire tokens. `max_tokens` still bounds the whole packet.
+
+Packing prioritizes current-head changes, immediate discarded-error call
+contracts, immediate callers and diff hunks, then shares space between deletion,
+consumer, base-change and dependency classes. Within each code class, shorter
+resolved graph paths precede longer ones; file, line and ID break ties.
+Conservative scope and history-only candidates have no measured graph distance.
+This is dependency distance, not lexical distance from an edited line.
+`first_omitted_rank` and `last_selected_rank` are one-based positions in this
+combined candidate order (null when absent). There is no single rank cutoff:
+an oversized earlier candidate can be skipped while a later candidate fits.
+
+If required content does not fit, `budget_omitted` is nonzero and packet coverage
+is incomplete. The full-analysis `impact` verdict does not change with packing.
+`budget_omitted_entries` and `budget_omitted_diffs` sum to `budget_omitted` and
+include omissions from the canonical selection, not unchanged delta entries.
+An unsupported-language packet can have zero code candidates and omitted raw
+diffs; `empty_reason` explains only code entry delivery. Increase the budget or
+narrow the explicitly declared scope; fewer tokens alone is not a successful review.
 
 ## Subsequent pushes
 

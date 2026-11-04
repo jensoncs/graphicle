@@ -105,7 +105,7 @@ func TestReviewDiscoverySeparatesExternalFailures(t *testing.T) {
 	own := &metadata{ImportPath: "example/app", Dir: "/pin", Module: &moduleMetadata{Path: "example/app", Dir: "/pin"}, Incomplete: true,
 		DepsErrors: []packageError{{Err: "unavailable", ImportStack: []string{"example/app"}, Pos: "code.go:2:8"}}}
 	problem := own.DepsErrors[0]
-	external := &metadata{ImportPath: "outside/module", Error: &problem}
+	external := &metadata{ImportPath: "outside/module", DepOnly: true, Error: &problem}
 	all := map[string]*metadata{"example/app": own, "outside/module": external}
 	errors := reviewExternalErrors(all, allowed)
 	if reviewDiscoveryIncomplete(own, errors) {
@@ -114,7 +114,7 @@ func TestReviewDiscoverySeparatesExternalFailures(t *testing.T) {
 	if reviewLocalPackage("outside/module", all, allowed) {
 		t.Fatal("external module became local")
 	}
-	all["example/app/missing"] = &metadata{ImportPath: "example/app/missing", Error: &problem}
+	all["example/app/missing"] = &metadata{ImportPath: "example/app/missing", DepOnly: true, Error: &problem}
 	if !reviewDiscoveryIncomplete(own, reviewExternalErrors(all, allowed)) {
 		t.Fatal("diagnostic also owned by a missing local package was hidden")
 	}
@@ -146,7 +146,7 @@ func TestReviewExternalDiagnosticsStillRequireLocalTypeChecking(t *testing.T) {
 			t.Fatal(err)
 		}
 		own := &metadata{ImportPath: "example/app", Dir: root, GoFiles: []string{"code.go"}, Module: &moduleMetadata{Path: "example/app", Dir: root}, Incomplete: true, DepsErrors: []packageError{problem}}
-		all := map[string]*metadata{"example/app": own, "outside/module": {ImportPath: "outside/module", Error: &problem}}
+		all := map[string]*metadata{"example/app": own, "outside/module": {ImportPath: "outside/module", DepOnly: true, Error: &problem}}
 		collector := &reviewCollector{root: root, allowedRoots: []string{root}, world: &reviewWorld{Root: root}}
 		collector.externalErrors = reviewExternalErrors(all, collector.allowed)
 		l := &loader{fset: token.NewFileSet(), meta: all, packages: map[string]*types.Package{}, busy: map[string]bool{}, sizes: types.SizesFor("gc", "amd64"), review: collector}
@@ -159,6 +159,20 @@ func TestReviewExternalDiagnosticsStillRequireLocalTypeChecking(t *testing.T) {
 				t.Fatalf("lost actionable compiler diagnostic: %+v", collector.world.Diagnostics)
 			}
 		}
+	}
+}
+
+func TestReviewDiscoveryErrorsDoNotAuthorizeOutsideSource(t *testing.T) {
+	root := t.TempDir()
+	collector := &reviewCollector{root: root, allowedRoots: []string{filepath.Join(root, "pin")}, world: &reviewWorld{}}
+	l := &loader{meta: map[string]*metadata{
+		"outside/module": {Dir: filepath.Join(root, "outside"), Error: &packageError{Err: "discovery error"}},
+	}, review: collector}
+	if _, err := l.Import("outside/module"); err == nil {
+		t.Fatal("discovery error authorized outside source")
+	}
+	if collector.world.PackageDiagnostics["outside/module"]["outside_snapshot"] != 1 {
+		t.Fatalf("lost actual snapshot boundary violation: %+v", collector.world)
 	}
 }
 

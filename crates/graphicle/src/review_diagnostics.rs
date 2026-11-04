@@ -17,6 +17,34 @@ pub(super) fn file_extension(path: &str) -> String {
     }
 }
 
+/// Under severe packet pressure, examples yield to exact source. Every count
+/// and cause inventory remains; these are samples, never completeness proofs.
+pub(super) fn compact_examples(coverage: &mut Value) {
+    fn clear(value: &mut Value, examples: &str, omitted: &str, total: &str) {
+        if value[examples].is_array() {
+            value[examples] = json!([]);
+            value[omitted] = value[total].clone();
+        }
+    }
+    clear(&mut coverage["issue_histogram"], "unsupported_examples", "unsupported_examples_omitted", "unsupported_count");
+    for side in ["base", "head"] {
+        let Some(diagnostics) = coverage.get_mut("analysis_diagnostics").and_then(|v| v.get_mut(side)) else { continue; };
+        if let Some(go) = diagnostics.get_mut("go") {
+            clear(go, "examples", "diagnostic_examples_omitted", "diagnostic_count");
+            clear(go, "dependency_boundary_examples", "dependency_boundary_examples_omitted", "resolved_dependency_references");
+            if let Some(failures) = go.get_mut("package_failures") {
+                clear(failures, "examples", "examples_omitted", "count");
+            }
+        }
+        if let Some(python) = diagnostics.get_mut("python_environment") {
+            clear(python, "examples", "file_examples_omitted", "incomplete_files");
+        }
+        if let Some(imports) = diagnostics.get_mut("python_imports") {
+            clear(imports, "modules", "module_groups_omitted", "module_groups");
+        }
+    }
+}
+
 /// Counts every issue before the public example list is truncated. Native Go
 /// reasons suffix their package identity after ':', which is not a new cause.
 pub(super) fn histogram(issues: &[Value], example_tokens: usize) -> Value {
@@ -107,6 +135,35 @@ pub(super) fn histogram(issues: &[Value], example_tokens: usize) -> Value {
 }
 
 pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
+    let mut package_failures = BTreeMap::<(&str, &str), BTreeSet<&str>>::new();
+    for issue in &analysis.issues {
+        if let Some((status, package)) = s(issue, "reason").split_once(':')
+            && matches!(status, "incomplete_package" | "incomplete_discovery" | "type_check_failed" | "unavailable_external_package")
+        {
+            package_failures.entry((issue["detail"].as_str().unwrap_or(""), package))
+                .or_default().insert(status);
+        }
+    }
+    let failures: Vec<_> = package_failures.into_iter().map(|((world, package), status)| {
+        let causes = analysis.package_diagnostics.get(&(world.to_owned(), package.to_owned()));
+        json!({"consumer_build":world,"package":package,"status":status,"causes":causes.cloned().unwrap_or_default()})
+    }).collect();
+    let mut failures_by_cause = BTreeMap::<String, usize>::new();
+    for failure in &failures {
+        for cause in failure["causes"].as_object().unwrap().keys() {
+            *failures_by_cause.entry(cause.clone()).or_default() += 1;
+        }
+    }
+    let mut failure_examples = vec![];
+    let mut failure_tokens = 0;
+    for failure in &failures {
+        let cost = text::count(&failure.to_string()) + 1;
+        if failure_tokens + cost <= example_tokens / 2 {
+            failure_examples.push(failure);
+            failure_tokens += cost;
+        }
+    }
+    let example_tokens = example_tokens - failure_tokens;
     let mut import_files = BTreeSet::new();
     let mut import_causes = BTreeMap::<&str, usize>::new();
     let mut import_modules = BTreeMap::new();
@@ -237,6 +294,8 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
     );
     let mut result = json!({
         "go":{
+            "package_failures":{"count":failures.len(),"digest":crate::digest(&json!(failures)),
+                "packages_by_cause":failures_by_cause,"examples_omitted":failures.len()-failure_examples.len(),"examples":failure_examples},
             "owned_package_instances":analysis.packages.iter().filter(|p| p["analysis_role"] == "owned").count(),
             "dependency_package_instances":analysis.packages.iter().filter(|p| p["analysis_role"] == "dependency").count(),
             "resolved_dependency_references":boundaries.len(),
@@ -393,6 +452,7 @@ mod tests {
     #[test]
     fn python_counts_files_and_causes_before_example_trimming() {
         let mut analysis = Analysis {
+            package_diagnostics: BTreeMap::new(),
             diagnostics: vec![],
             diagnostic_count: 0,
             symbols: BTreeMap::new(),

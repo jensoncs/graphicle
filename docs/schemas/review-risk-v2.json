@@ -11,7 +11,18 @@
     "impact": {"description": "Full-analysis verdict before packet trimming. Incomplete means an analysis or admission limitation; budget omissions never change it. Potential impact is not a defect or severity verdict.", "enum": ["potential_impact", "no_changes_in_scope", "incomplete"]},
     "coverage": {"type": "object", "required": ["complete", "budget_omitted"], "properties": {
       "complete": {"type": "boolean", "description": "False if analysis or delivered packet coverage is incomplete."},
-      "budget_omitted": {"type": "integer", "minimum": 0, "description": "Entries and diffs omitted by packing, independent of impact."}
+      "budget_omitted": {"type": "integer", "minimum": 0, "description": "Entries and diffs omitted by packing, independent of impact."},
+      "budget_omitted_entries": {"type": "integer", "minimum": 0, "description": "Code entry candidates omitted from the canonical selection, excluding raw diffs and unchanged delta entries."},
+      "budget_omitted_diffs": {"type": "integer", "minimum": 0, "description": "Raw diff candidates omitted from the canonical selection; may be nonzero for unsupported source languages."},
+      "issue_examples_omitted": {"type": "integer", "minimum": 0},
+      "packing": {"type": "object", "properties": {
+        "policy": {"const": "semantic_priority_then_graph_distance_v1"},
+        "metadata_tokens": {"type": "integer", "minimum": 0, "description": "Measured preselection envelope tokens with empty entries/diffs and a zero placeholder for this count. Later selection and delta controls use a separate reserve; not a final wire token decomposition."},
+        "control_reserve_tokens": {"type": "integer", "minimum": 0},
+        "first_entry_tokens": {"type": ["integer", "null"], "description": "Packing cost of the first code candidate before optional history, including its ID/control allowance. No guarantee it fits the remaining budget."},
+        "first_omitted_rank": {"type": ["integer", "null"], "minimum": 1},
+        "last_selected_rank": {"type": ["integer", "null"], "minimum": 1}
+      }}
     }},
     "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
   },

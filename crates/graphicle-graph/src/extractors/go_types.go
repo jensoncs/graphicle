@@ -98,6 +98,11 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 		}
 		return l.fallback.Import(path)
 	}
+	if l.review != nil && m.Error != nil && m.Dir == "" {
+		// Discovery already recorded the real cause. An absent directory is not
+		// evidence of source escaping the snapshots, and cannot be type-checked.
+		return nil, fmt.Errorf("package discovery failed: %s", path)
+	}
 	if l.review != nil && !m.Standard && !l.review.allowed(m.Dir) {
 		l.review.diagnostic(path, "outside_snapshot", "", 0, "Package source is outside the admitted snapshots")
 		return nil, fmt.Errorf("package outside pinned snapshots: %s", path)

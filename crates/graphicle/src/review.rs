@@ -168,6 +168,8 @@ struct Call {
 #[derive(Deserialize)]
 struct World {
     #[serde(default)]
+    package_diagnostics: BTreeMap<String, BTreeMap<String, usize>>,
+    #[serde(default)]
     diagnostics: Vec<Value>,
     #[serde(default)]
     diagnostic_count: usize,
@@ -205,6 +207,7 @@ fn cacheable_facts(facts: &Facts) -> bool {
 }
 
 struct Analysis {
+    package_diagnostics: BTreeMap<(String, String), BTreeMap<String, usize>>,
     diagnostics: Vec<Value>,
     diagnostic_count: usize,
     symbols: BTreeMap<String, (String, Symbol)>,
@@ -406,6 +409,7 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     let scope = go::scope(input)?;
     let roots = scope.roots;
     let mut out = Analysis {
+        package_diagnostics: BTreeMap::new(),
         diagnostics:vec![],
         diagnostic_count:0,
         symbols: BTreeMap::new(),
@@ -441,9 +445,9 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     };
     let mut raw = match raw {
         Ok(v) => v,
-        Err(_) => {
+        Err(error) => {
             out.issues
-                .push(issue("compiler_analysis_unavailable", Value::Null));
+                .push(issue("compiler_analysis_unavailable", error.detail));
             return Ok(out);
         }
     };
@@ -479,6 +483,9 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
             })));
         }
         out.diagnostic_count += world.diagnostic_count;
+        for (package, causes) in world.package_diagnostics {
+            out.package_diagnostics.insert((world.root.clone(), package), causes);
+        }
         for mut diagnostic in world.diagnostics {
             diagnostic["consumer_build"] = json!(world.root);
             out.diagnostics.push(diagnostic);
@@ -1342,6 +1349,17 @@ fn compact_required_metadata(report: &mut Value, candidates: &mut [(&str, Value,
             examples.clear(); // count and digest cover the full original inventory
         }
     }
+    // The histogram accounts for every issue. Repeating twenty full examples
+    // can otherwise consume the entire packet before a declaration is packed.
+    let mut seen = BTreeSet::new();
+    let issues = report["coverage"]["issues"].as_array_mut().unwrap();
+    issues.retain(|issue| {
+        let reason = s(issue, "reason").split(':').next().unwrap_or("");
+        reason != "unresolved_edge" && seen.insert((reason.to_owned(),
+            s(&issue["detail"], "cause").to_owned(), s(&issue["detail"], "side").to_owned()))
+    });
+    let retained = issues.len();
+    report["coverage"]["issue_examples_omitted"] = json!(report["coverage"]["issue_count"].as_u64().unwrap() as usize - retained);
     for (_, entry, cost) in candidates.iter_mut().filter(|(_, e, _)| is_head_change(e)) {
         let Some(reasons) = entry["reasons"].as_array() else { continue };
         let retained: Vec<_> = reasons.iter().filter(|r| r["reason"] == "change_seed" || r["uncertain_scope"] == true).cloned().collect();
@@ -1352,6 +1370,19 @@ fn compact_required_metadata(report: &mut Value, candidates: &mut [(&str, Value,
         entry["revision"] = json!(crate::digest(entry));
         *cost = PackingCost::measured(entry);
     }
+}
+
+// Rank within semantic priority classes by shortest proven graph distance.
+// Conservative scope and history-only suggestions have no measured distance.
+fn entry_distance(entry: &Value) -> usize {
+    entry["reasons"].as_array().into_iter().flatten()
+        .filter(|r| r["uncertain_scope"] != true)
+        .filter_map(|r| {
+            if r["reason"] == "change_seed" { Some(0) }
+            else if matches!(s(r, "reason"), "dependency" | "potential_consumer") {
+                r["path"].as_array().filter(|p| !p.is_empty()).map(|p| p.len() - 1)
+            } else { None }
+        }).min().unwrap_or(usize::MAX)
 }
 
 fn pack(
@@ -1472,6 +1503,7 @@ fn pack_encoding(
     report["coverage"]["issue_count"] = json!(issues.len());
     report["coverage"]["issue_histogram"] = diagnostics::histogram(&issues, max_tokens / 64);
     report["coverage"]["issues"] = json!(issues.iter().take(20).collect::<Vec<_>>());
+    report["coverage"]["issue_examples_omitted"] = json!(issues.len().saturating_sub(20));
     let changes = report["changes"].take();
     let deleted: BTreeSet<_> = changes
         .as_array()
@@ -1489,6 +1521,11 @@ fn pack_encoding(
     report["diffs"] = json!([]);
     report["context_order"] = json!([]);
     report["coverage"]["budget_omitted"] = json!(0);
+    report["coverage"]["budget_omitted_entries"] = json!(0);
+    report["coverage"]["budget_omitted_diffs"] = json!(0);
+    report["coverage"]["packing"] = json!({"policy":"semantic_priority_then_graph_distance_v1",
+        "metadata_tokens":0,"control_reserve_tokens":384,"first_entry_tokens":null,
+        "first_omitted_rank":null,"last_selected_rank":null});
     report["coverage"]["current_head"] =
         json!({"required":required_head,"selected":0,"usable":required_head==0});
     report["coverage"]["call_contracts"] = json!({"required":required_contracts,"selected":0,"complete":required_contracts==0,"scope":"immediate pinned targets of discarded-error calls; may_call targets are candidates"});
@@ -1503,6 +1540,8 @@ fn pack_encoding(
         std::array::from_fn(|_| std::collections::VecDeque::new());
     let mut contracts = vec![];
     let mut callers = vec![];
+    entries.sort_by_key(|e| (entry_distance(e), s(e, "file").to_owned(),
+        e["line"].as_u64().unwrap_or(0), s(e, "id").to_owned()));
     for entry in entries {
         if is_call_contract(&entry) {
             contracts.push(entry);
@@ -1581,6 +1620,21 @@ fn pack_encoding(
     if metadata_cost + required_cost(&candidates) + provenance.cost(&required_refs(&candidates)) + history_reserve > max_tokens {
         compact_required_metadata(&mut report, &mut candidates);
     }
+    let ranks: BTreeMap<_, _> = candidates.iter().enumerate()
+        .map(|(i, (_, e, _))| (s(e, "id").to_owned(), i + 1)).collect();
+    if let Some((_, entry, cost)) = candidates.iter_mut().find(|(c, _, _)| *c == "entries") {
+        report["coverage"]["packing"]["first_entry_tokens"] = json!(cost.exact(entry));
+    }
+    let minimum_entry_cost = candidates.iter().filter(|(c, _, _)| *c == "entries")
+        .filter_map(|(_, _, cost)| cost.exact).min();
+    if let Some(cost) = minimum_entry_cost
+        && cost < max_tokens
+        && text::count(&report.to_string()) + 384 + cost > max_tokens
+    {
+        diagnostics::compact_examples(&mut report["coverage"]);
+    }
+    let metadata_tokens = text::count(&report.to_string());
+    report["coverage"]["packing"]["metadata_tokens"] = json!(metadata_tokens);
     let mut used = text::count(&report.to_string()) + 384;
     let requested_diff_reserve = candidates.iter().filter(|(c, _, _)| *c == "diffs").map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>().min(max_tokens / 4);
     let head_cost = candidates.iter().filter(|(_, e, _)| is_head_change(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
@@ -1682,6 +1736,12 @@ fn pack_encoding(
         report["coverage"]["callers"]["complete"] = json!(selected_callers == required_callers);
     }
     report["coverage"]["budget_omitted"] = json!(total - selected.len());
+    let selected_entries = selected.iter().filter(|(c, _)| *c == "entries").count();
+    report["coverage"]["budget_omitted_entries"] = json!(report["coverage"]["required_entries"].as_u64().unwrap() as usize - selected_entries);
+    report["coverage"]["budget_omitted_diffs"] = json!(report["coverage"]["required_diffs"].as_u64().unwrap() as usize - (selected.len() - selected_entries));
+    let selected_ranks: BTreeSet<_> = selected.iter().map(|(_, e)| ranks[s(e, "id")]).collect();
+    report["coverage"]["packing"]["first_omitted_rank"] = json!((1..=total).find(|rank| !selected_ranks.contains(rank)));
+    report["coverage"]["packing"]["last_selected_rank"] = json!(selected_ranks.last());
     if total != selected.len() {
         // Packet coverage and reuse proofs depend on what fits. Impact was
         // decided by the full analysis and must not depend on this budget.
@@ -2263,6 +2323,67 @@ pub fn properties() -> Value {
 mod tests {
     use super::*;
     #[test]
+    fn small_budget_compacts_issue_examples_before_omitting_changed_code() {
+        let entry = json!({"id":"changed","revision":"r","side":"head","text":"func F() int { return 2 }","reasons":[{"reason":"change_seed"}]});
+        let issues: Vec<_> = (0..20).map(|i| issue("unresolved_edge", json!({"cause":"interface_dispatch","line":i,"spelling":"large diagnostic detail ".repeat(60)}))).collect();
+        let report = json!({"entries":[entry],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":false,"issues":issues},"impact":"incomplete"});
+        for budget in [3325, 3825] {
+            let (packet, receipt) = pack(report.clone(), budget, None, None).unwrap();
+            assert_eq!(packet["entries"].as_array().unwrap().len(), 1);
+            assert_eq!(packet["coverage"]["issue_count"], 20);
+            assert_eq!(packet["coverage"]["issue_histogram"]["counted"], 20);
+            assert_eq!(packet["coverage"]["issue_examples_omitted"], 20);
+            assert_eq!(packet["impact"], "incomplete");
+            assert!(packet["coverage"]["packing"]["metadata_tokens"].as_u64().unwrap() > 0);
+            assert!(text::count(&packet.to_string()) <= budget);
+            let (delta, next) = pack(report.clone(), budget, Some(&receipt), None).unwrap();
+            assert_eq!(receipt["entries"], next["entries"]);
+            assert_eq!(packet["context_order"], delta["context_order"]);
+        }
+    }
+
+    #[test]
+    fn diagnostic_samples_yield_when_the_first_code_entry_cannot_fit() {
+        let failures = json!({"count":8,"digest":"full-inventory","packages_by_cause":{"type_error":8},"examples_omitted":7,
+            "examples":[{"package":"app/broken","causes":{"type_error":1},"message":"optional diagnostic sample ".repeat(2000)}]});
+        let report = json!({"entries":[{"id":"changed","revision":"r","side":"head","text":"func F() int { return 2 }","reasons":[{"reason":"change_seed"}]}],
+            "diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":false,"issues":[],
+            "analysis_diagnostics":{"head":{"go":{"package_failures":failures}}}},"impact":"incomplete"});
+        let (packet, receipt) = pack(report.clone(), 3325, None, None).unwrap();
+        assert_eq!(packet["entries"].as_array().unwrap().len(), 1);
+        let failures = &packet["coverage"]["analysis_diagnostics"]["head"]["go"]["package_failures"];
+        assert_eq!(failures["count"], 8);
+        assert_eq!(failures["digest"], "full-inventory");
+        assert_eq!(failures["packages_by_cause"]["type_error"], 8);
+        assert_eq!(failures["examples_omitted"], 8);
+        assert_eq!(failures["examples"], json!([]));
+        assert_eq!(packet["impact"], "incomplete");
+        let (delta, next) = pack(report, 3325, Some(&receipt), None).unwrap();
+        assert_eq!(packet["context_order"], delta["context_order"]);
+        assert_eq!(receipt["entries"], next["entries"]);
+        assert!(text::count(&packet.to_string()) <= 3325);
+    }
+
+    #[test]
+    fn nearest_context_precedes_distant_context_and_oversize_skips_have_no_single_cutoff() {
+        let mut entries = vec![json!({"id":"seed","revision":"r","side":"head","text":"changed()","reasons":[{"reason":"change_seed"}]})];
+        entries.push(json!({"id":"oversized","revision":"r","side":"head","text":"large body ".repeat(8000),"reasons":[{"reason":"dependency","path":["seed","oversized"]}]}));
+        for (id, path) in [("a-far", vec!["seed","one","two","far"]), ("z-near", vec!["seed","one","near"])] {
+            entries.push(json!({"id":id,"revision":"r","side":"head","text":"small context","reasons":[{"reason":"dependency","path":path}]}));
+        }
+        let report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]}});
+        let (packet, receipt) = pack(report.clone(), 2048, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["seed","z-near","a-far"]));
+        assert_eq!(packet["coverage"]["packing"]["first_omitted_rank"], 2);
+        assert_eq!(packet["coverage"]["packing"]["last_selected_rank"], 4);
+        assert_eq!(packet["coverage"]["budget_omitted_entries"], 1);
+        assert_eq!(packet["coverage"]["budget_omitted_diffs"], 0);
+        let (delta, next) = pack(report, 2048, Some(&receipt), None).unwrap();
+        assert_eq!(packet["context_order"], delta["context_order"]);
+        assert_eq!(receipt["entries"], next["entries"]);
+    }
+
+    #[test]
     fn failed_bounded_cost_can_be_retried_with_a_larger_allowance() {
         let entry = json!({"id":"one","text":"fn unicode() { /* 中文 */ }\n".repeat(200)});
         let expected = PackingCost::measured(&entry).exact.unwrap();
@@ -2358,7 +2479,7 @@ mod tests {
 
     #[test]
     fn graph_bound_counts_unique_links_and_preserves_call_site_evidence() {
-        let mut analysis = Analysis { diagnostics:vec![],diagnostic_count:0,symbols:BTreeMap::new(),calls:vec![],packages:vec![],issues:vec![],analyzer:String::new(),toolchain:String::new(),inputs:vec![],raw:None,package_cache:crate::review_cache::PackageResult::default(),services:services::Links::default() };
+        let mut analysis = Analysis { package_diagnostics:BTreeMap::new(),diagnostics:vec![],diagnostic_count:0,symbols:BTreeMap::new(),calls:vec![],packages:vec![],issues:vec![],analyzer:String::new(),toolchain:String::new(),inputs:vec![],raw:None,package_cache:crate::review_cache::PackageResult::default(),services:services::Links::default() };
         for name in ["caller", "supplier", "other"] {
             let symbol: Symbol = serde_json::from_value(json!({"key":name,"file":"app/main.go","package":"app","name":name,"kind":"function","parent":"","start":0,"end":1,"body_start":0,"line":1,"end_line":1,"revision":"r","signature":"s","implementation":"i","correspondence":"c"})).unwrap();
             analysis.symbols.insert(key("world", name), ("world".into(), symbol));
