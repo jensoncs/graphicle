@@ -316,3 +316,44 @@ duplicate hashes, wrong sizes, repository isolation, cursor validation, Unicode
 and escaped names, byte bounds, and empty results. A native query-plan test checks
 that availability uses the covering size index without reading source payloads.
 Invalid manifest roots still fail closed. `git diff --check` passed.
+
+## Compiler snapshot materialization (2026-11-04)
+
+Compared baseline a8e1a80 with exclusive creation of scratch files and reuse of
+parent-directory creation. Previously each source used a temporary file followed
+by no-clobber publication and repeated parent-directory creation. The new tree
+remains private and disposable; the compiler starts only after all writes succeed.
+Unix roots are explicitly mode 0700, and files remain mode 0600, subject to umask.
+Input validation, cache identities and analysis behavior are unchanged.
+
+Local macOS Rust 1.94.1 **unoptimized test binaries**, sequential
+before/after/after/before runs, two samples per size per arm. Each synthetic file
+is 1,024 bytes, with 100 files per leaf directory. Input preparation is outside
+timing. Every file's bytes are checked outside timing, and tree removal is checked
+after cleanup. These are fresh trees, not a claim of cold OS disk caches.
+
+| Files | Creation median, before → after | Creation reduction | Cleanup median, before → after | Creation + cleanup median, before → after | Total reduction |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 5,000 | 2.478 → 0.930 s | 62.4% | 0.858 → 0.895 s | 3.336 → 1.826 s | 45.3% |
+| 20,000 | 9.884 → 3.916 s | 60.4% | 3.483 → 3.508 s | 13.368 → 7.424 s | 44.5% |
+| 50,000 | 23.709 → 9.691 s | 59.1% | 8.605 → 8.515 s | 32.314 → 18.206 s | 43.7% |
+
+Totals use the median of each run's creation plus cleanup. Cleanup is essentially
+unchanged and is outside the existing `review_materialize` phase. The benchmark
+excludes admission, sync, Go type-checking and CLI startup. It does not measure a
+full review, a release build, or production VM contention. Production savings and
+whether Nexus fits the pilot deadline remain unmeasured. Do not add these results
+to the cache or pagination microbenchmarks, which use different fixtures.
+
+[Raw samples and method](snapshot-materialization-benchmark.json). Reproduce with
+the ignored `snapshot_materialization_benchmark --ignored --nocapture
+--test-threads=1` test and the same fixture/build profile on both revisions. Run
+timing tests separately from compilation and other test workloads.
+
+Validation: six unit tests and 27 integration tests passed, covering exact
+text/binary bytes, Unix permissions, cleanup, file/directory collisions, leaf
+symlink rejection, compiler caches, and Go/source admission. A native Go fixture
+with a vendored dependency and binary `embed.FS` asset produces exactly the same
+compiler facts with the previous and new materialization algorithms. All four
+benchmark runs passed their full byte and cleanup checks. `git diff --check`
+passed.

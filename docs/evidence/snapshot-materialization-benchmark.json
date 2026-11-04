@@ -1,0 +1,198 @@
+{
+  "baseline": "a8e1a80 plus identical snapshot_materialization_benchmark fixture",
+  "candidate": "working tree: exclusive scratch-file creation and reuse of parent-directory creation",
+  "date": "2026-11-04",
+  "environment": "local macOS; Rust 1.94.1 unoptimized/debug test binaries",
+  "method": "Sequential before/after/after/before runs, two samples per size per arm. Synthetic 1024-byte files, 100 per leaf directory, freshly created temporary trees. Input preparation excluded; materialize() and TempDir cleanup timed separately. Every file read and checked outside timing; root removal checked after cleanup. No concurrent compilation or test workloads. Fresh trees do not imply a cold OS disk cache. Medians of creation plus cleanup are computed from each run total.",
+  "reproduce": "Run snapshot_materialization_benchmark --ignored --nocapture --test-threads=1 on each revision with the same fixture and build profile.",
+  "limitations": "Synthetic filesystem microbenchmark, not a full Go review. Excludes admission, sync, Go type-checking, CLI startup and production VM contention. Release-build and production end-to-end savings remain unmeasured; does not establish that Nexus fits the pilot deadline.",
+  "validation": {
+    "unit_tests_passed": 6,
+    "integration_tests_passed": 27,
+    "checks": [
+      "exact text/binary bytes and cleanup",
+      "Unix 0700 root and 0600 files",
+      "exclusive collision and leaf-symlink handling",
+      "identical native Go facts versus previous algorithm with vendored dependency and binary embed.FS asset",
+      "compiler cache and source/Go admission regressions"
+    ]
+  },
+  "runs": [
+    {
+      "order": 1,
+      "arm": "before",
+      "samples": [
+        {
+          "files": 5000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 50,
+          "materialize_ms": 2680.757291,
+          "cleanup_ms": 878.056041
+        },
+        {
+          "files": 20000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 200,
+          "materialize_ms": 9271.968958000001,
+          "cleanup_ms": 3578.983125
+        },
+        {
+          "files": 50000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 500,
+          "materialize_ms": 23942.73975,
+          "cleanup_ms": 8536.080334
+        }
+      ]
+    },
+    {
+      "order": 2,
+      "arm": "after",
+      "samples": [
+        {
+          "files": 5000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 50,
+          "materialize_ms": 932.703292,
+          "cleanup_ms": 862.3120829999999
+        },
+        {
+          "files": 20000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 200,
+          "materialize_ms": 3860.8185829999998,
+          "cleanup_ms": 3494.3940420000004
+        },
+        {
+          "files": 50000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 500,
+          "materialize_ms": 9643.331625,
+          "cleanup_ms": 8482.652208
+        }
+      ]
+    },
+    {
+      "order": 3,
+      "arm": "after",
+      "samples": [
+        {
+          "files": 5000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 50,
+          "materialize_ms": 928.209292,
+          "cleanup_ms": 928.571625
+        },
+        {
+          "files": 20000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 200,
+          "materialize_ms": 3971.394667,
+          "cleanup_ms": 3521.168666
+        },
+        {
+          "files": 50000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 500,
+          "materialize_ms": 9737.949332999999,
+          "cleanup_ms": 8548.204667
+        }
+      ]
+    },
+    {
+      "order": 4,
+      "arm": "before",
+      "samples": [
+        {
+          "files": 5000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 50,
+          "materialize_ms": 2274.958125,
+          "cleanup_ms": 838.875458
+        },
+        {
+          "files": 20000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 200,
+          "materialize_ms": 10496.805042,
+          "cleanup_ms": 3388.0016250000003
+        },
+        {
+          "files": 50000,
+          "bytes_per_file": 1024,
+          "leaf_directories": 500,
+          "materialize_ms": 23474.677208,
+          "cleanup_ms": 8674.473125
+        }
+      ]
+    }
+  ],
+  "results": [
+    {
+      "files": 5000,
+      "medians": {
+        "materialize_ms": {
+          "before": 2477.857708,
+          "after": 930.4562920000001
+        },
+        "cleanup_ms": {
+          "before": 858.4657495,
+          "after": 895.4418539999999
+        },
+        "total_ms": {
+          "before": 3336.3234574999997,
+          "after": 1825.898146
+        }
+      },
+      "reduction_percent": {
+        "materialize_ms": 62.44916368700538,
+        "cleanup_ms": -4.307231187911231,
+        "total_ms": 45.272148541370846
+      }
+    },
+    {
+      "files": 20000,
+      "medians": {
+        "materialize_ms": {
+          "before": 9884.387,
+          "after": 3916.106625
+        },
+        "cleanup_ms": {
+          "before": 3483.4923750000003,
+          "after": 3507.781354
+        },
+        "total_ms": {
+          "before": 13367.879375,
+          "after": 7423.887979
+        }
+      },
+      "reduction_percent": {
+        "materialize_ms": 60.380885278975825,
+        "cleanup_ms": -0.6972594277603328,
+        "total_ms": 44.46472944030436
+      }
+    },
+    {
+      "files": 50000,
+      "medians": {
+        "materialize_ms": {
+          "before": 23708.708479,
+          "after": 9690.640479
+        },
+        "cleanup_ms": {
+          "before": 8605.276729500001,
+          "after": 8515.428437499999
+        },
+        "total_ms": {
+          "before": 32313.985208500002,
+          "after": 18206.0689165
+        }
+      },
+      "reduction_percent": {
+        "materialize_ms": 59.126240522196774,
+        "cleanup_ms": 1.044106945358203,
+        "total_ms": 43.65885606795722
+      }
+    }
+  ]
+}

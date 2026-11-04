@@ -14,20 +14,44 @@ pub(super) struct Scope {
 /// Ephemeral compiler inputs are private, create-only files. They need visibility
 /// to the helper, not crash durability: the authoritative bytes remain in SQLite.
 pub(super) fn materialize(input: &Input) -> Result<tempfile::TempDir> {
+    let tree = {
+        #[cfg(unix)] {
+            use std::os::unix::fs::PermissionsExt;
+            tempfile::Builder::new().permissions(std::fs::Permissions::from_mode(0o700)).tempdir()?
+        }
+        #[cfg(not(unix))] { tempfile::tempdir()? }
+    };
+    materialize_sources(input, tree.path())?;
+    Ok(tree)
+}
+
+// Called only on the new scratch tree, before starting the compiler. Input
+// paths and pin directories were validated at admission/load. Exclusive creates
+// preserve collision protection; any failure drops the whole tree in the caller.
+fn materialize_sources(input: &Input, root: &Path) -> Result<()> {
     use std::io::Write;
-    let tree = tempfile::tempdir()?;
+    let mut directories = BTreeSet::new();
     for pin in &input.pins {
-        std::fs::create_dir(tree.path().join(&pin.directory))?;
+        let directory = Path::new(&pin.directory);
+        std::fs::create_dir(root.join(directory))?;
+        directories.insert(directory);
+    }
+    let mut options = std::fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    #[cfg(unix)] {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.mode(0o600);
     }
     for (path, source) in &input.sources {
-        let target = tree.path().join(path);
-        let parent = target.parent().unwrap();
-        std::fs::create_dir_all(parent)?;
-        let mut file = tempfile::NamedTempFile::new_in(parent)?;
+        let target = root.join(path);
+        let parent = Path::new(path).parent().unwrap();
+        if directories.insert(parent) {
+            std::fs::create_dir_all(root.join(parent))?;
+        }
+        let mut file = options.open(&target)?;
         file.write_all(source.content.bytes())?;
-        file.persist_noclobber(target).map_err(|error| error.error)?;
     }
-    Ok(tree)
+    Ok(())
 }
 
 /// Preserve existing cache identities when the collector has no exclusions.
@@ -256,10 +280,46 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "manual before/after compiler snapshot materialization benchmark"]
+    fn snapshot_materialization_benchmark() {
+        for size in [5_000usize, 20_000, 50_000] {
+            let mut sources = input(&[]);
+            let text = format!("//{}\n", "x".repeat(1021));
+            let sha = graphicle_memory::text::sha256(text.as_bytes());
+            for i in 0..size {
+                let path = format!("pkg/{:04}/file_{i:06}.go", i / 100);
+                sources.sources.insert(format!("app/{path}"), Source {
+                    repository:"repo".into(),path,sha:sha.clone(),content:Content::Text(text.clone()),
+                });
+            }
+            let start = std::time::Instant::now();
+            let tree = materialize(&sources).unwrap();
+            let materialize_ms = start.elapsed().as_secs_f64() * 1000.0;
+            let root = tree.path().to_owned();
+            // Verify every file outside the timed write/cleanup intervals.
+            for (path,source) in &sources.sources {
+                assert_eq!(std::fs::read(root.join(path)).unwrap(),source.content.bytes());
+            }
+            let start = std::time::Instant::now();
+            drop(tree);
+            let cleanup_ms = start.elapsed().as_secs_f64() * 1000.0;
+            assert!(!root.exists());
+            eprintln!("MATERIALIZATION_BENCH={}", json!({"files":size,"bytes_per_file":text.len(),"leaf_directories":size/100,"materialize_ms":materialize_ms,"cleanup_ms":cleanup_ms}));
+        }
+    }
+
+    #[test]
     fn compiler_scratch_preserves_exact_bytes_permissions_and_cleanup() {
-        let sources = input(&[("main.go", "package app\n"), ("vendor/dep/asset", "\0binary")]);
+        let mut sources = input(&[("main.go", "package app\n"), ("vendor/dep/asset", "")]);
+        let asset = sources.sources.get_mut("app/vendor/dep/asset").unwrap();
+        asset.content = Content::Binary(vec![0,255,128,10]);
+        asset.sha = graphicle_memory::text::sha256(asset.content.bytes());
         let tree = materialize(&sources).unwrap();
         let root = tree.path().to_owned();
+        #[cfg(unix)] {
+            use std::os::unix::fs::PermissionsExt;
+            assert_eq!(std::fs::metadata(&root).unwrap().permissions().mode() & 0o777, 0o700);
+        }
         for (path, source) in &sources.sources {
             let file = root.join(path);
             assert_eq!(std::fs::read(&file).unwrap(), source.content.bytes());
@@ -270,6 +330,74 @@ mod tests {
         }
         drop(tree);
         assert!(!root.exists());
+    }
+
+    #[test]
+    fn compiler_scratch_rejects_path_collisions_without_overwriting() {
+        let tree = tempfile::tempdir().unwrap();
+        let root = tree.path();
+        // This path sorts before its descendant, so it becomes a file first.
+        let sources = input(&[("collision", "original"), ("collision/nested.go", "replacement")]);
+        assert!(materialize_sources(&sources,root).is_err());
+        assert_eq!(std::fs::read(root.join("app/collision")).unwrap(), b"original");
+        assert!(materialize(&sources).is_err());
+        // Existing files and directories must survive failed exclusive opens.
+        let mut sources = input(&[("existing", "replacement")]);
+        sources.pins.clear();
+        std::fs::write(root.join("app/existing"),b"original").unwrap();
+        assert!(materialize_sources(&sources,root).is_err());
+        assert_eq!(std::fs::read(root.join("app/existing")).unwrap(),b"original");
+        std::fs::remove_file(root.join("app/existing")).unwrap();
+        std::fs::create_dir(root.join("app/existing")).unwrap();
+        assert!(materialize_sources(&sources,root).is_err());
+        assert!(root.join("app/existing").is_dir());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn compiler_scratch_exclusive_create_does_not_follow_a_leaf_symlink() {
+        use std::os::unix::fs::symlink;
+        let tree = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let target = outside.path().join("target");
+        std::fs::write(&target,b"original").unwrap();
+        let mut sources = input(&[("link", "replacement")]);
+        sources.pins.clear(); // Prepopulate the otherwise fresh tree for this race/collision check.
+        std::fs::create_dir(tree.path().join("app")).unwrap();
+        symlink(&target,tree.path().join("app/link")).unwrap();
+        assert!(materialize_sources(&sources,tree.path()).is_err());
+        assert_eq!(std::fs::read(&target).unwrap(),b"original");
+    }
+
+    #[test]
+    fn compiler_scratch_matches_previous_materialization_facts() {
+        use std::io::Write;
+        let mut sources = input(&[
+            ("go.mod", "module example/app\ngo 1.23\nrequire example/dep v1.0.0\n"),
+            ("vendor/modules.txt", "# example/dep v1.0.0\n## explicit; go 1.23\nexample/dep\n"),
+            ("vendor/example/dep/dep.go", "package dep\nfunc Value() int {return 7}\n"),
+            ("main.go", "package app\nimport (\"embed\"; \"example/dep\")\n//go:embed assets/data.bin\nvar data embed.FS\nfunc Value() int {return dep.Value()}\n"),
+            ("assets/data.bin", ""),
+        ]);
+        let asset = sources.sources.get_mut("app/assets/data.bin").unwrap();
+        asset.content = Content::Binary(vec![0,255,128,10]);
+        asset.sha = graphicle_memory::text::sha256(asset.content.bytes());
+        // Previous algorithm: temporary file plus no-clobber publication.
+        let before = tempfile::tempdir().unwrap();
+        for pin in &sources.pins { std::fs::create_dir(before.path().join(&pin.directory)).unwrap(); }
+        for (path,source) in &sources.sources {
+            let target = before.path().join(path);
+            std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+            let mut file = tempfile::NamedTempFile::new_in(target.parent().unwrap()).unwrap();
+            file.write_all(source.content.bytes()).unwrap();
+            file.persist_noclobber(target).unwrap();
+        }
+        let after = materialize(&sources).unwrap();
+        let request = json!({"roots":[{"directory":"app","module":"."}],"goos":"linux","goarch":"amd64","tests":false});
+        let old = graphicle::extractors::go_types::review(before.path(),&request).unwrap();
+        let new = graphicle::extractors::go_types::review(after.path(),&request).unwrap();
+        assert_eq!(old,new);
+        assert!(new["worlds"][0]["symbols"].as_array().is_some_and(|symbols| !symbols.is_empty()),"{new}");
     }
 
     #[test]

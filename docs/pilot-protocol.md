@@ -127,6 +127,15 @@ normal save, and newly compiled exports replace rejected data. Checksums, source
 authorization, final snapshot-retention checks and cache limits still apply.
 These savings concern review-time caches, not dependency preparation or sync.
 
+On a native-analysis miss, `review_materialize` measures creation of the compiler's
+scratch source tree. Parent-directory creation is reused within that tree, and
+files are written with exclusive creation before the compiler starts. Unix trees
+are created with mode 0700 and files with mode 0600, subject to the process umask.
+Text and binary bytes remain unchanged; collisions fail without overwriting.
+The temporary tree is removed when analysis finishes or materialization fails.
+Cleanup is outside the `review_materialize` phase, so measure it separately when
+comparing total filesystem cost. This does not reuse a tree between reviews.
+
 ## Risk measurements
 
 When `entries` is empty, `empty_reason` explains why. It is separate from
