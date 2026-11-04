@@ -127,6 +127,13 @@ impl Context {
                 })
     }
 
+    fn overlaps(&self, side: &str, path: &str, sha: &str, start: u64, end: u64) -> bool {
+        start < end
+            && self.files.get(&(side.to_owned(), path.to_owned())).is_some_and(|file| {
+                file.sha == sha && file.ranges.iter().any(|(a, b)| (*a as u64) < end && start < *b as u64)
+            })
+    }
+
     pub(super) fn annotate(&self, report: &mut Value) {
         if self.files.is_empty() {
             return;
@@ -151,6 +158,16 @@ impl Context {
             ) {
                 entry["_provided_diff"] = json!(true);
                 entries += 1;
+            } else if self.overlaps(
+                side,
+                &path,
+                s(entry, "file_sha256"),
+                entry["byte_start"].as_u64().unwrap_or(u64::MAX),
+                entry["byte_end"].as_u64().unwrap_or(0),
+            ) {
+                // A partial declaration stays intact and eligible. Packing
+                // gives additional graph-linked source the first opportunity.
+                entry["_provided_diff_overlap"] = json!(true);
             }
         }
         for diff in report["diffs"].as_array_mut().unwrap() {
@@ -189,4 +206,27 @@ pub(super) fn schema() -> Value {
         "properties":{"side":{"enum":["base","head"]},"repository_id":{"type":"string"},
             "file":{"type":"string"},"file_sha256":{"type":"string"},
             "line_start":{"type":"integer","minimum":1},"line_end":{"type":"integer","minimum":1}}}})
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn partial_overlap_respects_byte_boundaries_hash_side_and_repository_path() {
+        let context = Context {
+            files: BTreeMap::from([(("head".into(), "app/code.go".into()), File {
+                sha: "hash".into(), ranges: vec![(10, 20), (30, 40)],
+            })]),
+            directories: BTreeMap::new(),
+        };
+        assert!(context.overlaps("head", "app/code.go", "hash", 9, 11));
+        assert!(context.overlaps("head", "app/code.go", "hash", 15, 35));
+        assert!(!context.covered("head", "app/code.go", "hash", 15, 35));
+        assert!(!context.overlaps("head", "app/code.go", "hash", 20, 30));
+        assert!(!context.overlaps("head", "app/code.go", "hash", 10, 10));
+        assert!(!context.overlaps("base", "app/code.go", "hash", 10, 20));
+        assert!(!context.overlaps("head", "peer/code.go", "hash", 10, 20));
+        assert!(!context.overlaps("head", "app/code.go", "other", 10, 20));
+    }
 }

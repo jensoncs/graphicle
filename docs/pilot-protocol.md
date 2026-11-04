@@ -305,11 +305,25 @@ There are at most 4,096 ranges. Invalid sides, paths, hashes, repositories or
 line bounds are rejected. Overlapping and adjacent ranges merge; a gap remains
 uncovered. Only entries whose complete byte span lies in those lines are
 excluded before packing. A function partially overlapping a diff remains
-eligible. A raw hunk is excluded only when every nonempty base/head span is
+eligible at lower priority. With nonempty ranges, packing uses
+`additional_context_then_overlap_v1`: graph-linked entries outside the ranges
+first, then overlapping entries and remaining raw hunks, then entries supported
+only by uncertain scope or history. Each tier preserves the existing semantic
+priority and graph-distance order. Source selection precedes optional history
+and execution-flow annotations, with no raw-hunk reservation. Whole declarations
+are retained; this does not slice functions or infer that uncovered lines were
+already supplied. Without ranges, the original packing policy is unchanged.
+A raw hunk is excluded only when every nonempty base/head span is
 covered, so declaring head lines alone cannot suppress deleted or old context.
 Send only ranges actually present in the review prompt, after any diff trimming.
 
 `coverage.provided_diff` reports `entries`, `diffs`, and normalized `ranges`.
+It also reports eligible `overlapping_entries`, `selected_outside_entries` and
+`selected_overlapping_entries`. Selected counts cover the canonical view,
+including unchanged delta entries; any byte overlap counts the whole entry as
+overlapping. These are entry counts, not counts of duplicate tokens or evidence
+of usefulness. Outside means outside the supplied ranges, not outside all actual
+changes if the caller supplied only part of its diff.
 These exclusions are separate from `budget_omitted_entries`
 and `budget_omitted_diffs`. Original `required_entries`/`required_diffs` count
 the full candidates: each equals selected (including unchanged delta entries)
@@ -324,6 +338,7 @@ fingerprint participates in `review_reuse.context_sha256` and receipt identity. 
 removed by this option and restore them when requested again; never accumulate
 the old packet's excluded entries into the supplemental view.
 `build.info.review_provided_diff` advertises `fully-covered-spans-v1`.
+`build.info.review_context_ranking` advertises `additional_context_then_overlap_v1`.
 
 For the next Sentinel probe, hold admitted snapshots, token budget and diff
 prompt constant; compare entry counts and source-token counts inside versus
@@ -331,6 +346,11 @@ outside the supplied diff, then review citations/usefulness. The option removes
 known duplication; usefulness still needs production measurement.
 The extra accounting can cross a packing threshold at very small budgets, so
 this option does not guarantee a higher entry count on every request.
+For latency attribution, `GRAPHICLE_PHASE_TIMINGS=1` logs
+`review_provided_diff_validate` and `review_provided_diff_annotate` separately
+from `review_pack` and analysis phases on stderr. Compare cold and warm runs
+separately and alternate probe arms; total time alone cannot attribute a
+slowdown to range validation, ranking, token counting, or cache state.
 
 Each context source and its evidence record carries `rank`, `rank_score`, and
 `score_kind`. `rank` is its one-based packing input position, preserved if display

@@ -15,11 +15,14 @@
       "budget_omitted_entries": {"type": "integer", "minimum": 0, "description": "Code entry candidates omitted for budget, excluding provided-diff spans and unchanged delta entries."},
       "budget_omitted_diffs": {"type": "integer", "minimum": 0, "description": "Raw diff candidates omitted for budget, excluding provided-diff spans; may be nonzero for unsupported source languages."},
       "provided_diff": {"type": "object", "description": "Fully covered candidates excluded on the caller's declaration that their text is already in the diff. Does not prove review coverage.", "required": ["ranges", "entries", "diffs"], "properties": {
-        "ranges": {"type": "integer", "minimum": 0}, "entries": {"type": "integer", "minimum": 0}, "diffs": {"type": "integer", "minimum": 0}
+        "ranges": {"type": "integer", "minimum": 0}, "entries": {"type": "integer", "minimum": 0}, "diffs": {"type": "integer", "minimum": 0},
+        "overlapping_entries": {"type": "integer", "minimum": 0, "description": "Eligible entries partially overlapping supplied ranges; fully covered exclusions are counted in entries."},
+        "selected_outside_entries": {"type": "integer", "minimum": 0, "description": "Canonical selected entries with no overlap against supplied ranges, including unchanged delta entries."},
+        "selected_overlapping_entries": {"type": "integer", "minimum": 0, "description": "Canonical selected entries partially overlapping supplied ranges, including unchanged delta entries. Counts whole entries, not duplicated tokens."}
       }},
       "issue_examples_omitted": {"type": "integer", "minimum": 0},
       "packing": {"type": "object", "properties": {
-        "policy": {"const": "semantic_priority_then_graph_distance_v1"},
+        "policy": {"enum": ["semantic_priority_then_graph_distance_v1", "additional_context_then_overlap_v1"]},
         "metadata_tokens": {"type": "integer", "minimum": 0, "description": "Measured preselection envelope tokens with empty entries/diffs and a zero placeholder for this count. Later selection and delta controls use a separate reserve; not a final wire token decomposition."},
         "control_reserve_tokens": {"type": "integer", "minimum": 0},
         "first_entry_tokens": {"type": ["integer", "null"], "description": "Packing cost of the first code candidate before optional history, including its ID/control allowance. No guarantee it fits the remaining budget."},

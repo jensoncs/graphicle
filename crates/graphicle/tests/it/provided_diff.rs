@@ -130,6 +130,33 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
         improved,
         "supplemental mode must deliver more additional context at a tight budget"
     );
+    // Real prompts supply hunks, not entire declarations. The long changed
+    // function stays eligible, but must not spend the extra-context allowance
+    // before its unchanged caller and dependency have been considered.
+    let partial_ranges = json!([
+        span(&repo, "base", "changed.go", &before, 3, 3),
+        span(&repo, "head", "changed.go", &after, 3, 3)
+    ]);
+    for budget in [3500, 5000, 6500] {
+        args["max_tokens"] = json!(budget);
+        args.as_object_mut().unwrap().remove("provided_diff");
+        let plain = f.run(&args);
+        args["provided_diff"] = partial_ranges.clone();
+        let extra = f.run(&args);
+        eprintln!("partial provided_diff budget={budget}: outside entries {} -> {}, overlap selected {}", outside_count(&plain), outside_count(&extra), extra["coverage"]["provided_diff"]["selected_overlapping_entries"]);
+        assert!(outside_count(&extra) >= 2, "{}", extra["coverage"]);
+        assert!(has(&extra, "head", "Caller"));
+        assert!(has(&extra, "head", "Dependency"));
+        assert!(outside_count(&extra) >= outside_count(&plain));
+        assert_eq!(extra["coverage"]["provided_diff"]["entries"], 0);
+        assert_eq!(extra["coverage"]["provided_diff"]["overlapping_entries"], 2);
+        assert_eq!(extra["coverage"]["provided_diff"]["selected_outside_entries"], outside_count(&extra));
+        assert_eq!(extra["coverage"]["packing"]["policy"], "additional_context_then_overlap_v1");
+        assert_eq!(extra["impact"], plain["impact"]);
+        assert!(text::count(&extra.to_string()) <= budget);
+        assert!(!extra.to_string().contains("_provided_diff"));
+    }
+    args["provided_diff"] = provided;
     args["max_tokens"] = json!(16000);
     args["previous_packet_id"] = full["packet_id"].clone();
     args["reviewed_entries"] = json!(

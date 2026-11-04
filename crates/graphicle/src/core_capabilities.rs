@@ -49,6 +49,7 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
         "review_unsupported_inputs": "extension-cause-side-v1",
         "review_empty_reason": "entry-delivery-reasons-v1",
         "review_provided_diff": "fully-covered-spans-v1",
+        "review_context_ranking": "additional_context_then_overlap_v1",
         "review_python_import_diagnostics": "cause-and-module-counts-v1",
         "review_excluded_modules": "explicit-go-root-exclusions-v1",
         "sync_analysis_cache": "parse-reuse-and-rebuild-counts-v1",

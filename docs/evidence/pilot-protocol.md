@@ -180,3 +180,48 @@ Validation: 65 review unit tests, 100 review integration tests, the Python SDK
 transport check and TypeScript type checks passed, with focused reruns after edits.
 Nexus latency, interface-dispatch completeness and Dora's file-level-only output
 remain open; this option addresses duplicate context, not those analysis gaps.
+
+## Partial-hunk ranking correction (2026-11-04)
+
+Sentinel's probe on 861fa831 did not establish useful added context: outside-hunk
+tokens were 0 → 22, 62 → 62, 56 → 0 and 5 → 0 on Argus, Odin,
+Metadata Service and Nexus. Whole-function overlap classification counts some
+unseen lines as overlapping, so these are not duplicate-token measurements.
+Range exclusions worked, but changed declarations still had first packing
+priority. The original whole-declaration fixture did not cover that failure.
+
+Nonempty `provided_diff` now enables `additional_context_then_overlap_v1`:
+graph-linked nonoverlapping entries first, partially overlapping entries and
+remaining hunks next, uncertain/history-only entries last. Ordering within each
+tier retains the existing semantic priorities and distances. Raw hunks have no
+reservation in this mode; optional history and flow annotations use residual
+space after source selection. Partial declarations stay intact and eligible.
+Analysis impact, admission checks and conservative reuse proofs are unchanged.
+
+The existing 300-statement function fixture now also supplies only the edited
+line on each side, keeping both changed functions eligible:
+
+| Token budget | Outside entries, no ranges | Outside entries, partial ranges | Overlapping entries selected with ranges |
+| --- | ---: | ---: | ---: |
+| 3,500 | 2 | 2 | 0 |
+| 5,000 | 1 | 3 | 0 |
+| 6,500 | 2 | 4 | 0 |
+
+These are local synthetic measurements on the new implementation, not a replay
+of production PRs or a comparison against the old build with the same ranges.
+Counts include both pinned sides, not distinct files. The current-head caller
+and dependency are included at every tested budget. The earlier whole-file
+fixture still returns only one additional entry at 3,500 tokens versus two
+without ranges; envelope/compaction thresholds remain a small-budget limitation.
+
+`coverage.provided_diff` now distinguishes eligible partial overlaps and selected
+outside/overlapping entries, including unchanged delta entries. Build info
+advertises the ranking policy. Existing phase diagnostics can separately time
+range validation, annotation and packing; no latency improvement is claimed.
+Nexus's roughly 400-second probe remains above the 180-second live bound.
+
+Validation: 67 review unit tests and 100 review integration tests passed,
+including byte-boundary/hash/side isolation, partial-hunk budget checks,
+uncertain-scope ordering, packet bounds, schema validation and stable delta
+selection. Production usefulness and latency require the same pinned probe
+with unchanged admission, budgets and prompt-visible ranges.

@@ -1421,6 +1421,7 @@ fn pack(
         pack_encoding(report.clone(), max_tokens, None, scopes, false)
     });
     let quality = |packet: &Value, receipt: &Value| (
+        packet["coverage"]["provided_diff"]["selected_outside_entries"].as_u64().unwrap_or(0),
         packet["coverage"]["current_head"]["selected"].as_u64().unwrap_or(0),
         packet["coverage"]["call_contracts"]["selected"].as_u64().unwrap_or(0),
         packet["coverage"]["callers"]["selected"].as_u64().unwrap_or(0),
@@ -1456,6 +1457,18 @@ fn pack_encoding(
 ) -> Result<(Value, Value, usize)> {
     report["risk_schema"] = json!(RISK_SCHEMA);
     let mut entries = std::mem::take(report["entries"].as_array_mut().unwrap());
+    let supplemental = report["coverage"].get("provided_diff").is_some();
+    let mut overlapping = BTreeSet::new();
+    for entry in &mut entries {
+        if entry.as_object_mut().unwrap().remove("_provided_diff_overlap") == Some(json!(true)) {
+            overlapping.insert(s(entry, "id").to_owned());
+        }
+    }
+    if supplemental {
+        report["coverage"]["provided_diff"]["overlapping_entries"] = json!(overlapping.len());
+        report["coverage"]["provided_diff"]["selected_outside_entries"] = json!(0);
+        report["coverage"]["provided_diff"]["selected_overlapping_entries"] = json!(0);
+    }
     let provenance = if compact {
         crate::phase::phase("review_compact_provenance", || provenance::Catalog::prepare(&mut entries))
     } else { provenance::Catalog::default() };
@@ -1536,7 +1549,7 @@ fn pack_encoding(
     report["coverage"]["budget_omitted"] = json!(0);
     report["coverage"]["budget_omitted_entries"] = json!(0);
     report["coverage"]["budget_omitted_diffs"] = json!(0);
-    report["coverage"]["packing"] = json!({"policy":"semantic_priority_then_graph_distance_v1",
+    report["coverage"]["packing"] = json!({"policy":if supplemental {"additional_context_then_overlap_v1"} else {"semantic_priority_then_graph_distance_v1"},
         "metadata_tokens":0,"control_reserve_tokens":384,"first_entry_tokens":null,
         "first_omitted_rank":null,"last_selected_rank":null});
     report["coverage"]["current_head"] =
@@ -1611,6 +1624,17 @@ fn pack_encoding(
             }
         }
     }
+    if supplemental {
+        // Stable within each tier: preserve semantic priority and distance.
+        // Uncertain scope alone must not outrank known graph-linked context
+        // merely because it lies outside a supplied hunk.
+        candidates.sort_by_key(|(collection, entry)| {
+            if *collection == "diffs" { 1 }
+            else if entry_distance(entry) == usize::MAX { 2 }
+            else if overlapping.contains(s(entry, "id")) { 1 }
+            else { 0 }
+        });
+    }
     let mut candidates: Vec<_> = candidates
         .into_iter()
         .map(|(collection, entry)| {
@@ -1629,7 +1653,7 @@ fn pack_encoding(
     let metadata_cost = text::count(&report.to_string()) + 384;
     // Reserve room for whole history blocks when requested, before spending
     // tokens on repeated change/path examples. This never removes source text.
-    let history_reserve = if business.is_empty() { 0 } else { max_tokens / 8 };
+    let history_reserve = if business.is_empty() || supplemental { 0 } else { max_tokens / 8 };
     if metadata_cost + required_cost(&candidates) + provenance.cost(&required_refs(&candidates)) + history_reserve > max_tokens {
         compact_required_metadata(&mut report, &mut candidates);
     }
@@ -1649,7 +1673,7 @@ fn pack_encoding(
     let metadata_tokens = text::count(&report.to_string());
     report["coverage"]["packing"]["metadata_tokens"] = json!(metadata_tokens);
     let mut used = text::count(&report.to_string()) + 384;
-    let requested_diff_reserve = candidates.iter().filter(|(c, _, _)| *c == "diffs").map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>().min(max_tokens / 4);
+    let requested_diff_reserve = if supplemental { 0 } else { candidates.iter().filter(|(c, _, _)| *c == "diffs").map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>().min(max_tokens / 4) };
     let head_cost = candidates.iter().filter(|(_, e, _)| is_head_change(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
     let contract_cost = candidates.iter().filter(|(_, e, _)| is_call_contract(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
     let caller_cost = candidates.iter().filter(|(_, e, _)| is_call_consumer(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
@@ -1663,19 +1687,19 @@ fn pack_encoding(
         .map(|(_, _, cost)| cost.exact.unwrap())
         .filter(|cost| *cost <= optional_capacity && *cost <= requested_diff_reserve)
         .min().unwrap_or(0);
-    let business_allowance = optional_capacity.saturating_sub(minimum_hunk).min(max_tokens / 4);
+    let business_allowance = if supplemental { 0 } else { optional_capacity.saturating_sub(minimum_hunk).min(max_tokens / 4) };
     let business_costs = fit_business_context(&mut candidates, &business, business_allowance, true);
     let business_used: usize = business_costs.values().sum();
     let diff_reserve = requested_diff_reserve.min(optional_capacity.saturating_sub(business_used));
     let minimum_head_tokens = used + head_cost + diff_reserve;
-    let flow_reserve = if !flow_annotations.is_empty()
+    let flow_reserve = if !supplemental && (!flow_annotations.is_empty()
         || candidates.iter().any(|(_, entry, _)| {
             entry["reasons"].as_array().is_some_and(|reasons| {
                 reasons
                     .iter()
                     .any(|reason| reason.get("execution_flow").is_some())
             })
-        }) {
+        })) {
         max_tokens
             .saturating_sub(minimum_head_tokens)
             .saturating_sub(contract_cost)
@@ -1704,7 +1728,7 @@ fn pack_encoding(
         } else {
             max_tokens.saturating_sub(flow_reserve)
         };
-        let allowance = limit.saturating_sub(used).min(if collection == "diffs" {
+        let allowance = limit.saturating_sub(used).min(if collection == "diffs" && !supplemental {
             diff_reserve.saturating_sub(diff_used)
         } else { usize::MAX });
         let Some(measured) = cost.within(&entry, allowance.saturating_sub(shared_cost)) else {
@@ -1753,6 +1777,11 @@ fn pack_encoding(
     }
     report["coverage"]["budget_omitted"] = json!(total - selected.len());
     let selected_entries = selected.iter().filter(|(c, _)| *c == "entries").count();
+    if supplemental {
+        let selected_overlapping = selected.iter().filter(|(c, e)| *c == "entries" && overlapping.contains(s(e, "id"))).count();
+        report["coverage"]["provided_diff"]["selected_overlapping_entries"] = json!(selected_overlapping);
+        report["coverage"]["provided_diff"]["selected_outside_entries"] = json!(selected_entries - selected_overlapping);
+    }
     report["coverage"]["budget_omitted_entries"] = json!(eligible_entries - selected_entries);
     report["coverage"]["budget_omitted_diffs"] = json!(eligible_diffs - (selected.len() - selected_entries));
     let selected_ranks: BTreeSet<_> = selected.iter().map(|(_, e)| ranks[s(e, "id")]).collect();
@@ -1770,7 +1799,7 @@ fn pack_encoding(
         &mut report,
         &mut selected,
         &flow_annotations,
-        max_tokens.saturating_sub(used).min(flow_reserve),
+        max_tokens.saturating_sub(used).min(if supplemental { max_tokens / 16 } else { flow_reserve }),
     );
     // Reclaim reservations that could not fit a complete cited path. Upgrade
     // selected code only; never spend a history allowance on omitted entries.
@@ -2107,7 +2136,9 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     let head = crate::phase::phase("review_load_head", || {
         load(store, workspace, token, &r.head, &r.profile)
     })?;
-    let provided_diff = diff_context::Context::new(&r.provided_diff, &base, &head)?;
+    let provided_diff = crate::phase::phase("review_provided_diff_validate", || {
+        diff_context::Context::new(&r.provided_diff, &base, &head)
+    })?;
     if let Some(options) = &r.business_context {
         crate::business_context::validate(options, &r.base, &r.head, |pin, path| {
             [&base, &head].into_iter().find_map(|input| {
@@ -2236,7 +2267,9 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     });
     report["review_reuse"] = json!({"eligible":reusable,"requested":r.reviewed_entries.len(),"context_sha256":context_sha,"not_a_review_verdict":true,"policy":"resolved_component_with_complete_context_v1"});
     report["text_reuse"] = json!(r.reuse_text);
-    provided_diff.annotate(&mut report);
+    crate::phase::phase("review_provided_diff_annotate", || {
+        provided_diff.annotate(&mut report)
+    });
     if r.compact_provenance { report["_compact_provenance"] = json!(true); }
     let (mut report, receipt) = crate::phase::phase("review_pack", || {
         pack(report, r.max_tokens, previous.as_ref(), Some(&scopes))
@@ -2382,6 +2415,26 @@ mod tests {
         assert_eq!(packet["context_order"], delta["context_order"]);
         assert_eq!(receipt["entries"], next["entries"]);
         assert!(text::count(&packet.to_string()) <= 3325);
+    }
+
+    #[test]
+    fn supplemental_ranking_keeps_uncertain_scope_after_known_context_and_delta_order() {
+        let report = json!({"entries":[
+            {"id":"seed","revision":"r","side":"head","text":"changed()","_provided_diff_overlap":true,"reasons":[{"reason":"change_seed"}]},
+            {"id":"scope","revision":"r","side":"head","text":"uncertain()","reasons":[{"reason":"conservative_scope","uncertain_scope":true}]},
+            {"id":"outside","revision":"r","side":"head","text":"dependency()","reasons":[{"reason":"dependency","path":["seed","outside"]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, receipt) = pack(report.clone(), 3500, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["outside","seed","scope"]));
+        assert_eq!(packet["coverage"]["provided_diff"]["selected_outside_entries"], 2);
+        assert_eq!(packet["coverage"]["provided_diff"]["selected_overlapping_entries"], 1);
+        assert!(!packet.to_string().contains("_provided_diff"));
+        let (delta, next) = pack(report, 3500, Some(&receipt), None).unwrap();
+        assert_eq!(packet["context_order"], delta["context_order"]);
+        assert_eq!(packet["coverage"]["provided_diff"], delta["coverage"]["provided_diff"]);
+        assert_eq!(receipt["entries"], next["entries"]);
+        assert_eq!(delta["entries"], json!([]));
     }
 
     #[test]
