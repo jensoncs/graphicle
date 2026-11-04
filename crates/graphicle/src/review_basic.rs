@@ -530,7 +530,7 @@ mod tests {
                         repository: repo.into(),
                         path: path.into(),
                         sha: text::sha256(t.as_bytes()),
-                        content: crate::source_object::Content::Text((*t).into()),
+                        content: crate::source_object::Content::Text((*t).into()).into(),
                     },
                 )
             })

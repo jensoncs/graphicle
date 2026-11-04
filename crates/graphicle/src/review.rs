@@ -18,6 +18,9 @@ use std::{
 #[path = "review_admission.rs"]
 pub(crate) mod admission;
 
+#[path = "review_sources.rs"]
+mod sources;
+
 #[path = "review_go.rs"]
 mod go;
 
@@ -119,7 +122,7 @@ struct Source {
     repository: String,
     path: String,
     sha: String,
-    content: crate::source_object::Content,
+    content: std::sync::Arc<crate::source_object::Content>,
 }
 struct Input {
     pins: Vec<Pin>,
@@ -354,52 +357,6 @@ pub(crate) fn validate_profile(profile: &Profile) -> Result<()> {
         store::path(&profile.workspace)?;
     }
     Ok(())
-}
-fn load(
-    store: &Store,
-    workspace: &str,
-    token: &str,
-    pins: &[Pin],
-    profile: &Profile,
-) -> Result<Input> {
-    store.authorized_read(workspace,token,"read",|db,principal|{
-        let mut input=Input{pins:pins.to_vec(),sources:BTreeMap::new(),issues:vec![],bindings:vec![]};let mut budget=admission::SourceBudget::default();
-        for pin in pins {
-            if store::repo(db,principal,&pin.repository_id).is_err(){input.issues.push(issue("unavailable_snapshot",json!(pin.directory)));continue}
-            let row=store::one(db,"SELECT manifest,metadata FROM repo_snapshots WHERE repository_id=? AND sha256=?",params![pin.repository_id,pin.snapshot])?;
-            let Some(row)=row else {input.issues.push(issue("unavailable_snapshot",json!(pin.directory)));continue};
-            let manifest:Value=serde_json::from_str(s(&row,"manifest"))?;let metadata:Value=serde_json::from_str(s(&row,"metadata"))?;
-            let binding=store::one(db,"SELECT scope_complete,withheld_paths FROM repo_snapshot_bindings WHERE repository_id=? AND snapshot=? AND commit_id=? AND policy_sha256=?",params![pin.repository_id,pin.snapshot,pin.commit,pin.policy_sha256])?;
-            let legacy=metadata["commit"]==pin.commit && metadata["policy_sha256"]==pin.policy_sha256;
-            if (binding.is_none() && !legacy)||crate::digest(&manifest)!=pin.snapshot {input.issues.push(issue("snapshot_binding_mismatch",json!(pin.directory)));continue}
-            let complete = binding.as_ref().map(|v|v["scope_complete"]==1).unwrap_or(legacy && metadata["scope_complete"]==true);
-            let withheld = match &binding {
-                Some(row) if !row["withheld_paths"].is_null() => Some(serde_json::from_str::<Vec<String>>(s(row,"withheld_paths"))?),
-                Some(_) => None,
-                None => admission::withheld_paths(&metadata)?,
-            };
-            input.bindings.push(admission::Binding { pin:pin.clone(), complete, withheld, original:binding });
-            if let Some(preparation) = metadata.get("dependency_preparation") {
-                let prepared_profile = serde_json::from_value::<Profile>(preparation["profile"].clone());
-                if prepared_profile.ok().and_then(|p| serde_json::to_value(p).ok()) != Some(serde_json::to_value(profile)?) {
-                    input.issues.push(issue("dependency_preparation_profile_mismatch", json!(pin.directory)));
-                }
-            }
-            if !complete {input.issues.push(issue("source_admission_incomplete",json!(pin.directory)));}
-            let files=manifest.as_object().ok_or_else(||Error::bad("Invalid stored source manifest"))?;
-            for (path,entry) in files {
-                store::path(path)?;
-                if local::excluded_pinned_source_path(path) {input.issues.push(issue("excluded_source",json!(pin.directory)));continue}
-                let size=entry["bytes"].as_u64().ok_or_else(||Error::bad("Invalid source size"))?;
-                budget.reserve(size, admission::vendored(path, files))?;
-                let source=crate::source_object::load(db,&pin.repository_id,s(entry,"sha256"))?;
-                let Some(content)=source else {input.issues.push(issue("missing_source_object",json!(pin.directory)));continue};
-                if content.bytes().len()!=size as usize{return Err(Error::conflict("Pinned source failed integrity verification"));}
-                input.sources.insert(format!("{}/{}",pin.directory,path),Source{repository:pin.repository_id.clone(),path:path.clone(),sha:s(entry,"sha256").into(),content});
-            }
-        }
-        Ok(input)
-    })
 }
 fn analyze(input: &Input, profile: &Profile, cached: Option<Value>, packages: &mut crate::review_cache::PackagePool) -> Result<Analysis> {
     let mut out = analyze_go(input, profile, cached, packages)?;
@@ -2130,12 +2087,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         check_receipt_access(db,p,&receipt)?;
         Ok(Some(receipt))
     })?;
-    let base = crate::phase::phase("review_load_base", || {
-        load(store, workspace, token, &r.base, &r.profile)
-    })?;
-    let head = crate::phase::phase("review_load_head", || {
-        load(store, workspace, token, &r.head, &r.profile)
-    })?;
+    let (base, head) = sources::load_sides(store, workspace, token, &r)?;
     let provided_diff = crate::phase::phase("review_provided_diff_validate", || {
         diff_context::Context::new(&r.provided_diff, &base, &head)
     })?;
@@ -2300,11 +2252,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         for repository in base.sources.values().chain(head.sources.values()).map(|s|&s.repository).collect::<BTreeSet<_>>(){store::repo(db,p,repository)?;}
         // Source forgetting/retention may run while the compiler is working.
         // Do not serve materialized bytes that have since been removed.
-        let mut exists=db.prepare_cached("SELECT EXISTS(SELECT 1 FROM repo_objects WHERE repository_id=? AND sha256=? AND bytes=?)")?;
-        for source in base.sources.values().chain(head.sources.values()) {
-            if !exists.query_row(params![source.repository,source.sha,source.content.bytes().len()],|row|row.get::<_,bool>(0))? {return Err(Error::conflict("Pinned source was removed during review; retry with an available snapshot"));}
-        }
-        drop(exists);
+        sources::check_retained(db, base.sources.values().chain(head.sources.values()))?;
         for input in [&base, &head] {
             for binding in &input.bindings {
                 let pin = &binding.pin;

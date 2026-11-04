@@ -269,7 +269,7 @@ mod tests {
                             repository: "repo".into(),
                             path: (*path).into(),
                             sha: graphicle_memory::text::sha256(text.as_bytes()),
-                            content: Content::Text((*text).into()),
+                            content: Content::Text((*text).into()).into(),
                         },
                     )
                 })
@@ -289,7 +289,7 @@ mod tests {
             for i in 0..size {
                 let path = format!("pkg/{:04}/file_{i:06}.go", i / 100);
                 sources.sources.insert(format!("app/{path}"), Source {
-                    repository:"repo".into(),path,sha:sha.clone(),content:Content::Text(text.clone()),
+                    repository:"repo".into(),path,sha:sha.clone(),content:Content::Text(text.clone()).into(),
                 });
             }
             let start = std::time::Instant::now();
@@ -312,7 +312,7 @@ mod tests {
     fn compiler_scratch_preserves_exact_bytes_permissions_and_cleanup() {
         let mut sources = input(&[("main.go", "package app\n"), ("vendor/dep/asset", "")]);
         let asset = sources.sources.get_mut("app/vendor/dep/asset").unwrap();
-        asset.content = Content::Binary(vec![0,255,128,10]);
+        asset.content = Content::Binary(vec![0,255,128,10]).into();
         asset.sha = graphicle_memory::text::sha256(asset.content.bytes());
         let tree = materialize(&sources).unwrap();
         let root = tree.path().to_owned();
@@ -380,7 +380,7 @@ mod tests {
             ("assets/data.bin", ""),
         ]);
         let asset = sources.sources.get_mut("app/assets/data.bin").unwrap();
-        asset.content = Content::Binary(vec![0,255,128,10]);
+        asset.content = Content::Binary(vec![0,255,128,10]).into();
         asset.sha = graphicle_memory::text::sha256(asset.content.bytes());
         // Previous algorithm: temporary file plus no-clobber publication.
         let before = tempfile::tempdir().unwrap();

@@ -1,0 +1,405 @@
+{
+  "date": "2026-11-04",
+  "baseline": "25b8e38 source-object loading and per-source retention query, reproduced in the same test binary",
+  "candidate": "working tree shared verified source content and native-parameter retention batches",
+  "environment": "local macOS; Rust 1.94.1 unoptimized/debug test binary; bundled SQLite; in-memory object table with covering size index",
+  "method": "Synthetic unique 1024-byte text objects, two sides, changed content percentages 1/10/100. Each case warms both arms once, then measures before/after/after/before. Source loading measures object lookup, SHA verification, Arc allocation and request-local pool disposal; input/DB construction excluded. Retention separately measures deduplication, parameter construction and all indexed checks. Every source byte compared outside timing. No concurrent compilation or test workloads. Both arms retain loaded content in Arc holders for a common measurement layout; the baseline performs independent source_object::load calls as before, without sharing. This is not a separately built baseline executable.",
+  "memory_measurement": "retained_payload_bytes is the exact sum of bytes in distinct loaded content allocations (verified using Arc addresses), not peak RSS. Excludes database, fixture inputs, allocator overhead, source metadata and pool bookkeeping.",
+  "scope": "Isolated source-object loading and retention microbenchmark, not a full review. 50000 objects per side stress the helpers beyond the unchanged 20000-file review admission limit. Excludes manifest decoding, pin authorization/binding validation, native analysis, packing, CLI startup and production VM contention. No production latency claim.",
+  "reproduce": "source_io_benchmark --ignored --nocapture --test-threads=1",
+  "samples": [
+    {
+      "files_per_side": 20000,
+      "changed_percent": 1,
+      "arm": "before",
+      "order": 1,
+      "load_ms": 1206.636458,
+      "retention_ms": 57.126291,
+      "retained_payload_bytes": 40960000
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 1,
+      "arm": "after",
+      "order": 2,
+      "load_ms": 643.068125,
+      "retention_ms": 45.342334,
+      "retained_payload_bytes": 20684800
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 1,
+      "arm": "after",
+      "order": 3,
+      "load_ms": 642.079792,
+      "retention_ms": 45.115875,
+      "retained_payload_bytes": 20684800
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 1,
+      "arm": "before",
+      "order": 4,
+      "load_ms": 1202.323542,
+      "retention_ms": 58.240916,
+      "retained_payload_bytes": 40960000
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 10,
+      "arm": "before",
+      "order": 1,
+      "load_ms": 1217.6653339999998,
+      "retention_ms": 57.403875,
+      "retained_payload_bytes": 40960000
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 10,
+      "arm": "after",
+      "order": 2,
+      "load_ms": 731.87075,
+      "retention_ms": 46.799084,
+      "retained_payload_bytes": 22528000
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 10,
+      "arm": "after",
+      "order": 3,
+      "load_ms": 701.891833,
+      "retention_ms": 46.686667,
+      "retained_payload_bytes": 22528000
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 10,
+      "arm": "before",
+      "order": 4,
+      "load_ms": 1218.792125,
+      "retention_ms": 57.649625,
+      "retained_payload_bytes": 40960000
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 100,
+      "arm": "before",
+      "order": 1,
+      "load_ms": 1214.2125839999999,
+      "retention_ms": 63.156458,
+      "retained_payload_bytes": 40960000
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 100,
+      "arm": "after",
+      "order": 2,
+      "load_ms": 1272.456666,
+      "retention_ms": 65.898375,
+      "retained_payload_bytes": 40960000
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 100,
+      "arm": "after",
+      "order": 3,
+      "load_ms": 1307.591959,
+      "retention_ms": 66.182709,
+      "retained_payload_bytes": 40960000
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 100,
+      "arm": "before",
+      "order": 4,
+      "load_ms": 1213.5703330000001,
+      "retention_ms": 64.253791,
+      "retained_payload_bytes": 40960000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 1,
+      "arm": "before",
+      "order": 1,
+      "load_ms": 3036.414542,
+      "retention_ms": 161.88270799999998,
+      "retained_payload_bytes": 102400000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 1,
+      "arm": "after",
+      "order": 2,
+      "load_ms": 1645.0652080000002,
+      "retention_ms": 130.99470799999997,
+      "retained_payload_bytes": 51712000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 1,
+      "arm": "after",
+      "order": 3,
+      "load_ms": 1674.128583,
+      "retention_ms": 125.64500000000001,
+      "retained_payload_bytes": 51712000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 1,
+      "arm": "before",
+      "order": 4,
+      "load_ms": 3123.388125,
+      "retention_ms": 161.84141599999998,
+      "retained_payload_bytes": 102400000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 10,
+      "arm": "before",
+      "order": 1,
+      "load_ms": 3068.8555,
+      "retention_ms": 163.13066700000002,
+      "retained_payload_bytes": 102400000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 10,
+      "arm": "after",
+      "order": 2,
+      "load_ms": 1821.281,
+      "retention_ms": 130.772125,
+      "retained_payload_bytes": 56320000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 10,
+      "arm": "after",
+      "order": 3,
+      "load_ms": 1834.757583,
+      "retention_ms": 133.68883300000002,
+      "retained_payload_bytes": 56320000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 10,
+      "arm": "before",
+      "order": 4,
+      "load_ms": 3042.9137499999997,
+      "retention_ms": 163.114708,
+      "retained_payload_bytes": 102400000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 100,
+      "arm": "before",
+      "order": 1,
+      "load_ms": 3070.581459,
+      "retention_ms": 174.684417,
+      "retained_payload_bytes": 102400000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 100,
+      "arm": "after",
+      "order": 2,
+      "load_ms": 3259.860208,
+      "retention_ms": 187.272292,
+      "retained_payload_bytes": 102400000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 100,
+      "arm": "after",
+      "order": 3,
+      "load_ms": 3264.334291,
+      "retention_ms": 187.814833,
+      "retained_payload_bytes": 102400000
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 100,
+      "arm": "before",
+      "order": 4,
+      "load_ms": 3111.342,
+      "retention_ms": 185.96408300000002,
+      "retained_payload_bytes": 102400000
+    }
+  ],
+  "results": [
+    {
+      "files_per_side": 20000,
+      "changed_percent": 1,
+      "medians": {
+        "load_ms": {
+          "before": 1204.48,
+          "after": 642.5739585
+        },
+        "retention_ms": {
+          "before": 57.683603500000004,
+          "after": 45.229104500000005
+        },
+        "combined_ms": {
+          "before": 1262.1636035000001,
+          "after": 687.8030630000001
+        },
+        "retained_payload_bytes": {
+          "before": 40960000.0,
+          "after": 20684800.0
+        }
+      },
+      "reduction_percent": {
+        "load_ms": 46.65133846141073,
+        "retention_ms": 21.59105576682635,
+        "combined_ms": 45.50602940120353,
+        "retained_payload_bytes": 49.5
+      }
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 10,
+      "medians": {
+        "load_ms": {
+          "before": 1218.2287294999999,
+          "after": 716.8812915000001
+        },
+        "retention_ms": {
+          "before": 57.52675,
+          "after": 46.7428755
+        },
+        "combined_ms": {
+          "before": 1275.7554794999999,
+          "after": 763.624167
+        },
+        "retained_payload_bytes": {
+          "before": 40960000.0,
+          "after": 22528000.0
+        }
+      },
+      "reduction_percent": {
+        "load_ms": 41.153801897757646,
+        "retention_ms": 18.745843455435953,
+        "combined_ms": 40.14337549235664,
+        "retained_payload_bytes": 44.99999999999999
+      }
+    },
+    {
+      "files_per_side": 20000,
+      "changed_percent": 100,
+      "medians": {
+        "load_ms": {
+          "before": 1213.8914585,
+          "after": 1290.0243125000002
+        },
+        "retention_ms": {
+          "before": 63.705124500000004,
+          "after": 66.040542
+        },
+        "combined_ms": {
+          "before": 1277.596583,
+          "after": 1356.0648545
+        },
+        "retained_payload_bytes": {
+          "before": 40960000.0,
+          "after": 40960000.0
+        }
+      },
+      "reduction_percent": {
+        "load_ms": -6.271800783084602,
+        "retention_ms": -3.6659805915613575,
+        "combined_ms": -6.141866105789351,
+        "retained_payload_bytes": 0.0
+      }
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 1,
+      "medians": {
+        "load_ms": {
+          "before": 3079.9013335,
+          "after": 1659.5968955
+        },
+        "retention_ms": {
+          "before": 161.86206199999998,
+          "after": 128.319854
+        },
+        "combined_ms": {
+          "before": 3241.7633955,
+          "after": 1787.9167495000002
+        },
+        "retained_payload_bytes": {
+          "before": 102400000.0,
+          "after": 51712000.0
+        }
+      },
+      "reduction_percent": {
+        "load_ms": 46.11525773736284,
+        "retention_ms": 20.722711415847396,
+        "combined_ms": 44.84740151049065,
+        "retained_payload_bytes": 49.5
+      }
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 10,
+      "medians": {
+        "load_ms": {
+          "before": 3055.8846249999997,
+          "after": 1828.0192915
+        },
+        "retention_ms": {
+          "before": 163.1226875,
+          "after": 132.230479
+        },
+        "combined_ms": {
+          "before": 3219.0073125,
+          "after": 1960.2497705
+        },
+        "retained_payload_bytes": {
+          "before": 102400000.0,
+          "after": 56320000.0
+        }
+      },
+      "reduction_percent": {
+        "load_ms": 40.18035640007187,
+        "retention_ms": 18.938020807191524,
+        "combined_ms": 39.10390439661357,
+        "retained_payload_bytes": 44.99999999999999
+      }
+    },
+    {
+      "files_per_side": 50000,
+      "changed_percent": 100,
+      "medians": {
+        "load_ms": {
+          "before": 3090.9617295,
+          "after": 3262.0972495
+        },
+        "retention_ms": {
+          "before": 180.32425,
+          "after": 187.5435625
+        },
+        "combined_ms": {
+          "before": 3271.2859795,
+          "after": 3449.640812
+        },
+        "retained_payload_bytes": {
+          "before": 102400000.0,
+          "after": 102400000.0
+        }
+      },
+      "reduction_percent": {
+        "load_ms": -5.5366431219995516,
+        "retention_ms": -4.003517275130775,
+        "combined_ms": -5.45213208559836,
+        "retained_payload_bytes": 0.0
+      }
+    }
+  ],
+  "validation": {
+    "new_unit_tests_passed": 7,
+    "other_review_unit_tests_passed": 70,
+    "pinned_review_integration_tests_passed": 85,
+    "benchmark_passed": true,
+    "diff_check_passed": true
+  }
+}

@@ -127,6 +127,18 @@ normal save, and newly compiled exports replace rejected data. Checksums, source
 authorization, final snapshot-retention checks and cache limits still apply.
 These savings concern review-time caches, not dependency preparation or sync.
 
+Base and head source loading uses one authorized SQLite read snapshot. Within
+that read, identical `(repository_id, sha256)` objects share verified immutable
+bytes; the pool is discarded after loading, with no reuse across requests or
+repositories. Each manifest still validates its own paths, sizes, pin bindings
+and per-side source budget. Final authorization, scope and snapshot checks remain
+in place after analysis. Source retention is checked for each distinct
+`(repository_id, sha256, bytes)` in bounded batches using the existing size index,
+so concurrent removal still rejects the packet. Sharing does not raise admission
+limits or reduce the analysis scope.
+The per-side `review_load_base` and `review_load_head` phases run inside this
+shared read transaction; total review time also includes its setup and commit.
+
 On a native-analysis miss, `review_materialize` measures creation of the compiler's
 scratch source tree. Parent-directory creation is reused within that tree, and
 files are written with exclusive creation before the compiler starts. Unix trees

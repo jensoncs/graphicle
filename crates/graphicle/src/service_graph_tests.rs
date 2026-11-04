@@ -50,7 +50,7 @@ fn fixture(specs: &[(&str, Value)]) -> (Input, Analysis) {
                     repository: dir.to_string(),
                     path: file.into(),
                     sha: text::sha256(code.as_bytes()),
-                    content: crate::source_object::Content::Text(code.into()),
+                    content: crate::source_object::Content::Text(code.into()).into(),
                 },
             );
         }
@@ -274,7 +274,7 @@ fn missing_source_stale_hash_ambiguous_owner_and_incomplete_inventory_are_visibl
                 .unwrap();
             let mut manifest: Value = serde_json::from_slice(source.content.bytes()).unwrap();
             manifest["inventory_complete"] = json!(false);
-            source.content = crate::source_object::Content::Text(manifest.to_string());
+            source.content = crate::source_object::Content::Text(manifest.to_string()).into();
             source.sha = text::sha256(source.content.bytes());
         }
         attach(&input, &mut a).unwrap();
@@ -358,7 +358,7 @@ fn non_go_owners_reuse_structural_spans_without_claiming_complete_local_calls() 
                 repository: "orders".into(),
                 path: file.into(),
                 sha: text::sha256(code.as_bytes()),
-                content: crate::source_object::Content::Text(code.into()),
+                content: crate::source_object::Content::Text(code.into()).into(),
             },
         );
         attach(&input, &mut a).unwrap();

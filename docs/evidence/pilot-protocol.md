@@ -357,3 +357,67 @@ with a vendored dependency and binary `embed.FS` asset produces exactly the same
 compiler facts with the previous and new materialization algorithms. All four
 benchmark runs passed their full byte and cleanup checks. `git diff --check`
 passed.
+
+## Shared review source loading and batched retention (2026-11-04)
+
+Base and head now load in one authorized SQLite read snapshot, sharing verified
+immutable content by repository and digest. Sharing includes identical objects
+under different paths, but never crosses repositories or requests. Each manifest
+still validates its own paths, sizes, pin bindings and source budgets. The final
+authorized transaction checks distinct repository/digest/size tuples in batches
+of 256, using bound SQL parameters and the existing covering size index. Scope,
+snapshot and authorization checks remain in that transaction. There is no schema,
+protocol, admission-limit or analysis-scope change.
+
+Compared the source-object calls and retention query from 25b8e38 with the new
+helpers in one local macOS Rust 1.94.1 **unoptimized test binary**. The fixture has
+unique 1,024-byte text objects in an in-memory SQLite table, with 1%, 10% or 100%
+changed between sides. Both arms retain their results in Arc holders for the same
+measurement layout; the baseline loads every occurrence independently. Each case
+warms both arms once, then runs before/after/after/before, giving two samples per
+arm. Every resulting source byte is checked outside timing.
+
+| Objects per side | Changed | Source load median, before → after | Retention median, before → after | Combined median, before → after | Combined time change |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 20,000 | 1% | 1.204 → 0.643 s | 57.7 → 45.2 ms | 1.262 → 0.688 s | 45.5% lower |
+| 20,000 | 10% | 1.218 → 0.717 s | 57.5 → 46.7 ms | 1.276 → 0.764 s | 40.1% lower |
+| 20,000 | 100% | 1.214 → 1.290 s | 63.7 → 66.0 ms | 1.278 → 1.356 s | 6.1% higher |
+| 50,000 | 1% | 3.080 → 1.660 s | 161.9 → 128.3 ms | 3.242 → 1.788 s | 44.8% lower |
+| 50,000 | 10% | 3.056 → 1.828 s | 163.1 → 132.2 ms | 3.219 → 1.960 s | 39.1% lower |
+| 50,000 | 100% | 3.091 → 3.262 s | 180.3 → 187.5 ms | 3.271 → 3.450 s | 5.5% higher |
+
+Sharing reduces retained source payload bytes by 49.5% at 1% changed and 45% at
+10% changed; it saves none when everything changes. These are exact distinct
+content-allocation byte counts, **not peak RSS**: database memory, fixture inputs,
+allocator overhead, source metadata and pool bookkeeping are excluded. The
+all-changed control exposes the bookkeeping cost and must accompany the gains.
+
+Source timing includes lookup, SHA verification, allocation and disposal of the
+request-local pool. Retention timing includes deduplication, SQL construction,
+binding and indexed checks. Batching reduces statement executions, not the
+necessary object checks. For the 20,000-object, 1%-changed fixture, the calculated
+execution count falls from 40,000 to 79 for 20,200 distinct objects. A regression
+test also measures actual statement runs across batch boundaries.
+
+This is an isolated helper benchmark, not a full review. The 50,000-object case
+deliberately exceeds the unchanged 20,000-file per-side admission limit to stress
+the helpers. Manifest decoding, authorization and pin validation, native analysis,
+packing, CLI startup and production VM contention are excluded. Release-build,
+end-to-end production latency and peak RSS improvements remain unmeasured; these
+results do not establish that Nexus fits its pilot deadline.
+
+[Raw samples and method](review-source-io-benchmark.json). Reproduce with
+`source_io_benchmark --ignored --nocapture --test-threads=1`, with no compilation
+or other test workloads running alongside it.
+
+Validation: seven new source/retention unit tests, 70 other review unit tests and
+85 pinned-review integration tests passed (162 total). The new tests compare
+complete loaded inputs with the previous loader; verify text/binary identity and
+sharing across renamed paths; preserve repository, credential, binding, size and
+per-side budget boundaries; check corruption on new reads; and exercise concurrent
+deletion between sides with final rejection. Retention tests compare the previous
+query's outcomes across batch boundaries, missing objects, wrong repositories and
+sizes, and verify covering-index use without reading source payloads. The broader
+suite covers compiler facts/caches, source admission, context selection and
+packet behavior. The benchmark passed every byte comparison. `git diff --check`
+passed.
