@@ -50,6 +50,12 @@ arrive. Identical SHA-256/size pairs need one representative path upload, even i
 many manifest paths share it. Commit checks all required objects again. Replay
 returns `replayed:true`, empty `missing`, null cursor, and no pending sync.
 
+Missing-object discovery uses one batched SQLite statement per page, with the
+existing `(repository_id, sha256, bytes)` index covering availability checks.
+The total and selected paths use the same read snapshot. Only a page plus one
+lookahead path reaches the response builder, which enforces the encoded byte
+limit. Existing cursors and pending syncs need no migration or client change.
+
 ## Reuse already admitted sources
 
 Prefer existing context-project base/head snapshot pins directly when their commit
@@ -89,8 +95,10 @@ removes repeated uploads but a fresh scratch project still needs its own parse
 and chunk records. Directly reviewing retained context-project snapshots also
 avoids that scratch admission work. A reused target keeps parse/chunk records
 for unchanged path/hash pairs, subject to analyzer revision changes. Missing-list
-pages currently rescan the manifest and check each unique object; repeated pages
-are another cost to measure. The reported Nexus 252-second sync has not been
+pages still rescan the manifest and check each unique object inside the batched
+query to keep totals current. Batching removes per-object Rust query executions;
+it does not eliminate the underlying index probes or repeated manifest scans.
+The reported Nexus 252-second sync has not been
 reproduced here, so the local byte-saving fixture is not a production latency claim.
 
 `sync.commit.analysis_cache` (also forwarded by local `sync`) reports

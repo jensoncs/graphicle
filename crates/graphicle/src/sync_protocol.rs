@@ -10,6 +10,33 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
 const PAGE_BYTES: usize = 128 * 1024;
+// Admission guarantees one size per digest. Keep the first lexical path as its
+// representative, even after uploads. Count against live objects in the same
+// read snapshot as the page; a cached missing list would miss uploads/removals.
+// SQLite batches the indexed object probes without one Rust query per object.
+const MISSING_QUERY: &str = "
+WITH manifest AS MATERIALIZED (
+    SELECT key AS path, json_extract(value,'$.sha256') AS sha,
+           json_extract(value,'$.bytes') AS bytes FROM json_each(?1)
+), objects AS MATERIALIZED (
+    SELECT min(path) AS path, sha, min(bytes) AS bytes FROM manifest GROUP BY sha
+), missing AS MATERIALIZED (
+    SELECT m.path FROM objects m WHERE NOT EXISTS (
+        SELECT 1 FROM repo_objects o INDEXED BY repo_objects_size
+        WHERE o.repository_id=?2 AND o.sha256=m.sha AND o.bytes=m.bytes
+    )
+)
+SELECT total, (?3 IS NULL OR EXISTS(SELECT 1 FROM manifest WHERE path=?3)),
+       page.path, json_type(?1)='object'
+FROM (SELECT count(*) AS total FROM missing)
+LEFT JOIN (
+    SELECT path FROM missing WHERE path>coalesce(?3,'') ORDER BY path LIMIT ?4
+) page ON 1
+ORDER BY page.path";
+
+#[cfg(test)]
+#[path = "sync_protocol_tests.rs"]
+mod tests;
 
 pub(crate) fn missing_page(
     db: &Connection,
@@ -18,9 +45,8 @@ pub(crate) fn missing_page(
     args: &Value,
 ) -> Result<Value> {
     let limit = integer(args, "missing_limit", 256, 1024)?.max(1);
-    let manifest: BTreeMap<String, Value> = serde_json::from_str(s(sync, "manifest"))?;
     let after = match args.get("cursor").filter(|v| !v.is_null()) {
-        None => String::new(),
+        None => None,
         Some(_) => {
             let cursor = string(args, "cursor", 16000)?;
             let bytes = URL_SAFE_NO_PAD
@@ -30,44 +56,32 @@ pub(crate) fn missing_page(
                 serde_json::from_slice(&bytes).map_err(|_| Error::bad("Invalid missing cursor"))?;
             if value["sync_id"] != sync["id"]
                 || value["snapshot"] != sync["snapshot"]
-                || !manifest.contains_key(s(&value, "after"))
             {
                 return Err(Error::bad("Missing cursor does not belong to this sync"));
             }
-            s(&value, "after").to_owned()
+            Some(s(&value, "after").to_owned())
         }
     };
-    let mut exists = db.prepare_cached(
-        "SELECT EXISTS(SELECT 1 FROM repo_objects WHERE repository_id=? AND sha256=? AND bytes=?)",
-    )?;
-    let (mut missing, mut seen) = (Vec::new(), BTreeSet::new());
+    let mut query = db.prepare_cached(MISSING_QUERY)?;
+    let mut rows = query.query(params![s(sync,"manifest"),repository,after,limit+1])?;
+    let mut missing = Vec::new();
     let (mut total, mut bytes, mut more) = (0usize, 0usize, false);
-    for (name, item) in &manifest {
-        // A single upload supplies every path with these bytes. The first
-        // lexical path is a stable representative, even between page uploads.
-        if !seen.insert(s(item, "sha256"))
-            || exists.query_row(
-                params![repository, s(item, "sha256"), item["bytes"].as_u64()],
-                |r| r.get::<_, bool>(0),
-            )?
-        {
-            continue;
+    while let Some(row) = rows.next()? {
+        if !row.get::<_,bool>(3)? {
+            return Err(Error::bad("Invalid sync manifest"));
         }
-        total += 1;
-        if name <= &after {
-            continue;
+        total = row.get(0)?;
+        if !row.get::<_,bool>(1)? {
+            return Err(Error::bad("Missing cursor does not belong to this sync"));
         }
-        let cost = serde_json::to_vec(name)?.len() + 1;
+        let Some(name) = row.get::<_,Option<String>>(2)? else { break };
+        let cost = serde_json::to_vec(&name)?.len() + 1;
         if missing.len() >= limit || bytes + cost > PAGE_BYTES {
             more = true;
-            continue;
-        }
-        // A byte bound, like the item bound, ends a contiguous lexical page.
-        if more {
-            continue;
+            break;
         }
         bytes += cost;
-        missing.push(name.clone());
+        missing.push(name);
     }
     let cursor = if more {
         missing.last().map(|last| {

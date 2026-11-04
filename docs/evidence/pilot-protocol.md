@@ -273,3 +273,46 @@ baseline: randomized IDs can make the second affordable outside entry the base
 caller. That test now requires the current dependency at 5,000/6,500 tokens and
 retains the outside-context/current-caller requirements at 3,500. Packing code
 was not changed. `git diff --check` passed.
+
+## Batched missing-list pagination (2026-11-04)
+
+The prior implementation decoded the manifest into Rust values and executed one
+object-existence statement per unique digest on every page. The new implementation
+uses one SQLite statement to group representative paths, probe the existing size
+index, count current missing objects, and return at most a page plus one lookahead
+path. Rust retains the same JSON byte bound and cursor encoding. The query is
+read-only, uses existing schema, and requires no client or pending-sync migration.
+
+Compared baseline 1c957bd with this change using local macOS Rust 1.94.1
+unoptimized test binaries and bundled SQLite. Both arms use identical deterministic
+manifests, an in-memory object-metadata table, and 256 paths per page. All objects
+are unique and missing; timed runs enumerate pages without uploads. Runs execute
+sequentially in before/after/after/before order, giving two samples per size per arm.
+
+| Files | Pages | Baseline median | Changed median | Time reduction | SQL executions, before → after |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 5,000 | 20 | 0.372 s | 0.217 s | 41.6% | 100,000 → 20 |
+| 20,000 | 79 | 5.981 s | 3.903 s | 34.7% | 1,580,000 → 79 |
+| 50,000 | 196 | 38.323 s | 22.885 s | 40.3% | 9,800,000 → 196 |
+
+Execution counts come from SQLite's `SQLITE_STMTSTATUS_RUN`. They count the
+missing-object statement only, not authorization or sync-record reads. Batching
+does **not** eliminate SQLite's underlying index probes: each page still scans
+and groups the manifest to produce a live `missing_total`. No persistent manifest
+index or cached missing inventory was added. The time improvement comes from
+removing repeated Rust-side manifest decoding and per-object query calls.
+
+[Raw samples and method](sync-pagination-benchmark.json). Reproduce with the
+ignored unit test `missing_pagination_benchmark --ignored --nocapture
+--test-threads=1`, using the same build profile and identical fixture on both
+revisions. Timing excludes authorization, admission, uploads, source parsing,
+projection, vendoring and native review analysis. Production and release-build
+savings remain unmeasured; this does not establish Nexus's end-to-end latency.
+
+Validation: four pagination unit tests, seven pilot-protocol integration tests,
+and 31 sync integration tests passed. A test-only copy of the old implementation
+checks exact response equality across uploads between pages, object removal,
+duplicate hashes, wrong sizes, repository isolation, cursor validation, Unicode
+and escaped names, byte bounds, and empty results. A native query-plan test checks
+that availability uses the covering size index without reading source payloads.
+Invalid manifest roots still fail closed. `git diff --check` passed.

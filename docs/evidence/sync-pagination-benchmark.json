@@ -1,0 +1,123 @@
+{
+  "baseline": "1c957bd plus identical benchmark fixtures and extracted query constant",
+  "candidate": "working tree batched missing-object query",
+  "date": "2026-11-04",
+  "environment": "local macOS; Rust 1.94.1 unoptimized test binaries; bundled SQLite; in-memory object metadata table",
+  "method": "Sequential before/after/after/before runs. Two complete enumerations per size per arm; 256 paths per page; unique objects all missing and no uploads during timing. Identical deterministic manifests in both arms. Measures missing_page directly, excluding authorization, manifest admission, uploads, parsing and projection. SQL statement executions measured by SQLite SQLITE_STMTSTATUS_RUN, not inferred index probe counts. No production latency claim.",
+  "results": [
+    {
+      "files": 5000,
+      "samples": {
+        "before": [
+          {
+            "files": 5000,
+            "pages": 20,
+            "milliseconds": 366.615833,
+            "sql_statement_runs": 100000
+          },
+          {
+            "files": 5000,
+            "pages": 20,
+            "milliseconds": 377.315084,
+            "sql_statement_runs": 100000
+          }
+        ],
+        "after": [
+          {
+            "files": 5000,
+            "pages": 20,
+            "milliseconds": 218.58604200000002,
+            "sql_statement_runs": 20
+          },
+          {
+            "files": 5000,
+            "pages": 20,
+            "milliseconds": 215.845833,
+            "sql_statement_runs": 20
+          }
+        ]
+      },
+      "median_ms": {
+        "before": 371.9654585,
+        "after": 217.2159375
+      },
+      "median_reduction_percent": 41.60319660434277
+    },
+    {
+      "files": 20000,
+      "samples": {
+        "before": [
+          {
+            "files": 20000,
+            "pages": 79,
+            "milliseconds": 5958.228499999999,
+            "sql_statement_runs": 1580000
+          },
+          {
+            "files": 20000,
+            "pages": 79,
+            "milliseconds": 6004.106834,
+            "sql_statement_runs": 1580000
+          }
+        ],
+        "after": [
+          {
+            "files": 20000,
+            "pages": 79,
+            "milliseconds": 3931.3744580000002,
+            "sql_statement_runs": 79
+          },
+          {
+            "files": 20000,
+            "pages": 79,
+            "milliseconds": 3875.2585000000004,
+            "sql_statement_runs": 79
+          }
+        ]
+      },
+      "median_ms": {
+        "before": 5981.167667,
+        "after": 3903.316479
+      },
+      "median_reduction_percent": 34.73989200242896
+    },
+    {
+      "files": 50000,
+      "samples": {
+        "before": [
+          {
+            "files": 50000,
+            "pages": 196,
+            "milliseconds": 38337.916917,
+            "sql_statement_runs": 9800000
+          },
+          {
+            "files": 50000,
+            "pages": 196,
+            "milliseconds": 38307.770167,
+            "sql_statement_runs": 9800000
+          }
+        ],
+        "after": [
+          {
+            "files": 50000,
+            "pages": 196,
+            "milliseconds": 23096.357542,
+            "sql_statement_runs": 196
+          },
+          {
+            "files": 50000,
+            "pages": 196,
+            "milliseconds": 22674.053,
+            "sql_statement_runs": 196
+          }
+        ]
+      },
+      "median_ms": {
+        "before": 38322.843542,
+        "after": 22885.205271
+      },
+      "median_reduction_percent": 40.28312318234186
+    }
+  ]
+}
