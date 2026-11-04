@@ -73,6 +73,7 @@ type loader struct {
 }
 
 func (l *loader) Import(path string) (result *types.Package, failure error) {
+	defer reviewPhase("import")()
 	if err := l.failures[path]; err != nil {
 		return nil, err
 	}
@@ -125,7 +126,9 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 	}
 	files := []*ast.File{}
 	for _, name := range m.GoFiles {
+		doneParse := reviewPhase("parse")
 		f, err := parser.ParseFile(l.fset, filepath.Join(m.Dir, name), nil, 0)
+		doneParse()
 		if err != nil {
 			if l.review != nil {
 				l.review.diagnostic(path, "parse_error", l.review.relative(filepath.Join(m.Dir, name)), 0, err.Error())
@@ -160,7 +163,9 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 	if m.Module != nil && m.Module.GoVersion != "" {
 		conf.GoVersion = "go" + m.Module.GoVersion
 	}
+	doneCheck := reviewPhase("type_check")
 	pkg, err := conf.Check(path, l.fset, files, info)
+	doneCheck()
 	valid := err == nil && m.Error == nil && !m.Incomplete && len(m.DepsErrors) == 0 && len(m.CgoFiles) == 0
 	if l.review != nil {
 		valid = err == nil && !reviewDiscoveryIncomplete(m, l.review.externalErrors) && len(m.CgoFiles) == 0

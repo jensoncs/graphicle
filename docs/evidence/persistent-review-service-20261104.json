@@ -1,0 +1,2090 @@
+{
+  "binary_sha256": "7b3291d05981184e02d3aa213b62753da0a82c8814effb7288ee0fec7e707ef6",
+  "cases": {
+    "nexus-963": {
+      "base": [
+        {
+          "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+          "commit": "a86e65a21253acd52f03aebc62f2977b0ec2535a",
+          "snapshot": "a9788f4a1a4fbb62f988c161cb287bc358ced87d21c18ae6a59102fc29599b6e",
+          "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+          "directory": "nexus",
+          "modules": [
+            "xlr8"
+          ]
+        }
+      ],
+      "previous_head": [
+        {
+          "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+          "commit": "6aa329c82bb45c18c3ffa6048af46d78e965ce09",
+          "snapshot": "3a4552c8fa7e1087dea283c1a0d234ec9f27aabc70528043a8ba6403d6ac7425",
+          "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+          "directory": "nexus",
+          "modules": [
+            "xlr8"
+          ]
+        }
+      ],
+      "head": [
+        {
+          "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+          "commit": "2447ab17fa50a585f11ad691bd944897768fcad0",
+          "snapshot": "7b64c2228f8b0cc9c53b6c336caa4255505b0c8032f89197f28546e65ed69580",
+          "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+          "directory": "nexus",
+          "modules": [
+            "xlr8"
+          ]
+        }
+      ],
+      "profile": {
+        "goos": "linux",
+        "goarch": "amd64",
+        "tags": [
+          "vtprotobuf"
+        ],
+        "tests": false,
+        "workspace": ""
+      },
+      "max_tokens": 8000,
+      "request_sha256": "ed903dea5db8f004db3468e5e36464aa387443f27dc5855c40b976cc01c0f508"
+    },
+    "platform-rbac-638": {
+      "base": [
+        {
+          "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+          "commit": "fae5961c7b93cfab40437be096e9dce932ebfa81",
+          "snapshot": "e8dd67dd0caba706f4dd37deb84c8bbf9416bec1fdcd54e6b73b1457da761c8f",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "platform-rbac",
+          "modules": [
+            "."
+          ]
+        }
+      ],
+      "previous_head": [
+        {
+          "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+          "commit": "5a3db472eb4779530fa2f51afc1ebd424cca1955",
+          "snapshot": "6f14716ee443f331f0cce6848be03f16ed7fb528213c956492ab6ebba81e589c",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "platform-rbac",
+          "modules": [
+            "."
+          ]
+        }
+      ],
+      "head": [
+        {
+          "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+          "commit": "c7b0b0b6f7e2598241bb66bfbb1389e745fbe46c",
+          "snapshot": "023222a4be3e1c9b906a64748240912a763ff4a724ebbd552cd8d4feac5e5a3d",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "platform-rbac",
+          "modules": [
+            "."
+          ]
+        }
+      ],
+      "profile": {
+        "goos": "linux",
+        "goarch": "amd64",
+        "tags": [],
+        "tests": false,
+        "workspace": ""
+      },
+      "max_tokens": 8000,
+      "request_sha256": "51637d58d70c75bd88e0fe3ced243ce403bf710be87e5bb7dd82830fffc80e15"
+    }
+  },
+  "rounds": [
+    {
+      "case": "nexus-963",
+      "round": 0,
+      "order": [
+        "cli",
+        "fresh-http",
+        "warm-http"
+      ],
+      "cache_counts": {
+        "full_analyses": 2,
+        "package_entries": 1127,
+        "package_payload_bytes": 59757660
+      },
+      "cache_digest": "d73d5aa608c9f5e9c856457f190d23a02e5627b46bf6229289f11994519b2fdf",
+      "background_jobs_cancelled_in_clone": [
+        [
+          "project",
+          "retry",
+          3
+        ]
+      ],
+      "priming_untimed": {
+        "seconds": 26.89670987497084,
+        "phase_ms": {
+          "review_load_base": 129,
+          "review_load_head": 9,
+          "review_provided_diff_validate": 0,
+          "review_load_package_cache": 154,
+          "review_materialize": 2220,
+          "review_native_facts": 19918,
+          "review_decode_facts": 145,
+          "review_analyze_base": 15422,
+          "review_analyze_head": 10094,
+          "review_service_links_base": 20,
+          "review_service_links_head": 19,
+          "review_compare": 328,
+          "review_execution_coverage": 1,
+          "review_reuse_scopes": 136,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 254
+        },
+        "phase_peak_rss_mib": 716.4,
+        "sampled_current_rss_max_mib": 647.6,
+        "first_phase_current_rss_mib": 94.4,
+        "native_phase_ns": {
+          "helper": 4133363875,
+          "collect": 227650735,
+          "discovery": 6750216125,
+          "encode": 165938125,
+          "export_load": 912464531,
+          "export_save": 729236831,
+          "fingerprint": 3237625355,
+          "import": 9798025,
+          "link": 22132125,
+          "metadata": 45061583,
+          "other": 22942414,
+          "parse": 946859032,
+          "preflight": 351065500,
+          "type_check": 483177410
+        },
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 609,
+              "misses": 518,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 1127,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2812
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "round": 0,
+      "order": [
+        "cli",
+        "fresh-http",
+        "warm-http"
+      ],
+      "cache_counts": {
+        "full_analyses": 2,
+        "package_entries": 995,
+        "package_payload_bytes": 21064132
+      },
+      "cache_digest": "0a2a12dff59f33c54e2a88ba759161f94bc5b39a3bb86075bd380072888aff7a",
+      "background_jobs_cancelled_in_clone": [
+        [
+          "project",
+          "retry",
+          3
+        ]
+      ],
+      "priming_untimed": {
+        "seconds": 26.183824458974414,
+        "phase_ms": {
+          "review_load_base": 143,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_load_package_cache": 75,
+          "review_materialize": 2494,
+          "review_native_facts": 19620,
+          "review_decode_facts": 113,
+          "review_analyze_base": 14748,
+          "review_analyze_head": 10351,
+          "review_service_links_base": 5,
+          "review_service_links_head": 5,
+          "review_compare": 342,
+          "review_execution_coverage": 4,
+          "review_reuse_scopes": 88,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 246
+        },
+        "phase_peak_rss_mib": 570.2,
+        "sampled_current_rss_max_mib": 548.0,
+        "first_phase_current_rss_mib": 102.0,
+        "native_phase_ns": {
+          "helper": 4116046459,
+          "collect": 290101337,
+          "discovery": 9367177042,
+          "encode": 124128375,
+          "export_load": 589427348,
+          "export_save": 12926,
+          "fingerprint": 2749379671,
+          "import": 8415388,
+          "link": 32120332,
+          "metadata": 36181250,
+          "other": 23852165,
+          "parse": 131509493,
+          "preflight": 283603792,
+          "type_check": 68805506
+        },
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 995,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 995,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12967
+      }
+    },
+    {
+      "case": "nexus-963",
+      "round": 1,
+      "order": [
+        "warm-http",
+        "fresh-http",
+        "cli"
+      ],
+      "cache_counts": {
+        "full_analyses": 2,
+        "package_entries": 1127,
+        "package_payload_bytes": 59757660
+      },
+      "cache_digest": "693a10a8a492408502f0242bec5275318247565a82c6c98135ab35c1fea4f65c",
+      "background_jobs_cancelled_in_clone": [
+        [
+          "project",
+          "retry",
+          3
+        ]
+      ],
+      "priming_untimed": {
+        "seconds": 28.036156999995,
+        "phase_ms": {
+          "review_load_base": 133,
+          "review_load_head": 10,
+          "review_provided_diff_validate": 0,
+          "review_load_package_cache": 176,
+          "review_materialize": 2239,
+          "review_native_facts": 20988,
+          "review_decode_facts": 142,
+          "review_analyze_base": 16303,
+          "review_analyze_head": 10308,
+          "review_service_links_base": 20,
+          "review_service_links_head": 19,
+          "review_compare": 338,
+          "review_execution_coverage": 1,
+          "review_reuse_scopes": 128,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 262
+        },
+        "phase_peak_rss_mib": 712.7,
+        "sampled_current_rss_max_mib": 642.5,
+        "first_phase_current_rss_mib": 95.0,
+        "native_phase_ns": {
+          "helper": 3994180250,
+          "collect": 227886624,
+          "discovery": 7938405375,
+          "encode": 168391751,
+          "export_load": 914933238,
+          "export_save": 762904865,
+          "fingerprint": 3215971530,
+          "import": 9719912,
+          "link": 22198624,
+          "metadata": 42805959,
+          "other": 22784911,
+          "parse": 938035262,
+          "preflight": 284379459,
+          "type_check": 475633114
+        },
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 609,
+              "misses": 518,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 1127,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2812
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "round": 1,
+      "order": [
+        "warm-http",
+        "fresh-http",
+        "cli"
+      ],
+      "cache_counts": {
+        "full_analyses": 2,
+        "package_entries": 995,
+        "package_payload_bytes": 21064132
+      },
+      "cache_digest": "844ac7569dd91aea4e36e6cf4564ddd96b4427a9ce8307c6e898898a9a2c848a",
+      "background_jobs_cancelled_in_clone": [
+        [
+          "project",
+          "retry",
+          3
+        ]
+      ],
+      "priming_untimed": {
+        "seconds": 26.14440804196056,
+        "phase_ms": {
+          "review_load_base": 145,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_load_package_cache": 73,
+          "review_materialize": 2082,
+          "review_native_facts": 19990,
+          "review_decode_facts": 119,
+          "review_analyze_base": 14151,
+          "review_analyze_head": 10898,
+          "review_service_links_base": 5,
+          "review_service_links_head": 4,
+          "review_compare": 347,
+          "review_execution_coverage": 2,
+          "review_reuse_scopes": 89,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 256
+        },
+        "phase_peak_rss_mib": 561.2,
+        "sampled_current_rss_max_mib": 547.0,
+        "first_phase_current_rss_mib": 102.1,
+        "native_phase_ns": {
+          "helper": 4264177167,
+          "collect": 305554332,
+          "discovery": 9296511250,
+          "encode": 128195291,
+          "export_load": 581990648,
+          "export_save": 16410,
+          "fingerprint": 3108832846,
+          "import": 8523881,
+          "link": 33159083,
+          "metadata": 35367376,
+          "other": 20223744,
+          "parse": 142339092,
+          "preflight": 300218125,
+          "type_check": 72109380
+        },
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 995,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 995,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12967
+      }
+    }
+  ],
+  "rows": [
+    {
+      "case": "nexus-963",
+      "round": 0,
+      "arm": "cli",
+      "seconds": 17.5532904160209,
+      "phase_ms": {
+        "review_load_base": 121,
+        "review_load_head": 9,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 141,
+        "review_analyze_base": 387,
+        "review_load_package_cache": 149,
+        "review_materialize": 1115,
+        "review_native_facts": 13098,
+        "review_analyze_head": 15552,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 330,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 130,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 251
+      },
+      "phase_peak_rss_mib": 578.8,
+      "process_peak_rss_bytes": 606961664,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 563.7,
+      "first_phase_current_rss_mib": 91.0,
+      "native_phase_ns": {
+        "helper": 4152573166,
+        "collect": 109295201,
+        "discovery": 3596099792,
+        "encode": 89143084,
+        "export_load": 335868573,
+        "export_save": 742158367,
+        "fingerprint": 1529755160,
+        "import": 5585438,
+        "link": 11043792,
+        "metadata": 21907666,
+        "other": 14757084,
+        "parse": 849850047,
+        "preflight": 177790333,
+        "type_check": 449169796
+      },
+      "tokens": 7671,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "round": 0,
+      "arm": "fresh-http",
+      "seconds": 19.017518832930364,
+      "phase_ms": {
+        "review_load_base": 128,
+        "review_load_head": 9,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 141,
+        "review_analyze_base": 708,
+        "review_load_package_cache": 153,
+        "review_materialize": 1240,
+        "review_native_facts": 14027,
+        "review_analyze_head": 16963,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 374,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 141,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 271
+      },
+      "phase_peak_rss_mib": 586.4,
+      "sampled_current_rss_max_mib": 571.2,
+      "first_phase_current_rss_mib": 94.8,
+      "native_phase_ns": {
+        "helper": 4418897208,
+        "collect": 106674713,
+        "discovery": 4143899458,
+        "encode": 100209708,
+        "export_load": 331324878,
+        "export_save": 729889971,
+        "fingerprint": 1581966604,
+        "import": 5207531,
+        "link": 11254625,
+        "metadata": 21929834,
+        "other": 9337832,
+        "parse": 865419253,
+        "preflight": 162461791,
+        "type_check": 449762761
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "startup_seconds_untimed": 0.9742374169873074,
+      "tokens": 7671,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "round": 0,
+      "arm": "warm-http",
+      "seconds": 13.70557779201772,
+      "phase_ms": {
+        "review_load_base": 120,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 138,
+        "review_analyze_base": 711,
+        "review_load_package_cache": 147,
+        "review_materialize": 1274,
+        "review_native_facts": 8796,
+        "review_analyze_head": 11725,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 328,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 132,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 265
+      },
+      "phase_peak_rss_mib": 738.1,
+      "sampled_current_rss_max_mib": 738.1,
+      "first_phase_current_rss_mib": 635.7,
+      "native_phase_ns": {
+        "helper": 1100209,
+        "collect": 108590791,
+        "discovery": 3974088000,
+        "encode": 92176708,
+        "export_load": 333370362,
+        "export_save": 716915706,
+        "fingerprint": 1375501540,
+        "import": 5165926,
+        "link": 12214417,
+        "metadata": 22610208,
+        "other": 13014957,
+        "parse": 802312975,
+        "preflight": 148576292,
+        "type_check": 448572784
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "tokens": 7671,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "round": 0,
+      "arm": "cli",
+      "seconds": 15.889355915947817,
+      "phase_ms": {
+        "review_load_base": 147,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 116,
+        "review_analyze_base": 327,
+        "review_load_package_cache": 75,
+        "review_materialize": 1049,
+        "review_native_facts": 11709,
+        "review_analyze_head": 13975,
+        "review_service_links_base": 6,
+        "review_service_links_head": 5,
+        "review_compare": 364,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 89,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 245
+      },
+      "phase_peak_rss_mib": 561.5,
+      "process_peak_rss_bytes": 588791808,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "sampled_current_rss_max_mib": 547.3,
+      "first_phase_current_rss_mib": 99.5,
+      "native_phase_ns": {
+        "helper": 4330061834,
+        "collect": 145803795,
+        "discovery": 4229424583,
+        "encode": 67398292,
+        "export_load": 289903619,
+        "export_save": 6116,
+        "fingerprint": 1329508706,
+        "import": 4111543,
+        "link": 16311167,
+        "metadata": 18209542,
+        "other": 13495083,
+        "parse": 66122597,
+        "preflight": 143135458,
+        "type_check": 35241957
+      },
+      "tokens": 7567,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "round": 0,
+      "arm": "fresh-http",
+      "seconds": 16.961140000028536,
+      "phase_ms": {
+        "review_load_base": 146,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 116,
+        "review_analyze_base": 635,
+        "review_load_package_cache": 74,
+        "review_materialize": 1333,
+        "review_native_facts": 12166,
+        "review_analyze_head": 15223,
+        "review_service_links_base": 6,
+        "review_service_links_head": 5,
+        "review_compare": 377,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 89,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 243
+      },
+      "phase_peak_rss_mib": 566.1,
+      "sampled_current_rss_max_mib": 551.9,
+      "first_phase_current_rss_mib": 102.5,
+      "native_phase_ns": {
+        "helper": 4282631334,
+        "collect": 153571211,
+        "discovery": 4392978916,
+        "encode": 64379166,
+        "export_load": 302563089,
+        "export_save": 9504,
+        "fingerprint": 1669950657,
+        "import": 4410931,
+        "link": 16182917,
+        "metadata": 18070709,
+        "other": 13401714,
+        "parse": 68660052,
+        "preflight": 154978875,
+        "type_check": 37412926
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "startup_seconds_untimed": 1.0382518330588937,
+      "tokens": 7567,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "round": 0,
+      "arm": "warm-http",
+      "seconds": 11.560808290960267,
+      "phase_ms": {
+        "review_load_base": 134,
+        "review_load_head": 7,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 116,
+        "review_analyze_base": 610,
+        "review_load_package_cache": 72,
+        "review_materialize": 985,
+        "review_native_facts": 7264,
+        "review_analyze_head": 9894,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 320,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 88,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 258
+      },
+      "phase_peak_rss_mib": 601.0,
+      "sampled_current_rss_max_mib": 601.0,
+      "first_phase_current_rss_mib": 537.5,
+      "native_phase_ns": {
+        "helper": 1128666,
+        "collect": 145667505,
+        "discovery": 4336041208,
+        "encode": 64287167,
+        "export_load": 295754511,
+        "export_save": 6121,
+        "fingerprint": 1520428199,
+        "import": 4210394,
+        "link": 16082083,
+        "metadata": 18010917,
+        "other": 8497919,
+        "parse": 64617381,
+        "preflight": 120451666,
+        "type_check": 34275887
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "tokens": 7567,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "round": 1,
+      "arm": "warm-http",
+      "seconds": 13.203282915987074,
+      "phase_ms": {
+        "review_load_base": 120,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 145,
+        "review_analyze_base": 713,
+        "review_load_package_cache": 149,
+        "review_materialize": 1123,
+        "review_native_facts": 8426,
+        "review_analyze_head": 11224,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 339,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 134,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 258
+      },
+      "phase_peak_rss_mib": 732.8,
+      "sampled_current_rss_max_mib": 732.8,
+      "first_phase_current_rss_mib": 630.6,
+      "native_phase_ns": {
+        "helper": 1091500,
+        "collect": 107688253,
+        "discovery": 3402664791,
+        "encode": 101313209,
+        "export_load": 332723773,
+        "export_save": 729189556,
+        "fingerprint": 1622756735,
+        "import": 5411831,
+        "link": 11915583,
+        "metadata": 21837416,
+        "other": 11820048,
+        "parse": 875813957,
+        "preflight": 148115958,
+        "type_check": 454161890
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "tokens": 7671,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "round": 1,
+      "arm": "fresh-http",
+      "seconds": 19.260312916943803,
+      "phase_ms": {
+        "review_load_base": 185,
+        "review_load_head": 9,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 140,
+        "review_analyze_base": 731,
+        "review_load_package_cache": 167,
+        "review_materialize": 1178,
+        "review_native_facts": 14188,
+        "review_analyze_head": 17089,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 368,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 131,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 245
+      },
+      "phase_peak_rss_mib": 587.0,
+      "sampled_current_rss_max_mib": 571.8,
+      "first_phase_current_rss_mib": 95.9,
+      "native_phase_ns": {
+        "helper": 4208126125,
+        "collect": 109977185,
+        "discovery": 4417998833,
+        "encode": 94757458,
+        "export_load": 339317760,
+        "export_save": 740527294,
+        "fingerprint": 1647345462,
+        "import": 5726003,
+        "link": 16080291,
+        "metadata": 21043042,
+        "other": 11731548,
+        "parse": 876661672,
+        "preflight": 156809125,
+        "type_check": 465797244
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "startup_seconds_untimed": 1.052279792027548,
+      "tokens": 7671,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "round": 1,
+      "arm": "cli",
+      "seconds": 18.52108600002248,
+      "phase_ms": {
+        "review_load_base": 271,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 139,
+        "review_analyze_base": 389,
+        "review_load_package_cache": 157,
+        "review_materialize": 1157,
+        "review_native_facts": 13734,
+        "review_analyze_head": 16236,
+        "review_service_links_base": 20,
+        "review_service_links_head": 20,
+        "review_compare": 352,
+        "review_execution_coverage": 8,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 245
+      },
+      "phase_peak_rss_mib": 581.4,
+      "process_peak_rss_bytes": 609632256,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 566.2,
+      "first_phase_current_rss_mib": 91.3,
+      "native_phase_ns": {
+        "helper": 4249544708,
+        "collect": 103663091,
+        "discovery": 4029005458,
+        "encode": 91142042,
+        "export_load": 340471887,
+        "export_save": 748820931,
+        "fingerprint": 1601649148,
+        "import": 5391406,
+        "link": 11149042,
+        "metadata": 23839625,
+        "other": 10615713,
+        "parse": 875705566,
+        "preflight": 163501875,
+        "type_check": 444290174
+      },
+      "tokens": 7671,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "round": 1,
+      "arm": "warm-http",
+      "seconds": 11.844075708067976,
+      "phase_ms": {
+        "review_load_base": 133,
+        "review_load_head": 7,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 113,
+        "review_analyze_base": 597,
+        "review_load_package_cache": 73,
+        "review_materialize": 1052,
+        "review_native_facts": 7552,
+        "review_analyze_head": 10211,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 323,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 88,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 237
+      },
+      "phase_peak_rss_mib": 623.5,
+      "sampled_current_rss_max_mib": 623.5,
+      "first_phase_current_rss_mib": 542.3,
+      "native_phase_ns": {
+        "helper": 1127875,
+        "collect": 162181995,
+        "discovery": 4268215000,
+        "encode": 63445333,
+        "export_load": 305875704,
+        "export_save": 7174,
+        "fingerprint": 1807787039,
+        "import": 4654096,
+        "link": 16308166,
+        "metadata": 17671000,
+        "other": 12809255,
+        "parse": 75663453,
+        "preflight": 159299875,
+        "type_check": 40089910
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "tokens": 7567,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "round": 1,
+      "arm": "fresh-http",
+      "seconds": 17.87436279200483,
+      "phase_ms": {
+        "review_load_base": 234,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 114,
+        "review_analyze_base": 610,
+        "review_load_package_cache": 74,
+        "review_materialize": 1116,
+        "review_native_facts": 13373,
+        "review_analyze_head": 16086,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 349,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 95,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 255
+      },
+      "phase_peak_rss_mib": 569.7,
+      "sampled_current_rss_max_mib": 555.5,
+      "first_phase_current_rss_mib": 102.9,
+      "native_phase_ns": {
+        "helper": 4358687459,
+        "collect": 155696713,
+        "discovery": 5157809292,
+        "encode": 66776416,
+        "export_load": 301582759,
+        "export_save": 9371,
+        "fingerprint": 1930806064,
+        "import": 4696181,
+        "link": 17264625,
+        "metadata": 19350583,
+        "other": 12947961,
+        "parse": 77465709,
+        "preflight": 154005708,
+        "type_check": 36072451
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "startup_seconds_untimed": 1.0711876669665799,
+      "tokens": 7567,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "round": 1,
+      "arm": "cli",
+      "seconds": 17.359593083965592,
+      "phase_ms": {
+        "review_load_base": 302,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 118,
+        "review_analyze_base": 323,
+        "review_load_package_cache": 82,
+        "review_materialize": 1105,
+        "review_native_facts": 13019,
+        "review_analyze_head": 15310,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 346,
+        "review_execution_coverage": 8,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 240
+      },
+      "phase_peak_rss_mib": 560.0,
+      "process_peak_rss_bytes": 587235328,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "sampled_current_rss_max_mib": 545.8,
+      "first_phase_current_rss_mib": 99.2,
+      "native_phase_ns": {
+        "helper": 4464770958,
+        "collect": 149103911,
+        "discovery": 5191104375,
+        "encode": 68093458,
+        "export_load": 294233853,
+        "export_save": 8633,
+        "fingerprint": 1552652208,
+        "import": 4292287,
+        "link": 16823166,
+        "metadata": 17347292,
+        "other": 9055666,
+        "parse": 67139299,
+        "preflight": 229998250,
+        "type_check": 36862018
+      },
+      "tokens": 7567,
+      "packet_equal": true
+    }
+  ],
+  "complete": true,
+  "date": "2026-11-04",
+  "base_commit": "4e0b996",
+  "binary_description": "Instrumented release build with unchanged 32 MiB export load limit, identical to cache-load experiment baseline.",
+  "driver": "crates/graphicle/tools/benchmark_review_server_reuse.py",
+  "driver_sha256": "295fdbfe3a59dd1c5164007ddb0acc95d45aa8ac68ce94c51a6c0c979f5e0244",
+  "environment": {
+    "platform": "local macOS ARM",
+    "rust": "1.94.1",
+    "go": "1.27.3",
+    "go_dependency_network": "disabled",
+    "models": false,
+    "filesystem_cache_flushed": false
+  },
+  "method": {
+    "round_orders": [
+      [
+        "cli",
+        "fresh-http",
+        "warm-http"
+      ],
+      [
+        "warm-http",
+        "fresh-http",
+        "cli"
+      ]
+    ],
+    "priming": "Clear full analyses in a private copy, review A-to-B through HTTP, retain process, clone its exact native cache state for CLI/fresh-HTTP controls; each timed call reviews A-to-C.",
+    "identity_check": "Digest of full facts, exports, access bindings, rowids and LRU ordering must match before every arm.",
+    "http_timing": "Only command request including response JSON decode; server startup/priming excluded.",
+    "cli_timing": "Process launch through exit including output write; JSON parsing excluded as in earlier CLI benchmarks.",
+    "isolation": "Cancel queued/retry/running jobs only in private copies, reject fixtures with connectors, assert no runnable jobs or graph-projection phases after each HTTP review.",
+    "memory": "Median of each review's maximum sampled current RSS from Graphicle phase logs. Process high-water includes priming for warm HTTP. CLI wait4 maximum also retained; not interchangeable metrics."
+  },
+  "aggregates": {
+    "nexus-963": {
+      "cli": {
+        "samples": 2,
+        "median_seconds": 18.03718820802169,
+        "range_seconds": [
+          17.5532904160209,
+          18.52108600002248
+        ],
+        "median_sampled_current_rss_max_mib": 564.95,
+        "median_process_high_water_rss_mib": 580.0999999999999,
+        "median_first_phase_current_rss_mib": 91.15,
+        "median_native_facts_seconds": 13.416,
+        "median_native_phase_seconds": {
+          "collect": 0.106479146,
+          "discovery": 3.8125526250000004,
+          "encode": 0.09014256300000001,
+          "export_load": 0.33817023,
+          "export_save": 0.745489649,
+          "fingerprint": 1.5657021539999998,
+          "helper": 4.201058937,
+          "import": 0.005488422,
+          "link": 0.011096417,
+          "metadata": 0.022873645499999998,
+          "other": 0.012686398500000001,
+          "parse": 0.8627778065,
+          "preflight": 0.170646104,
+          "type_check": 0.446729985
+        }
+      },
+      "fresh-http": {
+        "samples": 2,
+        "median_seconds": 19.138915874937084,
+        "range_seconds": [
+          19.017518832930364,
+          19.260312916943803
+        ],
+        "median_sampled_current_rss_max_mib": 571.5,
+        "median_process_high_water_rss_mib": 586.7,
+        "median_first_phase_current_rss_mib": 95.35,
+        "median_native_facts_seconds": 14.1075,
+        "median_native_phase_seconds": {
+          "collect": 0.108325949,
+          "discovery": 4.2809491455,
+          "encode": 0.097483583,
+          "export_load": 0.335321319,
+          "export_save": 0.7352086325,
+          "fingerprint": 1.6146560330000002,
+          "helper": 4.3135116665,
+          "import": 0.005466767,
+          "link": 0.013667458,
+          "metadata": 0.021486438,
+          "other": 0.01053469,
+          "parse": 0.8710404625,
+          "preflight": 0.159635458,
+          "type_check": 0.4577800025
+        }
+      },
+      "warm-http": {
+        "samples": 2,
+        "median_seconds": 13.454430354002398,
+        "range_seconds": [
+          13.203282915987074,
+          13.70557779201772
+        ],
+        "median_sampled_current_rss_max_mib": 735.45,
+        "median_process_high_water_rss_mib": 735.45,
+        "median_first_phase_current_rss_mib": 633.1500000000001,
+        "median_native_facts_seconds": 8.611,
+        "median_native_phase_seconds": {
+          "collect": 0.108139522,
+          "discovery": 3.6883763954999997,
+          "encode": 0.0967449585,
+          "export_load": 0.3330470675,
+          "export_save": 0.7230526310000001,
+          "fingerprint": 1.4991291375,
+          "helper": 0.0010958545,
+          "import": 0.0052888785,
+          "link": 0.012065,
+          "metadata": 0.022223812,
+          "other": 0.0124175025,
+          "parse": 0.839063466,
+          "preflight": 0.148346125,
+          "type_check": 0.451367337
+        }
+      },
+      "warm_vs_cli_time_reduction_percent": 25.407274133676772,
+      "warm_vs_fresh_http_time_reduction_percent": 29.701188709328463,
+      "warm_vs_cli_sampled_rss_increase_percent": 30.179661916983804
+    },
+    "platform-rbac-638": {
+      "cli": {
+        "samples": 2,
+        "median_seconds": 16.624474499956705,
+        "range_seconds": [
+          15.889355915947817,
+          17.359593083965592
+        ],
+        "median_sampled_current_rss_max_mib": 546.55,
+        "median_process_high_water_rss_mib": 560.75,
+        "median_first_phase_current_rss_mib": 99.35,
+        "median_native_facts_seconds": 12.364,
+        "median_native_phase_seconds": {
+          "collect": 0.14745385300000002,
+          "discovery": 4.710264479,
+          "encode": 0.067745875,
+          "export_load": 0.292068736,
+          "export_save": 7.3745e-06,
+          "fingerprint": 1.441080457,
+          "helper": 4.397416396000001,
+          "import": 0.004201915,
+          "link": 0.0165671665,
+          "metadata": 0.017778416999999998,
+          "other": 0.011275374500000001,
+          "parse": 0.066630948,
+          "preflight": 0.186566854,
+          "type_check": 0.0360519875
+        }
+      },
+      "fresh-http": {
+        "samples": 2,
+        "median_seconds": 17.417751396016683,
+        "range_seconds": [
+          16.961140000028536,
+          17.87436279200483
+        ],
+        "median_sampled_current_rss_max_mib": 553.7,
+        "median_process_high_water_rss_mib": 567.9000000000001,
+        "median_first_phase_current_rss_mib": 102.7,
+        "median_native_facts_seconds": 12.7695,
+        "median_native_phase_seconds": {
+          "collect": 0.154633962,
+          "discovery": 4.775394104,
+          "encode": 0.065577791,
+          "export_load": 0.30207292399999996,
+          "export_save": 9.4375e-06,
+          "fingerprint": 1.8003783604999999,
+          "helper": 4.3206593965,
+          "import": 0.004553556,
+          "link": 0.016723771,
+          "metadata": 0.018710646,
+          "other": 0.0131748375,
+          "parse": 0.0730628805,
+          "preflight": 0.1544922915,
+          "type_check": 0.036742688499999995
+        }
+      },
+      "warm-http": {
+        "samples": 2,
+        "median_seconds": 11.702441999514122,
+        "range_seconds": [
+          11.560808290960267,
+          11.844075708067976
+        ],
+        "median_sampled_current_rss_max_mib": 612.25,
+        "median_process_high_water_rss_mib": 612.25,
+        "median_first_phase_current_rss_mib": 539.9,
+        "median_native_facts_seconds": 7.4079999999999995,
+        "median_native_phase_seconds": {
+          "collect": 0.15392475,
+          "discovery": 4.3021281039999995,
+          "encode": 0.06386625000000001,
+          "export_load": 0.3008151075,
+          "export_save": 6.6475e-06,
+          "fingerprint": 1.664107619,
+          "helper": 0.0011282705,
+          "import": 0.004432245,
+          "link": 0.016195124499999998,
+          "metadata": 0.0178409585,
+          "other": 0.010653586999999999,
+          "parse": 0.07014041700000001,
+          "preflight": 0.1398757705,
+          "type_check": 0.0371828985
+        }
+      },
+      "warm_vs_cli_time_reduction_percent": 29.60714638201287,
+      "warm_vs_fresh_http_time_reduction_percent": 32.81312993024813,
+      "warm_vs_cli_sampled_rss_increase_percent": 12.020858109962496
+    }
+  },
+  "checks": {
+    "completed_reviews": 12,
+    "packets_equal_excluding_only_analysis_cache_and_tokens": true,
+    "new_head_full_analysis_hits": 0,
+    "all_base_full_analysis_hits": true,
+    "identical_package_counters_within_each_round": true,
+    "all_within_token_budget": true,
+    "maximum_tokens": 7671,
+    "no_models": true,
+    "no_runnable_jobs_or_graph_projection_in_isolated_http_reviews": true
+  },
+  "excluded_mixed_workload_attempt": {
+    "reason": "Archived queued graph-projection retries ran in normal serve workers during priming. Run interrupted; excluded from isolated latency/memory comparisons.",
+    "completed_reviews": 6,
+    "original_archive_jobs_per_case": 3,
+    "job_kind": "project",
+    "job_state": "retry",
+    "rows": [
+      {
+        "case": "nexus-963",
+        "round": 0,
+        "arm": "cli",
+        "seconds": 19.7249867079081,
+        "phase_ms": {
+          "review_load_base": 146,
+          "review_load_head": 9,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 156,
+          "review_analyze_base": 437,
+          "review_load_package_cache": 196,
+          "review_materialize": 1557,
+          "review_native_facts": 14196,
+          "review_analyze_head": 17463,
+          "review_service_links_base": 20,
+          "review_service_links_head": 19,
+          "review_compare": 349,
+          "review_execution_coverage": 8,
+          "review_reuse_scopes": 129,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 262
+        },
+        "phase_peak_rss_mib": 561.2,
+        "process_peak_rss_bytes": 588447744,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 609,
+              "misses": 518,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2846,
+        "sampled_current_rss_max_mib": 546.0,
+        "first_phase_current_rss_mib": 91.7,
+        "native_phase_ns": {
+          "helper": 4729003500,
+          "collect": 119162003,
+          "discovery": 3669866000,
+          "encode": 102829458,
+          "export_load": 359041444,
+          "export_save": 785166768,
+          "fingerprint": 1759911016,
+          "import": 6289248,
+          "link": 11825959,
+          "metadata": 22096583,
+          "other": 10089296,
+          "parse": 929654065,
+          "preflight": 168312709,
+          "type_check": 480431201
+        },
+        "tokens": 7671,
+        "packet_equal": true
+      },
+      {
+        "case": "nexus-963",
+        "round": 0,
+        "arm": "fresh-http",
+        "seconds": 20.889942416921258,
+        "phase_ms": {
+          "review_load_base": 272,
+          "review_load_head": 19,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 144,
+          "review_analyze_base": 732,
+          "review_load_package_cache": 158,
+          "review_materialize": 1322,
+          "review_native_facts": 15597,
+          "review_analyze_head": 18613,
+          "review_service_links_base": 21,
+          "review_service_links_head": 19,
+          "review_compare": 350,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 137,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 267
+        },
+        "phase_peak_rss_mib": 586.2,
+        "sampled_current_rss_max_mib": 571.0,
+        "first_phase_current_rss_mib": 95.5,
+        "native_phase_ns": {
+          "helper": 4525583792,
+          "collect": 117398551,
+          "discovery": 4712117209,
+          "encode": 98160875,
+          "export_load": 360453049,
+          "export_save": 811516437,
+          "fingerprint": 2168193089,
+          "import": 5812973,
+          "link": 11408375,
+          "metadata": 21967125,
+          "other": 12309208,
+          "parse": 1035507738,
+          "preflight": 146933667,
+          "type_check": 470543037
+        },
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 609,
+              "misses": 518,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2846,
+        "startup_seconds_untimed": 1.108980541001074,
+        "tokens": 7671,
+        "packet_equal": true
+      },
+      {
+        "case": "nexus-963",
+        "round": 0,
+        "arm": "warm-http",
+        "seconds": 14.32807920803316,
+        "phase_ms": {
+          "review_load_base": 123,
+          "review_load_head": 9,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 143,
+          "review_analyze_base": 731,
+          "review_load_package_cache": 149,
+          "review_materialize": 1162,
+          "review_native_facts": 9431,
+          "review_analyze_head": 12295,
+          "review_service_links_base": 22,
+          "review_service_links_head": 21,
+          "review_compare": 343,
+          "review_execution_coverage": 2,
+          "review_reuse_scopes": 133,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 271
+        },
+        "phase_peak_rss_mib": 4869.6,
+        "sampled_current_rss_max_mib": 4340.6,
+        "first_phase_current_rss_mib": 4167.4,
+        "native_phase_ns": {
+          "helper": 1132791,
+          "collect": 111812844,
+          "discovery": 4072023583,
+          "encode": 92166791,
+          "export_load": 352328275,
+          "export_save": 750376348,
+          "fingerprint": 1729909405,
+          "import": 6218766,
+          "link": 11684542,
+          "metadata": 21918750,
+          "other": 13120917,
+          "parse": 906019342,
+          "preflight": 153177750,
+          "type_check": 487112437
+        },
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 609,
+              "misses": 518,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2846,
+        "tokens": 7671,
+        "packet_equal": true
+      },
+      {
+        "case": "platform-rbac-638",
+        "round": 0,
+        "arm": "cli",
+        "seconds": 16.27375995798502,
+        "phase_ms": {
+          "review_load_base": 162,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 130,
+          "review_analyze_base": 382,
+          "review_load_package_cache": 87,
+          "review_materialize": 1263,
+          "review_native_facts": 11789,
+          "review_analyze_head": 14276,
+          "review_service_links_base": 6,
+          "review_service_links_head": 5,
+          "review_compare": 371,
+          "review_execution_coverage": 4,
+          "review_reuse_scopes": 97,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 294
+        },
+        "phase_peak_rss_mib": 560.1,
+        "process_peak_rss_bytes": 587284480,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 995,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12970,
+        "sampled_current_rss_max_mib": 545.9,
+        "first_phase_current_rss_mib": 99.5,
+        "native_phase_ns": {
+          "helper": 4965921834,
+          "collect": 159799710,
+          "discovery": 3486675916,
+          "encode": 79936917,
+          "export_load": 320437242,
+          "export_save": 7917,
+          "fingerprint": 1512006333,
+          "import": 4600938,
+          "link": 18496458,
+          "metadata": 20047208,
+          "other": 10185878,
+          "parse": 67920819,
+          "preflight": 162319417,
+          "type_check": 39797997
+        },
+        "tokens": 7567,
+        "packet_equal": true
+      },
+      {
+        "case": "platform-rbac-638",
+        "round": 0,
+        "arm": "fresh-http",
+        "seconds": 17.78172695892863,
+        "phase_ms": {
+          "review_load_base": 433,
+          "review_load_head": 18,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 123,
+          "review_analyze_base": 669,
+          "review_load_package_cache": 108,
+          "review_materialize": 1352,
+          "review_native_facts": 12473,
+          "review_analyze_head": 15532,
+          "review_service_links_base": 6,
+          "review_service_links_head": 6,
+          "review_compare": 381,
+          "review_execution_coverage": 2,
+          "review_reuse_scopes": 98,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 285
+        },
+        "phase_peak_rss_mib": 565.0,
+        "sampled_current_rss_max_mib": 550.8,
+        "first_phase_current_rss_mib": 103.0,
+        "native_phase_ns": {
+          "helper": 4598035041,
+          "collect": 156807624,
+          "discovery": 4277243709,
+          "encode": 69228208,
+          "export_load": 313120778,
+          "export_save": 12701,
+          "fingerprint": 1716797630,
+          "import": 4731727,
+          "link": 16250417,
+          "metadata": 19849250,
+          "other": 12228290,
+          "parse": 73310575,
+          "preflight": 145705417,
+          "type_check": 36815799
+        },
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 995,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12970,
+        "startup_seconds_untimed": 0.9419850000413135,
+        "tokens": 7567,
+        "packet_equal": true
+      },
+      {
+        "case": "platform-rbac-638",
+        "round": 0,
+        "arm": "warm-http",
+        "seconds": 13.149827042012475,
+        "phase_ms": {
+          "review_load_base": 145,
+          "review_load_head": 9,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 127,
+          "review_analyze_base": 652,
+          "review_load_package_cache": 77,
+          "review_materialize": 1163,
+          "review_native_facts": 8516,
+          "review_analyze_head": 11351,
+          "review_service_links_base": 5,
+          "review_service_links_head": 4,
+          "review_compare": 358,
+          "review_execution_coverage": 2,
+          "review_reuse_scopes": 102,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 307
+        },
+        "phase_peak_rss_mib": 5138.6,
+        "sampled_current_rss_max_mib": 3684.1,
+        "first_phase_current_rss_mib": 3494.1,
+        "native_phase_ns": {
+          "helper": 1578250,
+          "collect": 164178334,
+          "discovery": 5317277875,
+          "encode": 77190625,
+          "export_load": 303360430,
+          "export_save": 6961,
+          "fingerprint": 1634202376,
+          "import": 4479814,
+          "link": 18478583,
+          "metadata": 18368917,
+          "other": 8641000,
+          "parse": 76686506,
+          "preflight": 124514708,
+          "type_check": 37852579
+        },
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 995,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12970,
+        "tokens": 7567,
+        "packet_equal": true
+      }
+    ],
+    "priming_rounds": [
+      {
+        "case": "nexus-963",
+        "round": 0,
+        "order": [
+          "cli",
+          "fresh-http",
+          "warm-http"
+        ],
+        "cache_counts": {
+          "full_analyses": 2,
+          "package_entries": 1127,
+          "package_payload_bytes": 59757660
+        },
+        "cache_digest": "406f536b2eaf330cd387af1ac0aad1f44d4f3439b97441f73239d1ad677d7843",
+        "priming_untimed": {
+          "seconds": 37.532612624927424,
+          "phase_ms": {
+            "review_load_base": 142,
+            "review_load_head": 9,
+            "review_provided_diff_validate": 0,
+            "review_load_package_cache": 183,
+            "review_materialize": 4008,
+            "graph_materialize": 5235,
+            "review_native_facts": 26324,
+            "review_decode_facts": 151,
+            "review_analyze_base": 23062,
+            "review_analyze_head": 12729,
+            "review_service_links_base": 24,
+            "review_service_links_head": 23,
+            "review_compare": 400,
+            "review_execution_coverage": 2,
+            "review_reuse_scopes": 160,
+            "review_reuse_decisions": 0,
+            "review_provided_diff_annotate": 0,
+            "review_pack": 298
+          },
+          "phase_peak_rss_mib": 3860.9,
+          "sampled_current_rss_max_mib": 3860.9,
+          "first_phase_current_rss_mib": 94.6,
+          "native_phase_ns": {
+            "helper": 7039230749,
+            "collect": 245532744,
+            "discovery": 8553778458,
+            "encode": 187798041,
+            "export_load": 1015317085,
+            "export_save": 803555021,
+            "fingerprint": 4003337628,
+            "import": 12123950,
+            "link": 24083625,
+            "metadata": 46835707,
+            "other": 36276037,
+            "parse": 1047659889,
+            "preflight": 505402583,
+            "type_check": 507053482
+          },
+          "analysis_cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 609,
+                "misses": 518,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 1127,
+                "misses": 0,
+                "rejected": 0
+              }
+            }
+          },
+          "entries": 4,
+          "impact": "incomplete",
+          "issue_count": 2812
+        }
+      },
+      {
+        "case": "platform-rbac-638",
+        "round": 0,
+        "order": [
+          "cli",
+          "fresh-http",
+          "warm-http"
+        ],
+        "cache_counts": {
+          "full_analyses": 2,
+          "package_entries": 995,
+          "package_payload_bytes": 21064132
+        },
+        "cache_digest": "30f14e04b5fadef8802a8b7232eebe05c6bce3f9640e17d0870247c6db5c70d3",
+        "priming_untimed": {
+          "seconds": 33.076174166984856,
+          "phase_ms": {
+            "review_load_base": 144,
+            "review_load_head": 8,
+            "review_provided_diff_validate": 0,
+            "review_load_package_cache": 75,
+            "review_materialize": 2410,
+            "graph_materialize": 4365,
+            "review_native_facts": 25812,
+            "review_decode_facts": 121,
+            "review_analyze_base": 16799,
+            "review_analyze_head": 14955,
+            "review_service_links_base": 6,
+            "review_service_links_head": 6,
+            "review_compare": 435,
+            "review_execution_coverage": 3,
+            "review_reuse_scopes": 114,
+            "review_reuse_decisions": 0,
+            "review_provided_diff_annotate": 0,
+            "review_pack": 301
+          },
+          "phase_peak_rss_mib": 4207.3,
+          "sampled_current_rss_max_mib": 4207.3,
+          "first_phase_current_rss_mib": 102.0,
+          "native_phase_ns": {
+            "helper": 5119125792,
+            "collect": 334597047,
+            "discovery": 12767942459,
+            "encode": 130275750,
+            "export_load": 626189116,
+            "export_save": 15953,
+            "fingerprint": 4150978474,
+            "import": 9122936,
+            "link": 33753916,
+            "metadata": 38768792,
+            "other": 32410634,
+            "parse": 174605930,
+            "preflight": 627436041,
+            "type_check": 74461328
+          },
+          "analysis_cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 995,
+                "misses": 0,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 995,
+                "misses": 0,
+                "rejected": 0
+              }
+            }
+          },
+          "entries": 5,
+          "impact": "incomplete",
+          "issue_count": 12967
+        }
+      }
+    ]
+  },
+  "limitations": [
+    "Two samples per arm on older local Nexus #963 and platform-rbac #638 archives, not the eight production PR probes.",
+    "Sequential requests only; no production throughput, contention, long-term memory-growth or idle-RSS measurement.",
+    "Admission, collection, vendoring, priming, cloning, server startup and models excluded from HTTP timing.",
+    "CLI and HTTP timing boundaries differ slightly; the fresh-HTTP control isolates process reuse within the same transport.",
+    "An idle warmed server remains alive while controls run; unrelated host activity is uncontrolled and OS caches are not flushed.",
+    "Isolated copies deliberately suppress background jobs. Normal serve workers and stdio MCP projection drains can perform extra work in a real integration.",
+    "Higher warm-server RSS is observed but not attributed to a specific allocator or cache; high-water includes priming."
+  ],
+  "conclusion": {
+    "review_process_reuse_validated": true,
+    "production_changed": false,
+    "default_cache_load_mib": 32,
+    "next_requirement": "Account for or isolate projection work in a persistent review service before replacing the CLI pilot; benchmark-time job cancellation is not a production strategy."
+  }
+}

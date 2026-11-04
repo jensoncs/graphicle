@@ -236,6 +236,11 @@ enum Command {
         port: u16,
         #[arg(long)]
         open: bool,
+        /// Serve HTTP without the built-in workflow workers or schedulers.
+        /// Queued jobs remain available for a separate `graphicle worker`.
+        /// Explicit API operations and extension background tasks still run.
+        #[arg(long)]
+        no_worker: bool,
         #[arg(long)]
         mcp_learning: bool,
         /// Publish the work-state tools on the HTTP MCP endpoint.
@@ -1382,6 +1387,7 @@ where
                     listen: "127.0.0.1".parse().unwrap(),
                     port,
                     open: true,
+                    no_worker: false,
                     learning: false,
                     work_state: false,
                     mcp: api::McpOptions::default(),
@@ -1395,6 +1401,7 @@ where
             listen,
             port,
             open,
+            no_worker,
             mcp_learning,
             mcp_work_state,
             mcp_tools,
@@ -1416,6 +1423,7 @@ where
                     listen,
                     port,
                     open,
+                    no_worker,
                     learning: mcp_learning,
                     work_state: mcp_work_state,
                     mcp,
@@ -2407,6 +2415,7 @@ struct ServeOptions {
     listen: IpAddr,
     port: u16,
     open: bool,
+    no_worker: bool,
     learning: bool,
     work_state: bool,
     mcp: api::McpOptions,
@@ -2433,6 +2442,7 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
         listen,
         port,
         open,
+        no_worker,
         learning,
         work_state,
         mcp,
@@ -2492,8 +2502,10 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
         eprintln!("graphicle: the app runs here until you press Ctrl-C");
     }
     let mut workers = Vec::new();
-    for _ in 0..app.worker.config.worker_concurrency {
-        workers.push(tokio::spawn(worker_loop(app.worker.clone())));
+    if !no_worker {
+        for _ in 0..app.worker.config.worker_concurrency {
+            workers.push(tokio::spawn(worker_loop(app.worker.clone())));
+        }
     }
     let mut background = Vec::new();
     for task in extension_tasks {

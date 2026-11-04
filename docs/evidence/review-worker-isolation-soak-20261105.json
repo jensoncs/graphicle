@@ -1,0 +1,4094 @@
+{
+  "binary_sha256": "69852a3ed52cbe25a1d146af3a2b147823862d23f1964782934c81a7bba05b13",
+  "cases": {
+    "nexus-963": {
+      "base": [
+        {
+          "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+          "commit": "a86e65a21253acd52f03aebc62f2977b0ec2535a",
+          "snapshot": "a9788f4a1a4fbb62f988c161cb287bc358ced87d21c18ae6a59102fc29599b6e",
+          "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+          "directory": "nexus",
+          "modules": [
+            "xlr8"
+          ]
+        }
+      ],
+      "profile": {
+        "goos": "linux",
+        "goarch": "amd64",
+        "tags": [
+          "vtprotobuf"
+        ],
+        "tests": false,
+        "workspace": ""
+      },
+      "heads": [
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "41827da9a6652f90687b25edd4ba1e02dd09e820",
+            "snapshot": "b48d4c5347dab26e6821262a3dfc70ce490ac2c271e08268256cbeb6bfe46ab1",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "3b14337ab9de464329d5a2b85cd92bf82eb5cf16",
+            "snapshot": "40a7d532aa1f627a7542d192c751b9c7f2ab19c5e648391ad78b813ff83c7813",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "11f32515ae219c4dccf4c5167689328af235b015",
+            "snapshot": "84a8aec13af365bba33f936934a0966cfbfa1a297fad2bed1d2d7420dce934d2",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "0a699614c380a9313056f9f645aa0364878d6dc1",
+            "snapshot": "173a20b3c37573af55e9486f78e85d3d4b1c863435851f0ab0b562e230c43bc7",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "cb79dd8f03fc8bd7322d5db4ddeefa1db93974eb",
+            "snapshot": "231da7506f1a06950dd4217ae2138b2fe854744083299e247d6fef75f83e5771",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "5832a621f49dbfbfea5ae435fb877c6f6ef98a2a",
+            "snapshot": "acc0c4b15f01afb56bf92931249cd3f8d5ed0c0bf1f89127538196fde0ffadeb",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "2216ae06b79443b1634904ad8d0d3cbdc78a3106",
+            "snapshot": "d5f535813463ef6d0cc5698e683a372b98940237d967c7ac4460180a2e637ba5",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "205aecb0520c5e5dd158eefc7a2bad93156f880f",
+            "snapshot": "7e9d15fa77363ff941ca711a51918013caea625f60ef92fdbe48b3f780b1438f",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "2820a47ccc6401e084031329b9758d5b3ad42325",
+            "snapshot": "041df8582a0d56dc6dd4f69dea75c74183eb42726d65425ccc7b21ce0725219b",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "fda7649665e2cc9a93607eb81f52a0c5bb121bc1",
+            "snapshot": "1008ca48a9ef73303d91aa09fea738d663974c2c1c5e00a1538a3b96643f7adb",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "e7fb3d528233f4768558b6488daf1619bf98125e",
+            "snapshot": "88a855ca722484c0da24986504d7729ea6cbb65ed3053b4ac1c703f917d22b02",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ]
+      ],
+      "edit_path": "xlr8/pkg/xds/xds.go",
+      "max_tokens": 8000,
+      "synthetic_heads": true,
+      "initial_cache_digest": "859b4299151cf0c20142c4c55c23897d8a1542ad452e8cd50ed40117beb78486",
+      "queued_jobs_preserved": 14,
+      "prime_untimed": {
+        "seconds": 17.509463125024922,
+        "phase_ms": {
+          "review_load_base": 116,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 140,
+          "review_analyze_base": 695,
+          "review_load_package_cache": 153,
+          "review_materialize": 1080,
+          "review_native_facts": 12876,
+          "review_analyze_head": 15593,
+          "review_service_links_base": 20,
+          "review_service_links_head": 19,
+          "review_compare": 343,
+          "review_execution_coverage": 3,
+          "review_reuse_scopes": 133,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 126
+        },
+        "phase_peak_rss_mib": 611.7,
+        "sampled_current_rss_max_mib": 611.7,
+        "first_phase_current_rss_mib": 193.5,
+        "native_phase_ns": {
+          "helper": 4241649625,
+          "collect": 105669405,
+          "discovery": 3280088000,
+          "encode": 89394750,
+          "export_load": 321070421,
+          "export_save": 711692002,
+          "fingerprint": 1432006204,
+          "import": 4822337,
+          "link": 10880583,
+          "metadata": 20882458,
+          "other": 12801334,
+          "parse": 914204883,
+          "preflight": 161041500,
+          "type_check": 438259290
+        }
+      },
+      "arm_order": [
+        "cli",
+        "server"
+      ]
+    },
+    "platform-rbac-638": {
+      "base": [
+        {
+          "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+          "commit": "fae5961c7b93cfab40437be096e9dce932ebfa81",
+          "snapshot": "e8dd67dd0caba706f4dd37deb84c8bbf9416bec1fdcd54e6b73b1457da761c8f",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "platform-rbac",
+          "modules": [
+            "."
+          ]
+        }
+      ],
+      "profile": {
+        "goos": "linux",
+        "goarch": "amd64",
+        "tags": [],
+        "tests": false,
+        "workspace": ""
+      },
+      "heads": [
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "1d02e1bfa554dab0f9dd38e444e21f7cb2bd4152",
+            "snapshot": "ec830bd20c6225076674aecd5b6d2abad9b23682ae12d4cb8cd7df5f0bc1a597",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "79480e67b105e65cb2e6ac4728b3bf79ce77d087",
+            "snapshot": "db8c55a1dbca6d946ff191809b95ca88b26cef0e34205d5340d670c6c65ee555",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "b07b51486d3dd5907e4e426f6098f11a2da59230",
+            "snapshot": "3bd03cb6a890c0f8395443cbd4ff0908fcc4c30db88e4ed4226a42f6eecd93e9",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "d794c058e738469cb195afd88515eb9ff86b5a78",
+            "snapshot": "df0d7d6e7214dc85ca0c94be73ea4ca1043a2af336b9d6de0ca5a93d580f17a5",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "1c5910c65bbccf558b398d2f4f3150c0edf4c72f",
+            "snapshot": "491589c18f0be69515cef76a9ac58cdfc1fdaf1c0fda77bee270a2818969f039",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "a14bd001ad54d4fc9712b962d4a8a2c526e0cd46",
+            "snapshot": "ba2df5c5ea106da1707fd1de57800f3606c3337c3a0b9edc7a4bf918e11172d4",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "4e8da46b80dd52ecfbf193ad0116805335d44882",
+            "snapshot": "5998d2f677193ec9a4a8bcbe27b6d9bd1056a92858ce9b18c35eeb88ed0254c5",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "869e7a627864ef5bca0fc3daf28c73e65b2b187a",
+            "snapshot": "fe36832410bbb2d97c5bdf525503649e75ca9ec755ca823825343d8cc24e3ea5",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "64bb73cf61f61ece1e2513039065aaf700e5c426",
+            "snapshot": "9de797d9bc1b7fca427d77281581dcbeedca7d7efcca47f2a479e556ae7c46f9",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "94db0713d3c4556502201a4c30730db12766a82e",
+            "snapshot": "9a820661ef22e33939b0323dde86594903490fdcd797f0015d5a02f2cb1f8f3a",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "1f2631d9701faaa2361bd5974149dab8c3609d55",
+            "snapshot": "65af095f19ae601bebf40f7f85c16eb6f29685c7dc17f7ee1ab1afddefe45481",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ]
+      ],
+      "edit_path": "pkg/api/apiLogic/v3apiLogic/iam.go",
+      "max_tokens": 8000,
+      "synthetic_heads": true,
+      "initial_cache_digest": "4dd6cefa91be029e467e7e5e68b7ed17b65f38ae963f3b84c5e632737fc769e8",
+      "queued_jobs_preserved": 14,
+      "prime_untimed": {
+        "seconds": 18.011790999909863,
+        "phase_ms": {
+          "review_load_base": 136,
+          "review_load_head": 7,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 125,
+          "review_analyze_base": 601,
+          "review_load_package_cache": 77,
+          "review_materialize": 1416,
+          "review_native_facts": 13251,
+          "review_analyze_head": 16377,
+          "review_service_links_base": 6,
+          "review_service_links_head": 5,
+          "review_compare": 380,
+          "review_execution_coverage": 1,
+          "review_reuse_scopes": 98,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 182
+        },
+        "phase_peak_rss_mib": 601.4,
+        "sampled_current_rss_max_mib": 587.2,
+        "first_phase_current_rss_mib": 193.0,
+        "native_phase_ns": {
+          "helper": 5575965000,
+          "collect": 160764043,
+          "discovery": 4099512417,
+          "encode": 73286542,
+          "export_load": 327501853,
+          "export_save": 6246,
+          "fingerprint": 1639834173,
+          "import": 4737607,
+          "link": 18217917,
+          "metadata": 27211750,
+          "other": 9820587,
+          "parse": 71308668,
+          "preflight": 161738500,
+          "type_check": 38749239
+        }
+      },
+      "arm_order": [
+        "server",
+        "cli"
+      ]
+    }
+  },
+  "rows": [
+    {
+      "case": "nexus-963",
+      "head_index": 1,
+      "arm": "cli",
+      "seconds": 16.962538832915016,
+      "phase_ms": {
+        "review_load_base": 274,
+        "review_load_head": 17,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 147,
+        "review_analyze_base": 399,
+        "review_load_package_cache": 158,
+        "review_materialize": 1066,
+        "review_native_facts": 12443,
+        "review_analyze_head": 14863,
+        "review_service_links_base": 20,
+        "review_service_links_head": 20,
+        "review_compare": 334,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 128
+      },
+      "phase_peak_rss_mib": 588.9,
+      "process_peak_rss_bytes": 617545728,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 573.8,
+      "first_phase_current_rss_mib": 91.3,
+      "native_phase_ns": {
+        "helper": 4082606125,
+        "collect": 108501555,
+        "discovery": 3108470792,
+        "encode": 89805167,
+        "export_load": 327367465,
+        "export_save": 709334989,
+        "fingerprint": 1444492541,
+        "import": 4976122,
+        "link": 11666750,
+        "metadata": 20925291,
+        "other": 12867784,
+        "parse": 911326382,
+        "preflight": 158584459,
+        "type_check": 442753036
+      },
+      "tokens": 7690,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 2,
+      "arm": "cli",
+      "seconds": 17.018548542051576,
+      "phase_ms": {
+        "review_load_base": 259,
+        "review_load_head": 19,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 135,
+        "review_analyze_base": 389,
+        "review_load_package_cache": 153,
+        "review_materialize": 1071,
+        "review_native_facts": 12557,
+        "review_analyze_head": 14936,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 336,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 130
+      },
+      "phase_peak_rss_mib": 591.6,
+      "process_peak_rss_bytes": 623951872,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 591.6,
+      "first_phase_current_rss_mib": 91.2,
+      "native_phase_ns": {
+        "helper": 4086778084,
+        "collect": 112063955,
+        "discovery": 3241582250,
+        "encode": 90014000,
+        "export_load": 326121852,
+        "export_save": 712110463,
+        "fingerprint": 1428940084,
+        "import": 5000749,
+        "link": 15235458,
+        "metadata": 21525417,
+        "other": 9916329,
+        "parse": 863338981,
+        "preflight": 150623209,
+        "type_check": 441459253
+      },
+      "tokens": 7685,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 3,
+      "arm": "cli",
+      "seconds": 16.704843625077046,
+      "phase_ms": {
+        "review_load_base": 269,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 136,
+        "review_analyze_base": 391,
+        "review_load_package_cache": 155,
+        "review_materialize": 1104,
+        "review_native_facts": 12160,
+        "review_analyze_head": 14570,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 338,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 166
+      },
+      "phase_peak_rss_mib": 589.1,
+      "process_peak_rss_bytes": 617758720,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 574.0,
+      "first_phase_current_rss_mib": 91.1,
+      "native_phase_ns": {
+        "helper": 4057322250,
+        "collect": 109715197,
+        "discovery": 2892853875,
+        "encode": 88858209,
+        "export_load": 328536110,
+        "export_save": 707872333,
+        "fingerprint": 1365227052,
+        "import": 4977883,
+        "link": 11530417,
+        "metadata": 21581833,
+        "other": 10730462,
+        "parse": 920713877,
+        "preflight": 149843500,
+        "type_check": 438910086
+      },
+      "tokens": 7560,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 4,
+      "arm": "cli",
+      "seconds": 16.681248957989737,
+      "phase_ms": {
+        "review_load_base": 263,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 147,
+        "review_analyze_base": 398,
+        "review_load_package_cache": 162,
+        "review_materialize": 1070,
+        "review_native_facts": 12186,
+        "review_analyze_head": 14584,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 347,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 130,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 129
+      },
+      "phase_peak_rss_mib": 592.2,
+      "process_peak_rss_bytes": 621019136,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 577.1,
+      "first_phase_current_rss_mib": 91.4,
+      "native_phase_ns": {
+        "helper": 4113165834,
+        "collect": 114382219,
+        "discovery": 2789895750,
+        "encode": 90396042,
+        "export_load": 328622269,
+        "export_save": 718371124,
+        "fingerprint": 1481818835,
+        "import": 5155611,
+        "link": 12418792,
+        "metadata": 21692750,
+        "other": 11035955,
+        "parse": 871612316,
+        "preflight": 157206917,
+        "type_check": 449083795
+      },
+      "tokens": 7685,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 5,
+      "arm": "cli",
+      "seconds": 16.9602296249941,
+      "phase_ms": {
+        "review_load_base": 269,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 144,
+        "review_analyze_base": 396,
+        "review_load_package_cache": 157,
+        "review_materialize": 1139,
+        "review_native_facts": 12441,
+        "review_analyze_head": 14902,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 340,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 133
+      },
+      "phase_peak_rss_mib": 586.8,
+      "process_peak_rss_bytes": 615251968,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 571.6,
+      "first_phase_current_rss_mib": 91.2,
+      "native_phase_ns": {
+        "helper": 4117122250,
+        "collect": 106555011,
+        "discovery": 3125598708,
+        "encode": 87662125,
+        "export_load": 329187771,
+        "export_save": 720367386,
+        "fingerprint": 1362134334,
+        "import": 4988736,
+        "link": 10886250,
+        "metadata": 21102000,
+        "other": 12723831,
+        "parse": 909212789,
+        "preflight": 150819958,
+        "type_check": 440723309
+      },
+      "tokens": 7683,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 6,
+      "arm": "cli",
+      "seconds": 17.052381458925083,
+      "phase_ms": {
+        "review_load_base": 274,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 139,
+        "review_analyze_base": 401,
+        "review_load_package_cache": 153,
+        "review_materialize": 1054,
+        "review_native_facts": 12567,
+        "review_analyze_head": 14970,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 338,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 128
+      },
+      "phase_peak_rss_mib": 586.3,
+      "process_peak_rss_bytes": 614793216,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 571.1,
+      "first_phase_current_rss_mib": 91.5,
+      "native_phase_ns": {
+        "helper": 4129115125,
+        "collect": 111199075,
+        "discovery": 3168969292,
+        "encode": 89365375,
+        "export_load": 329579794,
+        "export_save": 706752127,
+        "fingerprint": 1372630824,
+        "import": 4981870,
+        "link": 11021375,
+        "metadata": 21593000,
+        "other": 11162838,
+        "parse": 914863657,
+        "preflight": 153464125,
+        "type_check": 444514564
+      },
+      "tokens": 7676,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 7,
+      "arm": "cli",
+      "seconds": 16.904193416005,
+      "phase_ms": {
+        "review_load_base": 270,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 144,
+        "review_analyze_base": 393,
+        "review_load_package_cache": 155,
+        "review_materialize": 1064,
+        "review_native_facts": 12450,
+        "review_analyze_head": 14831,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 334,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 129
+      },
+      "phase_peak_rss_mib": 592.9,
+      "process_peak_rss_bytes": 621690880,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 577.7,
+      "first_phase_current_rss_mib": 91.3,
+      "native_phase_ns": {
+        "helper": 4100699625,
+        "collect": 107390233,
+        "discovery": 3138510708,
+        "encode": 87893208,
+        "export_load": 327840429,
+        "export_save": 723069153,
+        "fingerprint": 1367269897,
+        "import": 5175391,
+        "link": 10857333,
+        "metadata": 21264917,
+        "other": 12562042,
+        "parse": 929684757,
+        "preflight": 152180375,
+        "type_check": 452888682
+      },
+      "tokens": 7635,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 8,
+      "arm": "cli",
+      "seconds": 17.03421279194299,
+      "phase_ms": {
+        "review_load_base": 265,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 145,
+        "review_analyze_base": 396,
+        "review_load_package_cache": 155,
+        "review_materialize": 1063,
+        "review_native_facts": 12554,
+        "review_analyze_head": 14930,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 349,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 129
+      },
+      "phase_peak_rss_mib": 591.7,
+      "process_peak_rss_bytes": 624066560,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 591.7,
+      "first_phase_current_rss_mib": 91.3,
+      "native_phase_ns": {
+        "helper": 4161973125,
+        "collect": 107728614,
+        "discovery": 3204941584,
+        "encode": 90416250,
+        "export_load": 324183724,
+        "export_save": 721355708,
+        "fingerprint": 1371880073,
+        "import": 4980155,
+        "link": 11152458,
+        "metadata": 21184708,
+        "other": 13094036,
+        "parse": 901053023,
+        "preflight": 153670042,
+        "type_check": 440900959
+      },
+      "tokens": 7708,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 9,
+      "arm": "cli",
+      "seconds": 17.097537458059378,
+      "phase_ms": {
+        "review_load_base": 268,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 143,
+        "review_analyze_base": 394,
+        "review_load_package_cache": 158,
+        "review_materialize": 1092,
+        "review_native_facts": 12551,
+        "review_analyze_head": 14991,
+        "review_service_links_base": 21,
+        "review_service_links_head": 20,
+        "review_compare": 341,
+        "review_execution_coverage": 2,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 132
+      },
+      "phase_peak_rss_mib": 590.1,
+      "process_peak_rss_bytes": 618758144,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 574.9,
+      "first_phase_current_rss_mib": 91.1,
+      "native_phase_ns": {
+        "helper": 4182669666,
+        "collect": 107909995,
+        "discovery": 3158291584,
+        "encode": 87922333,
+        "export_load": 325242589,
+        "export_save": 720898543,
+        "fingerprint": 1367985954,
+        "import": 4948946,
+        "link": 11043208,
+        "metadata": 21073416,
+        "other": 12569710,
+        "parse": 915188659,
+        "preflight": 155189542,
+        "type_check": 446573230
+      },
+      "tokens": 7679,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 10,
+      "arm": "cli",
+      "seconds": 17.061651291092858,
+      "phase_ms": {
+        "review_load_base": 262,
+        "review_load_head": 17,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 146,
+        "review_analyze_base": 409,
+        "review_load_package_cache": 158,
+        "review_materialize": 1067,
+        "review_native_facts": 12593,
+        "review_analyze_head": 14986,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 336,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 128
+      },
+      "phase_peak_rss_mib": 589.5,
+      "process_peak_rss_bytes": 618086400,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "sampled_current_rss_max_mib": 574.3,
+      "first_phase_current_rss_mib": 91.1,
+      "native_phase_ns": {
+        "helper": 4118012208,
+        "collect": 107944424,
+        "discovery": 3309745667,
+        "encode": 88031541,
+        "export_load": 326091163,
+        "export_save": 714023963,
+        "fingerprint": 1361702803,
+        "import": 4947522,
+        "link": 10600708,
+        "metadata": 21421834,
+        "other": 12478248,
+        "parse": 907642570,
+        "preflight": 154086667,
+        "type_check": 446196807
+      },
+      "tokens": 7635,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 1,
+      "arm": "server",
+      "seconds": 12.757421749993227,
+      "concurrency": 1,
+      "stage": "sequential",
+      "phase_ms": {
+        "review_load_base": 122,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 141,
+        "review_analyze_base": 730,
+        "review_load_package_cache": 150,
+        "review_materialize": 1077,
+        "review_native_facts": 8172,
+        "review_analyze_head": 10891,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 315,
+        "review_execution_coverage": 2,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 133
+      },
+      "phase_peak_rss_mib": 691.6,
+      "sampled_current_rss_max_mib": 691.6,
+      "first_phase_current_rss_mib": 584.2,
+      "native_phase_ns": {
+        "helper": 1309625,
+        "collect": 110512372,
+        "discovery": 3263018125,
+        "encode": 88018666,
+        "export_load": 329010794,
+        "export_save": 717502799,
+        "fingerprint": 1376574277,
+        "import": 4942843,
+        "link": 10937417,
+        "metadata": 22087000,
+        "other": 12824290,
+        "parse": 918946918,
+        "preflight": 145397542,
+        "type_check": 450761290
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7690,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 2,
+      "arm": "server",
+      "seconds": 12.689150457968935,
+      "concurrency": 1,
+      "stage": "sequential",
+      "phase_ms": {
+        "review_load_base": 118,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 139,
+        "review_analyze_base": 724,
+        "review_load_package_cache": 149,
+        "review_materialize": 1065,
+        "review_native_facts": 8137,
+        "review_analyze_head": 10841,
+        "review_service_links_base": 20,
+        "review_service_links_head": 20,
+        "review_compare": 313,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 131
+      },
+      "phase_peak_rss_mib": 774.7,
+      "sampled_current_rss_max_mib": 774.7,
+      "first_phase_current_rss_mib": 694.9,
+      "native_phase_ns": {
+        "helper": 1107875,
+        "collect": 116380007,
+        "discovery": 3224356666,
+        "encode": 87833166,
+        "export_load": 323323193,
+        "export_save": 712784940,
+        "fingerprint": 1438836364,
+        "import": 5146569,
+        "link": 10585250,
+        "metadata": 21633916,
+        "other": 13512125,
+        "parse": 924694709,
+        "preflight": 145619333,
+        "type_check": 454065137
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7685,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 3,
+      "arm": "server",
+      "seconds": 13.722612458979711,
+      "concurrency": 1,
+      "stage": "sequential",
+      "phase_ms": {
+        "review_load_base": 118,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 149,
+        "review_analyze_base": 722,
+        "review_load_package_cache": 148,
+        "review_materialize": 1091,
+        "review_native_facts": 8956,
+        "review_analyze_head": 11835,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 311,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 174
+      },
+      "phase_peak_rss_mib": 804.7,
+      "sampled_current_rss_max_mib": 778.4,
+      "first_phase_current_rss_mib": 774.8,
+      "native_phase_ns": {
+        "helper": 1026500,
+        "collect": 112306749,
+        "discovery": 3676890041,
+        "encode": 93264542,
+        "export_load": 342109718,
+        "export_save": 718830003,
+        "fingerprint": 1616278697,
+        "import": 5241885,
+        "link": 12401917,
+        "metadata": 32418333,
+        "other": 11393801,
+        "parse": 999604952,
+        "preflight": 143659583,
+        "type_check": 495582571
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7560,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 4,
+      "arm": "server",
+      "seconds": 16.057258457993157,
+      "concurrency": 1,
+      "stage": "sequential",
+      "phase_ms": {
+        "review_load_base": 118,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 157,
+        "review_analyze_base": 722,
+        "review_load_package_cache": 148,
+        "review_materialize": 1213,
+        "review_native_facts": 10854,
+        "review_analyze_head": 14098,
+        "review_service_links_base": 23,
+        "review_service_links_head": 23,
+        "review_compare": 367,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 145,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 150
+      },
+      "phase_peak_rss_mib": 804.7,
+      "sampled_current_rss_max_mib": 778.5,
+      "first_phase_current_rss_mib": 778.5,
+      "native_phase_ns": {
+        "helper": 1228708,
+        "collect": 123206319,
+        "discovery": 5026339875,
+        "encode": 93704791,
+        "export_load": 344878442,
+        "export_save": 730418688,
+        "fingerprint": 1824574401,
+        "import": 5522508,
+        "link": 10958750,
+        "metadata": 38861125,
+        "other": 14057503,
+        "parse": 1074889685,
+        "preflight": 174788291,
+        "type_check": 548610164
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7685,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 5,
+      "arm": "server",
+      "seconds": 25.53312983305659,
+      "concurrency": 2,
+      "stage": "concurrent",
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7683,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 6,
+      "arm": "server",
+      "seconds": 25.51394066598732,
+      "concurrency": 2,
+      "stage": "concurrent",
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7676,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 7,
+      "arm": "server",
+      "seconds": 24.623332625022158,
+      "concurrency": 2,
+      "stage": "concurrent",
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7635,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 8,
+      "arm": "server",
+      "seconds": 24.64478520792909,
+      "concurrency": 2,
+      "stage": "concurrent",
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7708,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 9,
+      "arm": "server",
+      "seconds": 15.838650749996305,
+      "concurrency": 1,
+      "stage": "recovery",
+      "phase_ms": {
+        "review_load_base": 119,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 136,
+        "review_analyze_base": 714,
+        "review_load_package_cache": 148,
+        "review_materialize": 1329,
+        "review_native_facts": 11040,
+        "review_analyze_head": 14000,
+        "review_service_links_base": 22,
+        "review_service_links_head": 21,
+        "review_compare": 311,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 126,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 128
+      },
+      "phase_peak_rss_mib": 1207.4,
+      "sampled_current_rss_max_mib": 1207.4,
+      "first_phase_current_rss_mib": 1207.1,
+      "native_phase_ns": {
+        "helper": 1539333,
+        "collect": 122952262,
+        "discovery": 5085506959,
+        "encode": 96331958,
+        "export_load": 349582228,
+        "export_save": 720986966,
+        "fingerprint": 1934473243,
+        "import": 5558949,
+        "link": 12001084,
+        "metadata": 35150416,
+        "other": 12520331,
+        "parse": 1084459164,
+        "preflight": 233262292,
+        "type_check": 538108648
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7679,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "head_index": 10,
+      "arm": "server",
+      "seconds": 14.420782290981151,
+      "concurrency": 1,
+      "stage": "recovery",
+      "phase_ms": {
+        "review_load_base": 117,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 136,
+        "review_analyze_base": 711,
+        "review_load_package_cache": 147,
+        "review_materialize": 1162,
+        "review_native_facts": 9762,
+        "review_analyze_head": 12588,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 306,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 128
+      },
+      "phase_peak_rss_mib": 1207.5,
+      "sampled_current_rss_max_mib": 1207.4,
+      "first_phase_current_rss_mib": 1207.4,
+      "native_phase_ns": {
+        "helper": 1037083,
+        "collect": 106338049,
+        "discovery": 4094192500,
+        "encode": 88152834,
+        "export_load": 338957550,
+        "export_save": 703039760,
+        "fingerprint": 1604768364,
+        "import": 5223196,
+        "link": 11108958,
+        "metadata": 34645667,
+        "other": 12898416,
+        "parse": 1037589939,
+        "preflight": 155459125,
+        "type_check": 480470600
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7635,
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 1,
+      "arm": "server",
+      "seconds": 11.573046957957558,
+      "concurrency": 1,
+      "stage": "sequential",
+      "phase_ms": {
+        "review_load_base": 137,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 119,
+        "review_analyze_base": 648,
+        "review_load_package_cache": 81,
+        "review_materialize": 1086,
+        "review_native_facts": 7171,
+        "review_analyze_head": 9925,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 340,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 95,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 167
+      },
+      "phase_peak_rss_mib": 664.5,
+      "sampled_current_rss_max_mib": 664.5,
+      "first_phase_current_rss_mib": 590.6,
+      "native_phase_ns": {
+        "helper": 1036292,
+        "collect": 151091034,
+        "discovery": 4143982000,
+        "encode": 65700458,
+        "export_load": 306763556,
+        "export_save": 6873,
+        "fingerprint": 1589194169,
+        "import": 4805654,
+        "link": 16593000,
+        "metadata": 18529500,
+        "other": 9736835,
+        "parse": 66210546,
+        "preflight": 144040125,
+        "type_check": 35857083
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7638,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 2,
+      "arm": "server",
+      "seconds": 13.90776149998419,
+      "concurrency": 1,
+      "stage": "sequential",
+      "phase_ms": {
+        "review_load_base": 138,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 126,
+        "review_analyze_base": 629,
+        "review_load_package_cache": 77,
+        "review_materialize": 1468,
+        "review_native_facts": 8668,
+        "review_analyze_head": 12272,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 335,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 93,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 162
+      },
+      "phase_peak_rss_mib": 664.5,
+      "sampled_current_rss_max_mib": 638.5,
+      "first_phase_current_rss_mib": 582.8,
+      "native_phase_ns": {
+        "helper": 1528417,
+        "collect": 153994837,
+        "discovery": 5369668709,
+        "encode": 64381750,
+        "export_load": 297026762,
+        "export_save": 6203,
+        "fingerprint": 1711997841,
+        "import": 4275731,
+        "link": 16808709,
+        "metadata": 18156541,
+        "other": 8717753,
+        "parse": 68424787,
+        "preflight": 137974209,
+        "type_check": 36137834
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7633,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 3,
+      "arm": "server",
+      "seconds": 13.912329124985263,
+      "concurrency": 1,
+      "stage": "sequential",
+      "phase_ms": {
+        "review_load_base": 134,
+        "review_load_head": 7,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 113,
+        "review_analyze_base": 625,
+        "review_load_package_cache": 77,
+        "review_materialize": 1343,
+        "review_native_facts": 9361,
+        "review_analyze_head": 12325,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 323,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 165
+      },
+      "phase_peak_rss_mib": 684.0,
+      "sampled_current_rss_max_mib": 684.0,
+      "first_phase_current_rss_mib": 640.2,
+      "native_phase_ns": {
+        "helper": 1121291,
+        "collect": 151127248,
+        "discovery": 6342753875,
+        "encode": 65940584,
+        "export_load": 297277649,
+        "export_save": 6670,
+        "fingerprint": 1547288352,
+        "import": 4307907,
+        "link": 16686500,
+        "metadata": 19861750,
+        "other": 9110205,
+        "parse": 66327294,
+        "preflight": 141273125,
+        "type_check": 36405549
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7631,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 4,
+      "arm": "server",
+      "seconds": 13.151002084021457,
+      "concurrency": 1,
+      "stage": "sequential",
+      "phase_ms": {
+        "review_load_base": 135,
+        "review_load_head": 7,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 117,
+        "review_analyze_base": 611,
+        "review_load_package_cache": 78,
+        "review_materialize": 1133,
+        "review_native_facts": 8849,
+        "review_analyze_head": 11570,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 328,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 92,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 164
+      },
+      "phase_peak_rss_mib": 707.2,
+      "sampled_current_rss_max_mib": 694.0,
+      "first_phase_current_rss_mib": 684.0,
+      "native_phase_ns": {
+        "helper": 1249833,
+        "collect": 154561040,
+        "discovery": 5562406875,
+        "encode": 67053250,
+        "export_load": 299774376,
+        "export_save": 6507,
+        "fingerprint": 1656622507,
+        "import": 4280158,
+        "link": 16935292,
+        "metadata": 18933208,
+        "other": 8528500,
+        "parse": 68910372,
+        "preflight": 135170083,
+        "type_check": 35972540
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7672,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 5,
+      "arm": "server",
+      "seconds": 19.23388200008776,
+      "concurrency": 2,
+      "stage": "concurrent",
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7629,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 6,
+      "arm": "server",
+      "seconds": 19.0843929159455,
+      "concurrency": 2,
+      "stage": "concurrent",
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7629,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 7,
+      "arm": "server",
+      "seconds": 18.77111741702538,
+      "concurrency": 2,
+      "stage": "concurrent",
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7655,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 8,
+      "arm": "server",
+      "seconds": 18.651064833044074,
+      "concurrency": 2,
+      "stage": "concurrent",
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7669,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 9,
+      "arm": "server",
+      "seconds": 13.270031208056025,
+      "concurrency": 1,
+      "stage": "recovery",
+      "phase_ms": {
+        "review_load_base": 137,
+        "review_load_head": 7,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 119,
+        "review_analyze_base": 626,
+        "review_load_package_cache": 77,
+        "review_materialize": 1320,
+        "review_native_facts": 8633,
+        "review_analyze_head": 11676,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 331,
+        "review_execution_coverage": 2,
+        "review_reuse_scopes": 91,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 167
+      },
+      "phase_peak_rss_mib": 1157.2,
+      "sampled_current_rss_max_mib": 1105.5,
+      "first_phase_current_rss_mib": 1104.5,
+      "native_phase_ns": {
+        "helper": 1108834,
+        "collect": 152222412,
+        "discovery": 5387043417,
+        "encode": 66192000,
+        "export_load": 298649465,
+        "export_save": 7169,
+        "fingerprint": 1719044021,
+        "import": 4328895,
+        "link": 16623125,
+        "metadata": 17851417,
+        "other": 8631293,
+        "parse": 68921336,
+        "preflight": 133716375,
+        "type_check": 35694075
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7653,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 10,
+      "arm": "server",
+      "seconds": 13.264315625070594,
+      "concurrency": 1,
+      "stage": "recovery",
+      "phase_ms": {
+        "review_load_base": 147,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 117,
+        "review_analyze_base": 623,
+        "review_load_package_cache": 78,
+        "review_materialize": 1367,
+        "review_native_facts": 8578,
+        "review_analyze_head": 11648,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 340,
+        "review_execution_coverage": 2,
+        "review_reuse_scopes": 95,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 165
+      },
+      "phase_peak_rss_mib": 1157.2,
+      "sampled_current_rss_max_mib": 1105.6,
+      "first_phase_current_rss_mib": 1105.6,
+      "native_phase_ns": {
+        "helper": 1087500,
+        "collect": 152070621,
+        "discovery": 5302619541,
+        "encode": 70337416,
+        "export_load": 297064025,
+        "export_save": 6426,
+        "fingerprint": 1671057275,
+        "import": 4210779,
+        "link": 16098917,
+        "metadata": 18420000,
+        "other": 9505629,
+        "parse": 73841581,
+        "preflight": 152130750,
+        "type_check": 38551665
+      },
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "tokens": 7631,
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 1,
+      "arm": "cli",
+      "seconds": 17.919365749927238,
+      "phase_ms": {
+        "review_load_base": 307,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 123,
+        "review_analyze_base": 343,
+        "review_load_package_cache": 83,
+        "review_materialize": 1344,
+        "review_native_facts": 13224,
+        "review_analyze_head": 15915,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 393,
+        "review_execution_coverage": 2,
+        "review_reuse_scopes": 103,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 188
+      },
+      "phase_peak_rss_mib": 568.6,
+      "process_peak_rss_bytes": 597835776,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 566.8,
+      "first_phase_current_rss_mib": 99.1,
+      "native_phase_ns": {
+        "helper": 4388172583,
+        "collect": 155188039,
+        "discovery": 5308124375,
+        "encode": 71641375,
+        "export_load": 310212926,
+        "export_save": 7919,
+        "fingerprint": 1722666991,
+        "import": 4430957,
+        "link": 17587958,
+        "metadata": 18238125,
+        "other": 8592501,
+        "parse": 68782630,
+        "preflight": 141501500,
+        "type_check": 36995537
+      },
+      "tokens": 7638,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 2,
+      "arm": "cli",
+      "seconds": 17.769531541969627,
+      "phase_ms": {
+        "review_load_base": 305,
+        "review_load_head": 16,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 122,
+        "review_analyze_base": 341,
+        "review_load_package_cache": 81,
+        "review_materialize": 1312,
+        "review_native_facts": 13142,
+        "review_analyze_head": 15886,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 361,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 94,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 171
+      },
+      "phase_peak_rss_mib": 565.8,
+      "process_peak_rss_bytes": 593330176,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 551.6,
+      "first_phase_current_rss_mib": 98.6,
+      "native_phase_ns": {
+        "helper": 4259912791,
+        "collect": 154858958,
+        "discovery": 5360278834,
+        "encode": 69259208,
+        "export_load": 303316411,
+        "export_save": 7038,
+        "fingerprint": 1697603151,
+        "import": 4348153,
+        "link": 17931500,
+        "metadata": 18343208,
+        "other": 8571004,
+        "parse": 70840670,
+        "preflight": 142492292,
+        "type_check": 37805573
+      },
+      "tokens": 7633,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 3,
+      "arm": "cli",
+      "seconds": 18.161964333965443,
+      "phase_ms": {
+        "review_load_base": 312,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 124,
+        "review_analyze_base": 346,
+        "review_load_package_cache": 80,
+        "review_materialize": 1350,
+        "review_native_facts": 13436,
+        "review_analyze_head": 16271,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 356,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 94,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 170
+      },
+      "phase_peak_rss_mib": 565.5,
+      "process_peak_rss_bytes": 592986112,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 551.3,
+      "first_phase_current_rss_mib": 98.5,
+      "native_phase_ns": {
+        "helper": 4136430416,
+        "collect": 155572421,
+        "discovery": 5681549625,
+        "encode": 64011417,
+        "export_load": 295376391,
+        "export_save": 5955,
+        "fingerprint": 1753425174,
+        "import": 4429056,
+        "link": 16729042,
+        "metadata": 18289625,
+        "other": 9132623,
+        "parse": 75760041,
+        "preflight": 142788500,
+        "type_check": 36723297
+      },
+      "tokens": 7631,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 4,
+      "arm": "cli",
+      "seconds": 18.538945958018303,
+      "phase_ms": {
+        "review_load_base": 305,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 118,
+        "review_analyze_base": 333,
+        "review_load_package_cache": 81,
+        "review_materialize": 1370,
+        "review_native_facts": 13725,
+        "review_analyze_head": 16574,
+        "review_service_links_base": 6,
+        "review_service_links_head": 5,
+        "review_compare": 392,
+        "review_execution_coverage": 2,
+        "review_reuse_scopes": 106,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 189
+      },
+      "phase_peak_rss_mib": 571.9,
+      "process_peak_rss_bytes": 599703552,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 557.7,
+      "first_phase_current_rss_mib": 98.8,
+      "native_phase_ns": {
+        "helper": 4624998541,
+        "collect": 158791457,
+        "discovery": 5462192625,
+        "encode": 70171209,
+        "export_load": 299030873,
+        "export_save": 6126,
+        "fingerprint": 1763743516,
+        "import": 4276834,
+        "link": 16484958,
+        "metadata": 18714708,
+        "other": 8719829,
+        "parse": 73268960,
+        "preflight": 152657666,
+        "type_check": 37455114
+      },
+      "tokens": 7672,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 5,
+      "arm": "cli",
+      "seconds": 17.81992475001607,
+      "phase_ms": {
+        "review_load_base": 295,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 122,
+        "review_analyze_base": 362,
+        "review_load_package_cache": 87,
+        "review_materialize": 1255,
+        "review_native_facts": 13223,
+        "review_analyze_head": 15920,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 361,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 94,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 170
+      },
+      "phase_peak_rss_mib": 565.7,
+      "process_peak_rss_bytes": 593215488,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 551.5,
+      "first_phase_current_rss_mib": 98.8,
+      "native_phase_ns": {
+        "helper": 4195190375,
+        "collect": 155263583,
+        "discovery": 5363825958,
+        "encode": 66172250,
+        "export_load": 298317141,
+        "export_save": 6208,
+        "fingerprint": 1804982284,
+        "import": 4293457,
+        "link": 16468625,
+        "metadata": 18233417,
+        "other": 8683791,
+        "parse": 75461877,
+        "preflight": 140981084,
+        "type_check": 36309491
+      },
+      "tokens": 7629,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 6,
+      "arm": "cli",
+      "seconds": 17.938086333102547,
+      "phase_ms": {
+        "review_load_base": 302,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 121,
+        "review_analyze_base": 337,
+        "review_load_package_cache": 86,
+        "review_materialize": 1303,
+        "review_native_facts": 13249,
+        "review_analyze_head": 16041,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 358,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 95,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 173
+      },
+      "phase_peak_rss_mib": 568.8,
+      "process_peak_rss_bytes": 598147072,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 567.1,
+      "first_phase_current_rss_mib": 99.0,
+      "native_phase_ns": {
+        "helper": 4331606792,
+        "collect": 158116378,
+        "discovery": 5222993709,
+        "encode": 66004625,
+        "export_load": 296831182,
+        "export_save": 6627,
+        "fingerprint": 1840815456,
+        "import": 4347849,
+        "link": 16632375,
+        "metadata": 17740042,
+        "other": 9860998,
+        "parse": 71678866,
+        "preflight": 136301375,
+        "type_check": 37300185
+      },
+      "tokens": 7629,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 7,
+      "arm": "cli",
+      "seconds": 17.793079040944576,
+      "phase_ms": {
+        "review_load_base": 301,
+        "review_load_head": 14,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 123,
+        "review_analyze_base": 338,
+        "review_load_package_cache": 85,
+        "review_materialize": 1305,
+        "review_native_facts": 13132,
+        "review_analyze_head": 15872,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 355,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 94,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 169
+      },
+      "phase_peak_rss_mib": 571.0,
+      "process_peak_rss_bytes": 598753280,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 556.8,
+      "first_phase_current_rss_mib": 99.0,
+      "native_phase_ns": {
+        "helper": 4168015000,
+        "collect": 157426838,
+        "discovery": 5465727416,
+        "encode": 65333666,
+        "export_load": 294249280,
+        "export_save": 6925,
+        "fingerprint": 1605306474,
+        "import": 4480388,
+        "link": 16088000,
+        "metadata": 17868750,
+        "other": 22569461,
+        "parse": 73125835,
+        "preflight": 147343875,
+        "type_check": 36177717
+      },
+      "tokens": 7655,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 8,
+      "arm": "cli",
+      "seconds": 18.123613917035982,
+      "phase_ms": {
+        "review_load_base": 301,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 118,
+        "review_analyze_base": 354,
+        "review_load_package_cache": 83,
+        "review_materialize": 1302,
+        "review_native_facts": 13385,
+        "review_analyze_head": 16159,
+        "review_service_links_base": 6,
+        "review_service_links_head": 5,
+        "review_compare": 360,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 94,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 171
+      },
+      "phase_peak_rss_mib": 567.5,
+      "process_peak_rss_bytes": 595099648,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 553.3,
+      "first_phase_current_rss_mib": 98.9,
+      "native_phase_ns": {
+        "helper": 4272629958,
+        "collect": 163456503,
+        "discovery": 5493858542,
+        "encode": 67827250,
+        "export_load": 304160418,
+        "export_save": 9793,
+        "fingerprint": 1766168626,
+        "import": 4583713,
+        "link": 16739333,
+        "metadata": 18584167,
+        "other": 8932285,
+        "parse": 73542254,
+        "preflight": 148990500,
+        "type_check": 35231533
+      },
+      "tokens": 7669,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 9,
+      "arm": "cli",
+      "seconds": 18.033206208026968,
+      "phase_ms": {
+        "review_load_base": 295,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 123,
+        "review_analyze_base": 342,
+        "review_load_package_cache": 83,
+        "review_materialize": 1293,
+        "review_native_facts": 13277,
+        "review_analyze_head": 16025,
+        "review_service_links_base": 6,
+        "review_service_links_head": 5,
+        "review_compare": 386,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 108,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 185
+      },
+      "phase_peak_rss_mib": 568.4,
+      "process_peak_rss_bytes": 596033536,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 554.2,
+      "first_phase_current_rss_mib": 98.7,
+      "native_phase_ns": {
+        "helper": 4162413334,
+        "collect": 155547752,
+        "discovery": 5718283917,
+        "encode": 69824209,
+        "export_load": 304256931,
+        "export_save": 6673,
+        "fingerprint": 1579166666,
+        "import": 4361884,
+        "link": 16805917,
+        "metadata": 18528459,
+        "other": 10731210,
+        "parse": 66366127,
+        "preflight": 138224875,
+        "type_check": 38295921
+      },
+      "tokens": 7653,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "head_index": 10,
+      "arm": "cli",
+      "seconds": 17.334170249989256,
+      "phase_ms": {
+        "review_load_base": 298,
+        "review_load_head": 14,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 127,
+        "review_analyze_base": 368,
+        "review_load_package_cache": 88,
+        "review_materialize": 1202,
+        "review_native_facts": 12742,
+        "review_analyze_head": 15364,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 363,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 93,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 171
+      },
+      "phase_peak_rss_mib": 570.1,
+      "process_peak_rss_bytes": 597786624,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12972,
+      "sampled_current_rss_max_mib": 555.9,
+      "first_phase_current_rss_mib": 98.3,
+      "native_phase_ns": {
+        "helper": 4285297166,
+        "collect": 153787711,
+        "discovery": 5036175792,
+        "encode": 70562375,
+        "export_load": 304318881,
+        "export_save": 6710,
+        "fingerprint": 1606989704,
+        "import": 4315156,
+        "link": 16852208,
+        "metadata": 18495667,
+        "other": 9001828,
+        "parse": 68954799,
+        "preflight": 146535625,
+        "type_check": 37369503
+      },
+      "tokens": 7631,
+      "packet_equal": true
+    }
+  ],
+  "batches": [
+    {
+      "case": "nexus-963",
+      "heads": [
+        1
+      ],
+      "stage": "sequential",
+      "concurrency": 1,
+      "seconds": 12.757426458992995,
+      "phase_ms": {
+        "review_load_base": 122,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 141,
+        "review_analyze_base": 730,
+        "review_load_package_cache": 150,
+        "review_materialize": 1077,
+        "review_native_facts": 8172,
+        "review_analyze_head": 10891,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 315,
+        "review_execution_coverage": 2,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 133
+      },
+      "phase_peak_rss_mib": 691.6,
+      "sampled_current_rss_max_mib": 691.6,
+      "first_phase_current_rss_mib": 584.2,
+      "native_phase_ns": {
+        "helper": 1309625,
+        "collect": 110512372,
+        "discovery": 3263018125,
+        "encode": 88018666,
+        "export_load": 329010794,
+        "export_save": 717502799,
+        "fingerprint": 1376574277,
+        "import": 4942843,
+        "link": 10937417,
+        "metadata": 22087000,
+        "other": 12824290,
+        "parse": 918946918,
+        "preflight": 145397542,
+        "type_check": 450761290
+      }
+    },
+    {
+      "case": "nexus-963",
+      "heads": [
+        2
+      ],
+      "stage": "sequential",
+      "concurrency": 1,
+      "seconds": 12.68915237498004,
+      "phase_ms": {
+        "review_load_base": 118,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 139,
+        "review_analyze_base": 724,
+        "review_load_package_cache": 149,
+        "review_materialize": 1065,
+        "review_native_facts": 8137,
+        "review_analyze_head": 10841,
+        "review_service_links_base": 20,
+        "review_service_links_head": 20,
+        "review_compare": 313,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 131
+      },
+      "phase_peak_rss_mib": 774.7,
+      "sampled_current_rss_max_mib": 774.7,
+      "first_phase_current_rss_mib": 694.9,
+      "native_phase_ns": {
+        "helper": 1107875,
+        "collect": 116380007,
+        "discovery": 3224356666,
+        "encode": 87833166,
+        "export_load": 323323193,
+        "export_save": 712784940,
+        "fingerprint": 1438836364,
+        "import": 5146569,
+        "link": 10585250,
+        "metadata": 21633916,
+        "other": 13512125,
+        "parse": 924694709,
+        "preflight": 145619333,
+        "type_check": 454065137
+      }
+    },
+    {
+      "case": "nexus-963",
+      "heads": [
+        3
+      ],
+      "stage": "sequential",
+      "concurrency": 1,
+      "seconds": 13.722613416961394,
+      "phase_ms": {
+        "review_load_base": 118,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 149,
+        "review_analyze_base": 722,
+        "review_load_package_cache": 148,
+        "review_materialize": 1091,
+        "review_native_facts": 8956,
+        "review_analyze_head": 11835,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 311,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 174
+      },
+      "phase_peak_rss_mib": 804.7,
+      "sampled_current_rss_max_mib": 778.4,
+      "first_phase_current_rss_mib": 774.8,
+      "native_phase_ns": {
+        "helper": 1026500,
+        "collect": 112306749,
+        "discovery": 3676890041,
+        "encode": 93264542,
+        "export_load": 342109718,
+        "export_save": 718830003,
+        "fingerprint": 1616278697,
+        "import": 5241885,
+        "link": 12401917,
+        "metadata": 32418333,
+        "other": 11393801,
+        "parse": 999604952,
+        "preflight": 143659583,
+        "type_check": 495582571
+      }
+    },
+    {
+      "case": "nexus-963",
+      "heads": [
+        4
+      ],
+      "stage": "sequential",
+      "concurrency": 1,
+      "seconds": 16.057259582914412,
+      "phase_ms": {
+        "review_load_base": 118,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 157,
+        "review_analyze_base": 722,
+        "review_load_package_cache": 148,
+        "review_materialize": 1213,
+        "review_native_facts": 10854,
+        "review_analyze_head": 14098,
+        "review_service_links_base": 23,
+        "review_service_links_head": 23,
+        "review_compare": 367,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 145,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 150
+      },
+      "phase_peak_rss_mib": 804.7,
+      "sampled_current_rss_max_mib": 778.5,
+      "first_phase_current_rss_mib": 778.5,
+      "native_phase_ns": {
+        "helper": 1228708,
+        "collect": 123206319,
+        "discovery": 5026339875,
+        "encode": 93704791,
+        "export_load": 344878442,
+        "export_save": 730418688,
+        "fingerprint": 1824574401,
+        "import": 5522508,
+        "link": 10958750,
+        "metadata": 38861125,
+        "other": 14057503,
+        "parse": 1074889685,
+        "preflight": 174788291,
+        "type_check": 548610164
+      }
+    },
+    {
+      "case": "nexus-963",
+      "heads": [
+        5,
+        6
+      ],
+      "stage": "concurrent",
+      "concurrency": 2,
+      "seconds": 25.53343191696331,
+      "phase_ms": {
+        "review_load_base": 274,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 391,
+        "review_analyze_base": 1633,
+        "review_load_package_cache": 570,
+        "review_materialize": 3906,
+        "review_native_facts": 36070,
+        "review_analyze_head": 45876,
+        "review_service_links_base": 60,
+        "review_service_links_head": 58,
+        "review_compare": 959,
+        "review_execution_coverage": 8,
+        "review_reuse_scopes": 385,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 384
+      },
+      "phase_peak_rss_mib": 1164.1,
+      "sampled_current_rss_max_mib": 1160.2,
+      "first_phase_current_rss_mib": 787.0,
+      "native_phase_ns": {
+        "helper": 3480500,
+        "collect": 366190992,
+        "discovery": 19706428500,
+        "encode": 273536166,
+        "export_load": 1017174104,
+        "export_save": 2151110915,
+        "fingerprint": 5038806153,
+        "import": 16747078,
+        "link": 32728584,
+        "metadata": 79776707,
+        "other": 28271083,
+        "parse": 2757995364,
+        "preflight": 438753751,
+        "type_check": 1459926270
+      }
+    },
+    {
+      "case": "nexus-963",
+      "heads": [
+        7,
+        8
+      ],
+      "stage": "concurrent",
+      "concurrency": 2,
+      "seconds": 24.645152249955572,
+      "phase_ms": {
+        "review_load_base": 299,
+        "review_load_head": 20,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 373,
+        "review_analyze_base": 1692,
+        "review_load_package_cache": 568,
+        "review_materialize": 3920,
+        "review_native_facts": 35302,
+        "review_analyze_head": 44467,
+        "review_service_links_base": 49,
+        "review_service_links_head": 47,
+        "review_compare": 783,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 307,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 307
+      },
+      "phase_peak_rss_mib": 1205.5,
+      "sampled_current_rss_max_mib": 1205.5,
+      "first_phase_current_rss_mib": 1012.3,
+      "native_phase_ns": {
+        "helper": 2921625,
+        "collect": 327036330,
+        "discovery": 19012790667,
+        "encode": 285289416,
+        "export_load": 999266997,
+        "export_save": 2167861415,
+        "fingerprint": 5456649514,
+        "import": 16025320,
+        "link": 32908375,
+        "metadata": 74791792,
+        "other": 29321500,
+        "parse": 2601243711,
+        "preflight": 434676875,
+        "type_check": 1401856296
+      }
+    },
+    {
+      "case": "nexus-963",
+      "heads": [
+        9
+      ],
+      "stage": "recovery",
+      "concurrency": 1,
+      "seconds": 15.838651999947615,
+      "phase_ms": {
+        "review_load_base": 119,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 136,
+        "review_analyze_base": 714,
+        "review_load_package_cache": 148,
+        "review_materialize": 1329,
+        "review_native_facts": 11040,
+        "review_analyze_head": 14000,
+        "review_service_links_base": 22,
+        "review_service_links_head": 21,
+        "review_compare": 311,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 126,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 128
+      },
+      "phase_peak_rss_mib": 1207.4,
+      "sampled_current_rss_max_mib": 1207.4,
+      "first_phase_current_rss_mib": 1207.1,
+      "native_phase_ns": {
+        "helper": 1539333,
+        "collect": 122952262,
+        "discovery": 5085506959,
+        "encode": 96331958,
+        "export_load": 349582228,
+        "export_save": 720986966,
+        "fingerprint": 1934473243,
+        "import": 5558949,
+        "link": 12001084,
+        "metadata": 35150416,
+        "other": 12520331,
+        "parse": 1084459164,
+        "preflight": 233262292,
+        "type_check": 538108648
+      }
+    },
+    {
+      "case": "nexus-963",
+      "heads": [
+        10
+      ],
+      "stage": "recovery",
+      "concurrency": 1,
+      "seconds": 14.420783250010572,
+      "phase_ms": {
+        "review_load_base": 117,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 136,
+        "review_analyze_base": 711,
+        "review_load_package_cache": 147,
+        "review_materialize": 1162,
+        "review_native_facts": 9762,
+        "review_analyze_head": 12588,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 306,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 128
+      },
+      "phase_peak_rss_mib": 1207.5,
+      "sampled_current_rss_max_mib": 1207.4,
+      "first_phase_current_rss_mib": 1207.4,
+      "native_phase_ns": {
+        "helper": 1037083,
+        "collect": 106338049,
+        "discovery": 4094192500,
+        "encode": 88152834,
+        "export_load": 338957550,
+        "export_save": 703039760,
+        "fingerprint": 1604768364,
+        "import": 5223196,
+        "link": 11108958,
+        "metadata": 34645667,
+        "other": 12898416,
+        "parse": 1037589939,
+        "preflight": 155459125,
+        "type_check": 480470600
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "heads": [
+        1
+      ],
+      "stage": "sequential",
+      "concurrency": 1,
+      "seconds": 11.573065625037998,
+      "phase_ms": {
+        "review_load_base": 137,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 119,
+        "review_analyze_base": 648,
+        "review_load_package_cache": 81,
+        "review_materialize": 1086,
+        "review_native_facts": 7171,
+        "review_analyze_head": 9925,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 340,
+        "review_execution_coverage": 1,
+        "review_reuse_scopes": 95,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 167
+      },
+      "phase_peak_rss_mib": 664.5,
+      "sampled_current_rss_max_mib": 664.5,
+      "first_phase_current_rss_mib": 590.6,
+      "native_phase_ns": {
+        "helper": 1036292,
+        "collect": 151091034,
+        "discovery": 4143982000,
+        "encode": 65700458,
+        "export_load": 306763556,
+        "export_save": 6873,
+        "fingerprint": 1589194169,
+        "import": 4805654,
+        "link": 16593000,
+        "metadata": 18529500,
+        "other": 9736835,
+        "parse": 66210546,
+        "preflight": 144040125,
+        "type_check": 35857083
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "heads": [
+        2
+      ],
+      "stage": "sequential",
+      "concurrency": 1,
+      "seconds": 13.907762959017418,
+      "phase_ms": {
+        "review_load_base": 138,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 126,
+        "review_analyze_base": 629,
+        "review_load_package_cache": 77,
+        "review_materialize": 1468,
+        "review_native_facts": 8668,
+        "review_analyze_head": 12272,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 335,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 93,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 162
+      },
+      "phase_peak_rss_mib": 664.5,
+      "sampled_current_rss_max_mib": 638.5,
+      "first_phase_current_rss_mib": 582.8,
+      "native_phase_ns": {
+        "helper": 1528417,
+        "collect": 153994837,
+        "discovery": 5369668709,
+        "encode": 64381750,
+        "export_load": 297026762,
+        "export_save": 6203,
+        "fingerprint": 1711997841,
+        "import": 4275731,
+        "link": 16808709,
+        "metadata": 18156541,
+        "other": 8717753,
+        "parse": 68424787,
+        "preflight": 137974209,
+        "type_check": 36137834
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "heads": [
+        3
+      ],
+      "stage": "sequential",
+      "concurrency": 1,
+      "seconds": 13.912330708932132,
+      "phase_ms": {
+        "review_load_base": 134,
+        "review_load_head": 7,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 113,
+        "review_analyze_base": 625,
+        "review_load_package_cache": 77,
+        "review_materialize": 1343,
+        "review_native_facts": 9361,
+        "review_analyze_head": 12325,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 323,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 165
+      },
+      "phase_peak_rss_mib": 684.0,
+      "sampled_current_rss_max_mib": 684.0,
+      "first_phase_current_rss_mib": 640.2,
+      "native_phase_ns": {
+        "helper": 1121291,
+        "collect": 151127248,
+        "discovery": 6342753875,
+        "encode": 65940584,
+        "export_load": 297277649,
+        "export_save": 6670,
+        "fingerprint": 1547288352,
+        "import": 4307907,
+        "link": 16686500,
+        "metadata": 19861750,
+        "other": 9110205,
+        "parse": 66327294,
+        "preflight": 141273125,
+        "type_check": 36405549
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "heads": [
+        4
+      ],
+      "stage": "sequential",
+      "concurrency": 1,
+      "seconds": 13.151003584032878,
+      "phase_ms": {
+        "review_load_base": 135,
+        "review_load_head": 7,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 117,
+        "review_analyze_base": 611,
+        "review_load_package_cache": 78,
+        "review_materialize": 1133,
+        "review_native_facts": 8849,
+        "review_analyze_head": 11570,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 328,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 92,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 164
+      },
+      "phase_peak_rss_mib": 707.2,
+      "sampled_current_rss_max_mib": 694.0,
+      "first_phase_current_rss_mib": 684.0,
+      "native_phase_ns": {
+        "helper": 1249833,
+        "collect": 154561040,
+        "discovery": 5562406875,
+        "encode": 67053250,
+        "export_load": 299774376,
+        "export_save": 6507,
+        "fingerprint": 1656622507,
+        "import": 4280158,
+        "link": 16935292,
+        "metadata": 18933208,
+        "other": 8528500,
+        "parse": 68910372,
+        "preflight": 135170083,
+        "type_check": 35972540
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "heads": [
+        5,
+        6
+      ],
+      "stage": "concurrent",
+      "concurrency": 2,
+      "seconds": 19.234068499994464,
+      "phase_ms": {
+        "review_load_base": 291,
+        "review_load_head": 15,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 244,
+        "review_analyze_base": 1269,
+        "review_load_package_cache": 221,
+        "review_materialize": 3309,
+        "review_native_facts": 27810,
+        "review_analyze_head": 34906,
+        "review_service_links_base": 10,
+        "review_service_links_head": 10,
+        "review_compare": 697,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 196,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 365
+      },
+      "phase_peak_rss_mib": 1157.2,
+      "sampled_current_rss_max_mib": 1157.2,
+      "first_phase_current_rss_mib": 716.8,
+      "native_phase_ns": {
+        "helper": 4236750,
+        "collect": 330680545,
+        "discovery": 20218800083,
+        "encode": 136628666,
+        "export_load": 609196059,
+        "export_save": 15550,
+        "fingerprint": 3868485992,
+        "import": 8972051,
+        "link": 33511126,
+        "metadata": 38221583,
+        "other": 17842961,
+        "parse": 162969212,
+        "preflight": 269204959,
+        "type_check": 73880963
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "heads": [
+        7,
+        8
+      ],
+      "stage": "concurrent",
+      "concurrency": 2,
+      "seconds": 18.771316125057638,
+      "phase_ms": {
+        "review_load_base": 303,
+        "review_load_head": 15,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 252,
+        "review_analyze_base": 1300,
+        "review_load_package_cache": 206,
+        "review_materialize": 3221,
+        "review_native_facts": 26838,
+        "review_analyze_head": 34000,
+        "review_service_links_base": 10,
+        "review_service_links_head": 10,
+        "review_compare": 717,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 195,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 364
+      },
+      "phase_peak_rss_mib": 1157.2,
+      "sampled_current_rss_max_mib": 1104.4,
+      "first_phase_current_rss_mib": 970.6,
+      "native_phase_ns": {
+        "helper": 2647167,
+        "collect": 333709542,
+        "discovery": 19050318666,
+        "encode": 138824751,
+        "export_load": 611529735,
+        "export_save": 14800,
+        "fingerprint": 4219430967,
+        "import": 9381601,
+        "link": 34345125,
+        "metadata": 37106000,
+        "other": 17578082,
+        "parse": 169388043,
+        "preflight": 271228249,
+        "type_check": 71631772
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "heads": [
+        9
+      ],
+      "stage": "recovery",
+      "concurrency": 1,
+      "seconds": 13.270032750093378,
+      "phase_ms": {
+        "review_load_base": 137,
+        "review_load_head": 7,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 119,
+        "review_analyze_base": 626,
+        "review_load_package_cache": 77,
+        "review_materialize": 1320,
+        "review_native_facts": 8633,
+        "review_analyze_head": 11676,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 331,
+        "review_execution_coverage": 2,
+        "review_reuse_scopes": 91,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 167
+      },
+      "phase_peak_rss_mib": 1157.2,
+      "sampled_current_rss_max_mib": 1105.5,
+      "first_phase_current_rss_mib": 1104.5,
+      "native_phase_ns": {
+        "helper": 1108834,
+        "collect": 152222412,
+        "discovery": 5387043417,
+        "encode": 66192000,
+        "export_load": 298649465,
+        "export_save": 7169,
+        "fingerprint": 1719044021,
+        "import": 4328895,
+        "link": 16623125,
+        "metadata": 17851417,
+        "other": 8631293,
+        "parse": 68921336,
+        "preflight": 133716375,
+        "type_check": 35694075
+      }
+    },
+    {
+      "case": "platform-rbac-638",
+      "heads": [
+        10
+      ],
+      "stage": "recovery",
+      "concurrency": 1,
+      "seconds": 13.264317209017463,
+      "phase_ms": {
+        "review_load_base": 147,
+        "review_load_head": 8,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 117,
+        "review_analyze_base": 623,
+        "review_load_package_cache": 78,
+        "review_materialize": 1367,
+        "review_native_facts": 8578,
+        "review_analyze_head": 11648,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 340,
+        "review_execution_coverage": 2,
+        "review_reuse_scopes": 95,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 165
+      },
+      "phase_peak_rss_mib": 1157.2,
+      "sampled_current_rss_max_mib": 1105.6,
+      "first_phase_current_rss_mib": 1105.6,
+      "native_phase_ns": {
+        "helper": 1087500,
+        "collect": 152070621,
+        "discovery": 5302619541,
+        "encode": 70337416,
+        "export_load": 297064025,
+        "export_save": 6426,
+        "fingerprint": 1671057275,
+        "import": 4210779,
+        "link": 16098917,
+        "metadata": 18420000,
+        "other": 9505629,
+        "parse": 73841581,
+        "preflight": 152130750,
+        "type_check": 38551665
+      }
+    }
+  ],
+  "complete": true,
+  "started_local_date": "2026-11-04",
+  "completed_local_date": "2026-11-05",
+  "timezone": "Asia/Kolkata",
+  "base_commit": "4e0b996",
+  "changes": [
+    "serve --no-worker skips built-in workflow workers and schedulers without changing API authorization or cancelling jobs.",
+    "Default serve/open and explicit worker execution retain their existing behavior.",
+    "Extension tasks and explicit graph operations remain enabled."
+  ],
+  "environment": {
+    "platform": "local macOS ARM",
+    "rust": "1.94.1",
+    "go": "1.27.3",
+    "profile": "release",
+    "sdk": "MacOSX15.4.sdk",
+    "static_parsers": "crate-local Cargo configuration, prepared source bundle",
+    "export_load_limit_mib": 32,
+    "network_for_go_dependencies": "disabled",
+    "models": false,
+    "os_caches_flushed": false
+  },
+  "source_sha256": {
+    "crates/graphicle/src/cli.rs": "efb87a314c0b3ff9c6a2b457bc756e7c760bfdebd9338f7a5fc358265acea269",
+    "crates/graphicle/tools/benchmark_review_soak.py": "84315a38f61e2426b81be5d56b25c0664c03a2d61818be3de2cef22bb08e9b61",
+    "crates/graphicle/tests/test_serve_no_worker.py": "67af6725648e222c85f5d437aa500e43ba6fbf9a44800f2b2c80e77175fb68c9"
+  },
+  "method": {
+    "heads": "Eleven unique synthetic source snapshots per repository; unused owned Go constant changes value. Head zero warms the process, ten measured heads remain unseen. These are not real Git commits or independent PRs.",
+    "sequence": [
+      [
+        1
+      ],
+      [
+        2
+      ],
+      [
+        3
+      ],
+      [
+        4
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        7,
+        8
+      ],
+      [
+        9
+      ],
+      [
+        10
+      ]
+    ],
+    "controls": "One fresh CLI process per measured head; each control starts from a clone of the same post-warm state. The server accumulates caches naturally.",
+    "ordering": "Nexus CLI controls before service calls; platform-rbac service calls before CLI controls.",
+    "timing": "Admission, cloning and warmup excluded; no concurrent builds or tests. HTTP includes response decoding. CLI includes launch and output write, parses JSON after timing.",
+    "equality": "Complete packets for each same-pin pair excluding only analysis_cache and tokens.",
+    "jobs": "Original jobs retained; compare IDs, kinds, states, attempts and leases before/after every server batch. No connectors admitted and no graph-projection phases allowed.",
+    "memory": "Graphicle process RSS sampled at phase boundaries. Concurrent phases are aggregated per batch, not attributed per request. Go child process memory and idle RSS are not measured.",
+    "dependency_provenance": "Vendor and module files unchanged. Stale dependency_preparation metadata omitted for synthetic pins; no fresh dependency collection or verification claimed."
+  },
+  "aggregates": {
+    "nexus-963": {
+      "initial_sequential": {
+        "cli": {
+          "samples": 4,
+          "median_seconds": 16.83369122899603,
+          "range_seconds": [
+            16.681248957989737,
+            17.018548542051576
+          ]
+        },
+        "server": {
+          "samples": 4,
+          "median_seconds": 13.24001710448647,
+          "range_seconds": [
+            12.689150457968935,
+            16.057258457993157
+          ]
+        },
+        "median_latency_reduction_percent": 21.34810527069344
+      },
+      "concurrent": {
+        "cli": {
+          "samples": 4,
+          "median_seconds": 16.997221208468545,
+          "range_seconds": [
+            16.904193416005,
+            17.052381458925083
+          ]
+        },
+        "server": {
+          "samples": 4,
+          "median_seconds": 25.079362936958205,
+          "range_seconds": [
+            24.623332625022158,
+            25.53312983305659
+          ]
+        },
+        "median_latency_reduction_percent": -47.54978257541818
+      },
+      "recovery": {
+        "cli": {
+          "samples": 2,
+          "median_seconds": 17.079594374576118,
+          "range_seconds": [
+            17.061651291092858,
+            17.097537458059378
+          ]
+        },
+        "server": {
+          "samples": 2,
+          "median_seconds": 15.129716520488728,
+          "range_seconds": [
+            14.420782290981151,
+            15.838650749996305
+          ]
+        },
+        "median_latency_reduction_percent": 11.416417810190428
+      },
+      "all_serial": {
+        "cli": {
+          "samples": 6,
+          "median_seconds": 16.990543687483296,
+          "range_seconds": [
+            16.681248957989737,
+            17.097537458059378
+          ]
+        },
+        "server": {
+          "samples": 6,
+          "median_seconds": 14.071697374980431,
+          "range_seconds": [
+            12.689150457968935,
+            16.057258457993157
+          ]
+        },
+        "median_latency_reduction_percent": 17.17924020673417
+      },
+      "rss_trajectory_mib": [
+        {
+          "heads": [
+            1
+          ],
+          "stage": "sequential",
+          "sampled_max": 691.6,
+          "first_phase": 584.2,
+          "process_high_water": 691.6
+        },
+        {
+          "heads": [
+            2
+          ],
+          "stage": "sequential",
+          "sampled_max": 774.7,
+          "first_phase": 694.9,
+          "process_high_water": 774.7
+        },
+        {
+          "heads": [
+            3
+          ],
+          "stage": "sequential",
+          "sampled_max": 778.4,
+          "first_phase": 774.8,
+          "process_high_water": 804.7
+        },
+        {
+          "heads": [
+            4
+          ],
+          "stage": "sequential",
+          "sampled_max": 778.5,
+          "first_phase": 778.5,
+          "process_high_water": 804.7
+        },
+        {
+          "heads": [
+            5,
+            6
+          ],
+          "stage": "concurrent",
+          "sampled_max": 1160.2,
+          "first_phase": 787.0,
+          "process_high_water": 1164.1
+        },
+        {
+          "heads": [
+            7,
+            8
+          ],
+          "stage": "concurrent",
+          "sampled_max": 1205.5,
+          "first_phase": 1012.3,
+          "process_high_water": 1205.5
+        },
+        {
+          "heads": [
+            9
+          ],
+          "stage": "recovery",
+          "sampled_max": 1207.4,
+          "first_phase": 1207.1,
+          "process_high_water": 1207.4
+        },
+        {
+          "heads": [
+            10
+          ],
+          "stage": "recovery",
+          "sampled_max": 1207.4,
+          "first_phase": 1207.4,
+          "process_high_water": 1207.5
+        }
+      ],
+      "initial_serial_sampled_rss_range_mib": [
+        691.6,
+        778.5
+      ],
+      "concurrent_max_sampled_rss_mib": 1205.5,
+      "recovery_sampled_rss_mib": [
+        1207.4,
+        1207.4
+      ],
+      "concurrent_batch_seconds": [
+        25.53343191696331,
+        24.645152249955572
+      ],
+      "sequential_observed_heads_per_second": 0.07242906011840435,
+      "concurrent_observed_heads_per_second": 0.07971528225455733,
+      "recovery_observed_heads_per_second": 0.0660950868209863,
+      "concurrent_vs_initial_serial_observed_throughput_percent": 10.059804896324408
+    },
+    "platform-rbac-638": {
+      "initial_sequential": {
+        "cli": {
+          "samples": 4,
+          "median_seconds": 18.04066504194634,
+          "range_seconds": [
+            17.769531541969627,
+            18.538945958018303
+          ]
+        },
+        "server": {
+          "samples": 4,
+          "median_seconds": 13.529381792002823,
+          "range_seconds": [
+            11.573046957957558,
+            13.912329124985263
+          ]
+        },
+        "median_latency_reduction_percent": 25.006191509317066
+      },
+      "concurrent": {
+        "cli": {
+          "samples": 4,
+          "median_seconds": 17.87900554155931,
+          "range_seconds": [
+            17.793079040944576,
+            18.123613917035982
+          ]
+        },
+        "server": {
+          "samples": 4,
+          "median_seconds": 18.92775516648544,
+          "range_seconds": [
+            18.651064833044074,
+            19.23388200008776
+          ]
+        },
+        "median_latency_reduction_percent": -5.865816320087491
+      },
+      "recovery": {
+        "cli": {
+          "samples": 2,
+          "median_seconds": 17.683688229008112,
+          "range_seconds": [
+            17.334170249989256,
+            18.033206208026968
+          ]
+        },
+        "server": {
+          "samples": 2,
+          "median_seconds": 13.26717341656331,
+          "range_seconds": [
+            13.264315625070594,
+            13.270031208056025
+          ]
+        },
+        "median_latency_reduction_percent": 24.97507734387674
+      },
+      "all_serial": {
+        "cli": {
+          "samples": 6,
+          "median_seconds": 17.976285978977103,
+          "range_seconds": [
+            17.334170249989256,
+            18.538945958018303
+          ]
+        },
+        "server": {
+          "samples": 6,
+          "median_seconds": 13.26717341656331,
+          "range_seconds": [
+            11.573046957957558,
+            13.912329124985263
+          ]
+        },
+        "median_latency_reduction_percent": 26.196248590621018
+      },
+      "rss_trajectory_mib": [
+        {
+          "heads": [
+            1
+          ],
+          "stage": "sequential",
+          "sampled_max": 664.5,
+          "first_phase": 590.6,
+          "process_high_water": 664.5
+        },
+        {
+          "heads": [
+            2
+          ],
+          "stage": "sequential",
+          "sampled_max": 638.5,
+          "first_phase": 582.8,
+          "process_high_water": 664.5
+        },
+        {
+          "heads": [
+            3
+          ],
+          "stage": "sequential",
+          "sampled_max": 684.0,
+          "first_phase": 640.2,
+          "process_high_water": 684.0
+        },
+        {
+          "heads": [
+            4
+          ],
+          "stage": "sequential",
+          "sampled_max": 694.0,
+          "first_phase": 684.0,
+          "process_high_water": 707.2
+        },
+        {
+          "heads": [
+            5,
+            6
+          ],
+          "stage": "concurrent",
+          "sampled_max": 1157.2,
+          "first_phase": 716.8,
+          "process_high_water": 1157.2
+        },
+        {
+          "heads": [
+            7,
+            8
+          ],
+          "stage": "concurrent",
+          "sampled_max": 1104.4,
+          "first_phase": 970.6,
+          "process_high_water": 1157.2
+        },
+        {
+          "heads": [
+            9
+          ],
+          "stage": "recovery",
+          "sampled_max": 1105.5,
+          "first_phase": 1104.5,
+          "process_high_water": 1157.2
+        },
+        {
+          "heads": [
+            10
+          ],
+          "stage": "recovery",
+          "sampled_max": 1105.6,
+          "first_phase": 1105.6,
+          "process_high_water": 1157.2
+        }
+      ],
+      "initial_serial_sampled_rss_range_mib": [
+        638.5,
+        694.0
+      ],
+      "concurrent_max_sampled_rss_mib": 1157.2,
+      "recovery_sampled_rss_mib": [
+        1105.5,
+        1105.6
+      ],
+      "concurrent_batch_seconds": [
+        19.234068499994464,
+        18.771316125057638
+      ],
+      "sequential_observed_heads_per_second": 0.07612643880847425,
+      "concurrent_observed_heads_per_second": 0.10524824414915433,
+      "recovery_observed_heads_per_second": 0.07537399646428043,
+      "concurrent_vs_initial_serial_observed_throughput_percent": 38.25452207733944
+    }
+  },
+  "checks": {
+    "measured_reviews": 40,
+    "same_pin_pairs": 20,
+    "all_packets_equal": true,
+    "all_base_full_cache_hits": true,
+    "new_head_full_cache_hits": 0,
+    "all_within_budget": true,
+    "maximum_tokens": 7708,
+    "jobs_unchanged_in_each_server": true,
+    "background_graph_phases": 0,
+    "model_calls": 0
+  },
+  "validation": {
+    "release_build": "passed with static parser configuration",
+    "lifecycle_test": "passed: source admission, review, invalid credentials, preserved queued jobs, separate-worker processing, default serve resumes subsequent projection/link work",
+    "stress": "20 head pairs / 40 reviews; all packet/cache/budget/job checks passed"
+  },
+  "limitations": [
+    "Bounded ten-head sequence on each of two older local repository archives, not the eight production PR probes.",
+    "Small unused-constant edits in owned Go files; no dependency/profile changes or large refactors.",
+    "No steady-state or leak conclusion beyond this finite run. No idle RSS or total process-tree memory measurement.",
+    "Only concurrency one and two tested; unrelated host activity uncontrolled; observed throughput compares different synthetic heads, not a paired same-head throughput trial.",
+    "Natural service cache evolution can differ from fresh CLI controls; this is not a pure helper-cache ablation.",
+    "Admission and collection not included in review timings. Queue retention/growth needs an operational worker/retention policy; no job cancellation was used."
+  ],
+  "decision": {
+    "feature": "serve --no-worker implemented and verified",
+    "production_changed": false,
+    "recommended_initial_client_concurrency": 1,
+    "reason": "Concurrent output remains correct, but latency and retained server RSS rise. Memory did not return to its earlier sequential level in the two recovery requests.",
+    "pending": "Live eight-PR probe, longer memory/idle testing and deployment integration with explicit worker lifecycle."
+  }
+}

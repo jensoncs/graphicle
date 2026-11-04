@@ -21,7 +21,38 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
+
+// Review helpers run one request on one goroutine. Charge each interval to the
+// innermost phase so recursive imports do not inflate type-check/cache timings.
+// Diagnostics go only to stderr; neither facts nor persistent artifacts contain
+// timing values. The Rust caller forwards only known numeric timing records.
+type reviewTimings struct {
+	active string
+	since  time.Time
+	totals map[string]time.Duration
+}
+
+var nativeReviewTimings *reviewTimings
+
+func reviewPhase(name string) func() {
+	t := nativeReviewTimings
+	if t == nil {
+		return func() {}
+	}
+	now := time.Now()
+	if t.active != "" {
+		t.totals[t.active] += now.Sub(t.since)
+	}
+	parent := t.active
+	t.active, t.since = name, now
+	return func() {
+		now := time.Now()
+		t.totals[t.active] += now.Sub(t.since)
+		t.active, t.since = parent, now
+	}
+}
 
 type reviewRoot struct {
 	Directory string `json:"directory"`
@@ -545,6 +576,7 @@ func (r *reviewCollector) collectDependency(m *metadata, valid bool) {
 }
 
 func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, info *types.Info, valid bool) {
+	defer reviewPhase("collect")()
 	owned := r.owns(m.Dir)
 	if !owned {
 		r.collectDependency(m, valid)
@@ -1053,6 +1085,22 @@ func reviewDiscoveryIncomplete(m *metadata, externalErrors map[string]bool) bool
 }
 
 func runReview(req reviewRequest) {
+	if value := os.Getenv("GRAPHICLE_PHASE_TIMINGS"); value != "" && value != "0" {
+		nativeReviewTimings = &reviewTimings{totals: map[string]time.Duration{}}
+		done := reviewPhase("other")
+		defer func() {
+			done()
+			names := make([]string, 0, len(nativeReviewTimings.totals))
+			for name := range nativeReviewTimings.totals {
+				names = append(names, name)
+			}
+			sort.Strings(names)
+			for _, name := range names {
+				fmt.Fprintf(os.Stderr, "go_phase=%s ns=%d\n", name, nativeReviewTimings.totals[name].Nanoseconds())
+			}
+			nativeReviewTimings = nil
+		}()
+	}
 	root, _ := os.Getwd()
 	root, _ = filepath.EvalSymlinks(root)
 	result := struct {
@@ -1078,12 +1126,14 @@ func runReview(req reviewRequest) {
 	// All compiler worlds share this immutable materialized tree and environment.
 	// Check the complete pin set once, retaining the same fail-closed behavior for
 	// every world. A multi-module repository must not rescan every pin per module.
+	donePreflight := reviewPhase("preflight")
 	preflight := (&reviewCollector{root: root, allowedRoots: allowed}).preflight(env)
 	cacheRequest := req
 	if preflight != nil {
 		cacheRequest.CacheIdentity = ""
 	}
 	packageCache := newReviewPackageCache(cacheRequest, root)
+	donePreflight()
 	for _, item := range req.Roots {
 		world := reviewWorld{Root: filepath.ToSlash(filepath.Join(item.Directory, item.Module)), Symbols: []reviewSymbol{}, Calls: []reviewCall{}, Packages: []reviewPackage{}, Issues: []string{}, Inputs: []reviewInput{}}
 		collector := &reviewCollector{root: root, allowedRoots: allowed, world: &world}
@@ -1107,10 +1157,13 @@ func runReview(req reviewRequest) {
 			args = append(args, "-tags="+strings.Join(req.Tags, ","))
 		}
 		args = append(args, "./...")
+		doneDiscovery := reviewPhase("discovery")
 		data, err := reviewCommand(filepath.Join(root, item.Directory, item.Module), env, args...)
+		doneDiscovery()
 		if err != nil {
 			world.Issues = append(world.Issues, "package_discovery_failed")
 		}
+		doneMetadata := reviewPhase("metadata")
 		packageCache.world()
 		l := &loader{fset: token.NewFileSet(), meta: map[string]*metadata{}, packages: map[string]*types.Package{}, busy: map[string]bool{}, wanted: map[string]bool{}, sizes: types.SizesFor("gc", req.GOARCH), review: collector, cache: packageCache}
 		l.fallback = importer.ForCompiler(l.fset, "source", nil)
@@ -1179,6 +1232,7 @@ func runReview(req reviewRequest) {
 				world.Issues = append(world.Issues, "incomplete_discovery:"+path)
 			}
 		}
+		doneMetadata()
 		if l.sizes == nil {
 			world.Issues = append(world.Issues, "unsupported_architecture")
 		} else {
@@ -1188,6 +1242,7 @@ func runReview(req reviewRequest) {
 				}
 			}
 		}
+		doneLink := reviewPhase("link")
 		collector.expandInterfaces(l)
 		// Index declaration intervals per compiler package/file. Looking through
 		// every symbol for every call is quadratic on generated dependencies.
@@ -1250,8 +1305,11 @@ func runReview(req reviewRequest) {
 		sort.Slice(world.Packages, func(i, j int) bool { return world.Packages[i].Path < world.Packages[j].Path })
 		sort.Strings(world.Issues)
 		result.Worlds = append(result.Worlds, world)
+		doneLink()
 	}
 	// Stream compressed native facts: source and call-site names repeat heavily.
+	doneEncode := reviewPhase("encode")
+	defer doneEncode()
 	output := &countingWriter{writer: os.Stdout}
 	fmt.Fprint(output, `{"encoding":"gzip-base64-v1","facts":"`)
 	encoded := base64.NewEncoder(base64.StdEncoding, output)

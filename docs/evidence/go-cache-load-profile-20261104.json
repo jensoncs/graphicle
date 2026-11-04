@@ -1,0 +1,1917 @@
+{
+  "binary_sha256": {
+    "32mib": "7b3291d05981184e02d3aa213b62753da0a82c8814effb7288ee0fec7e707ef6",
+    "64mib": "0f82b79e8040975c70ea09a2c04d69fcf459d5c8a4753b81541bbfaadec8ba0a"
+  },
+  "cases": {
+    "nexus-963": {
+      "base": [
+        {
+          "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+          "commit": "a86e65a21253acd52f03aebc62f2977b0ec2535a",
+          "snapshot": "a9788f4a1a4fbb62f988c161cb287bc358ced87d21c18ae6a59102fc29599b6e",
+          "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+          "directory": "nexus",
+          "modules": [
+            "xlr8"
+          ]
+        }
+      ],
+      "previous_head": [
+        {
+          "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+          "commit": "6aa329c82bb45c18c3ffa6048af46d78e965ce09",
+          "snapshot": "3a4552c8fa7e1087dea283c1a0d234ec9f27aabc70528043a8ba6403d6ac7425",
+          "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+          "directory": "nexus",
+          "modules": [
+            "xlr8"
+          ]
+        }
+      ],
+      "head": [
+        {
+          "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+          "commit": "2447ab17fa50a585f11ad691bd944897768fcad0",
+          "snapshot": "7b64c2228f8b0cc9c53b6c336caa4255505b0c8032f89197f28546e65ed69580",
+          "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+          "directory": "nexus",
+          "modules": [
+            "xlr8"
+          ]
+        }
+      ],
+      "profile": {
+        "goos": "linux",
+        "goarch": "amd64",
+        "tags": [
+          "vtprotobuf"
+        ],
+        "tests": false,
+        "workspace": ""
+      },
+      "max_tokens": 8000,
+      "seed_cache": {
+        "full_analyses": 2,
+        "package_entries": 1127,
+        "package_payload_bytes": 59774480
+      },
+      "request_sha256": "ed903dea5db8f004db3468e5e36464aa387443f27dc5855c40b976cc01c0f508"
+    },
+    "platform-rbac-638": {
+      "base": [
+        {
+          "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+          "commit": "fae5961c7b93cfab40437be096e9dce932ebfa81",
+          "snapshot": "e8dd67dd0caba706f4dd37deb84c8bbf9416bec1fdcd54e6b73b1457da761c8f",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "platform-rbac",
+          "modules": [
+            "."
+          ]
+        }
+      ],
+      "previous_head": [
+        {
+          "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+          "commit": "5a3db472eb4779530fa2f51afc1ebd424cca1955",
+          "snapshot": "6f14716ee443f331f0cce6848be03f16ed7fb528213c956492ab6ebba81e589c",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "platform-rbac",
+          "modules": [
+            "."
+          ]
+        }
+      ],
+      "head": [
+        {
+          "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+          "commit": "c7b0b0b6f7e2598241bb66bfbb1389e745fbe46c",
+          "snapshot": "023222a4be3e1c9b906a64748240912a763ff4a724ebbd552cd8d4feac5e5a3d",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "platform-rbac",
+          "modules": [
+            "."
+          ]
+        }
+      ],
+      "profile": {
+        "goos": "linux",
+        "goarch": "amd64",
+        "tags": [],
+        "tests": false,
+        "workspace": ""
+      },
+      "max_tokens": 8000,
+      "seed_cache": {
+        "full_analyses": 2,
+        "package_entries": 995,
+        "package_payload_bytes": 21064132
+      },
+      "request_sha256": "51637d58d70c75bd88e0fe3ced243ce403bf710be87e5bb7dd82830fffc80e15"
+    }
+  },
+  "rows": [
+    {
+      "case": "nexus-963",
+      "policy": "32mib",
+      "mode": "normal-reuse",
+      "order": 0,
+      "seconds": 17.458509583957493,
+      "phase_ms": {
+        "review_load_base": 273,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 140,
+        "review_analyze_base": 385,
+        "review_load_package_cache": 487,
+        "review_materialize": 1140,
+        "review_native_facts": 12411,
+        "review_analyze_head": 14855,
+        "review_service_links_base": 20,
+        "review_service_links_head": 20,
+        "review_compare": 338,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 243
+      },
+      "phase_peak_rss_mib": 584.4,
+      "process_peak_rss_bytes": 612745216,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 4120669250,
+        "collect": 108610272,
+        "discovery": 2994044875,
+        "encode": 90919375,
+        "export_load": 329900100,
+        "export_save": 729330190,
+        "fingerprint": 1421385874,
+        "import": 5168070,
+        "link": 11157167,
+        "metadata": 22891042,
+        "other": 10957753,
+        "parse": 843916102,
+        "preflight": 175887458,
+        "type_check": 444824847
+      },
+      "tokens": 7671,
+      "packet_equal": true,
+      "native_unattributed_ns": 1101337625
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "32mib",
+      "mode": "normal-reuse",
+      "order": 0,
+      "seconds": 15.006546374992467,
+      "phase_ms": {
+        "review_load_base": 300,
+        "review_load_head": 14,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 117,
+        "review_analyze_base": 325,
+        "review_load_package_cache": 244,
+        "review_materialize": 993,
+        "review_native_facts": 10741,
+        "review_analyze_head": 12902,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 343,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 242
+      },
+      "phase_peak_rss_mib": 560.7,
+      "process_peak_rss_bytes": 587972608,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 4082303791,
+        "collect": 156514794,
+        "discovery": 3529176958,
+        "encode": 61743250,
+        "export_load": 294507393,
+        "export_save": 7290,
+        "fingerprint": 1353060247,
+        "import": 4380302,
+        "link": 16123500,
+        "metadata": 18113042,
+        "other": 12960171,
+        "parse": 68003794,
+        "preflight": 142941333,
+        "type_check": 38590759
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 962573376
+    },
+    {
+      "case": "nexus-963",
+      "policy": "32mib",
+      "mode": "packages-only",
+      "order": 1,
+      "seconds": 27.60840587504208,
+      "phase_ms": {
+        "review_load_base": 266,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 493,
+        "review_materialize": 2164,
+        "review_native_facts": 20405,
+        "review_decode_facts": 144,
+        "review_analyze_base": 15658,
+        "review_analyze_head": 9594,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 349,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 242
+      },
+      "phase_peak_rss_mib": 709.1,
+      "process_peak_rss_bytes": 743538688,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1127,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 4058031000,
+        "collect": 220763715,
+        "discovery": 7561119125,
+        "encode": 158922125,
+        "export_load": 911047684,
+        "export_save": 710572717,
+        "fingerprint": 3127999628,
+        "import": 9439481,
+        "link": 22024751,
+        "metadata": 43169876,
+        "other": 26243455,
+        "parse": 991041497,
+        "preflight": 326079042,
+        "type_check": 478037196
+      },
+      "tokens": 7672,
+      "packet_equal": true,
+      "native_unattributed_ns": 1760508708
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "32mib",
+      "mode": "packages-only",
+      "order": 1,
+      "seconds": 24.878907250007614,
+      "phase_ms": {
+        "review_load_base": 296,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 246,
+        "review_materialize": 2028,
+        "review_native_facts": 18615,
+        "review_decode_facts": 113,
+        "review_analyze_base": 13309,
+        "review_analyze_head": 9757,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 350,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 242
+      },
+      "phase_peak_rss_mib": 562.7,
+      "process_peak_rss_bytes": 590036992,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 4010869584,
+        "collect": 304123467,
+        "discovery": 8565696125,
+        "encode": 124296792,
+        "export_load": 587160366,
+        "export_save": 16318,
+        "fingerprint": 2813731332,
+        "import": 8499505,
+        "link": 33484209,
+        "metadata": 35931875,
+        "other": 24295797,
+        "parse": 140184415,
+        "preflight": 277655959,
+        "type_check": 71977882
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 1617076374
+    },
+    {
+      "case": "nexus-963",
+      "policy": "64mib",
+      "mode": "normal-reuse",
+      "order": 2,
+      "seconds": 16.77134012489114,
+      "phase_ms": {
+        "review_load_base": 264,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 137,
+        "review_analyze_base": 388,
+        "review_load_package_cache": 531,
+        "review_materialize": 1126,
+        "review_native_facts": 10581,
+        "review_analyze_head": 13018,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 338,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 243
+      },
+      "phase_peak_rss_mib": 648.6,
+      "process_peak_rss_bytes": 680148992,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1127,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 4068838167,
+        "collect": 108789414,
+        "discovery": 3028454291,
+        "encode": 68916041,
+        "export_load": 581567594,
+        "export_save": 5791,
+        "fingerprint": 1371131210,
+        "import": 4458274,
+        "link": 11159125,
+        "metadata": 21386916,
+        "other": 13459255,
+        "parse": 38996835,
+        "preflight": 154042333,
+        "type_check": 24614879
+      },
+      "tokens": 7672,
+      "packet_equal": true,
+      "native_unattributed_ns": 1085179875
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "64mib",
+      "mode": "normal-reuse",
+      "order": 2,
+      "seconds": 15.35618241596967,
+      "phase_ms": {
+        "review_load_base": 290,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 112,
+        "review_analyze_base": 327,
+        "review_load_package_cache": 244,
+        "review_materialize": 1004,
+        "review_native_facts": 11022,
+        "review_analyze_head": 13223,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 344,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 89,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 245
+      },
+      "phase_peak_rss_mib": 564.2,
+      "process_peak_rss_bytes": 591577088,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 4111604791,
+        "collect": 146799086,
+        "discovery": 3802217208,
+        "encode": 62769375,
+        "export_load": 291685798,
+        "export_save": 7253,
+        "fingerprint": 1282152397,
+        "import": 4248691,
+        "link": 16197625,
+        "metadata": 17563333,
+        "other": 11231712,
+        "parse": 61760997,
+        "preflight": 145708791,
+        "type_check": 36510650
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 1031542293
+    },
+    {
+      "case": "nexus-963",
+      "policy": "64mib",
+      "mode": "packages-only",
+      "order": 3,
+      "seconds": 25.882535333978012,
+      "phase_ms": {
+        "review_load_base": 271,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 538,
+        "review_materialize": 2410,
+        "review_native_facts": 18663,
+        "review_decode_facts": 139,
+        "review_analyze_base": 13829,
+        "review_analyze_head": 9864,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 337,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 245
+      },
+      "phase_peak_rss_mib": 713.5,
+      "process_peak_rss_bytes": 748126208,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 1127,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1127,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 4035498958,
+        "collect": 210992627,
+        "discovery": 7623728000,
+        "encode": 138060416,
+        "export_load": 1155286960,
+        "export_save": 10997,
+        "fingerprint": 3184339335,
+        "import": 8774682,
+        "link": 24615458,
+        "metadata": 43591666,
+        "other": 29013249,
+        "parse": 80611738,
+        "preflight": 302711916,
+        "type_check": 46991415
+      },
+      "tokens": 7673,
+      "packet_equal": true,
+      "native_unattributed_ns": 1778772583
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "64mib",
+      "mode": "packages-only",
+      "order": 3,
+      "seconds": 24.907014542026445,
+      "phase_ms": {
+        "review_load_base": 307,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 247,
+        "review_materialize": 2070,
+        "review_native_facts": 18642,
+        "review_decode_facts": 114,
+        "review_analyze_base": 13416,
+        "review_analyze_head": 9665,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 340,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 89,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 242
+      },
+      "phase_peak_rss_mib": 567.6,
+      "process_peak_rss_bytes": 595181568,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 4055791291,
+        "collect": 304684292,
+        "discovery": 8655152876,
+        "encode": 124653625,
+        "export_load": 584471044,
+        "export_save": 13326,
+        "fingerprint": 2764113669,
+        "import": 8588460,
+        "link": 32293000,
+        "metadata": 34964250,
+        "other": 20581709,
+        "parse": 125111630,
+        "preflight": 275829958,
+        "type_check": 72921954
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 1582828916
+    },
+    {
+      "case": "nexus-963",
+      "policy": "64mib",
+      "mode": "normal-reuse",
+      "order": 4,
+      "seconds": 16.393773874966428,
+      "phase_ms": {
+        "review_load_base": 264,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 140,
+        "review_analyze_base": 388,
+        "review_load_package_cache": 528,
+        "review_materialize": 1067,
+        "review_native_facts": 11443,
+        "review_analyze_head": 13814,
+        "review_service_links_base": 20,
+        "review_service_links_head": 20,
+        "review_compare": 340,
+        "review_execution_coverage": 10,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 241
+      },
+      "phase_peak_rss_mib": 660.2,
+      "process_peak_rss_bytes": 692289536,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1127,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 3969530917,
+        "collect": 109017373,
+        "discovery": 3827329875,
+        "encode": 68626000,
+        "export_load": 578556896,
+        "export_save": 7114,
+        "fingerprint": 1565326601,
+        "import": 4412230,
+        "link": 10943833,
+        "metadata": 21184208,
+        "other": 12809081,
+        "parse": 42103128,
+        "preflight": 153639500,
+        "type_check": 26371328
+      },
+      "tokens": 7672,
+      "packet_equal": true,
+      "native_unattributed_ns": 1053141916
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "64mib",
+      "mode": "normal-reuse",
+      "order": 4,
+      "seconds": 15.267597917001694,
+      "phase_ms": {
+        "review_load_base": 300,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 112,
+        "review_analyze_base": 319,
+        "review_load_package_cache": 244,
+        "review_materialize": 994,
+        "review_native_facts": 10907,
+        "review_analyze_head": 13155,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 340,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 88,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 240
+      },
+      "phase_peak_rss_mib": 563.7,
+      "process_peak_rss_bytes": 592756736,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 4184234542,
+        "collect": 148262748,
+        "discovery": 3467706833,
+        "encode": 62389000,
+        "export_load": 291573974,
+        "export_save": 6584,
+        "fingerprint": 1381244422,
+        "import": 4249723,
+        "link": 15935333,
+        "metadata": 18300292,
+        "other": 10480877,
+        "parse": 69881500,
+        "preflight": 149453708,
+        "type_check": 35506422
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 1067774042
+    },
+    {
+      "case": "nexus-963",
+      "policy": "64mib",
+      "mode": "packages-only",
+      "order": 5,
+      "seconds": 25.696073541999795,
+      "phase_ms": {
+        "review_load_base": 266,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 547,
+        "review_materialize": 2158,
+        "review_native_facts": 18530,
+        "review_decode_facts": 136,
+        "review_analyze_base": 13560,
+        "review_analyze_head": 9796,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 345,
+        "review_execution_coverage": 12,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 244
+      },
+      "phase_peak_rss_mib": 711.8,
+      "process_peak_rss_bytes": 746422272,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 1127,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1127,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 4204993792,
+        "collect": 216331043,
+        "discovery": 7469026625,
+        "encode": 138006959,
+        "export_load": 1140773454,
+        "export_save": 11580,
+        "fingerprint": 2959673360,
+        "import": 8706519,
+        "link": 22648958,
+        "metadata": 43433708,
+        "other": 25627255,
+        "parse": 80469206,
+        "preflight": 305997124,
+        "type_check": 49958750
+      },
+      "tokens": 7673,
+      "packet_equal": true,
+      "native_unattributed_ns": 1864341667
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "64mib",
+      "mode": "packages-only",
+      "order": 5,
+      "seconds": 28.643904999946244,
+      "phase_ms": {
+        "review_load_base": 294,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 248,
+        "review_materialize": 2048,
+        "review_native_facts": 22355,
+        "review_decode_facts": 112,
+        "review_analyze_base": 17051,
+        "review_analyze_head": 9755,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 348,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 246
+      },
+      "phase_peak_rss_mib": 568.8,
+      "process_peak_rss_bytes": 599769088,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 5095986500,
+        "collect": 294617791,
+        "discovery": 8268918000,
+        "encode": 127294250,
+        "export_load": 582880383,
+        "export_save": 11498,
+        "fingerprint": 2555998279,
+        "import": 8806410,
+        "link": 32806667,
+        "metadata": 35383499,
+        "other": 23132955,
+        "parse": 125198628,
+        "preflight": 281417042,
+        "type_check": 71338098
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 4851210000
+    },
+    {
+      "case": "nexus-963",
+      "policy": "32mib",
+      "mode": "normal-reuse",
+      "order": 6,
+      "seconds": 17.435277207987383,
+      "phase_ms": {
+        "review_load_base": 265,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 138,
+        "review_analyze_base": 382,
+        "review_load_package_cache": 481,
+        "review_materialize": 1072,
+        "review_native_facts": 12397,
+        "review_analyze_head": 14758,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 333,
+        "review_execution_coverage": 7,
+        "review_reuse_scopes": 127,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 244
+      },
+      "phase_peak_rss_mib": 584.2,
+      "process_peak_rss_bytes": 612532224,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 3994496167,
+        "collect": 107644292,
+        "discovery": 3495801834,
+        "encode": 100623708,
+        "export_load": 330318025,
+        "export_save": 717733054,
+        "fingerprint": 1375475367,
+        "import": 4989791,
+        "link": 10919833,
+        "metadata": 22036834,
+        "other": 14812706,
+        "parse": 886526805,
+        "preflight": 148736875,
+        "type_check": 444926251
+      },
+      "tokens": 7671,
+      "packet_equal": true,
+      "native_unattributed_ns": 741958458
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "32mib",
+      "mode": "normal-reuse",
+      "order": 6,
+      "seconds": 15.313941166969016,
+      "phase_ms": {
+        "review_load_base": 298,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 113,
+        "review_analyze_base": 319,
+        "review_load_package_cache": 245,
+        "review_materialize": 1120,
+        "review_native_facts": 10635,
+        "review_analyze_head": 13029,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 347,
+        "review_execution_coverage": 10,
+        "review_reuse_scopes": 89,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 250
+      },
+      "phase_peak_rss_mib": 560.6,
+      "process_peak_rss_bytes": 587857920,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 3961960084,
+        "collect": 148311463,
+        "discovery": 3683454833,
+        "encode": 63690917,
+        "export_load": 286864903,
+        "export_save": 6748,
+        "fingerprint": 1273176170,
+        "import": 4086781,
+        "link": 16163541,
+        "metadata": 17855041,
+        "other": 12280546,
+        "parse": 63264295,
+        "preflight": 141561083,
+        "type_check": 35644138
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 926679457
+    },
+    {
+      "case": "nexus-963",
+      "policy": "32mib",
+      "mode": "packages-only",
+      "order": 7,
+      "seconds": 26.787222916958854,
+      "phase_ms": {
+        "review_load_base": 271,
+        "review_load_head": 17,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 512,
+        "review_materialize": 2223,
+        "review_native_facts": 19583,
+        "review_decode_facts": 140,
+        "review_analyze_base": 15044,
+        "review_analyze_head": 9448,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 343,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 245
+      },
+      "phase_peak_rss_mib": 706.7,
+      "process_peak_rss_bytes": 741048320,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 609,
+            "misses": 518,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1127,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 4061123959,
+        "collect": 220802915,
+        "discovery": 7147158583,
+        "encode": 159843458,
+        "export_load": 914166325,
+        "export_save": 745401389,
+        "fingerprint": 3040900016,
+        "import": 9793995,
+        "link": 22242542,
+        "metadata": 43587124,
+        "other": 25904413,
+        "parse": 978716601,
+        "preflight": 301945958,
+        "type_check": 478519181
+      },
+      "tokens": 7672,
+      "packet_equal": true,
+      "native_unattributed_ns": 1432893541
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "32mib",
+      "mode": "packages-only",
+      "order": 7,
+      "seconds": 24.98563545802608,
+      "phase_ms": {
+        "review_load_base": 297,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 241,
+        "review_materialize": 2189,
+        "review_native_facts": 18629,
+        "review_decode_facts": 112,
+        "review_analyze_base": 13270,
+        "review_analyze_head": 9903,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 352,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 89,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 251
+      },
+      "phase_peak_rss_mib": 563.9,
+      "process_peak_rss_bytes": 596279296,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 4136238126,
+        "collect": 298981049,
+        "discovery": 8809673458,
+        "encode": 129379583,
+        "export_load": 595687409,
+        "export_save": 13297,
+        "fingerprint": 2794448753,
+        "import": 8543082,
+        "link": 32386750,
+        "metadata": 37396500,
+        "other": 22263582,
+        "parse": 130380586,
+        "preflight": 278572708,
+        "type_check": 70280201
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 1284754916
+    },
+    {
+      "case": "nexus-963",
+      "policy": "32mib",
+      "mode": "cold",
+      "order": 8,
+      "seconds": 31.06005720794201,
+      "phase_ms": {
+        "review_load_base": 283,
+        "review_load_head": 19,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 2,
+        "review_materialize": 2329,
+        "review_native_facts": 23810,
+        "review_decode_facts": 142,
+        "review_analyze_base": 19904,
+        "review_analyze_head": 8955,
+        "review_service_links_base": 20,
+        "review_service_links_head": 20,
+        "review_compare": 364,
+        "review_execution_coverage": 5,
+        "review_reuse_scopes": 132,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 262
+      },
+      "phase_peak_rss_mib": 688.9,
+      "process_peak_rss_bytes": 866287616,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 1127,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1126,
+            "misses": 1,
+            "rejected": 1
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 4078325583,
+        "collect": 249652464,
+        "discovery": 6773910916,
+        "encode": 196666875,
+        "export_load": 590214401,
+        "export_save": 2021468165,
+        "fingerprint": 3149395531,
+        "import": 14882455,
+        "link": 22384125,
+        "metadata": 43112833,
+        "other": 24540209,
+        "parse": 3423034443,
+        "preflight": 316266417,
+        "type_check": 1480134833
+      },
+      "tokens": 7673,
+      "packet_equal": true,
+      "native_unattributed_ns": 1426010750
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "32mib",
+      "mode": "cold",
+      "order": 8,
+      "seconds": 28.77656150003895,
+      "phase_ms": {
+        "review_load_base": 298,
+        "review_load_head": 14,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 3,
+        "review_materialize": 2628,
+        "review_native_facts": 21811,
+        "review_decode_facts": 113,
+        "review_analyze_base": 16634,
+        "review_analyze_head": 10312,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 353,
+        "review_execution_coverage": 7,
+        "review_reuse_scopes": 91,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 246
+      },
+      "phase_peak_rss_mib": 563.7,
+      "process_peak_rss_bytes": 651247616,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 995,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 994,
+            "misses": 1,
+            "rejected": 1
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 4155816250,
+        "collect": 317823328,
+        "discovery": 7983258625,
+        "encode": 148919417,
+        "export_load": 294381933,
+        "export_save": 555778622,
+        "fingerprint": 2756303576,
+        "import": 10400212,
+        "link": 32686583,
+        "metadata": 37366709,
+        "other": 26242583,
+        "parse": 2018205802,
+        "preflight": 279259875,
+        "type_check": 1233568943
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 1960987542
+    },
+    {
+      "case": "nexus-963",
+      "policy": "64mib",
+      "mode": "cold",
+      "order": 9,
+      "seconds": 28.742454207967967,
+      "phase_ms": {
+        "review_load_base": 276,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 3,
+        "review_materialize": 2163,
+        "review_native_facts": 21752,
+        "review_decode_facts": 140,
+        "review_analyze_base": 18135,
+        "review_analyze_head": 8436,
+        "review_service_links_base": 28,
+        "review_service_links_head": 19,
+        "review_compare": 361,
+        "review_execution_coverage": 6,
+        "review_reuse_scopes": 134,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 250
+      },
+      "phase_peak_rss_mib": 697.6,
+      "process_peak_rss_bytes": 884523008,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 1127,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1126,
+            "misses": 1,
+            "rejected": 1
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2846,
+      "native_phase_ns": {
+        "helper": 4324811125,
+        "collect": 220990807,
+        "discovery": 6522851459,
+        "encode": 212111458,
+        "export_load": 600367922,
+        "export_save": 1794931092,
+        "fingerprint": 2908325467,
+        "import": 10953024,
+        "link": 22365417,
+        "metadata": 44772293,
+        "other": 24312834,
+        "parse": 2094614236,
+        "preflight": 301168751,
+        "type_check": 1075846490
+      },
+      "tokens": 7673,
+      "packet_equal": true,
+      "native_unattributed_ns": 1593577625
+    },
+    {
+      "case": "platform-rbac-638",
+      "policy": "64mib",
+      "mode": "cold",
+      "order": 9,
+      "seconds": 27.285341792041436,
+      "phase_ms": {
+        "review_load_base": 298,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 2,
+        "review_materialize": 2175,
+        "review_native_facts": 20906,
+        "review_decode_facts": 115,
+        "review_analyze_base": 16757,
+        "review_analyze_head": 8829,
+        "review_service_links_base": 8,
+        "review_service_links_head": 4,
+        "review_compare": 354,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 91,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 250
+      },
+      "phase_peak_rss_mib": 563.0,
+      "process_peak_rss_bytes": 653590528,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 995,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12970,
+      "native_phase_ns": {
+        "helper": 4107758416,
+        "collect": 335563558,
+        "discovery": 7705310126,
+        "encode": 147304041,
+        "export_load": 292002538,
+        "export_save": 534002652,
+        "fingerprint": 2722100593,
+        "import": 9856570,
+        "link": 31981042,
+        "metadata": 36074542,
+        "other": 23794004,
+        "parse": 2002389102,
+        "preflight": 274375250,
+        "type_check": 1207014981
+      },
+      "tokens": 7567,
+      "packet_equal": true,
+      "native_unattributed_ns": 1476472585
+    }
+  ],
+  "complete": true,
+  "date": "2026-11-04",
+  "base_commit": "4e0b996",
+  "driver": "crates/graphicle/tools/benchmark_review_cache_limit.py",
+  "environment": {
+    "platform": "local macOS ARM",
+    "rust": "1.94.1",
+    "go": "1.27.3",
+    "profile": "release",
+    "sdk": "MacOSX15.4.sdk",
+    "go_network": "disabled",
+    "models": false,
+    "filesystem_cache_flushed": false
+  },
+  "instrumentation_sha256": {
+    "crates/graphicle-graph/src/extractors/go_review.go": "2d0783696394db2d1cf53329c62659eee7af1795bacedfd530058dd5f94a8504",
+    "crates/graphicle-graph/src/extractors/go_types.go": "d10c5fee17c421c5cc2980b304f52371dabf0b9b4fc54eff77f63c0b536176b5",
+    "crates/graphicle-graph/src/extractors/go_review_cache.go": "b2f32b488192ebdf071f55e8d470c2825dae0f0543d593cd024b82054cd740ac",
+    "crates/graphicle-graph/src/extractors/go_types.rs": "9d03a4d4b42ee33115d199debc8dc3340757d610b79d2e126c9c495698269a80"
+  },
+  "candidate_policy_patch": "--- a/crates/graphicle/src/review_cache.rs\n+++ b/crates/graphicle/src/review_cache.rs\n@@ -87 +87 @@\n-            if bytes + data.len() > PACKAGE_BYTES / 2 { continue; }\n+            if bytes + data.len() > PACKAGE_BYTES { continue; }\n",
+  "method": {
+    "order": [
+      "32mib",
+      "64mib",
+      "64mib",
+      "32mib"
+    ],
+    "modes_each_pass": [
+      "normal-reuse",
+      "packages-only"
+    ],
+    "cold_controls": "One per policy and case, after the reuse runs.",
+    "priming": "Clear prior compiler caches in private copies, prime A-to-B with the instrumented 32 MiB binary, then compare independent copies on A-to-C.",
+    "timing": "CLI review wall time; no concurrent builds/tests. Helper preparation plus exclusive native subphases logged to stderr.",
+    "memory": "os.wait4 command child ru_maxrss, macOS bytes; not simultaneous process-tree total.",
+    "equality": "Whole packets within each case excluding only analysis_cache and tokens."
+  },
+  "aggregates": {
+    "nexus-963": {
+      "normal-reuse": {
+        "32mib": {
+          "samples": 2,
+          "median_seconds": 17.446893395972438,
+          "range_seconds": [
+            17.435277207987383,
+            17.458509583957493
+          ],
+          "median_peak_rss_mib": 584.2578125,
+          "median_native_facts_seconds": 12.404,
+          "median_native_unattributed_seconds": 0.9216480415,
+          "median_native_phase_seconds": {
+            "collect": 0.10812728199999999,
+            "discovery": 3.2449233545,
+            "encode": 0.0957715415,
+            "export_load": 0.3301090625,
+            "export_save": 0.723531622,
+            "fingerprint": 1.3984306205,
+            "helper": 4.0575827085,
+            "import": 0.0050789305,
+            "link": 0.0110385,
+            "metadata": 0.022463938000000003,
+            "other": 0.012885229500000001,
+            "parse": 0.8652214535,
+            "preflight": 0.1623121665,
+            "type_check": 0.44487554900000004
+          }
+        },
+        "64mib": {
+          "samples": 2,
+          "median_seconds": 16.582556999928784,
+          "range_seconds": [
+            16.393773874966428,
+            16.77134012489114
+          ],
+          "median_peak_rss_mib": 654.4296875,
+          "median_native_facts_seconds": 11.012,
+          "median_native_unattributed_seconds": 1.0691608955,
+          "median_native_phase_seconds": {
+            "collect": 0.1089033935,
+            "discovery": 3.427892083,
+            "encode": 0.0687710205,
+            "export_load": 0.580062245,
+            "export_save": 6.4525e-06,
+            "fingerprint": 1.4682289055,
+            "helper": 4.019184542,
+            "import": 0.004435252,
+            "link": 0.011051479,
+            "metadata": 0.021285562,
+            "other": 0.013134168,
+            "parse": 0.0405499815,
+            "preflight": 0.1538409165,
+            "type_check": 0.0254931035
+          }
+        },
+        "review_reduction_percent": 4.954099142046598,
+        "peak_rss_increase_percent": 12.010429899043928
+      },
+      "packages-only": {
+        "32mib": {
+          "samples": 2,
+          "median_seconds": 27.197814396000467,
+          "range_seconds": [
+            26.787222916958854,
+            27.60840587504208
+          ],
+          "median_peak_rss_mib": 707.90625,
+          "median_native_facts_seconds": 19.994,
+          "median_native_unattributed_seconds": 1.5967011245,
+          "median_native_phase_seconds": {
+            "collect": 0.22078331499999998,
+            "discovery": 7.354138854,
+            "encode": 0.1593827915,
+            "export_load": 0.9126070045,
+            "export_save": 0.727987053,
+            "fingerprint": 3.084449822,
+            "helper": 4.0595774795,
+            "import": 0.009616738,
+            "link": 0.0221336465,
+            "metadata": 0.0433785,
+            "other": 0.026073934,
+            "parse": 0.984879049,
+            "preflight": 0.3140125,
+            "type_check": 0.47827818850000003
+          }
+        },
+        "64mib": {
+          "samples": 2,
+          "median_seconds": 25.789304437988903,
+          "range_seconds": [
+            25.696073541999795,
+            25.882535333978012
+          ],
+          "median_peak_rss_mib": 712.65625,
+          "median_native_facts_seconds": 18.5965,
+          "median_native_unattributed_seconds": 1.821557125,
+          "median_native_phase_seconds": {
+            "collect": 0.213661835,
+            "discovery": 7.5463773125,
+            "encode": 0.1380336875,
+            "export_load": 1.1480302070000001,
+            "export_save": 1.1288499999999999e-05,
+            "fingerprint": 3.0720063475000003,
+            "helper": 4.120246375,
+            "import": 0.008740600500000001,
+            "link": 0.023632208000000002,
+            "metadata": 0.043512687,
+            "other": 0.027320252000000003,
+            "parse": 0.080540472,
+            "preflight": 0.30435452,
+            "type_check": 0.0484750825
+          }
+        },
+        "review_reduction_percent": 5.178761563350809,
+        "peak_rss_increase_percent": 0.6709928044850599
+      },
+      "cold": {
+        "32mib": {
+          "samples": 1,
+          "median_seconds": 31.06005720794201,
+          "range_seconds": [
+            31.06005720794201,
+            31.06005720794201
+          ],
+          "median_peak_rss_mib": 826.15625,
+          "median_native_facts_seconds": 23.81,
+          "median_native_unattributed_seconds": 1.42601075,
+          "median_native_phase_seconds": {
+            "collect": 0.249652464,
+            "discovery": 6.773910916,
+            "encode": 0.196666875,
+            "export_load": 0.590214401,
+            "export_save": 2.021468165,
+            "fingerprint": 3.149395531,
+            "helper": 4.078325583,
+            "import": 0.014882455,
+            "link": 0.022384125,
+            "metadata": 0.043112833,
+            "other": 0.024540209,
+            "parse": 3.423034443,
+            "preflight": 0.316266417,
+            "type_check": 1.480134833
+          }
+        },
+        "64mib": {
+          "samples": 1,
+          "median_seconds": 28.742454207967967,
+          "range_seconds": [
+            28.742454207967967,
+            28.742454207967967
+          ],
+          "median_peak_rss_mib": 843.546875,
+          "median_native_facts_seconds": 21.752,
+          "median_native_unattributed_seconds": 1.593577625,
+          "median_native_phase_seconds": {
+            "collect": 0.220990807,
+            "discovery": 6.522851459,
+            "encode": 0.212111458,
+            "export_load": 0.600367922,
+            "export_save": 1.794931092,
+            "fingerprint": 2.908325467,
+            "helper": 4.324811125,
+            "import": 0.010953024,
+            "link": 0.022365417,
+            "metadata": 0.044772293,
+            "other": 0.024312834,
+            "parse": 2.094614236,
+            "preflight": 0.301168751,
+            "type_check": 1.07584649
+          }
+        },
+        "review_reduction_percent": 7.461682972629669,
+        "peak_rss_increase_percent": 2.105004349964057
+      }
+    },
+    "platform-rbac-638": {
+      "normal-reuse": {
+        "32mib": {
+          "samples": 2,
+          "median_seconds": 15.160243770980742,
+          "range_seconds": [
+            15.006546374992467,
+            15.313941166969016
+          ],
+          "median_peak_rss_mib": 560.6796875,
+          "median_native_facts_seconds": 10.687999999999999,
+          "median_native_unattributed_seconds": 0.9446264165,
+          "median_native_phase_seconds": {
+            "collect": 0.1524131285,
+            "discovery": 3.6063158955,
+            "encode": 0.06271708349999999,
+            "export_load": 0.29068614800000003,
+            "export_save": 7.019e-06,
+            "fingerprint": 1.3131182085,
+            "helper": 4.0221319375,
+            "import": 0.0042335415,
+            "link": 0.0161435205,
+            "metadata": 0.0179840415,
+            "other": 0.0126203585,
+            "parse": 0.0656340445,
+            "preflight": 0.14225120800000002,
+            "type_check": 0.0371174485
+          }
+        },
+        "64mib": {
+          "samples": 2,
+          "median_seconds": 15.311890166485682,
+          "range_seconds": [
+            15.267597917001694,
+            15.35618241596967
+          ],
+          "median_peak_rss_mib": 564.734375,
+          "median_native_facts_seconds": 10.964500000000001,
+          "median_native_unattributed_seconds": 1.0496581675,
+          "median_native_phase_seconds": {
+            "collect": 0.14753091699999998,
+            "discovery": 3.6349620204999997,
+            "encode": 0.0625791875,
+            "export_load": 0.291629886,
+            "export_save": 6.9185e-06,
+            "fingerprint": 1.3316984095,
+            "helper": 4.1479196665,
+            "import": 0.004249207,
+            "link": 0.016066479,
+            "metadata": 0.017931812499999998,
+            "other": 0.010856294499999999,
+            "parse": 0.0658212485,
+            "preflight": 0.1475812495,
+            "type_check": 0.036008536
+          }
+        },
+        "review_reduction_percent": -1.0002899544083732,
+        "peak_rss_increase_percent": 0.7231736034667646
+      },
+      "packages-only": {
+        "32mib": {
+          "samples": 2,
+          "median_seconds": 24.932271354016848,
+          "range_seconds": [
+            24.878907250007614,
+            24.98563545802608
+          ],
+          "median_peak_rss_mib": 565.6796875,
+          "median_native_facts_seconds": 18.622,
+          "median_native_unattributed_seconds": 1.450915645,
+          "median_native_phase_seconds": {
+            "collect": 0.30155225799999996,
+            "discovery": 8.6876847915,
+            "encode": 0.1268381875,
+            "export_load": 0.5914238875,
+            "export_save": 1.48075e-05,
+            "fingerprint": 2.8040900425000004,
+            "helper": 4.073553855,
+            "import": 0.008521293499999999,
+            "link": 0.0329354795,
+            "metadata": 0.0366641875,
+            "other": 0.0232796895,
+            "parse": 0.1352825005,
+            "preflight": 0.27811433350000003,
+            "type_check": 0.0711290415
+          }
+        },
+        "64mib": {
+          "samples": 2,
+          "median_seconds": 26.775459770986345,
+          "range_seconds": [
+            24.907014542026445,
+            28.643904999946244
+          ],
+          "median_peak_rss_mib": 569.796875,
+          "median_native_facts_seconds": 20.4985,
+          "median_native_unattributed_seconds": 3.217019458,
+          "median_native_phase_seconds": {
+            "collect": 0.2996510415,
+            "discovery": 8.462035438000001,
+            "encode": 0.1259739375,
+            "export_load": 0.5836757135,
+            "export_save": 1.2412e-05,
+            "fingerprint": 2.660055974,
+            "helper": 4.5758888955,
+            "import": 0.008697435,
+            "link": 0.0325498335,
+            "metadata": 0.0351738745,
+            "other": 0.021857332,
+            "parse": 0.125155129,
+            "preflight": 0.2786235,
+            "type_check": 0.072130026
+          }
+        },
+        "review_reduction_percent": -7.392781791910585,
+        "peak_rss_increase_percent": 0.7278301821647126
+      },
+      "cold": {
+        "32mib": {
+          "samples": 1,
+          "median_seconds": 28.77656150003895,
+          "range_seconds": [
+            28.77656150003895,
+            28.77656150003895
+          ],
+          "median_peak_rss_mib": 621.078125,
+          "median_native_facts_seconds": 21.811,
+          "median_native_unattributed_seconds": 1.960987542,
+          "median_native_phase_seconds": {
+            "collect": 0.317823328,
+            "discovery": 7.983258625,
+            "encode": 0.148919417,
+            "export_load": 0.294381933,
+            "export_save": 0.555778622,
+            "fingerprint": 2.756303576,
+            "helper": 4.15581625,
+            "import": 0.010400212,
+            "link": 0.032686583,
+            "metadata": 0.037366709,
+            "other": 0.026242583,
+            "parse": 2.018205802,
+            "preflight": 0.279259875,
+            "type_check": 1.233568943
+          }
+        },
+        "64mib": {
+          "samples": 1,
+          "median_seconds": 27.285341792041436,
+          "range_seconds": [
+            27.285341792041436,
+            27.285341792041436
+          ],
+          "median_peak_rss_mib": 623.3125,
+          "median_native_facts_seconds": 20.906,
+          "median_native_unattributed_seconds": 1.476472585,
+          "median_native_phase_seconds": {
+            "collect": 0.335563558,
+            "discovery": 7.705310126,
+            "encode": 0.147304041,
+            "export_load": 0.292002538,
+            "export_save": 0.534002652,
+            "fingerprint": 2.722100593,
+            "helper": 4.107758416,
+            "import": 0.00985657,
+            "link": 0.031981042,
+            "metadata": 0.036074542,
+            "other": 0.023794004,
+            "parse": 2.002389102,
+            "preflight": 0.27437525,
+            "type_check": 1.207014981
+          }
+        },
+        "review_reduction_percent": 5.182063562373484,
+        "peak_rss_increase_percent": 0.3597574781755597
+      }
+    }
+  },
+  "checks": {
+    "reviews": 20,
+    "all_packets_equal": true,
+    "new_head_full_cache_hits": 0,
+    "base_hits_match_mode": true,
+    "within_token_budget": true,
+    "maximum_tokens": 7673,
+    "exclusive_timings_fit_enclosing_phase": true
+  },
+  "validation": [
+    "12 Go top-level tests passed, including cache invalidation, export/transport bounds, unchanged facts with timings on/off and recursive timer accounting.",
+    "Rust numeric timing-filter test passed via rustc --test on the exact function and test module extracted from go_types.rs.",
+    "Both release binaries built successfully.",
+    "20 end-to-end review packets equal within each case, with expected cache hits and token bounds."
+  ],
+  "limitations": [
+    "Two samples per reuse arm and one cold control; older local archives, not the eight production probe PRs.",
+    "Only review timed; admission, collection, vendoring, cache priming, cloning and models excluded.",
+    "OS caches not flushed; unrelated machine activity uncontrolled. Cold controls vary materially despite no initial package cache, so the small total-time gain is not a robust production estimate.",
+    "Profiles/dependencies unchanged; full-pool loading with changed dependencies and reduced space for new exports was not evaluated.",
+    "Optional export rejection occurred in some runs and fell back to native checking; no packet drift.",
+    "Instrumentation changes the helper identity; a deployed instrumented build needs native caches to rebuild once."
+  ],
+  "decision": {
+    "default_load_limit_mib": 32,
+    "changed_default": false,
+    "reason": "Nexus shows a small local latency reduction at higher memory; platform-rbac does not benefit, cold controls vary, and changed-dependency workloads are untested.",
+    "next_target": "Amortize helper compilation across review calls using the existing process-local helper cache; profile/discuss package discovery next. Existing impact.report/graph.impact API can keep the process alive."
+  }
+}

@@ -1,0 +1,1622 @@
+{
+  "binaries": {
+    "before": {
+      "sha256": "686adb8ed2427c46f936bf38b7c38aa6688c735c955381dd21b058c47d9f993d"
+    },
+    "after": {
+      "sha256": "0bef1a3fbb77d7dc5bd1c3a7550bb3640a59fa650e0dd115df883746b36997ff"
+    }
+  },
+  "method": "Sequential ABBA; fresh sync then cold and warm review per arm; cold means no Graphicle analysis/package caches, not cold OS cache; local HTTP sync and CLI review; no models or dependency collection",
+  "cases": {
+    "nexus-963": {
+      "request_sha256": "5589923789c9a6adfdaff53a3df1a7c62a6d1a248425ae31ff878f132e8c373e",
+      "request": {
+        "base": [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "a86e65a21253acd52f03aebc62f2977b0ec2535a",
+            "snapshot": "a9788f4a1a4fbb62f988c161cb287bc358ced87d21c18ae6a59102fc29599b6e",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        "head": [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "6aa329c82bb45c18c3ffa6048af46d78e965ce09",
+            "snapshot": "3a4552c8fa7e1087dea283c1a0d234ec9f27aabc70528043a8ba6403d6ac7425",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        "profile": {
+          "goos": "linux",
+          "goarch": "amd64",
+          "tags": [
+            "vtprotobuf"
+          ],
+          "tests": false,
+          "workspace": ""
+        },
+        "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+        "max_tokens": 8000,
+        "compact_provenance": true
+      },
+      "sides": {
+        "base": {
+          "files": 4933,
+          "bytes": 53594487,
+          "unique_objects": 4855
+        },
+        "head": {
+          "files": 4934,
+          "bytes": 53621356,
+          "unique_objects": 4856
+        }
+      }
+    },
+    "platform-rbac-638": {
+      "request_sha256": "66d27a1e220f308e8ee3a65d0ba39f8f97e11b9dd5efb300ec99c57f42628171",
+      "request": {
+        "base": [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "fae5961c7b93cfab40437be096e9dce932ebfa81",
+            "snapshot": "e8dd67dd0caba706f4dd37deb84c8bbf9416bec1fdcd54e6b73b1457da761c8f",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        "head": [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "5a3db472eb4779530fa2f51afc1ebd424cca1955",
+            "snapshot": "6f14716ee443f331f0cce6848be03f16ed7fb528213c956492ab6ebba81e589c",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        "profile": {
+          "goos": "linux",
+          "goarch": "amd64",
+          "tags": [],
+          "tests": false,
+          "workspace": ""
+        },
+        "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+        "max_tokens": 8000,
+        "compact_provenance": true
+      },
+      "sides": {
+        "base": {
+          "files": 4586,
+          "bytes": 61366589,
+          "unique_objects": 4565
+        },
+        "head": {
+          "files": 4587,
+          "bytes": 61386794,
+          "unique_objects": 4566
+        }
+      }
+    }
+  },
+  "rows": [
+    {
+      "case": "nexus-963",
+      "arm": "before",
+      "order": 1,
+      "load_average_before": [
+        3.015625,
+        3.53857421875,
+        3.71923828125
+      ],
+      "sync": {
+        "seconds": 14.94664949993603,
+        "sides": {
+          "base": {
+            "seconds": 14.518189458991401,
+            "prepare_and_missing_seconds": 0.24321125110145658,
+            "upload_seconds": 2.4371874580392614,
+            "commit_seconds": 11.836084625101648,
+            "pages": 19,
+            "uploaded_objects": 4855,
+            "upload_calls": 108
+          },
+          "head": {
+            "seconds": 0.4283866670448333,
+            "prepare_and_missing_seconds": 0.055235000094398856,
+            "upload_seconds": 0.03237962501589209,
+            "commit_seconds": 0.3386350419605151,
+            "pages": 1,
+            "uploaded_objects": 16,
+            "upload_calls": 2
+          }
+        }
+      },
+      "cold": {
+        "seconds": 30.80259016691707,
+        "phase_ms": {
+          "review_load_base": 123,
+          "review_load_head": 131,
+          "review_provided_diff_validate": 0,
+          "review_materialize": 4561,
+          "review_native_facts": 21616,
+          "review_decode_facts": 140,
+          "review_analyze_base": 18959,
+          "review_analyze_head": 9804,
+          "review_service_links_base": 20,
+          "review_service_links_head": 19,
+          "review_compare": 311,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 126,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 154
+        },
+        "phase_peak_rss_mib": 763.4,
+        "process_peak_rss_bytes": 879869952,
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 1127,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 1126,
+              "misses": 1,
+              "rejected": 1
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2822,
+        "packet_equal": true
+      },
+      "warm": {
+        "seconds": 2.3815535419853404,
+        "phase_ms": {
+          "review_load_base": 122,
+          "review_load_head": 123,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 143,
+          "review_analyze_base": 395,
+          "review_analyze_head": 391,
+          "review_service_links_base": 20,
+          "review_service_links_head": 19,
+          "review_compare": 308,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 127,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 158
+        },
+        "phase_peak_rss_mib": 601.1,
+        "process_peak_rss_bytes": 630341632,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": true,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2822,
+        "packet_equal": true
+      },
+      "sync_plus_cold_seconds": 45.7492396668531
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "before",
+      "order": 1,
+      "load_average_before": [
+        5.16162109375,
+        4.05029296875,
+        3.8955078125
+      ],
+      "sync": {
+        "seconds": 16.209930874989368,
+        "sides": {
+          "base": {
+            "seconds": 15.847636041929945,
+            "prepare_and_missing_seconds": 0.22293420799542218,
+            "upload_seconds": 2.644858833984472,
+            "commit_seconds": 12.979170416016132,
+            "pages": 18,
+            "uploaded_objects": 4565,
+            "upload_calls": 125
+          },
+          "head": {
+            "seconds": 0.36222733301110566,
+            "prepare_and_missing_seconds": 0.050928042037412524,
+            "upload_seconds": 0.014617374981753528,
+            "commit_seconds": 0.29608404205646366,
+            "pages": 1,
+            "uploaded_objects": 21,
+            "upload_calls": 1
+          }
+        }
+      },
+      "cold": {
+        "seconds": 31.22181233309675,
+        "phase_ms": {
+          "review_load_base": 137,
+          "review_load_head": 136,
+          "review_provided_diff_validate": 0,
+          "review_materialize": 4221,
+          "review_native_facts": 22872,
+          "review_decode_facts": 114,
+          "review_analyze_base": 19808,
+          "review_analyze_head": 9633,
+          "review_service_links_base": 5,
+          "review_service_links_head": 4,
+          "review_compare": 343,
+          "review_execution_coverage": 4,
+          "review_reuse_scopes": 88,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 156
+        },
+        "phase_peak_rss_mib": 635.8,
+        "process_peak_rss_bytes": 674234368,
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 995,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 995,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12973,
+        "packet_equal": true
+      },
+      "warm": {
+        "seconds": 2.1173742080572993,
+        "phase_ms": {
+          "review_load_base": 137,
+          "review_load_head": 138,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 119,
+          "review_analyze_base": 319,
+          "review_analyze_head": 318,
+          "review_service_links_base": 5,
+          "review_service_links_head": 4,
+          "review_compare": 345,
+          "review_execution_coverage": 6,
+          "review_reuse_scopes": 89,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 159
+        },
+        "phase_peak_rss_mib": 616.0,
+        "process_peak_rss_bytes": 645922816,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": true,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12973,
+        "packet_equal": true
+      },
+      "sync_plus_cold_seconds": 47.43174320808612
+    },
+    {
+      "case": "nexus-963",
+      "arm": "after",
+      "order": 2,
+      "load_average_before": [
+        5.625,
+        4.4365234375,
+        4.0517578125
+      ],
+      "sync": {
+        "seconds": 15.20622654107865,
+        "sides": {
+          "base": {
+            "seconds": 14.79132804099936,
+            "prepare_and_missing_seconds": 0.311344753135927,
+            "upload_seconds": 2.622333291103132,
+            "commit_seconds": 11.857049457961693,
+            "pages": 19,
+            "uploaded_objects": 4855,
+            "upload_calls": 108
+          },
+          "head": {
+            "seconds": 0.4148358750389889,
+            "prepare_and_missing_seconds": 0.0476038750493899,
+            "upload_seconds": 0.0345572920050472,
+            "commit_seconds": 0.33192795794457197,
+            "pages": 1,
+            "uploaded_objects": 16,
+            "upload_calls": 2
+          }
+        }
+      },
+      "cold": {
+        "seconds": 30.491187582956627,
+        "phase_ms": {
+          "review_load_base": 122,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_load_package_cache": 2,
+          "review_materialize": 2183,
+          "review_native_facts": 23522,
+          "review_decode_facts": 137,
+          "review_analyze_base": 20434,
+          "review_analyze_head": 8166,
+          "review_service_links_base": 21,
+          "review_service_links_head": 20,
+          "review_compare": 329,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 130,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 175
+        },
+        "phase_peak_rss_mib": 706.8,
+        "process_peak_rss_bytes": 887193600,
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 1127,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 1126,
+              "misses": 1,
+              "rejected": 1
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2822,
+        "packet_equal": true
+      },
+      "warm": {
+        "seconds": 2.0067467079497874,
+        "phase_ms": {
+          "review_load_base": 123,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 137,
+          "review_analyze_base": 396,
+          "review_analyze_head": 394,
+          "review_service_links_base": 20,
+          "review_service_links_head": 19,
+          "review_compare": 317,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 130,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 164
+        },
+        "phase_peak_rss_mib": 515.1,
+        "process_peak_rss_bytes": 540164096,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": true,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2822,
+        "packet_equal": true
+      },
+      "sync_plus_cold_seconds": 45.69741412403528
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "after",
+      "order": 2,
+      "load_average_before": [
+        5.76953125,
+        4.76025390625,
+        4.20263671875
+      ],
+      "sync": {
+        "seconds": 16.520292708068155,
+        "sides": {
+          "base": {
+            "seconds": 16.162935375003144,
+            "prepare_and_missing_seconds": 0.3059606667375192,
+            "upload_seconds": 2.4440032499842346,
+            "commit_seconds": 13.41107995796483,
+            "pages": 18,
+            "uploaded_objects": 4565,
+            "upload_calls": 125
+          },
+          "head": {
+            "seconds": 0.35729050007648766,
+            "prepare_and_missing_seconds": 0.041724624927155674,
+            "upload_seconds": 0.01361316698603332,
+            "commit_seconds": 0.3012498340103775,
+            "pages": 1,
+            "uploaded_objects": 21,
+            "upload_calls": 1
+          }
+        }
+      },
+      "cold": {
+        "seconds": 29.87655529100448,
+        "phase_ms": {
+          "review_load_base": 138,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_load_package_cache": 4,
+          "review_materialize": 2036,
+          "review_native_facts": 23865,
+          "review_decode_facts": 123,
+          "review_analyze_base": 19426,
+          "review_analyze_head": 8842,
+          "review_service_links_base": 5,
+          "review_service_links_head": 4,
+          "review_compare": 348,
+          "review_execution_coverage": 6,
+          "review_reuse_scopes": 90,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 162
+        },
+        "phase_peak_rss_mib": 562.7,
+        "process_peak_rss_bytes": 662372352,
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 995,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 994,
+              "misses": 1,
+              "rejected": 1
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12973,
+        "packet_equal": true
+      },
+      "warm": {
+        "seconds": 1.9283805000595748,
+        "phase_ms": {
+          "review_load_base": 136,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 118,
+          "review_analyze_base": 329,
+          "review_analyze_head": 331,
+          "review_service_links_base": 5,
+          "review_service_links_head": 5,
+          "review_compare": 379,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 90,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 163
+        },
+        "phase_peak_rss_mib": 528.5,
+        "process_peak_rss_bytes": 554221568,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": true,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12973,
+        "packet_equal": true
+      },
+      "sync_plus_cold_seconds": 46.396847999072634
+    },
+    {
+      "case": "nexus-963",
+      "arm": "after",
+      "order": 3,
+      "load_average_before": [
+        6.02001953125,
+        5.0615234375,
+        4.3505859375
+      ],
+      "sync": {
+        "seconds": 15.348950208979659,
+        "sides": {
+          "base": {
+            "seconds": 14.9356784169795,
+            "prepare_and_missing_seconds": 0.32202495785895735,
+            "upload_seconds": 2.5325078750029206,
+            "commit_seconds": 12.080294499988668,
+            "pages": 19,
+            "uploaded_objects": 4855,
+            "upload_calls": 108
+          },
+          "head": {
+            "seconds": 0.4132061660056934,
+            "prepare_and_missing_seconds": 0.04453399998601526,
+            "upload_seconds": 0.03310154192149639,
+            "commit_seconds": 0.3348502500448376,
+            "pages": 1,
+            "uploaded_objects": 16,
+            "upload_calls": 2
+          }
+        }
+      },
+      "cold": {
+        "seconds": 30.356427749968134,
+        "phase_ms": {
+          "review_load_base": 124,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_load_package_cache": 2,
+          "review_materialize": 2239,
+          "review_native_facts": 23736,
+          "review_decode_facts": 141,
+          "review_analyze_base": 20331,
+          "review_analyze_head": 8274,
+          "review_service_links_base": 20,
+          "review_service_links_head": 19,
+          "review_compare": 323,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 128,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 161
+        },
+        "phase_peak_rss_mib": 701.8,
+        "process_peak_rss_bytes": 871841792,
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 1127,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 1126,
+              "misses": 1,
+              "rejected": 1
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2822,
+        "packet_equal": true
+      },
+      "warm": {
+        "seconds": 2.0336375000188127,
+        "phase_ms": {
+          "review_load_base": 125,
+          "review_load_head": 9,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 136,
+          "review_analyze_base": 393,
+          "review_analyze_head": 396,
+          "review_service_links_base": 20,
+          "review_service_links_head": 19,
+          "review_compare": 321,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 131,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 163
+        },
+        "phase_peak_rss_mib": 508.5,
+        "process_peak_rss_bytes": 533577728,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": true,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2822,
+        "packet_equal": true
+      },
+      "sync_plus_cold_seconds": 45.70537795894779
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "after",
+      "order": 3,
+      "load_average_before": [
+        7.02880859375,
+        5.45849609375,
+        4.54150390625
+      ],
+      "sync": {
+        "seconds": 16.384833249961957,
+        "sides": {
+          "base": {
+            "seconds": 16.032905917032622,
+            "prepare_and_missing_seconds": 0.3019867908442393,
+            "upload_seconds": 2.555942290928215,
+            "commit_seconds": 13.174357166979462,
+            "pages": 18,
+            "uploaded_objects": 4565,
+            "upload_calls": 125
+          },
+          "head": {
+            "seconds": 0.35186675004661083,
+            "prepare_and_missing_seconds": 0.04187216691207141,
+            "upload_seconds": 0.013359208009205759,
+            "commit_seconds": 0.29599820799194276,
+            "pages": 1,
+            "uploaded_objects": 21,
+            "upload_calls": 1
+          }
+        }
+      },
+      "cold": {
+        "seconds": 30.096970916958526,
+        "phase_ms": {
+          "review_load_base": 139,
+          "review_load_head": 7,
+          "review_provided_diff_validate": 0,
+          "review_load_package_cache": 2,
+          "review_materialize": 2158,
+          "review_native_facts": 23698,
+          "review_decode_facts": 122,
+          "review_analyze_base": 19433,
+          "review_analyze_head": 9093,
+          "review_service_links_base": 5,
+          "review_service_links_head": 4,
+          "review_compare": 345,
+          "review_execution_coverage": 6,
+          "review_reuse_scopes": 90,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 161
+        },
+        "phase_peak_rss_mib": 564.6,
+        "process_peak_rss_bytes": 664256512,
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 995,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 995,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12973,
+        "packet_equal": true
+      },
+      "warm": {
+        "seconds": 1.9857674160739407,
+        "phase_ms": {
+          "review_load_base": 136,
+          "review_load_head": 8,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 113,
+          "review_analyze_base": 330,
+          "review_analyze_head": 324,
+          "review_service_links_base": 5,
+          "review_service_links_head": 4,
+          "review_compare": 349,
+          "review_execution_coverage": 6,
+          "review_reuse_scopes": 89,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 165
+        },
+        "phase_peak_rss_mib": 529.1,
+        "process_peak_rss_bytes": 554827776,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": true,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12973,
+        "packet_equal": true
+      },
+      "sync_plus_cold_seconds": 46.48180416692048
+    },
+    {
+      "case": "nexus-963",
+      "arm": "before",
+      "order": 4,
+      "load_average_before": [
+        6.55908203125,
+        5.60302734375,
+        4.6552734375
+      ],
+      "sync": {
+        "seconds": 15.347684667096473,
+        "sides": {
+          "base": {
+            "seconds": 14.924132957938127,
+            "prepare_and_missing_seconds": 0.2992043362464756,
+            "upload_seconds": 2.464128916966729,
+            "commit_seconds": 12.159165624994785,
+            "pages": 19,
+            "uploaded_objects": 4855,
+            "upload_calls": 108
+          },
+          "head": {
+            "seconds": 0.4234837089898065,
+            "prepare_and_missing_seconds": 0.051092749927192926,
+            "upload_seconds": 0.03572883293963969,
+            "commit_seconds": 0.33590179204475135,
+            "pages": 1,
+            "uploaded_objects": 16,
+            "upload_calls": 2
+          }
+        }
+      },
+      "cold": {
+        "seconds": 33.26219237502664,
+        "phase_ms": {
+          "review_load_base": 126,
+          "review_load_head": 125,
+          "review_provided_diff_validate": 0,
+          "review_materialize": 4719,
+          "review_native_facts": 23863,
+          "review_decode_facts": 140,
+          "review_analyze_base": 21239,
+          "review_analyze_head": 9983,
+          "review_service_links_base": 23,
+          "review_service_links_head": 20,
+          "review_compare": 328,
+          "review_execution_coverage": 6,
+          "review_reuse_scopes": 131,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 162
+        },
+        "phase_peak_rss_mib": 762.1,
+        "process_peak_rss_bytes": 880082944,
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 1127,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 1127,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2822,
+        "packet_equal": true
+      },
+      "warm": {
+        "seconds": 2.4095201670425013,
+        "phase_ms": {
+          "review_load_base": 125,
+          "review_load_head": 126,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 149,
+          "review_analyze_base": 401,
+          "review_analyze_head": 402,
+          "review_service_links_base": 21,
+          "review_service_links_head": 20,
+          "review_compare": 320,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 130,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 161
+        },
+        "phase_peak_rss_mib": 605.2,
+        "process_peak_rss_bytes": 634617856,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": true,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 4,
+        "impact": "incomplete",
+        "issue_count": 2822,
+        "packet_equal": true
+      },
+      "sync_plus_cold_seconds": 48.60987704212312
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "before",
+      "order": 4,
+      "load_average_before": [
+        4.7294921875,
+        5.23291015625,
+        4.58154296875
+      ],
+      "sync": {
+        "seconds": 16.334330625017174,
+        "sides": {
+          "base": {
+            "seconds": 15.943406916921958,
+            "prepare_and_missing_seconds": 0.23317096044775099,
+            "upload_seconds": 2.445344166015275,
+            "commit_seconds": 13.264200083911419,
+            "pages": 18,
+            "uploaded_objects": 4565,
+            "upload_calls": 125
+          },
+          "head": {
+            "seconds": 0.39086620905436575,
+            "prepare_and_missing_seconds": 0.050897291977889836,
+            "upload_seconds": 0.017663249978795648,
+            "commit_seconds": 0.32168625004123896,
+            "pages": 1,
+            "uploaded_objects": 21,
+            "upload_calls": 1
+          }
+        }
+      },
+      "cold": {
+        "seconds": 31.4367248340277,
+        "phase_ms": {
+          "review_load_base": 140,
+          "review_load_head": 147,
+          "review_provided_diff_validate": 0,
+          "review_materialize": 4258,
+          "review_native_facts": 23091,
+          "review_decode_facts": 114,
+          "review_analyze_base": 20268,
+          "review_analyze_head": 9417,
+          "review_service_links_base": 5,
+          "review_service_links_head": 4,
+          "review_compare": 346,
+          "review_execution_coverage": 5,
+          "review_reuse_scopes": 90,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 158
+        },
+        "phase_peak_rss_mib": 636.3,
+        "process_peak_rss_bytes": 672104448,
+        "analysis_cache": {
+          "base_hit": false,
+          "head_hit": false,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 995,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 994,
+              "misses": 1,
+              "rejected": 1
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12973,
+        "packet_equal": true
+      },
+      "warm": {
+        "seconds": 2.1469663329189643,
+        "phase_ms": {
+          "review_load_base": 139,
+          "review_load_head": 138,
+          "review_provided_diff_validate": 0,
+          "review_decode_facts": 121,
+          "review_analyze_base": 321,
+          "review_analyze_head": 321,
+          "review_service_links_base": 5,
+          "review_service_links_head": 4,
+          "review_compare": 344,
+          "review_execution_coverage": 6,
+          "review_reuse_scopes": 90,
+          "review_reuse_decisions": 0,
+          "review_provided_diff_annotate": 0,
+          "review_pack": 160
+        },
+        "phase_peak_rss_mib": 611.8,
+        "process_peak_rss_bytes": 641482752,
+        "analysis_cache": {
+          "base_hit": true,
+          "head_hit": true,
+          "granularity": "go_inputs_with_file_inventory",
+          "packages": {
+            "scope": "repository",
+            "includes_standard_library": true,
+            "base": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            },
+            "head": {
+              "hits": 0,
+              "misses": 0,
+              "rejected": 0
+            }
+          }
+        },
+        "entries": 5,
+        "impact": "incomplete",
+        "issue_count": 12973,
+        "packet_equal": true
+      },
+      "sync_plus_cold_seconds": 47.771055459044874
+    }
+  ],
+  "complete": true,
+  "date": "2026-11-04",
+  "baseline_commit": "fcddad5b93bbb52d2e287ec9d8fed3957862b858",
+  "candidate_commit": "4e0b9965c0a9361e94e7330714265a417a5d8cdb",
+  "environment": {
+    "os": "macOS-26.6-arm64-arm-64bit-Mach-O",
+    "architecture": "arm64",
+    "logical_cpus": 18,
+    "rust": "1.94.1 release profile, thin LTO, codegen-units=1",
+    "go": "go version go1.27.3 darwin/arm64",
+    "python": "3.15.1"
+  },
+  "aggregates": {
+    "nexus-963": {
+      "sync_seconds": {
+        "samples": {
+          "before": [
+            14.94664949993603,
+            15.347684667096473
+          ],
+          "after": [
+            15.20622654107865,
+            15.348950208979659
+          ]
+        },
+        "median": {
+          "before": 15.147167083516251,
+          "after": 15.277588375029154
+        },
+        "reduction_percent": -0.8610276152220653
+      },
+      "cold_review_seconds": {
+        "samples": {
+          "before": [
+            30.80259016691707,
+            33.26219237502664
+          ],
+          "after": [
+            30.491187582956627,
+            30.356427749968134
+          ]
+        },
+        "median": {
+          "before": 32.03239127097186,
+          "after": 30.42380766646238
+        },
+        "reduction_percent": 5.021740621553894
+      },
+      "warm_review_seconds": {
+        "samples": {
+          "before": [
+            2.3815535419853404,
+            2.4095201670425013
+          ],
+          "after": [
+            2.0067467079497874,
+            2.0336375000188127
+          ]
+        },
+        "median": {
+          "before": 2.395536854513921,
+          "after": 2.0201921039843
+        },
+        "reduction_percent": 15.668502441210908
+      },
+      "sync_plus_cold_seconds": {
+        "samples": {
+          "before": [
+            45.7492396668531,
+            48.60987704212312
+          ],
+          "after": [
+            45.69741412403528,
+            45.70537795894779
+          ]
+        },
+        "median": {
+          "before": 47.17955835448811,
+          "after": 45.701396041491535
+        },
+        "reduction_percent": 3.133056697755121
+      },
+      "cold_peak_rss_mib": {
+        "samples": {
+          "before": [
+            839.109375,
+            839.3125
+          ],
+          "after": [
+            846.09375,
+            831.453125
+          ]
+        },
+        "median": {
+          "before": 839.2109375,
+          "after": 838.7734375
+        },
+        "reduction_percent": 0.05213230434094607
+      },
+      "warm_peak_rss_mib": {
+        "samples": {
+          "before": [
+            601.140625,
+            605.21875
+          ],
+          "after": [
+            515.140625,
+            508.859375
+          ]
+        },
+        "median": {
+          "before": 603.1796875,
+          "after": 512.0
+        },
+        "reduction_percent": 15.116504980118384
+      },
+      "cold_source_load_ms": {
+        "samples": {
+          "before": [
+            254,
+            251
+          ],
+          "after": [
+            130,
+            132
+          ]
+        },
+        "median": {
+          "before": 252.5,
+          "after": 131.0
+        },
+        "reduction_percent": 48.118811881188115
+      },
+      "cold_materialize_ms": {
+        "samples": {
+          "before": [
+            4561,
+            4719
+          ],
+          "after": [
+            2183,
+            2239
+          ]
+        },
+        "median": {
+          "before": 4640.0,
+          "after": 2211.0
+        },
+        "reduction_percent": 52.349137931034484
+      },
+      "cold_native_facts_ms": {
+        "samples": {
+          "before": [
+            21616,
+            23863
+          ],
+          "after": [
+            23522,
+            23736
+          ]
+        },
+        "median": {
+          "before": 22739.5,
+          "after": 23629.0
+        },
+        "reduction_percent": -3.9116955078168036
+      },
+      "cold_compare_ms": {
+        "samples": {
+          "before": [
+            311,
+            328
+          ],
+          "after": [
+            329,
+            323
+          ]
+        },
+        "median": {
+          "before": 319.5,
+          "after": 326.0
+        },
+        "reduction_percent": -2.0344287949921824
+      },
+      "cold_pack_ms": {
+        "samples": {
+          "before": [
+            154,
+            162
+          ],
+          "after": [
+            175,
+            161
+          ]
+        },
+        "median": {
+          "before": 158.0,
+          "after": 168.0
+        },
+        "reduction_percent": -6.329113924050622
+      },
+      "sync_discovery_seconds": {
+        "samples": {
+          "before": [
+            0.29844625119585544,
+            0.3502970861736685
+          ],
+          "after": [
+            0.3589486281853169,
+            0.3665589578449726
+          ]
+        },
+        "median": {
+          "before": 0.32437166868476197,
+          "after": 0.36275379301514477
+        },
+        "reduction_percent": -11.832761007153225
+      },
+      "sync_upload_seconds": {
+        "samples": {
+          "before": [
+            2.4695670830551535,
+            2.4998577499063686
+          ],
+          "after": [
+            2.6568905831081793,
+            2.565609416924417
+          ]
+        },
+        "median": {
+          "before": 2.484712416480761,
+          "after": 2.611250000016298
+        },
+        "reduction_percent": -5.092645035949861
+      },
+      "sync_commit_seconds": {
+        "samples": {
+          "before": [
+            12.174719667062163,
+            12.495067417039536
+          ],
+          "after": [
+            12.188977415906265,
+            12.415144750033505
+          ]
+        },
+        "median": {
+          "before": 12.33489354205085,
+          "after": 12.302061082969885
+        },
+        "reduction_percent": 0.26617545558083044
+      }
+    },
+    "platform-rbac-638": {
+      "sync_seconds": {
+        "samples": {
+          "before": [
+            16.209930874989368,
+            16.334330625017174
+          ],
+          "after": [
+            16.520292708068155,
+            16.384833249961957
+          ]
+        },
+        "median": {
+          "before": 16.27213075000327,
+          "after": 16.452562979015056
+        },
+        "reduction_percent": -1.108842055068604
+      },
+      "cold_review_seconds": {
+        "samples": {
+          "before": [
+            31.22181233309675,
+            31.4367248340277
+          ],
+          "after": [
+            29.87655529100448,
+            30.096970916958526
+          ]
+        },
+        "median": {
+          "before": 31.329268583562225,
+          "after": 29.986763103981502
+        },
+        "reduction_percent": 4.285147851441085
+      },
+      "warm_review_seconds": {
+        "samples": {
+          "before": [
+            2.1173742080572993,
+            2.1469663329189643
+          ],
+          "after": [
+            1.9283805000595748,
+            1.9857674160739407
+          ]
+        },
+        "median": {
+          "before": 2.132170270488132,
+          "after": 1.9570739580667578
+        },
+        "reduction_percent": 8.21211677345487
+      },
+      "sync_plus_cold_seconds": {
+        "samples": {
+          "before": [
+            47.43174320808612,
+            47.771055459044874
+          ],
+          "after": [
+            46.396847999072634,
+            46.48180416692048
+          ]
+        },
+        "median": {
+          "before": 47.601399333565496,
+          "after": 46.43932608299656
+        },
+        "reduction_percent": 2.4412585907942375
+      },
+      "cold_peak_rss_mib": {
+        "samples": {
+          "before": [
+            643.0,
+            640.96875
+          ],
+          "after": [
+            631.6875,
+            633.484375
+          ]
+        },
+        "median": {
+          "before": 641.984375,
+          "after": 632.5859375
+        },
+        "reduction_percent": 1.4639667047971372
+      },
+      "warm_peak_rss_mib": {
+        "samples": {
+          "before": [
+            616.0,
+            611.765625
+          ],
+          "after": [
+            528.546875,
+            529.125
+          ]
+        },
+        "median": {
+          "before": 613.8828125,
+          "after": 528.8359375
+        },
+        "reduction_percent": 13.85392672155974
+      },
+      "cold_source_load_ms": {
+        "samples": {
+          "before": [
+            273,
+            287
+          ],
+          "after": [
+            146,
+            146
+          ]
+        },
+        "median": {
+          "before": 280.0,
+          "after": 146.0
+        },
+        "reduction_percent": 47.857142857142854
+      },
+      "cold_materialize_ms": {
+        "samples": {
+          "before": [
+            4221,
+            4258
+          ],
+          "after": [
+            2036,
+            2158
+          ]
+        },
+        "median": {
+          "before": 4239.5,
+          "after": 2097.0
+        },
+        "reduction_percent": 50.53661988442033
+      },
+      "cold_native_facts_ms": {
+        "samples": {
+          "before": [
+            22872,
+            23091
+          ],
+          "after": [
+            23865,
+            23698
+          ]
+        },
+        "median": {
+          "before": 22981.5,
+          "after": 23781.5
+        },
+        "reduction_percent": -3.481060853295048
+      },
+      "cold_compare_ms": {
+        "samples": {
+          "before": [
+            343,
+            346
+          ],
+          "after": [
+            348,
+            345
+          ]
+        },
+        "median": {
+          "before": 344.5,
+          "after": 346.5
+        },
+        "reduction_percent": -0.5805515239477588
+      },
+      "cold_pack_ms": {
+        "samples": {
+          "before": [
+            156,
+            158
+          ],
+          "after": [
+            162,
+            161
+          ]
+        },
+        "median": {
+          "before": 157.0,
+          "after": 161.5
+        },
+        "reduction_percent": -2.866242038216571
+      },
+      "sync_discovery_seconds": {
+        "samples": {
+          "before": [
+            0.2738622500328347,
+            0.2840682524256408
+          ],
+          "after": [
+            0.3476852916646749,
+            0.3438589577563107
+          ]
+        },
+        "median": {
+          "before": 0.27896525122923777,
+          "after": 0.3457721247104928
+        },
+        "reduction_percent": -23.94809862048264
+      },
+      "sync_upload_seconds": {
+        "samples": {
+          "before": [
+            2.6594762089662254,
+            2.4630074159940705
+          ],
+          "after": [
+            2.457616416970268,
+            2.5693014989374205
+          ]
+        },
+        "median": {
+          "before": 2.561241812480148,
+          "after": 2.513458957953844
+        },
+        "reduction_percent": 1.8656127778904907
+      },
+      "sync_commit_seconds": {
+        "samples": {
+          "before": [
+            13.275254458072595,
+            13.585886333952658
+          ],
+          "after": [
+            13.712329791975208,
+            13.470355374971405
+          ]
+        },
+        "median": {
+          "before": 13.430570396012627,
+          "after": 13.591342583473306
+        },
+        "reduction_percent": -1.197061500146046
+      }
+    }
+  },
+  "scope": "Older local archives: Nexus #963 and platform-rbac #638. Not the eight production probe PRs. Sources and profiles preserved; new identical requests use an 8000-token budget, compact provenance and no history or provided_diff. No dependency collection or model calls.",
+  "timing_limits": "Two runs per arm in ABBA order. Fresh project sync and CLI review measured; seed preparation, service init/start/stop, vendoring and collector work excluded. sync_plus_cold_seconds is a sum of measured stages, not complete Sentinel latency. Warm means repeating identical pins with full native-analysis hits. OS/filesystem caches were not flushed. No build/test workload was run alongside timing; other machine activity was not controlled (OS process inventory denied).",
+  "memory_method": "os.wait4 child rusage ru_maxrss, macOS bytes, converted to MiB in aggregates; command high-water RSS, not simultaneous process-tree total. Per-phase peak_rss_mib is Graphicle RUSAGE_SELF high-water RSS and excludes native subprocesses.",
+  "equality": "All 16 packets equal within each case after excluding only analysis_cache and tokens, including packet_id, entries, diffs, context order, coverage and impact.",
+  "excluded_attempt": "Initial baseline-only attempt completed a valid review but /usr/bin/time -l exited nonzero because sysctl kern.clockrate was denied. It was excluded before any candidate measurement; complete ABBA series rerun with wait4.",
+  "executed_harness_sha256": "7da2297d37e27f2cb08570814a500ad9db32869834cd6c81d8fcc942db2ea852",
+  "replay_tool": "crates/graphicle/tools/benchmark_pinned_review.py",
+  "raw_artifacts": "/private/tmp/graphicle-local-review-perf-20261104/results-v2",
+  "packet_bounds": {
+    "checked": 16,
+    "max_tokens_requested": 8000,
+    "max_tokens_observed": 7651
+  }
+}

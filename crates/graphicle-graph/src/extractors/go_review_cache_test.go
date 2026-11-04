@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestPackageExportExpansionBound(t *testing.T) {
@@ -53,6 +54,7 @@ func TestDependencyExportsPreserveFactsAndInvalidate(t *testing.T) {
 	owned := "package app\nimport (\"example/dep\";\"example/dep/left\";\"example/dep/right\")\ntype Local struct{dep.T}\nfunc Entry(i interface{Run() int}) int {v:=right.F(left.F()); _=dep.Box[dep.Alias]{Value:v}; f:=dep.F[int]; _=f(1); g:=v.Run; return g()+i.Run()}\n"
 	write("main.go", owned)
 	request := reviewRequest{Roots: []reviewRoot{{Directory: "app", Module: "."}}, GOOS: "linux", GOARCH: "amd64", CacheIdentity: "test-v1"}
+	timings := false
 	run := func(entries map[string]string) (json.RawMessage, reviewCacheResult) {
 		t.Helper()
 		request.PackageCache = entries
@@ -61,7 +63,18 @@ func TestDependencyExportsPreserveFactsAndInvalidate(t *testing.T) {
 		cmd.Dir = root
 		cmd.Stdin = bytes.NewReader(payload)
 		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "CGO_ENABLED=0")
+
+		timingValue := "0"
+		if timings {
+			timingValue = "1"
+		}
+		cmd.Env = append(cmd.Env, "GRAPHICLE_PHASE_TIMINGS="+timingValue)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
 		out, err := cmd.Output()
+		if timings != strings.Contains(stderr.String(), "go_phase=type_check ns=") {
+			t.Fatalf("timing opt-in mismatch: %s", stderr.String())
+		}
 		if err != nil {
 			if e, ok := err.(*exec.ExitError); ok {
 				t.Fatalf("run: %v %s", err, e.Stderr)
@@ -106,6 +119,9 @@ func TestDependencyExportsPreserveFactsAndInvalidate(t *testing.T) {
 			t.Fatalf("facts differ\nfresh: %s\ncached: %s", a, b)
 		}
 	}
+	timings = true
+	instrumented, _ := run(nil)
+	assertSame(cold, instrumented)
 	warm, hits := run(created.Entries)
 	assertSame(cold, warm)
 	if hits.Hits != 3 || hits.Misses != 0 {
@@ -219,5 +235,35 @@ func TestFullOptionalCacheKeepsArtifactsAndCountersWithinTransport(t *testing.T)
 		if limit == 10000 && len(envelope.Cache.Entries) != 10 {
 			t.Fatal("discarded artifacts that fit")
 		}
+	}
+}
+
+// Recursive/nested phases partition elapsed time rather than accumulating
+// inclusive parent time on top of child time.
+func TestReviewTimingsPartitionNestedImports(t *testing.T) {
+	nativeReviewTimings = &reviewTimings{totals: map[string]time.Duration{}}
+	defer func() { nativeReviewTimings = nil }()
+	outer := reviewPhase("type_check")
+	started := nativeReviewTimings.since
+	load := reviewPhase("export_load")
+	inner := reviewPhase("type_check")
+	inner()
+	if nativeReviewTimings.active != "export_load" {
+		t.Fatal("lost parent phase")
+	}
+	load()
+	if nativeReviewTimings.active != "type_check" {
+		t.Fatal("lost outer phase")
+	}
+	outer()
+	if nativeReviewTimings.active != "" {
+		t.Fatal("unbalanced phases")
+	}
+	var total time.Duration
+	for _, duration := range nativeReviewTimings.totals {
+		total += duration
+	}
+	if total != nativeReviewTimings.since.Sub(started) {
+		t.Fatal("nested time counted twice")
 	}
 }

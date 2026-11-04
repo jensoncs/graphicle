@@ -421,3 +421,430 @@ sizes, and verify covering-index use without reading source payloads. The broade
 suite covers compiler facts/caches, source admission, context selection and
 packet behavior. The benchmark passed every byte comparison. `git diff --check`
 passed.
+
+## Local release replay across all four optimizations (2026-11-04)
+
+Compared fcddad5 with 4e0b996: cache refresh, missing-list batching, scratch-tree
+materialization and shared source loading/batched retention. Both were built with
+Rust 1.94.1's release profile on the same local macOS ARM machine. No builds or
+other test workloads ran alongside the measurements; unrelated machine activity
+was not controlled. These are two samples per arm, not a production latency SLA
+or a statistical confidence estimate.
+
+The eight production probe archives were unavailable locally. Instead, this uses
+two older real archives: Nexus #963 (Go scope `xlr8`) and platform-rbac #638 (root
+Go module). The archived commits, source hashes and build profiles are preserved.
+The controlled requests use 8,000 tokens, compact provenance, no business history
+and no `provided_diff`. Nexus has 4,933/4,934 paths and about 51 MiB per side;
+platform-rbac has 4,586/4,587 paths and about 59 MiB per side. More than 99% of head
+paths are unchanged. All source objects passed size and hash verification.
+
+Each arm starts with an empty project, syncs base and head through local HTTP,
+then runs cold and warm CLI reviews. Before/after/after/before order gives eight
+fresh syncs and 16 review calls. Cold means empty Graphicle native-analysis and
+package caches, not cold OS/filesystem caches. Every warm call hit both full
+native-analysis caches. Server initialization/lifecycle, seed preparation,
+repository collection, vendoring and model calls are excluded. `Sync + cold`
+adds the two measured stages; it is not the full Sentinel review duration.
+
+| Case | Fresh sync, before → after | Cold review, before → after | Warm review, before → after | Sync + cold, before → after |
+| --- | ---: | ---: | ---: | ---: |
+| Nexus #963 | 15.15 → 15.28 s | 32.03 → 30.42 s (5.0% lower) | 2.40 → 2.02 s (15.7% lower) | 47.18 → 45.70 s (3.1% lower) |
+| platform-rbac #638 | 16.27 → 16.45 s | 31.33 → 29.99 s (4.3% lower) | 2.13 → 1.96 s (8.2% lower) | 47.60 → 46.44 s (2.4% lower) |
+
+Values are medians. Sync did not improve in these release-build cases. Discovery
+(prepare plus missing pages) rose from 0.324 to 0.363 s on Nexus and 0.279 to
+0.346 s on platform-rbac, despite the earlier unoptimized pagination benchmark's
+gain. This small local cohort does not establish the release-build behavior at
+20,000–50,000 files. Sync commit/indexing still takes about 12–14 seconds and
+dominates first admission; missing-list discovery is a small part of that cost.
+
+| Cold-review phase | Nexus, before → after | platform-rbac, before → after |
+| --- | ---: | ---: |
+| Source loading, both sides | 253 → 131 ms | 280 → 146 ms |
+| Scratch-tree creation, both sides | 4.640 → 2.211 s | 4.240 → 2.097 s |
+| Native Go facts, both sides | 22.740 → 23.629 s | 22.982 → 23.782 s |
+| Compare | 320 → 326 ms | 345 → 347 ms |
+| Pack | 158 → 168 ms | 157 → 162 ms |
+
+The source-loading and scratch-creation improvements hold in the complete review,
+but native Go analysis takes 78–79% of candidate cold-review time. It was slightly
+slower in these samples and was not optimized by these changes. The aggregate
+gain is consequently much smaller than the isolated microbenchmark gains.
+Cache reuse and native Go profiling are the next large opportunities; these
+results do not justify claiming that Nexus #1009 now fits 180 seconds.
+
+| Case | Cold command peak RSS, before → after | Warm command peak RSS, before → after |
+| --- | ---: | ---: |
+| Nexus #963 | 839.2 → 838.8 MiB | 603.2 → 512.0 MiB (15.1% lower) |
+| platform-rbac #638 | 642.0 → 632.6 MiB | 613.9 → 528.8 MiB (13.9% lower) |
+
+Memory uses `os.wait4` child `ru_maxrss` (macOS bytes), not a simultaneous
+process-tree total. Per-phase Graphicle high-water RSS is also retained in the
+raw samples. An initial baseline-only attempt was excluded before candidate
+measurement because `/usr/bin/time -l` failed on a denied `kern.clockrate` query
+after Graphicle completed successfully; the entire ABBA series was then run
+using `wait4`.
+
+All 16 packets were identical within each case after excluding only
+`analysis_cache` and `tokens`, including packet IDs, entries, diffs, ordering,
+coverage and impact. All respected the 8,000-token bound (maximum observed 7,651).
+Nexus retained four entries and platform-rbac five. Impact stayed `incomplete`
+with the same issue counts (2,822 and 12,973); performance changes do not close
+the archived inputs' analysis gaps. No model was called and nothing was deployed.
+
+[Raw samples, phase timings, binary hashes and method](local-pinned-review-performance-20261104.json).
+The reusable [replay tool](../../crates/graphicle/tools/benchmark_pinned_review.py)
+accepts matching binaries, a JSON case list (`name`, `source_store`, `request`),
+and a new output directory. It reads archived stores without modifying them and
+keeps source bytes, credentials and raw packets in private scratch directories.
+Its current fixture scope is one repository and at most 5,000 paths per side.
+The eight-PR production comparison still requires its archived stores/requests.
+
+## Cache reuse with a new head (2026-11-04)
+
+Tested the existing release binary at 4e0b996 on later archived heads of the same
+two repositories. Base pins stayed unchanged; Nexus changed three owned paths and
+platform-rbac one. All 4,523 Nexus and 4,144 platform-rbac dependency/configuration
+paths were unchanged, including vendor files and Go module/workspace files.
+Every archived object passed hash and size verification. Normal sync admission
+into private copies preserved the previously populated caches.
+
+Each measured review started from an independent copy of the previous review's
+state. The order was cold, packages-only, normal-reuse, normal-reuse,
+packages-only, cold, with both repositories in every pass. Cold removes both
+Graphicle caches; packages-only retains exports but removes full analyses;
+normal-reuse retains both. No run hit the new head's full-analysis cache, and only
+normal-reuse hit the unchanged base's full-analysis cache. Cold still benefits
+from package reuse between base and head within its own review.
+
+| Case | Cold review | Dependency exports only | Exports + unchanged base analysis |
+| --- | ---: | ---: | ---: |
+| Nexus #963 | 28.24 s | 25.82 s (8.6% lower) | 17.26 s (38.9% lower) |
+| platform-rbac #638 | 26.52 s | 22.70 s (14.4% lower) | 15.05 s (43.3% lower) |
+
+Values are medians of two samples. Nexus ranges were 28.21–28.27, 25.63–26.02
+and 17.24–17.28 seconds; platform-rbac ranges were 26.35–26.69, 22.27–23.13
+and 14.98–15.12 seconds. Native-facts medians fell from 21.51 to 19.07 to
+12.54 seconds on Nexus, and 20.42 to 16.61 to 10.87 seconds on platform-rbac.
+Command peak RSS medians were 823.4 / 705.3 / 587.0 MiB for Nexus and
+637.7 / 565.7 / 565.8 MiB for platform-rbac, using `os.wait4` as above.
+
+Nexus saved 1,127 exports totaling 57.0 MiB, but `review_cache::load_packages`
+loads at most 32 MiB, reserving half the 64 MiB pool for newly checked packages.
+It reused 578 exports on the first analyzed side, with 549 misses. Platform-rbac's
+995 exports fit in 20.1 MiB and all hit. This bounds Nexus reuse, but does not
+explain all native-analysis time: platform-rbac still spends 10.87 seconds there
+with full export reuse and cached base facts. A separate experiment on the load
+policy should measure time, memory and packet equality before changing it.
+
+All 12 packets were equal within each case after excluding only `analysis_cache`
+and `tokens`; all respected 8,000 tokens (maximum 7,629). The new heads produced
+four/five entries and unchanged `incomplete` impact across arms, with 2,856/12,976
+issues. This establishes cache reuse without semantic drift on these fixtures,
+not a fix for their analysis gaps.
+
+This measures existing behavior; no production code or cache policy changed.
+The immediate benefit requires retaining the repository store/anchor across
+reviews so existing cache entries remain available. Admission, store preparation,
+collection, vendoring and model calls are outside the timed review. OS caches
+were not flushed. These older local archives are not the eight production PRs;
+two samples do not establish production latency or that Nexus #1009 meets its
+deadline. The initial attempt stopped during untimed setup on an older binding
+schema; the driver now handles absent `withheld_paths`, and all reported samples
+come from the complete second run.
+
+[Raw samples, pins, phase timings and aggregates](next-head-cache-reuse-20261104.json).
+The [cache-reuse driver](../../crates/graphicle/tools/benchmark_review_cache_reuse.py)
+accepts `--binary`, `--cases` and a new `--output` directory. Each case supplies
+`name`, `seed_store`, `archive_store`, `previous_request` and `next_snapshot`.
+Original stores are read-only; cloning, admission and cache deletion occur only
+in private scratch copies. Credentials and source contents stay out of the
+published evidence.
+
+## Go subphase profiling and cache-load experiment (2026-11-04)
+
+`GRAPHICLE_PHASE_TIMINGS=1` now also emits `go_phase=<name> ns=<duration>` to
+stderr. `helper` measures preparation of the native executable, including its
+first compilation in a process. Native phases are exclusive wall time: nested
+imports pause their parent's timer, including recursive fingerprinting and
+type-checking. The phases are `preflight`, `discovery` (`go list`), `metadata`,
+`fingerprint`, `export_load`, `export_save`, `parse`, `type_check`, `collect`
+(symbols/references), `link`, `encode`, `import` (remaining importer work), and
+`other`. Sum native phases once, then add helper preparation; the enclosing
+`review_native_facts` also includes transport, request decoding and process
+overhead. Timings are absent from packets and cached facts. Rust forwards only
+known phase names and numeric durations, never arbitrary subprocess stderr.
+
+The helper source changed, so its compiler-cache identity changes too. A rollout
+of this instrumentation requires native caches to be rebuilt once. For this
+experiment, prior A→B reviews were re-primed with the new helper, then independent
+copies reviewed A→C. Both variants contain identical instrumentation and differ
+only at `review_cache::load_packages`: the existing `PACKAGE_BYTES / 2` (32 MiB)
+load threshold versus `PACKAGE_BYTES` (64 MiB). The pool/store limits remain
+64 MiB, with unchanged entry bounds, access checks and fingerprint validation.
+The experimental threshold is confined to a saved binary; the working tree
+retains 32 MiB loading and its reservation for newly checked dependencies.
+
+The [comparison driver](../../crates/graphicle/tools/benchmark_review_cache_limit.py)
+takes `--baseline`, `--candidate`, `--cases` and a new `--output` directory.
+Each case has `name`, `seed_store`, `previous_request` and `next_request`; the
+seed must already admit all requested snapshots. It clears compiler caches only
+in private copies, primes the same baseline helper identity, and compares each
+case in 32/64/64/32 order for normal reuse and exports-only reuse. One cold-cache
+control per policy/case follows. Every new head must miss full-analysis reuse,
+and the base must hit only for normal reuse. It checks whole-packet equality
+excluding only `analysis_cache` and `tokens`, and enforces the token budget.
+
+As above, these are older local Nexus #963 and platform-rbac #638 archives with
+unchanged dependencies, not the eight production probe PRs. Two samples per
+reuse arm and one cold control do not establish production latency. CLI review
+is timed; priming, cloning, collection, vendoring, admission and models are
+excluded. No compilation or tests run alongside measured reviews, and OS caches
+are not flushed. A full 64 MiB load leaves less room for new exports; the
+unchanged-dependency cases do not establish behavior when dependencies change.
+
+| Case / cache state | 32 MiB load | 64 MiB load | Command peak RSS, 32 → 64 |
+| --- | ---: | ---: | ---: |
+| Nexus, unchanged base + exports | 17.45 s | 16.58 s (5.0% lower) | 584.3 → 654.4 MiB (+12.0%) |
+| platform-rbac, unchanged base + exports | 15.16 s | 15.31 s (1.0% higher) | 560.7 → 564.7 MiB |
+| Nexus, exports only | 27.20 s | 25.79 s (5.2% lower) | 707.9 → 712.7 MiB |
+| platform-rbac, exports only | 24.93 s | 26.78 s (7.4% higher) | 565.7 → 569.8 MiB |
+| Nexus, cold control (one sample) | 31.06 s | 28.74 s | 826.2 → 843.5 MiB |
+| platform-rbac, cold control (one sample) | 28.78 s | 27.29 s | 621.1 → 623.3 MiB |
+
+Reuse values are medians. Nexus normal-reuse samples were 17.46/17.44 seconds
+at 32 MiB and 16.77/16.39 at 64 MiB. Its head reused 609/1,127 exports at
+32 MiB and all 1,127 at 64 MiB. The newly primed pool loads a different
+recency-ordered subset than the previous experiment's 578 hits. platform-rbac
+reused all 995 at either limit.
+The cold controls differ by more than the small Nexus reuse gain despite
+starting without exports. The platform-rbac exports-only arm also slowed despite
+its exports fitting under both limits. These observations limit causal claims
+about end-to-end latency from this small sample. Some runs rejected one optional
+export and rechecked it; packets stayed equivalent. All counters and ranges are
+retained in the evidence.
+
+| Normal-reuse native work (median) | Nexus, 32 → 64 MiB | platform-rbac, 32 → 64 MiB |
+| --- | ---: | ---: |
+| Helper preparation | 4.06 → 4.02 s | 4.02 → 4.15 s |
+| Package discovery | 3.25 → 3.43 s | 3.61 → 3.64 s |
+| Fingerprinting | 1.40 → 1.47 s | 1.31 → 1.33 s |
+| Export loading | 0.33 → 0.58 s | 0.29 → 0.29 s |
+| Parsing | 0.87 → 0.04 s | 0.07 → 0.07 s |
+| Type-checking, excluding recursive imports | 0.45 → 0.03 s | 0.04 → 0.04 s |
+| Export creation | 0.72 → <0.01 s | <0.01 → <0.01 s |
+| Symbol/reference collection | 0.11 → 0.11 s | 0.15 → 0.15 s |
+| Enclosing native-facts phase | 12.40 → 11.01 s | 10.69 → 10.96 s |
+
+The enlarged cache removes Nexus parsing/checking/export work, but helper
+preparation, discovery and fingerprinting still dominate. The native-facts
+reduction is 1.39 seconds; the complete review reduction is only 0.86 seconds.
+Loading more exports also increases export-loading work, transport and memory.
+This does not justify raising the default: retain the 32 MiB reservation.
+
+The next experiment should amortize helper compilation. `go_types::helper`
+already caches executable bytes in a process-local `OnceLock`; a fresh CLI
+process pays the roughly four-second compilation again. The existing
+`impact.report` / `graph.impact` API routes to the same review implementation and
+can retain the process between calls. Measure that path with a genuinely new
+head and the same packet/cache checks before adding a persistent executable
+cache or changing deployment. Package discovery is the next sizable native
+phase; type-checking and reference extraction are small with complete exports.
+
+All 20 packets were equal within each case except cache metadata/token counts,
+all new heads missed the full-analysis cache, and all stayed within 8,000 tokens
+(maximum 7,673). Exclusive subphase sums plus helper preparation fit within the
+enclosing native-facts timings in every run. The 12 Go top-level tests passed,
+covering invalidation, export/transport bounds, timing opt-in without fact drift,
+and nested timing accounting. The Rust diagnostic-filter test passed through
+`rustc --test` using the exact function/test module from `go_types.rs`; this is
+not a full Rust unit-suite run. Both release builds, driver syntax/help and
+`git diff --check` passed. No production settings were changed or deployed.
+
+[All samples, pins, binary/source hashes, policy patch and aggregates](go-cache-load-profile-20261104.json).
+
+## Persistent review process experiment (2026-11-04)
+
+The existing HTTP `graph.impact` command and CLI `review` route to the same
+`review::run` implementation. This experiment uses the instrumented 32 MiB
+release binary from the previous section; no runtime code or configuration
+default changes are needed to measure process reuse.
+
+The [driver](../../crates/graphicle/tools/benchmark_review_server_reuse.py) accepts
+`--binary`, `--cases` and a new `--output` directory. Cases provide `name`,
+`seed_store`, `previous_request` and `next_request`. In each round, a private
+server reviews A→B after its full-analysis cache is cleared, warming the helper
+and rebuilding the previous facts. SQLite backups then copy that exact cache
+state to independent CLI and fresh-server stores. The comparison requests A→C
+in all three arms: unchanged base hit, new head miss. A checksum covers cached
+facts, exports, access bindings and row/LRU ordering before each arm. Priming,
+cloning and HTTP server startup are outside request timing; CLI time includes
+process launch. HTTP timing includes the request and response decoding.
+
+There are two rounds per repository: CLI / fresh HTTP / warm HTTP, then the
+reverse order. Warm HTTP keeps the priming process alive. No source collection,
+vendoring, models, builds or tests run alongside the measured reviews. The
+retained server is idle while its controls run. OS caches are not flushed.
+This is a local sequential experiment on the older Nexus #963 and platform-rbac
+#638 archives, not a production latency, concurrency or long-term memory test.
+
+The first attempt exposed a material workload difference: both source archives
+contain three `project` jobs in `retry`. `serve` starts a workflow worker, which
+ran graph projection during priming and retained a large graph in the process.
+The mixed-workload attempt completed six measured reviews before interruption;
+warm-server process high-water RSS reached 4,869.6 MiB for Nexus and 5,138.6 MiB
+for platform-rbac. Those timings are excluded from the isolated comparison.
+
+For the isolated rerun, queued/retry/running jobs are cancelled **only in the
+private benchmark clones**, before any server starts. Original stores are
+unchanged. Fixtures with connectors are refused so they cannot schedule new
+work. Every HTTP call checks that no runnable jobs remain and no graph-projection
+phase appears in its logs. Cancelling jobs is a benchmark control, not a proposed
+production integration strategy. Normal `serve` runs queued jobs by design;
+the stdio MCP path also drains waiting project graphs. A review-only persistent
+deployment needs to account for that background work rather than assuming a
+normal server is equivalent to the current CLI pilot.
+
+Memory comparisons use the same phase instrumentation in all arms: maximum
+sampled current RSS during the measured review, and process high-water RSS.
+The warm-server high-water mark includes priming; it is not a per-request
+allocation delta. CLI `wait4` peak RSS is retained separately. No idle-memory or
+unbounded-duration retention claim is made.
+
+| Case | Fresh CLI | Fresh HTTP | Warm HTTP | Warm versus CLI |
+| --- | ---: | ---: | ---: | ---: |
+| Nexus #963 | 18.04 s | 19.14 s | 13.45 s | 25.4% lower |
+| platform-rbac #638 | 16.62 s | 17.42 s | 11.70 s | 29.6% lower |
+
+Values are medians of two samples. Warm HTTP reduced time by 29.7% versus
+fresh HTTP on Nexus and 32.8% on platform-rbac. CLI ranges were 17.55–18.52
+and 15.89–17.36 seconds; warm-HTTP ranges were 13.20–13.71 and 11.56–11.84
+seconds. Every measured request missed the new head's full-analysis cache.
+Within each round, all three arms also had identical dependency hit/miss/reject
+counters. This gain is not a repeated review of already analyzed head facts.
+
+| Case | Helper preparation, CLI → warm HTTP | Native-facts phase, CLI → warm HTTP |
+| --- | ---: | ---: |
+| Nexus #963 | 4.20 s → 1.1 ms | 13.42 → 8.61 s |
+| platform-rbac #638 | 4.40 s → 1.1 ms | 12.36 → 7.41 s |
+
+The existing process-local helper cache removes compilation on subsequent calls.
+Switching to fresh HTTP processes did not improve these samples; retaining the
+process did. The HTTP request boundary includes response JSON decoding while
+the established CLI benchmark parses its output after timing, so the fresh-HTTP
+control is the closer comparison for attributing process reuse.
+
+| Case | Maximum sampled current RSS, CLI / fresh HTTP / warm HTTP | Process high-water RSS, CLI / fresh HTTP / warm HTTP |
+| --- | ---: | ---: |
+| Nexus #963 | 565.0 / 571.5 / 735.5 MiB | 580.1 / 586.7 / 735.5 MiB |
+| platform-rbac #638 | 546.6 / 553.7 / 612.3 MiB | 560.8 / 567.9 / 612.3 MiB |
+
+These are medians of each run's measurements. Warm-process sampled RSS rose
+30.2% on Nexus and 12.0% on platform-rbac relative to fresh CLI. This experiment
+does not separate allocator retention from other process caches or establish
+whether memory stabilizes over many reviews.
+
+All 12 isolated packets matched within each case after excluding only
+`analysis_cache` and `tokens`; all stayed within 8,000 tokens (maximum 7,671).
+All base analyses hit, all new heads missed, and cache checksums and per-round
+package counters matched. No models were called. Driver syntax/help, evidence
+checks and `git diff --check` passed. Original archive jobs/stores were untouched;
+all temporary servers stopped. The 32 MiB cache default and production settings
+remain unchanged. The next integration requirement is to isolate or explicitly
+account for projection work in a retained review service before replacing the
+CLI pilot; the isolated benchmark alone does not validate that deployment.
+
+[Samples, cache-state checks, aggregates and excluded mixed-workload observations](persistent-review-service-20261104.json).
+
+## Worker isolation and bounded review soak (2026-11-05)
+
+Added `graphicle serve --no-worker`. This leaves the built-in workflow workers
+and their schedulers out of the HTTP process; ordinary `serve` and `open` retain
+their existing behavior. The mode preserves queued jobs for a separate worker.
+It does not restrict explicit API operations or extension background tasks.
+The [pinned-review guide](../pinned-review.md#persistent-review-serving) documents
+the lifecycle and Python SDK usage.
+
+A real-process [lifecycle test](../../crates/graphicle/tests/test_serve_no_worker.py)
+admits Python snapshots through HTTP, checks a review and an unauthorized-call
+refusal, verifies that jobs remain queued across multiple polling intervals,
+processes those jobs with separate `worker --once` calls, and restarts ordinary
+`serve` to verify automatic processing of subsequent jobs and link work. It
+passed. The initial local build missed the crate-local static-parser settings;
+the admission test caught that before the soak. The measured binary was rebuilt
+from `crates/graphicle` with Rust 1.94.1, its `.cargo/config.toml`, prepared parser
+sources, and the macOS 15.4 SDK. The 32 MiB export-load default remains unchanged.
+
+The [soak driver](../../crates/graphicle/tools/benchmark_review_soak.py) derives
+eleven synthetic heads per repository from the older archived Nexus #963 and
+platform-rbac #638 heads. It appends an unused Go constant to an owned, non-test
+source file, changing its value for every head. These are synthetic pins, not
+real Git commits or eleven independent PRs. Vendor/module inputs are unchanged;
+stale dependency-preparation metadata is omitted rather than claiming a fresh
+collection/verification. Every head goes through ordinary sync admission.
+No original archive or checkout is modified.
+
+Head zero warms the process. Ten distinct measured heads then run as four
+sequential requests, two pairs at concurrency two, and two sequential recovery
+requests. Each has a fresh CLI control from an independent clone of the same
+post-warm cache state. Nexus runs CLI controls first; platform-rbac runs the
+retained service first. The service naturally accumulates caches between calls,
+whereas each CLI control starts from the common seed. This measures a bounded
+sequence, not an isolated helper-cache ablation. Every measured call must hit
+the unchanged base and miss its new head's full-analysis cache. Complete packets
+must match their same-pin controls excluding only `analysis_cache` and `tokens`.
+
+Projection jobs are left intact throughout this experiment, with fourteen jobs
+in each private store after admission. The driver checks job IDs, kinds, states,
+attempts and leases before and after each server batch; it refuses fixtures with
+connectors. It also checks that no background graph-projection phase ran. The
+server log is retained beyond the SDK's recent-line buffer. Concurrent batches
+report combined phase/RSS measurements; their interleaved phases are not assigned
+to individual requests. Individual request latency and batch wall time are
+recorded separately.
+
+Admission, source collection, vendoring, cloning and warmup are outside review
+timing. No models were called and no builds/tests ran alongside timed reviews.
+HTTP includes response decoding; CLI includes process launch but parses its
+output after timing, as in the earlier tests. OS caches were not flushed and
+unrelated host activity was uncontrolled. RSS measurements cover the server
+process, not the sum of its Go subprocesses. First-phase RSS already includes
+source loading; no idle-RSS claim is made. This finite local test cannot establish
+long-term memory stability, arbitrary concurrency, production deadlines or the
+eight-PR production probe's inclusion rate.
+
+All twenty same-pin pairs matched across forty measured reviews. Every unchanged
+base hit the full-analysis cache and every new head missed it. All packets stayed
+within 8,000 tokens (maximum 7,708). All fourteen jobs in each server store stayed
+unchanged, and no background graph-projection phases ran.
+
+For the six serial heads per repository (four initial and two recovery calls):
+
+| Case | Fresh CLI median | Retained server median | Reduction |
+| --- | ---: | ---: | ---: |
+| Nexus #963 | 16.99 s | 14.07 s | 17.2% |
+| platform-rbac #638 | 17.98 s | 13.27 s | 26.2% |
+
+Concurrency two preserved packet correctness but increased request latency:
+
+| Case | Initial serial median | Concurrent request median | Two-request batch times | Recovery median |
+| --- | ---: | ---: | ---: | ---: |
+| Nexus #963 | 13.24 s | 25.08 s | 25.53 / 24.65 s | 15.13 s |
+| platform-rbac #638 | 13.53 s | 18.93 s | 19.23 / 18.77 s | 13.27 s |
+
+Observed throughput increased by 10.1% on Nexus and 38.3% on platform-rbac
+relative to the initial serial phase. Those phases use different synthetic heads,
+so this is not a paired same-head throughput comparison.
+
+Maximum sampled server RSS during the initial serial phase was 778.5 MiB on
+Nexus and 694.0 MiB on platform-rbac. Concurrent batches reached 1,205.5 MiB and
+1,157.2 MiB respectively. The final recovery requests still reached 1,207.4 MiB
+and 1,105.6 MiB: memory did not return to its earlier serial level within this
+test. These observations do not establish a leak or long-term stability.
+
+Start integration with one in-flight review per process. Worker isolation is
+verified; a live eight-PR probe and longer memory/idle qualification remain
+before production rollout. No production settings were changed.
+
+[Raw samples, pins, source hashes, aggregates and validation results](review-worker-isolation-soak-20261105.json).

@@ -25,6 +25,36 @@ remain conservative about missing context. Analysis and admission gaps still
 produce `impact: "incomplete"`. See the [measurement contract](pilot-protocol.md#risk-measurements)
 for v1/v2 comparison semantics.
 
+## Persistent review serving
+
+Keep the HTTP process alive to reuse the compiled Go helper between reviews:
+
+```sh
+graphicle --data-dir /var/lib/graphicle-review serve --no-worker --port 8854
+```
+
+Call `graph.impact` or `impact.report` with the same pinned request as the CLI.
+Source authorization, admission checks, analysis gaps and packet budgets are
+unchanged. The first native Go review prepares the helper; later requests in
+that process reuse it. Repository stores must also persist to reuse source and
+compiler caches.
+
+`--no-worker` disables the built-in workflow workers and their connector and
+observation schedulers in this HTTP process. Existing jobs stay queued, and
+`sync.commit` still queues projection work. Run `graphicle --data-dir
+/var/lib/graphicle-review worker` separately when that work should execute, or
+restart ordinary `serve` to resume it. Jobs that require a worker, including
+model workflows, will wait until one is running. The flag does not cancel jobs,
+disable authorization, restrict API operations, or suppress extension-owned
+background tasks. Explicit graph-projection API calls still execute. Ordinary
+`serve` and `open` retain their default worker behavior.
+
+The Python SDK supports this through
+`LocalServer(binary, store, config, serve_args=["--no-worker"])`. Keep that
+context alive across requests. A process restart loses the helper cache but
+retains persisted source/compiler caches. The stdio MCP startup drain is a
+separate mechanism and is not controlled by this HTTP flag.
+
 ## Basic language support
 
 Basic analysis is selected automatically for admitted sources in the existing

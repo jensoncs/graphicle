@@ -105,6 +105,7 @@ func (c *reviewPackageCache) world() {
 // A dependency importing owned code is deliberately not cached: importing an
 // exported copy of an owned package would split its go/types object identities.
 func (c *reviewPackageCache) key(l *loader, path string) string {
+	defer reviewPhase("fingerprint")()
 	if c.identity == "" {
 		return ""
 	}
@@ -196,6 +197,7 @@ func readPackage(data []byte, l *loader, path string) (pkg *types.Package) {
 }
 
 func (c *reviewPackageCache) load(l *loader, path string) *types.Package {
+	defer reviewPhase("export_load")()
 	key := c.key(l, path)
 	if key == "" {
 		return nil
@@ -263,6 +265,7 @@ func exportPackage(pkg *types.Package) (data []byte) {
 }
 
 func (c *reviewPackageCache) save(l *loader, path string, pkg *types.Package) {
+	defer reviewPhase("export_save")()
 	key := c.key(l, path)
 	if key == "" || !pkg.Complete() {
 		return

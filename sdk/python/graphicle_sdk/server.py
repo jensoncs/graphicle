@@ -13,7 +13,12 @@ creates a workspace and ``DATA/local-session.json`` the first time and reuses th
 starts ``graphicle --data-dir DATA [--config CONFIG] serve --port 0``, waits for the line
 ``Graphicle is ready at http://127.0.0.1:PORT`` on the server's stderr and returns a
 :class:`graphicle_sdk.Client` for the saved workspace. The server binds to loopback only and runs the
-background job worker, so ``Project.wait``, ``answer`` and ``observe`` complete. On exit the
+background job worker, so ``Project.wait``, ``answer`` and ``observe`` complete.
+Pass ``serve_args=["--no-worker"]`` for an HTTP process without built-in job workers
+or schedulers, for example to retain compiler helpers for pinned reviews. Queued
+jobs remain intact and need a separate ``graphicle worker``; explicit API calls
+and extension background tasks still run. This is not a restriction on API access.
+On exit the
 process is stopped (SIGTERM, then SIGKILL after ``stop_timeout`` seconds).
 
 ``binary`` defaults to ``$GRAPHICLE_BIN``, then ``graphicle`` on ``PATH``. ``config`` is the model

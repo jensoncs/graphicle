@@ -128,7 +128,12 @@ pub fn review(root: &Path, request: &Value) -> crate::Result<Value> {
 
 /// Bounded compressed facts, also suitable for immutable cache storage.
 pub fn review_encoded(root: &Path, request: &Value) -> Result<Value, ReviewFailure> {
+    let timings = std::env::var("GRAPHICLE_PHASE_TIMINGS").is_ok_and(|v| !v.is_empty() && v != "0");
+    let started = std::time::Instant::now();
     let (_helper_dir, binary) = helper().ok_or_else(|| ReviewFailure::new("helper_unavailable"))?;
+    if timings {
+        eprintln!("go_phase=helper ns={}", started.elapsed().as_nanos());
+    }
     let cache = tempfile::tempdir().map_err(|_| ReviewFailure::new("scratch_unavailable"))?;
     let output = crate::process::capture_bounded(
         offline_command(&binary)
@@ -139,12 +144,43 @@ pub fn review_encoded(root: &Path, request: &Value) -> Result<Value, ReviewFailu
         Some(serde_json::to_vec(&json!({"review":request})).map_err(|_| ReviewFailure::new("invalid_request"))?),
         REVIEW_OUTPUT_BYTES,
     ).map_err(ReviewFailure::process)?;
+    if timings {
+        // Never relay arbitrary helper/toolchain stderr, which may contain
+        // source text or paths. Only fixed phase names and numeric durations.
+        for line in String::from_utf8_lossy(&output.stderr).lines() {
+            if let Some((name, ns)) = native_review_timing(line) {
+                eprintln!("go_phase={name} ns={ns}");
+            }
+        }
+    }
     if !output.success {
         let mut failure = ReviewFailure::new("helper_exit");
         failure.detail["exit_code"] = json!(output.code);
         return Err(failure);
     }
     serde_json::from_slice(&output.stdout).map_err(|_| ReviewFailure::new("invalid_output"))
+}
+
+fn native_review_timing(line: &str) -> Option<(&str, u64)> {
+    let (name, ns) = line.strip_prefix("go_phase=")?.split_once(" ns=")?;
+    if !matches!(name, "other" | "preflight" | "discovery" | "metadata" | "import"
+        | "parse" | "type_check" | "collect" | "link" | "encode"
+        | "fingerprint" | "export_load" | "export_save") {
+        return None;
+    }
+    Some((name, ns.parse().ok()?))
+}
+
+#[cfg(test)]
+mod timing_tests {
+    #[test]
+    fn forwards_only_known_numeric_native_timings() {
+        assert_eq!(super::native_review_timing("go_phase=type_check ns=123"), Some(("type_check", 123)));
+        for line in ["go_phase=/private/source.go ns=123", "go_phase=collect ns=123 source",
+            "go_phase=collect ns=-1", "source error", "go_phase=collect ns=18446744073709551616"] {
+            assert_eq!(super::native_review_timing(line), None);
+        }
+    }
 }
 
 const REVIEW_TIMEOUT_SECONDS: u64 = 120;

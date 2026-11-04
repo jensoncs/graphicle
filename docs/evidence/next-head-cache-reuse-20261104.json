@@ -1,0 +1,950 @@
+{
+  "binary_sha256": "0bef1a3fbb77d7dc5bd1c3a7550bb3640a59fa650e0dd115df883746b36997ff",
+  "cases": {
+    "nexus-963": {
+      "previous_head": {
+        "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+        "commit": "6aa329c82bb45c18c3ffa6048af46d78e965ce09",
+        "snapshot": "3a4552c8fa7e1087dea283c1a0d234ec9f27aabc70528043a8ba6403d6ac7425",
+        "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+        "directory": "nexus",
+        "modules": [
+          "xlr8"
+        ]
+      },
+      "next_head": {
+        "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+        "commit": "2447ab17fa50a585f11ad691bd944897768fcad0",
+        "snapshot": "7b64c2228f8b0cc9c53b6c336caa4255505b0c8032f89197f28546e65ed69580",
+        "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+        "directory": "nexus",
+        "modules": [
+          "xlr8"
+        ]
+      },
+      "profile": {
+        "goos": "linux",
+        "goarch": "amd64",
+        "tags": [
+          "vtprotobuf"
+        ],
+        "tests": false,
+        "workspace": ""
+      },
+      "changed_paths": [
+        "xlr8/pkg/xds/gateway_refusal_test.go",
+        "xlr8/pkg/xds/gateway_reload.go",
+        "xlr8/pkg/xds/xds.go"
+      ],
+      "unchanged_dependency_paths": 4523,
+      "cache_before_next_admission": {
+        "full_analyses": 2,
+        "package_entries": 1127,
+        "package_payload_bytes": 59774480
+      },
+      "cache_after_next_admission": {
+        "full_analyses": 2,
+        "package_entries": 1127,
+        "package_payload_bytes": 59774480
+      },
+      "admission_seconds_untimed": 2.1483001249143854,
+      "uploaded_objects": 3,
+      "request_sha256": "ed903dea5db8f004db3468e5e36464aa387443f27dc5855c40b976cc01c0f508",
+      "max_tokens": 8000,
+      "request": {
+        "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+        "base": [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "a86e65a21253acd52f03aebc62f2977b0ec2535a",
+            "snapshot": "a9788f4a1a4fbb62f988c161cb287bc358ced87d21c18ae6a59102fc29599b6e",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        "head": [
+          {
+            "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+            "commit": "2447ab17fa50a585f11ad691bd944897768fcad0",
+            "snapshot": "7b64c2228f8b0cc9c53b6c336caa4255505b0c8032f89197f28546e65ed69580",
+            "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+            "directory": "nexus",
+            "modules": [
+              "xlr8"
+            ]
+          }
+        ],
+        "profile": {
+          "goos": "linux",
+          "goarch": "amd64",
+          "tags": [
+            "vtprotobuf"
+          ],
+          "tests": false,
+          "workspace": ""
+        },
+        "max_tokens": 8000
+      }
+    },
+    "platform-rbac-638": {
+      "previous_head": {
+        "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+        "commit": "5a3db472eb4779530fa2f51afc1ebd424cca1955",
+        "snapshot": "6f14716ee443f331f0cce6848be03f16ed7fb528213c956492ab6ebba81e589c",
+        "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+        "directory": "platform-rbac",
+        "modules": [
+          "."
+        ]
+      },
+      "next_head": {
+        "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+        "commit": "c7b0b0b6f7e2598241bb66bfbb1389e745fbe46c",
+        "snapshot": "023222a4be3e1c9b906a64748240912a763ff4a724ebbd552cd8d4feac5e5a3d",
+        "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+        "directory": "platform-rbac",
+        "modules": [
+          "."
+        ]
+      },
+      "profile": {
+        "goos": "linux",
+        "goarch": "amd64",
+        "tags": [],
+        "tests": false,
+        "workspace": ""
+      },
+      "changed_paths": [
+        "pkg/api/apiLogic/v3apiLogic/iam.go"
+      ],
+      "unchanged_dependency_paths": 4144,
+      "cache_before_next_admission": {
+        "full_analyses": 2,
+        "package_entries": 995,
+        "package_payload_bytes": 21064132
+      },
+      "cache_after_next_admission": {
+        "full_analyses": 2,
+        "package_entries": 995,
+        "package_payload_bytes": 21064132
+      },
+      "admission_seconds_untimed": 2.092825916945003,
+      "uploaded_objects": 1,
+      "request_sha256": "51637d58d70c75bd88e0fe3ced243ce403bf710be87e5bb7dd82830fffc80e15",
+      "max_tokens": 8000,
+      "request": {
+        "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+        "base": [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "fae5961c7b93cfab40437be096e9dce932ebfa81",
+            "snapshot": "e8dd67dd0caba706f4dd37deb84c8bbf9416bec1fdcd54e6b73b1457da761c8f",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        "head": [
+          {
+            "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+            "commit": "c7b0b0b6f7e2598241bb66bfbb1389e745fbe46c",
+            "snapshot": "023222a4be3e1c9b906a64748240912a763ff4a724ebbd552cd8d4feac5e5a3d",
+            "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+            "directory": "platform-rbac",
+            "modules": [
+              "."
+            ]
+          }
+        ],
+        "profile": {
+          "goos": "linux",
+          "goarch": "amd64",
+          "tags": [],
+          "tests": false,
+          "workspace": ""
+        },
+        "max_tokens": 8000
+      }
+    }
+  },
+  "rows": [
+    {
+      "case": "nexus-963",
+      "arm": "cold",
+      "order": 1,
+      "cache_before": {
+        "full_analyses": 0,
+        "package_entries": 0,
+        "package_payload_bytes": 0
+      },
+      "seconds": 28.211026374949142,
+      "phase_ms": {
+        "review_load_base": 274,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 3,
+        "review_materialize": 2149,
+        "review_native_facts": 21468,
+        "review_decode_facts": 135,
+        "review_analyze_base": 17735,
+        "review_analyze_head": 8572,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 344,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 127,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 164
+      },
+      "phase_peak_rss_mib": 697.5,
+      "process_peak_rss_bytes": 835076096,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 1127,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1127,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2856,
+      "tokens": 7565,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "cold",
+      "order": 1,
+      "cache_before": {
+        "full_analyses": 0,
+        "package_entries": 0,
+        "package_payload_bytes": 0
+      },
+      "seconds": 26.686419792007655,
+      "phase_ms": {
+        "review_load_base": 300,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 1,
+        "review_materialize": 2047,
+        "review_native_facts": 20599,
+        "review_decode_facts": 114,
+        "review_analyze_base": 16421,
+        "review_analyze_head": 8635,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 348,
+        "review_execution_coverage": 4,
+        "review_reuse_scopes": 89,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 159
+      },
+      "phase_peak_rss_mib": 557.8,
+      "process_peak_rss_bytes": 686161920,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 995,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12976,
+      "tokens": 7629,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "arm": "packages-only",
+      "order": 2,
+      "cache_before": {
+        "full_analyses": 0,
+        "package_entries": 1127,
+        "package_payload_bytes": 59774480
+      },
+      "seconds": 25.62878762499895,
+      "phase_ms": {
+        "review_load_base": 275,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 156,
+        "review_materialize": 2245,
+        "review_native_facts": 18864,
+        "review_decode_facts": 145,
+        "review_analyze_base": 15191,
+        "review_analyze_head": 8587,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 346,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 164
+      },
+      "phase_peak_rss_mib": 705.5,
+      "process_peak_rss_bytes": 739803136,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 578,
+            "misses": 549,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1126,
+            "misses": 1,
+            "rejected": 1
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2856,
+      "tokens": 7564,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "packages-only",
+      "order": 2,
+      "cache_before": {
+        "full_analyses": 0,
+        "package_entries": 995,
+        "package_payload_bytes": 21064132
+      },
+      "seconds": 22.273356083896942,
+      "phase_ms": {
+        "review_load_base": 296,
+        "review_load_head": 14,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 87,
+        "review_materialize": 2087,
+        "review_native_facts": 16199,
+        "review_decode_facts": 125,
+        "review_analyze_base": 12492,
+        "review_analyze_head": 8191,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 351,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 91,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 163
+      },
+      "phase_peak_rss_mib": 563.3,
+      "process_peak_rss_bytes": 590675968,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12976,
+      "tokens": 7629,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "arm": "normal-reuse",
+      "order": 3,
+      "cache_before": {
+        "full_analyses": 2,
+        "package_entries": 1127,
+        "package_payload_bytes": 59774480
+      },
+      "seconds": 17.243096958030947,
+      "phase_ms": {
+        "review_load_base": 277,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 144,
+        "review_analyze_base": 398,
+        "review_load_package_cache": 159,
+        "review_materialize": 1111,
+        "review_native_facts": 12452,
+        "review_analyze_head": 14974,
+        "review_service_links_base": 21,
+        "review_service_links_head": 19,
+        "review_compare": 348,
+        "review_execution_coverage": 7,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 166
+      },
+      "phase_peak_rss_mib": 587.8,
+      "process_peak_rss_bytes": 616366080,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 578,
+            "misses": 549,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2856,
+      "tokens": 7563,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "normal-reuse",
+      "order": 3,
+      "cache_before": {
+        "full_analyses": 2,
+        "package_entries": 995,
+        "package_payload_bytes": 21064132
+      },
+      "seconds": 15.116310707991943,
+      "phase_ms": {
+        "review_load_base": 297,
+        "review_load_head": 14,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 121,
+        "review_analyze_base": 331,
+        "review_load_package_cache": 78,
+        "review_materialize": 1141,
+        "review_native_facts": 10841,
+        "review_analyze_head": 13218,
+        "review_service_links_base": 5,
+        "review_service_links_head": 5,
+        "review_compare": 356,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 163
+      },
+      "phase_peak_rss_mib": 561.5,
+      "process_peak_rss_bytes": 588808192,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12976,
+      "tokens": 7629,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "arm": "normal-reuse",
+      "order": 4,
+      "cache_before": {
+        "full_analyses": 2,
+        "package_entries": 1127,
+        "package_payload_bytes": 59774480
+      },
+      "seconds": 17.280820125015453,
+      "phase_ms": {
+        "review_load_base": 277,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 136,
+        "review_analyze_base": 396,
+        "review_load_package_cache": 161,
+        "review_materialize": 1071,
+        "review_native_facts": 12623,
+        "review_analyze_head": 15006,
+        "review_service_links_base": 21,
+        "review_service_links_head": 19,
+        "review_compare": 344,
+        "review_execution_coverage": 7,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 169
+      },
+      "phase_peak_rss_mib": 586.3,
+      "process_peak_rss_bytes": 614760448,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 578,
+            "misses": 549,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2856,
+      "tokens": 7563,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "normal-reuse",
+      "order": 4,
+      "cache_before": {
+        "full_analyses": 2,
+        "package_entries": 995,
+        "package_payload_bytes": 21064132
+      },
+      "seconds": 14.979306749999523,
+      "phase_ms": {
+        "review_load_base": 297,
+        "review_load_head": 13,
+        "review_provided_diff_validate": 0,
+        "review_decode_facts": 122,
+        "review_analyze_base": 333,
+        "review_load_package_cache": 80,
+        "review_materialize": 1023,
+        "review_native_facts": 10892,
+        "review_analyze_head": 13102,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 352,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 162
+      },
+      "phase_peak_rss_mib": 570.0,
+      "process_peak_rss_bytes": 597737472,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12976,
+      "tokens": 7629,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "arm": "packages-only",
+      "order": 5,
+      "cache_before": {
+        "full_analyses": 0,
+        "package_entries": 1127,
+        "package_payload_bytes": 59774480
+      },
+      "seconds": 26.018135874997824,
+      "phase_ms": {
+        "review_load_base": 271,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 154,
+        "review_materialize": 2207,
+        "review_native_facts": 19267,
+        "review_decode_facts": 153,
+        "review_analyze_base": 15159,
+        "review_analyze_head": 8958,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 347,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 128,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 165
+      },
+      "phase_peak_rss_mib": 705.1,
+      "process_peak_rss_bytes": 739377152,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 578,
+            "misses": 549,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1126,
+            "misses": 1,
+            "rejected": 1
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2856,
+      "tokens": 7564,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "packages-only",
+      "order": 5,
+      "cache_before": {
+        "full_analyses": 0,
+        "package_entries": 995,
+        "package_payload_bytes": 21064132
+      },
+      "seconds": 23.12745458399877,
+      "phase_ms": {
+        "review_load_base": 298,
+        "review_load_head": 14,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 78,
+        "review_materialize": 2076,
+        "review_native_facts": 17023,
+        "review_decode_facts": 112,
+        "review_analyze_base": 13014,
+        "review_analyze_head": 8489,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 350,
+        "review_execution_coverage": 11,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 164
+      },
+      "phase_peak_rss_mib": 568.1,
+      "process_peak_rss_bytes": 595738624,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12976,
+      "tokens": 7629,
+      "packet_equal": true
+    },
+    {
+      "case": "nexus-963",
+      "arm": "cold",
+      "order": 6,
+      "cache_before": {
+        "full_analyses": 0,
+        "package_entries": 0,
+        "package_payload_bytes": 0
+      },
+      "seconds": 28.272714833030477,
+      "phase_ms": {
+        "review_load_base": 275,
+        "review_load_head": 18,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 2,
+        "review_materialize": 2136,
+        "review_native_facts": 21555,
+        "review_decode_facts": 141,
+        "review_analyze_base": 17433,
+        "review_analyze_head": 8936,
+        "review_service_links_base": 20,
+        "review_service_links_head": 19,
+        "review_compare": 346,
+        "review_execution_coverage": 8,
+        "review_reuse_scopes": 129,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 166
+      },
+      "phase_peak_rss_mib": 705.0,
+      "process_peak_rss_bytes": 891781120,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 1127,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1126,
+            "misses": 1,
+            "rejected": 1
+          }
+        }
+      },
+      "entries": 4,
+      "impact": "incomplete",
+      "issue_count": 2856,
+      "tokens": 7565,
+      "packet_equal": true
+    },
+    {
+      "case": "platform-rbac-638",
+      "arm": "cold",
+      "order": 6,
+      "cache_before": {
+        "full_analyses": 0,
+        "package_entries": 0,
+        "package_payload_bytes": 0
+      },
+      "seconds": 26.35389104206115,
+      "phase_ms": {
+        "review_load_base": 296,
+        "review_load_head": 14,
+        "review_provided_diff_validate": 0,
+        "review_load_package_cache": 2,
+        "review_materialize": 2004,
+        "review_native_facts": 20248,
+        "review_decode_facts": 126,
+        "review_analyze_base": 16337,
+        "review_analyze_head": 8371,
+        "review_service_links_base": 5,
+        "review_service_links_head": 4,
+        "review_compare": 350,
+        "review_execution_coverage": 3,
+        "review_reuse_scopes": 90,
+        "review_reuse_decisions": 0,
+        "review_provided_diff_annotate": 0,
+        "review_pack": 162
+      },
+      "phase_peak_rss_mib": 563.6,
+      "process_peak_rss_bytes": 651247616,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 995,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 995,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "entries": 5,
+      "impact": "incomplete",
+      "issue_count": 12976,
+      "tokens": 7629,
+      "packet_equal": true
+    }
+  ],
+  "method": "cold, packages-only, normal-reuse, normal-reuse, packages-only, cold; separate clones from the same prior-review state; new head in every measured request",
+  "complete": true,
+  "date": "2026-11-04",
+  "graphicle_commit": "4e0b996",
+  "driver": "crates/graphicle/tools/benchmark_review_cache_reuse.py",
+  "environment": {
+    "platform": "local macOS ARM",
+    "binary_profile": "release",
+    "network_for_go_dependencies": "disabled",
+    "models": false,
+    "filesystem_cache_flushed": false
+  },
+  "limitations": [
+    "Two samples per case and arm; older local archives, not the eight production probe PRs. No production deadline inference.",
+    "Only CLI review is timed. Store copying, cache clearing, source admission, collection, vendoring and models are excluded.",
+    "Cold means empty Graphicle analysis and package caches; OS filesystem caches are not flushed. Unrelated machine activity is uncontrolled.",
+    "Even the cold arm reuses base package exports during head analysis in the same review.",
+    "Packet equality excludes only analysis_cache and tokens. Impact remains incomplete with unchanged analysis gaps.",
+    "Peak RSS is command child ru_maxrss from os.wait4, converted from macOS bytes; it is not simultaneous process-tree RSS.",
+    "Phase totals may overlap; do not add nested phase timings."
+  ],
+  "arms": {
+    "cold": "Remove both full-analysis and package caches from a private clone.",
+    "packages-only": "Remove full analyses, retain previous-review package exports.",
+    "normal-reuse": "Retain previous-review full analyses and package exports; unchanged base hits, new head misses."
+  },
+  "aggregates": {
+    "nexus-963": {
+      "cold": {
+        "samples": 2,
+        "median_seconds": 28.24187060398981,
+        "min_seconds": 28.211026374949142,
+        "max_seconds": 28.272714833030477,
+        "reduction_vs_cold_percent": 0.0,
+        "median_native_facts_ms": 21511.5,
+        "median_process_peak_rss_mib": 823.4296875
+      },
+      "packages-only": {
+        "samples": 2,
+        "median_seconds": 25.823461749998387,
+        "min_seconds": 25.62878762499895,
+        "max_seconds": 26.018135874997824,
+        "reduction_vs_cold_percent": 8.563203506958095,
+        "median_native_facts_ms": 19065.5,
+        "median_process_peak_rss_mib": 705.328125
+      },
+      "normal-reuse": {
+        "samples": 2,
+        "median_seconds": 17.2619585415232,
+        "min_seconds": 17.243096958030947,
+        "max_seconds": 17.280820125015453,
+        "reduction_vs_cold_percent": 38.878133167692674,
+        "median_native_facts_ms": 12537.5,
+        "median_process_peak_rss_mib": 587.046875
+      }
+    },
+    "platform-rbac-638": {
+      "cold": {
+        "samples": 2,
+        "median_seconds": 26.520155417034402,
+        "min_seconds": 26.35389104206115,
+        "max_seconds": 26.686419792007655,
+        "reduction_vs_cold_percent": 0.0,
+        "median_native_facts_ms": 20423.5,
+        "median_process_peak_rss_mib": 637.7265625
+      },
+      "packages-only": {
+        "samples": 2,
+        "median_seconds": 22.700405333947856,
+        "min_seconds": 22.273356083896942,
+        "max_seconds": 23.12745458399877,
+        "reduction_vs_cold_percent": 14.403196448211798,
+        "median_native_facts_ms": 16611.0,
+        "median_process_peak_rss_mib": 565.7265625
+      },
+      "normal-reuse": {
+        "samples": 2,
+        "median_seconds": 15.047808728995733,
+        "min_seconds": 14.979306749999523,
+        "max_seconds": 15.116310707991943,
+        "reduction_vs_cold_percent": 43.25897230854749,
+        "median_native_facts_ms": 10866.5,
+        "median_process_peak_rss_mib": 565.7890625
+      }
+    }
+  },
+  "checks": {
+    "completed_reviews": 12,
+    "all_packets_equal": true,
+    "new_head_full_analysis_hits": 0,
+    "base_cache_matches_arm": true,
+    "all_within_token_budget": true,
+    "maximum_tokens": 7629
+  },
+  "cache_policy_finding": {
+    "source": "crates/graphicle/src/review_cache.rs:87",
+    "loaded_export_limit_bytes": 33554432,
+    "total_pool_limit_bytes": 67108864,
+    "reason": "Reserve room for newly checked packages in the bounded native pool.",
+    "observation": "Nexus loads 578 of 1127 previous exports; platform-rbac loads all 995. Cache policy was not changed."
+  }
+}
