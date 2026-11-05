@@ -91,7 +91,9 @@ the blocking pool; CLI/MCP calls start it when the pinned review is dispatched.
 HTTP parsing/admission and response delivery are outside this execution budget.
 Waiting for Go helper initialization consumes the budget. Source loading, materialization and
 analysis phases check it; native subprocesses and storage lock waits use the
-remaining time. Failed or interrupted helper compilation is retryable.
+remaining time. A helper compilation the deadline interrupted is retryable at once; one that
+failed with budget left is retried after 10 minutes, and a helper compiled as the deadline
+expired is kept for the next request.
 
 On expiry the request returns HTTP 504 with `graphicle.error.v1`, code `timeout`,
 after synchronous work has unwound, native subprocess groups have been

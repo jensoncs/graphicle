@@ -5,12 +5,13 @@ import socket
 import stat
 import sys
 import tempfile
+import threading
 import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / 'sdk/python'))
-from graphicle_sdk import Client, GraphicleError, LocalServer
+from graphicle_sdk import Client, GraphicleError, LocalServer, Project
 
 BINARY = Path(os.environ.get('GRAPHICLE_BIN', ROOT / 'crates/graphicle/target/debug/graphicle'))
 
@@ -79,6 +80,40 @@ class ServeSocket(unittest.TestCase):
             self.path.unlink()
             self.path.write_text('replacement')
         self.assertEqual(self.path.read_text(), 'replacement')
+
+
+@unittest.skipUnless(os.name == 'posix', 'requires Unix sockets')
+class TruncatedResponse(unittest.TestCase):
+    """A server that dies mid-response surfaces as GraphicleError, never a raw http.client exception."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory(prefix='gtr-', dir='/private/tmp' if sys.platform == 'darwin' else None)
+        self.addCleanup(self.tmp.cleanup)
+        self.path = Path(self.tmp.name) / 'cut.sock'
+        self.listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.addCleanup(self.listener.close)
+        self.listener.bind(str(self.path))
+        self.listener.listen()
+        threading.Thread(target=self.serve, daemon=True).start()
+
+    def serve(self):
+        while True:
+            try:
+                connection, _ = self.listener.accept()
+            except OSError:
+                return
+            with connection:
+                connection.recv(65536)
+                connection.sendall(b'HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n'
+                                   b'Content-Length: 100\r\n\r\n{"cut')
+
+    def test_command_and_secondary_context_survive_a_cut_response(self):
+        client = Client('unix://' + str(self.path), 'workspace', 'capability', timeout=5)
+        with self.assertRaises(GraphicleError):
+            client.command('status', repository_id='repo')
+        result = Project(client, 'repo').secondary_context('primary', 'question', enabled=True,
+                                                           expected_snapshot='0' * 64, timeout=5)
+        self.assertEqual(result['secondary']['status'], 'unavailable')
 
 
 if __name__ == '__main__':

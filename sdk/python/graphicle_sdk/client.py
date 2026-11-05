@@ -318,12 +318,14 @@ class Client:
         except urllib.error.HTTPError as error:
             try:
                 raw = error.read()
-            except OSError:
+            except (OSError, http.client.HTTPException):
                 raw = b""
             finally:
                 error.close()
             raise _error(error.code, raw, error.headers) from None
-        except (urllib.error.URLError, OSError) as error:
+        except (urllib.error.URLError, OSError, http.client.HTTPException) as error:
+            # HTTPException (IncompleteRead, LineTooLong) is not an OSError: a server
+            # that dies mid-response must still surface as a GraphicleError.
             reason = getattr(error, "reason", error)
             if isinstance(reason, TimeoutError):
                 limit = self.timeout if timeout is None else timeout
@@ -461,7 +463,7 @@ class Project:
                 {"operation": "context", "arguments": {"repository_id": self.id, "question": question,
                  "max_tokens": min(8000, max_bytes), "max_chars": max_bytes, "memory_retrieval": False, "include": ["file:"]}}, timeout=timeout)
             return compose(primary, packet, self.id, expected_snapshot, max_bytes)
-        except (GraphicleError, OSError, TimeoutError, ValueError, TypeError, UnicodeError):
+        except (GraphicleError, OSError, http.client.HTTPException, TimeoutError, ValueError, TypeError, UnicodeError):
             result["secondary"]["status"] = "unavailable"
             return result
 

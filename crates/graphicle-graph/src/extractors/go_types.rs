@@ -10,7 +10,7 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
     sync::{Mutex, OnceLock, TryLockError},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 include!(concat!(env!("OUT_DIR"), "/go_export_sources.rs"));
@@ -41,7 +41,11 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
     // destructor would never run; executable scratch files live only for a call.
     static HELPER: OnceLock<Vec<u8>> = OnceLock::new();
     static INITIALIZING: Mutex<()> = Mutex::new(());
-    // Failed or cancelled compilation must remain retryable in a retained server.
+    // A compile that failed with budget left is remembered for FAILED_RETRY, so a
+    // slow-failing toolchain does not cost every review its budget; a compile the
+    // deadline cut short stays retryable at once in a retained server.
+    static FAILED_AT: Mutex<Option<Instant>> = Mutex::new(None);
+    const FAILED_RETRY: Duration = Duration::from_secs(600);
     // Waiting for another initializer consumes this request's budget too.
     if HELPER.get().is_none() {
         let guard = loop {
@@ -53,6 +57,10 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
             }
         };
         if HELPER.get().is_none() {
+            let failed = *FAILED_AT.lock().unwrap_or_else(|error| error.into_inner());
+            if failed.is_some_and(|at| at.elapsed() < FAILED_RETRY) {
+                return None;
+            }
             let compile = || {
                 let dir = tempfile::tempdir().ok()?;
                 let source = dir.path().join("main.go");
@@ -105,9 +113,20 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
                 .ok()?;
                 result.success.then(|| std::fs::read(binary).ok()).flatten()
             };
-            let bytes = compile()?;
-            crate::process::check_deadline().ok()?;
-            let _ = HELPER.set(bytes);
+            // Keep a compiled helper even when the deadline expired meanwhile: the
+            // deadline check below still ends this request, and the next one reuses it.
+            match compile() {
+                Some(bytes) => {
+                    let _ = HELPER.set(bytes);
+                }
+                None => {
+                    if crate::process::check_deadline().is_ok() {
+                        let mut at = FAILED_AT.lock().unwrap_or_else(|error| error.into_inner());
+                        *at = Some(Instant::now());
+                    }
+                    return None;
+                }
+            }
         }
         drop(guard);
     }
