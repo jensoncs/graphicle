@@ -30,9 +30,147 @@
         "last_selected_rank": {"type": ["integer", "null"], "minimum": 1}
       }}
     }},
+    "analysis_coverage": {"$ref": "#/$defs/analysis_coverage"},
     "entries": {"type": "array", "items": {"$ref": "#/$defs/entry"}}
   },
   "$defs": {
+    "analysis_coverage": {
+      "description": "Analysis-only coverage before packing. Does not change v2 impact, prove runtime safety, or authorize review skipping. Binding/layout changes are not certified by v1.",
+      "type": "object",
+      "required": [
+        "format",
+        "status",
+        "scope",
+        "scope_sha256",
+        "changed_components",
+        "blocking_component_issues",
+        "blocking_global_issues",
+        "outside_component_issues",
+        "outside_scope_issues",
+        "unmapped_changed_files",
+        "binding_changed",
+        "exclusions",
+        "review_skipping_permitted"
+      ],
+      "properties": {
+        "format": {
+          "const": "graphicle.changed-go-coverage.v1"
+        },
+        "status": {
+          "enum": [
+            "complete",
+            "incomplete",
+            "not_applicable"
+          ]
+        },
+        "scope": {
+          "const": "owned_go_import_components_and_dependency_apis"
+        },
+        "scope_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "changed_components": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocking_component_issues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blocking_global_issues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outside_component_issues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "outside_scope_issues": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "unmapped_changed_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "binding_changed": {
+          "type": "boolean"
+        },
+        "exclusions": {
+          "const": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ]
+        },
+        "review_skipping_permitted": {
+          "const": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "complete",
+                  "not_applicable"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "blocking_component_issues": {
+                "const": 0
+              },
+              "blocking_global_issues": {
+                "const": 0
+              },
+              "unmapped_changed_files": {
+                "const": 0
+              },
+              "binding_changed": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "complete"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "changed_components": {
+                "minimum": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "not_applicable"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "changed_components": {
+                "const": 0
+              }
+            }
+          }
+        }
+      ]
+    },
     "basis": {
       "type": "object", "required": ["scope", "complete", "reason"],
       "properties": {

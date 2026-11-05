@@ -307,6 +307,52 @@ describe supporting graph traversal when present.
 `coverage.complete` and `coverage.budget_omitted` must be recorded alongside impact;
 an empty or truncated packet is not evidence that a change is safe.
 
+### Changed Go analysis coverage
+
+`build.info.review_analysis_coverage` advertises
+`graphicle.changed-go-coverage.v1`. Pinned review packets always include the
+additive `analysis_coverage` object, with this independent `format` marker. Older
+builds may omit it. Its schema is embedded in
+[review-risk-v2.json](schemas/review-risk-v2.json); the existing v2 global impact
+meaning is unchanged.
+
+The scope is `owned_go_import_components_and_dependency_apis`: static analysis
+of changed compiler-selected owned Go packages and their connected import
+components, using resolved dependency API bindings. Components use the union of
+base/head incoming and outgoing imports within each consumer build. It explicitly
+excludes `dependency_implementations_and_callbacks`, `non_go_semantics`, and
+`runtime_behavior`. A resolved library call does not prove its implementation or
+callbacks safe. Service/deployment behavior is outside this Go-only scope.
+
+| Field | Meaning |
+| --- | --- |
+| `status` | `complete`: at least one changed component, without blockers; `incomplete`: analysis/binding/input blockers; `not_applicable`: no changed Go components and no blockers. None is a risk or severity verdict. |
+| `scope_sha256` | Opaque identity over format, pins, profile and changed component fingerprints. Not a review receipt. |
+| `changed_components` | Distinct components containing changed owned Go source selected on either side. |
+| `blocking_component_issues` | Unresolved calls whose known owners intersect changed components. |
+| `blocking_global_issues` | Admission, compiler/discovery failures, unknown ownership, traversal/initialization limits, and other unclassified issues. A failed graph cannot establish disconnection. |
+| `outside_component_issues` | Unresolved calls with known owners entirely outside changed components. |
+| `outside_scope_issues` | Explicitly excluded dependency implementation effects and non-Go analysis limitations. Changed unmodeled files still block separately. |
+| `unmapped_changed_files` | Changed inputs not owned by a selected Go package, including non-Go/configuration, embedded, build and dependency implementation files. Profile-excluded/non-compiler inputs are ignored. |
+| `binding_changed` | Package dependency binding or module-layout change. Such changes conservatively block v1 completeness. |
+| `exclusions` | The three fixed scope exclusions above. |
+| `review_skipping_permitted` | Always `false`. Use existing review-reuse proof contracts, never this assessment, for skipping decisions. |
+
+Issue counts cover the full pre-packing analysis, including both sides. The four
+issue buckets partition `coverage.issue_count`; counts are issue instances, not
+unique files. The summary has no per-component list and does not grow with the
+repository. Full/delta delivery, token budgets and supplied diff ranges preserve
+it unchanged for the same analysis inputs.
+
+For Sentinel, record the object's format, status, scope identity, counts and
+exclusions alongside global `impact`, `risk_schema`, service version and delivery
+coverage. Recognize the exact format before comparing measurements; a missing or
+unknown format is unavailable, never complete. No configuration flag is needed.
+For example, a changed Go function calling a resolved standard-library API can
+have scoped status `complete`, global `impact: incomplete` (dependency behavior
+is unmodeled), and `coverage.complete: false` with an incomplete `review_basis`
+(supporting context omitted). Preserve all those measurements independently.
+
 ## Structured failures
 
 Core HTTP errors and CLI failures with `--json-errors` use:

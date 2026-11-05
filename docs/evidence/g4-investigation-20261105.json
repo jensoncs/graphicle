@@ -1,0 +1,2993 @@
+{
+  "format": "graphicle.g4-investigation.v1",
+  "source_revision": "48e98163f708949ba19782b02c52c579c495701d",
+  "binary_sha256": "92421cbb29bb82d9beb0e84eb4ffc8bd0234dc3c85b4127f98bd0296d70ea9f1",
+  "tool_sha256": "93e0c415f2ddae37d01ee5a7fb62365c0c94a1e908e5d2916c33b218f9dde0a6",
+  "profile": {
+    "goos": "linux",
+    "goarch": "amd64",
+    "tests": false
+  },
+  "synthetic": [
+    {
+      "name": "plain",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "potential_impact",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": true,
+      "issue_count": 0,
+      "issue_histogram": {
+        "counted": 0,
+        "groups": [],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 2,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 1,
+        "reasons": {
+          "complete_static_component": 1
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 3279
+    },
+    {
+      "name": "identical_plain",
+      "changed": false,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "no_changes_in_scope",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": true,
+      "issue_count": 0,
+      "issue_histogram": {
+        "counted": 0,
+        "groups": [],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 0,
+      "changes": 0,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {}
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 1612
+    },
+    {
+      "name": "unused_json",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go",
+        "tooling/settings.json"
+      ],
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 2,
+      "issue_histogram": {
+        "counted": 2,
+        "groups": [
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "json",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "json",
+            "side": "head"
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0,
+        "unsupported_count": 2,
+        "unsupported_examples_omitted": 1,
+        "unsupported_examples": [
+          {
+            "file": "app/tooling/settings.json",
+            "side": "base",
+            "extension": "json",
+            "cause": "code_extension"
+          }
+        ]
+      },
+      "budget_omitted": 0,
+      "entries": 2,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "unscoped_uncertainty": 1
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 3400
+    },
+    {
+      "name": "unrelated_interface_package",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go",
+        "unused/dispatch.go"
+      ],
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 2,
+      "issue_histogram": {
+        "counted": 2,
+        "groups": [
+          {
+            "reason": "unresolved_edge",
+            "count": 2,
+            "cause": "interface_dispatch"
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 2,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 1,
+        "reasons": {
+          "complete_static_component": 1
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 2,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 2,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 3339
+    },
+    {
+      "name": "identical_with_interface",
+      "changed": false,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go",
+        "unused/dispatch.go"
+      ],
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 2,
+      "issue_histogram": {
+        "counted": 2,
+        "groups": [
+          {
+            "reason": "unresolved_edge",
+            "count": 2,
+            "cause": "interface_dispatch"
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 0,
+      "changes": 0,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {}
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 2,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 2,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 1692
+    },
+    {
+      "name": "unrelated_broken_package",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go",
+        "unused/broken.go"
+      ],
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 4,
+      "issue_histogram": {
+        "counted": 4,
+        "groups": [
+          {
+            "reason": "incomplete_package",
+            "count": 2
+          },
+          {
+            "reason": "type_check_failed",
+            "count": 2
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 2,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "unscoped_uncertainty": 1
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 1,
+              "digest": "071b61afc1f1d4877d9dac53894fb1c64ad68f277ca04f1961c0dac5fda78a0c",
+              "packages_by_cause": {
+                "type_error": 1
+              },
+              "examples_omitted": 0,
+              "examples": [
+                {
+                  "consumer_build": "app",
+                  "package": "example.test/g4/unused",
+                  "status": [
+                    "incomplete_package",
+                    "type_check_failed"
+                  ],
+                  "causes": {
+                    "type_error": 1
+                  }
+                }
+              ]
+            },
+            "owned_package_instances": 2,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 1,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 1,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 1,
+            "diagnostic_examples_omitted": 0,
+            "examples": [
+              {
+                "package": "example.test/g4/unused",
+                "cause": "type_error",
+                "file": "app/unused/broken.go",
+                "line": 2,
+                "message": "undefined: Missing",
+                "consumer_build": "app"
+              }
+            ]
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 1,
+              "digest": "071b61afc1f1d4877d9dac53894fb1c64ad68f277ca04f1961c0dac5fda78a0c",
+              "packages_by_cause": {
+                "type_error": 1
+              },
+              "examples_omitted": 0,
+              "examples": [
+                {
+                  "consumer_build": "app",
+                  "package": "example.test/g4/unused",
+                  "status": [
+                    "incomplete_package",
+                    "type_check_failed"
+                  ],
+                  "causes": {
+                    "type_error": 1
+                  }
+                }
+              ]
+            },
+            "owned_package_instances": 2,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 1,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 1,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 1,
+            "diagnostic_examples_omitted": 0,
+            "examples": [
+              {
+                "package": "example.test/g4/unused",
+                "cause": "type_error",
+                "file": "app/unused/broken.go",
+                "line": 2,
+                "message": "undefined: Missing",
+                "consumer_build": "app"
+              }
+            ]
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 3488
+    },
+    {
+      "name": "concrete_receiver",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "potential_impact",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": true,
+      "issue_count": 0,
+      "issue_histogram": {
+        "counted": 0,
+        "groups": [],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 6,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "context_omitted": 3
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 7241
+    },
+    {
+      "name": "explicit_interface_conversion",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "potential_impact",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": true,
+      "issue_count": 0,
+      "issue_histogram": {
+        "counted": 0,
+        "groups": [],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 6,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "context_omitted": 3
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 7140
+    },
+    {
+      "name": "interface_field_literal",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 2,
+      "issue_histogram": {
+        "counted": 2,
+        "groups": [
+          {
+            "reason": "unresolved_edge",
+            "count": 2,
+            "cause": "interface_dispatch"
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 6,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "context_omitted": 3
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 7421
+    },
+    {
+      "name": "interface_constructor_result",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 2,
+      "issue_histogram": {
+        "counted": 2,
+        "groups": [
+          {
+            "reason": "unresolved_edge",
+            "count": 2,
+            "cause": "interface_dispatch"
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 6,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "context_omitted": 3
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 7377
+    },
+    {
+      "name": "unrelated_stdlib_api",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go",
+        "unused/library.go"
+      ],
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 2,
+      "issue_histogram": {
+        "counted": 2,
+        "groups": [
+          {
+            "reason": "dependency_effects_unmodeled",
+            "count": 2
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 2,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "unscoped_uncertainty": 1
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 2,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 1,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [
+              {
+                "consumer_build": "app",
+                "file": "app/unused/library.go",
+                "line": 3,
+                "relation": "calls",
+                "target": {
+                  "package": "strings",
+                  "symbol": "TrimSpace",
+                  "signature": "func strings.TrimSpace(s string) string",
+                  "kind": "standard_library"
+                }
+              }
+            ],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 2,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 1,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [
+              {
+                "consumer_build": "app",
+                "file": "app/unused/library.go",
+                "line": 3,
+                "relation": "calls",
+                "target": {
+                  "package": "strings",
+                  "symbol": "TrimSpace",
+                  "signature": "func strings.TrimSpace(s string) string",
+                  "kind": "standard_library"
+                }
+              }
+            ],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 3442
+    },
+    {
+      "name": "local_interface_binding",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "potential_impact",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": true,
+      "issue_count": 0,
+      "issue_histogram": {
+        "counted": 0,
+        "groups": [],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 6,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "context_omitted": 3
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 7218
+    },
+    {
+      "name": "stdlib_api",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 2,
+      "issue_histogram": {
+        "counted": 2,
+        "groups": [
+          {
+            "reason": "dependency_effects_unmodeled",
+            "count": 2
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 2,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "unscoped_uncertainty": 1
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 1,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [
+              {
+                "consumer_build": "app",
+                "file": "app/main.go",
+                "line": 3,
+                "relation": "calls",
+                "target": {
+                  "package": "strings",
+                  "symbol": "TrimSpace",
+                  "signature": "func strings.TrimSpace(s string) string",
+                  "kind": "standard_library"
+                }
+              }
+            ],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 1,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [
+              {
+                "consumer_build": "app",
+                "file": "app/main.go",
+                "line": 3,
+                "relation": "calls",
+                "target": {
+                  "package": "strings",
+                  "symbol": "TrimSpace",
+                  "signature": "func strings.TrimSpace(s string) string",
+                  "kind": "standard_library"
+                }
+              }
+            ],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 3466
+    },
+    {
+      "name": "vendored_pure_api",
+      "changed": true,
+      "max_tokens": 16000,
+      "files": [
+        "go.mod",
+        "main.go",
+        "vendor/example.test/dep/dep.go",
+        "vendor/modules.txt"
+      ],
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 2,
+      "issue_histogram": {
+        "counted": 2,
+        "groups": [
+          {
+            "reason": "dependency_effects_unmodeled",
+            "count": 2
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 2,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "unscoped_uncertainty": 1
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 1,
+            "resolved_dependency_references": 1,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [
+              {
+                "consumer_build": "app",
+                "file": "app/main.go",
+                "line": 3,
+                "relation": "calls",
+                "target": {
+                  "package": "example.test/dep",
+                  "module": "example.test/dep",
+                  "version": "v1.0.0",
+                  "symbol": "Double",
+                  "signature": "func example.test/dep.Double(n int) int",
+                  "kind": "vendored"
+                }
+              }
+            ],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 1,
+            "resolved_dependency_references": 1,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [
+              {
+                "consumer_build": "app",
+                "file": "app/main.go",
+                "line": 3,
+                "relation": "calls",
+                "target": {
+                  "package": "example.test/dep",
+                  "module": "example.test/dep",
+                  "version": "v1.0.0",
+                  "symbol": "Double",
+                  "signature": "func example.test/dep.Double(n int) int",
+                  "kind": "vendored"
+                }
+              }
+            ],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 3493
+    },
+    {
+      "name": "packing_only",
+      "changed": true,
+      "max_tokens": 4000,
+      "files": [
+        "callers.go",
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "potential_impact",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 0,
+      "issue_histogram": {
+        "counted": 0,
+        "groups": [],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 24,
+      "entries": 3,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "context_omitted": 2
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 3655
+    },
+    {
+      "name": "packing_only",
+      "changed": true,
+      "max_tokens": 64000,
+      "files": [
+        "callers.go",
+        "go.mod",
+        "main.go"
+      ],
+      "impact": "potential_impact",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": true,
+      "issue_count": 0,
+      "issue_histogram": {
+        "counted": 0,
+        "groups": [],
+        "other_count": 0,
+        "other_groups": 0
+      },
+      "budget_omitted": 0,
+      "entries": 26,
+      "changes": 1,
+      "head_review_basis": {
+        "complete": 13,
+        "reasons": {
+          "complete_static_component": 13
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 1,
+            "dependency_package_instances": 0,
+            "resolved_dependency_references": 0,
+            "dependency_boundary_examples_omitted": 0,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 25725
+    }
+  ],
+  "archives": [
+    {
+      "label": "nexus-963",
+      "packet_sha256": "45a0735facfb8d246c89d247434f8366fca1a64c3a23f730472674c230489deb",
+      "base": [
+        {
+          "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+          "commit": "a86e65a21253acd52f03aebc62f2977b0ec2535a",
+          "snapshot": "a9788f4a1a4fbb62f988c161cb287bc358ced87d21c18ae6a59102fc29599b6e",
+          "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+          "directory": "nexus",
+          "modules": [
+            "xlr8"
+          ]
+        }
+      ],
+      "head": [
+        {
+          "repository_id": "2a0340c13d094c61a70e31557cdb6e4e",
+          "commit": "3b14337ab9de464329d5a2b85cd92bf82eb5cf16",
+          "snapshot": "40a7d532aa1f627a7542d192c751b9c7f2ab19c5e648391ad78b813ff83c7813",
+          "policy_sha256": "6736e8434fe78046ccb162f0095cb667f9986954add561e217577fca35f5895f",
+          "directory": "nexus",
+          "modules": [
+            "xlr8"
+          ]
+        }
+      ],
+      "analyzer": "graphicle-go-review-v15+basic-source-impact-v1",
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 2846,
+      "issue_histogram": {
+        "counted": 2846,
+        "groups": [
+          {
+            "reason": "basic_analysis_limitations",
+            "count": 4
+          },
+          {
+            "reason": "basic_unresolved_import",
+            "count": 36,
+            "cause": "external_or_unresolved",
+            "language": "python"
+          },
+          {
+            "reason": "dependency_effects_unmodeled",
+            "count": 2
+          },
+          {
+            "reason": "depth_limit",
+            "count": 268
+          },
+          {
+            "reason": "package_initialization_scope",
+            "count": 2
+          },
+          {
+            "reason": "python_environment_incomplete",
+            "count": 2
+          },
+          {
+            "reason": "uncertain_file_scope",
+            "count": 3
+          },
+          {
+            "reason": "unresolved_edge",
+            "count": 54,
+            "cause": "function_value_budget"
+          },
+          {
+            "reason": "unresolved_edge",
+            "count": 2179,
+            "cause": "interface_dispatch"
+          },
+          {
+            "reason": "unresolved_edge",
+            "count": 108,
+            "cause": "unresolved_dynamic_target"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 11,
+            "cause": "assembly_extension",
+            "extension": "s",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 11,
+            "cause": "assembly_extension",
+            "extension": "s",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 3,
+            "cause": "build_filename",
+            "extension": "",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 3,
+            "cause": "build_filename",
+            "extension": "",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "h",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "h",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 73,
+            "cause": "code_extension",
+            "extension": "json",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 73,
+            "cause": "code_extension",
+            "extension": "json",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 4,
+            "cause": "code_extension",
+            "extension": "yaml",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 4,
+            "cause": "code_extension",
+            "extension": "yaml",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 2,
+            "cause": "code_extension",
+            "extension": "yml",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 2,
+            "cause": "code_extension",
+            "extension": "yml",
+            "side": "head"
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0,
+        "unsupported_count": 188,
+        "unsupported_examples_omitted": 184,
+        "unsupported_examples": [
+          {
+            "file": "nexus/xlr8/.planning/config.json",
+            "side": "base",
+            "extension": "json",
+            "cause": "code_extension"
+          },
+          {
+            "file": "nexus/xlr8/vendor/github.com/cespare/xxhash/v2/xxhash_amd64.s",
+            "side": "base",
+            "extension": "s",
+            "cause": "assembly_extension"
+          },
+          {
+            "file": "nexus/xlr8/deployment.yaml",
+            "side": "base",
+            "extension": "yaml",
+            "cause": "code_extension"
+          },
+          {
+            "file": "nexus/xlr8/Dockerfile",
+            "side": "base",
+            "extension": "",
+            "cause": "build_filename"
+          }
+        ]
+      },
+      "budget_omitted": 2111,
+      "entries": 4,
+      "changes": 24,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "context_omitted": 4
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 43,
+            "dependency_package_instances": 884,
+            "resolved_dependency_references": 7672,
+            "dependency_boundary_examples_omitted": 7672,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 1,
+            "files_by_cause": {
+              "python_environment_binding_ambiguous": 1,
+              "python_environment_binding_escape_or_unresolved_use": 1
+            },
+            "file_examples_omitted": 0,
+            "examples": [
+              {
+                "file": "nexus/xlr8/scripts/gateway/split_gateway_models_cm.py",
+                "causes": [
+                  "python_environment_binding_ambiguous",
+                  "python_environment_binding_escape_or_unresolved_use"
+                ]
+              }
+            ]
+          },
+          "python_imports": {
+            "unresolved_occurrences": 18,
+            "files": 6,
+            "by_cause": {
+              "external_or_unresolved": 18
+            },
+            "module_groups": 6,
+            "module_groups_omitted": 3,
+            "modules": [
+              {
+                "module": "json",
+                "cause": "external_or_unresolved",
+                "count": 5
+              },
+              {
+                "module": "sys",
+                "cause": "external_or_unresolved",
+                "count": 5
+              },
+              {
+                "module": "yaml",
+                "cause": "external_or_unresolved",
+                "count": 3
+              }
+            ]
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 0,
+              "digest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "packages_by_cause": {},
+              "examples_omitted": 0,
+              "examples": []
+            },
+            "owned_package_instances": 43,
+            "dependency_package_instances": 884,
+            "resolved_dependency_references": 7693,
+            "dependency_boundary_examples_omitted": 7693,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 0,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 0,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 0,
+            "diagnostic_count": 0,
+            "diagnostic_examples_omitted": 0,
+            "examples": []
+          },
+          "python_environment": {
+            "incomplete_files": 1,
+            "files_by_cause": {
+              "python_environment_binding_ambiguous": 1,
+              "python_environment_binding_escape_or_unresolved_use": 1
+            },
+            "file_examples_omitted": 0,
+            "examples": [
+              {
+                "file": "nexus/xlr8/scripts/gateway/split_gateway_models_cm.py",
+                "causes": [
+                  "python_environment_binding_ambiguous",
+                  "python_environment_binding_escape_or_unresolved_use"
+                ]
+              }
+            ]
+          },
+          "python_imports": {
+            "unresolved_occurrences": 18,
+            "files": 6,
+            "by_cause": {
+              "external_or_unresolved": 18
+            },
+            "module_groups": 6,
+            "module_groups_omitted": 3,
+            "modules": [
+              {
+                "module": "json",
+                "cause": "external_or_unresolved",
+                "count": 5
+              },
+              {
+                "module": "sys",
+                "cause": "external_or_unresolved",
+                "count": 5
+              },
+              {
+                "module": "yaml",
+                "cause": "external_or_unresolved",
+                "count": 3
+              }
+            ]
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 7690,
+      "native_facts": {
+        "base": {
+          "status": "available",
+          "snapshot": "a9788f4a1a4fbb62f988c161cb287bc358ced87d21c18ae6a59102fc29599b6e",
+          "cache_key": "0a3aefe756b54653228635df42f352025ded9591a5e17e58663f7fd84288552c",
+          "facts_sha256": "0a8c260bf9aa752df594b8c13f616aea51e873e725839fe7431aaff7d154cd7a",
+          "unresolved_by_cause": {
+            "function_value_budget": 27,
+            "interface_dispatch": 1088,
+            "unresolved_dynamic_target": 54
+          },
+          "interface_sites": 1088,
+          "interface_sites_with_candidates": 766,
+          "interface_candidate_edges": 2450,
+          "top_interface_spellings": [
+            [
+              "err.Error",
+              152
+            ],
+            [
+              "resp.Body.Close",
+              15
+            ],
+            [
+              "xds_state.GetCache().GetState",
+              9
+            ],
+            [
+              "xds_state.GetCache().GetState().GetStatusKeys",
+              9
+            ],
+            [
+              "ctx.Done",
+              8
+            ],
+            [
+              "c.discoveryClient.GetNexusServiceConfigs",
+              7
+            ],
+            [
+              "(*kv).Get",
+              7
+            ],
+            [
+              "(*discovery.EtcdClient).Watch",
+              7
+            ],
+            [
+              "cacheUpdateMissedEvents.With",
+              6
+            ],
+            [
+              "cacheUpdateErrorEvents.With",
+              6
+            ],
+            [
+              "cacheRejectedEvents.With",
+              6
+            ],
+            [
+              "cacheUpdateEvents.With",
+              6
+            ],
+            [
+              "cacheEvents.With",
+              6
+            ],
+            [
+              "cacheResources.With",
+              6
+            ],
+            [
+              "d.InitDiscoveryClient",
+              6
+            ]
+          ],
+          "top_interface_files": [
+            [
+              "nexus/xlr8/pkg/xds/metrics.go",
+              424
+            ],
+            [
+              "nexus/xlr8/pkg/providers/xds_state/metrics.go",
+              131
+            ],
+            [
+              "nexus/xlr8/pkg/xds/xds.go",
+              72
+            ],
+            [
+              "nexus/xlr8/pkg/core/builder/metrics.go",
+              49
+            ],
+            [
+              "nexus/xlr8/pkg/discovery/metrics.go",
+              37
+            ],
+            [
+              "nexus/xlr8/pkg/scripts/migrate.go",
+              27
+            ],
+            [
+              "nexus/xlr8/pkg/discovery/etcd.go",
+              23
+            ],
+            [
+              "nexus/xlr8/pkg/app/app.go",
+              21
+            ],
+            [
+              "nexus/xlr8/pkg/httpApi/configDiscovery/etcd.go",
+              21
+            ],
+            [
+              "nexus/xlr8/pkg/core/builder/endpoint.go",
+              20
+            ]
+          ]
+        },
+        "head": {
+          "status": "available",
+          "snapshot": "40a7d532aa1f627a7542d192c751b9c7f2ab19c5e648391ad78b813ff83c7813",
+          "cache_key": "dffc48bbcca3950baaf88e5c4f9d4d4a69392f6d34e4da7a316649c992d8d174",
+          "facts_sha256": "1f4473a5c154d37830e712a8e6ed4420544171d321d8911f81a34d02620bf172",
+          "unresolved_by_cause": {
+            "function_value_budget": 27,
+            "interface_dispatch": 1091,
+            "unresolved_dynamic_target": 54
+          },
+          "interface_sites": 1091,
+          "interface_sites_with_candidates": 768,
+          "interface_candidate_edges": 2456,
+          "top_interface_spellings": [
+            [
+              "err.Error",
+              153
+            ],
+            [
+              "resp.Body.Close",
+              15
+            ],
+            [
+              "xds_state.GetCache().GetState",
+              9
+            ],
+            [
+              "xds_state.GetCache().GetState().GetStatusKeys",
+              9
+            ],
+            [
+              "ctx.Done",
+              8
+            ],
+            [
+              "c.discoveryClient.GetNexusServiceConfigs",
+              7
+            ],
+            [
+              "(*kv).Get",
+              7
+            ],
+            [
+              "(*discovery.EtcdClient).Watch",
+              7
+            ],
+            [
+              "cacheUpdateMissedEvents.With",
+              6
+            ],
+            [
+              "cacheUpdateErrorEvents.With",
+              6
+            ],
+            [
+              "cacheRejectedEvents.With",
+              6
+            ],
+            [
+              "cacheUpdateEvents.With",
+              6
+            ],
+            [
+              "cacheEvents.With",
+              6
+            ],
+            [
+              "cacheResources.With",
+              6
+            ],
+            [
+              "d.InitDiscoveryClient",
+              6
+            ]
+          ],
+          "top_interface_files": [
+            [
+              "nexus/xlr8/pkg/xds/metrics.go",
+              424
+            ],
+            [
+              "nexus/xlr8/pkg/providers/xds_state/metrics.go",
+              131
+            ],
+            [
+              "nexus/xlr8/pkg/xds/xds.go",
+              73
+            ],
+            [
+              "nexus/xlr8/pkg/core/builder/metrics.go",
+              51
+            ],
+            [
+              "nexus/xlr8/pkg/discovery/metrics.go",
+              37
+            ],
+            [
+              "nexus/xlr8/pkg/scripts/migrate.go",
+              27
+            ],
+            [
+              "nexus/xlr8/pkg/discovery/etcd.go",
+              23
+            ],
+            [
+              "nexus/xlr8/pkg/app/app.go",
+              21
+            ],
+            [
+              "nexus/xlr8/pkg/httpApi/configDiscovery/etcd.go",
+              21
+            ],
+            [
+              "nexus/xlr8/pkg/core/builder/endpoint.go",
+              20
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "label": "platform-rbac-638",
+      "packet_sha256": "a6d08ff7c11a6f8c3adb0a7122bf7a14a7828e85f3174af4e8755b43a79e073e",
+      "base": [
+        {
+          "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+          "commit": "fae5961c7b93cfab40437be096e9dce932ebfa81",
+          "snapshot": "e8dd67dd0caba706f4dd37deb84c8bbf9416bec1fdcd54e6b73b1457da761c8f",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "platform-rbac",
+          "modules": [
+            "."
+          ]
+        }
+      ],
+      "head": [
+        {
+          "repository_id": "5bbb8fc4d7274c2998a264e8cbdb5ea9",
+          "commit": "79480e67b105e65cb2e6ac4728b3bf79ce77d087",
+          "snapshot": "db8c55a1dbca6d946ff191809b95ca88b26cef0e34205d5340d670c6c65ee555",
+          "policy_sha256": "fb354077ceaac7ffac7b0bf22d6c8102d284000d9e34343fbcc076317329d944",
+          "directory": "platform-rbac",
+          "modules": [
+            "."
+          ]
+        }
+      ],
+      "analyzer": "graphicle-go-review-v15+basic-source-impact-v1",
+      "impact": "incomplete",
+      "risk_schema": "graphicle.review-risk.v2",
+      "coverage_complete": false,
+      "issue_count": 12972,
+      "issue_histogram": {
+        "counted": 12972,
+        "groups": [
+          {
+            "reason": "basic_analysis_limitations",
+            "count": 4
+          },
+          {
+            "reason": "basic_unresolved_import",
+            "count": 22,
+            "cause": "external_or_unresolved",
+            "language": "python"
+          },
+          {
+            "reason": "dependency_effects_unmodeled",
+            "count": 2
+          },
+          {
+            "reason": "incomplete_package",
+            "count": 42
+          },
+          {
+            "reason": "package_initialization_scope",
+            "count": 2
+          },
+          {
+            "reason": "type_check_failed",
+            "count": 42
+          },
+          {
+            "reason": "uncertain_file_scope",
+            "count": 10
+          },
+          {
+            "reason": "unresolved_edge",
+            "count": 1,
+            "cause": "function_value_budget"
+          },
+          {
+            "reason": "unresolved_edge",
+            "count": 10959,
+            "cause": "incomplete_package"
+          },
+          {
+            "reason": "unresolved_edge",
+            "count": 1626,
+            "cause": "interface_dispatch"
+          },
+          {
+            "reason": "unresolved_edge",
+            "count": 17,
+            "cause": "unresolved_dynamic_target"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 9,
+            "cause": "assembly_extension",
+            "extension": "s",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 9,
+            "cause": "assembly_extension",
+            "extension": "s",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 3,
+            "cause": "build_filename",
+            "extension": "",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 3,
+            "cause": "build_filename",
+            "extension": "",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "h",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "h",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "js",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "js",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 29,
+            "cause": "code_extension",
+            "extension": "json",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 29,
+            "cause": "code_extension",
+            "extension": "json",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 71,
+            "cause": "code_extension",
+            "extension": "sql",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 72,
+            "cause": "code_extension",
+            "extension": "sql",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 7,
+            "cause": "code_extension",
+            "extension": "yaml",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 7,
+            "cause": "code_extension",
+            "extension": "yaml",
+            "side": "head"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "yml",
+            "side": "base"
+          },
+          {
+            "reason": "unsupported_source_language_or_contract",
+            "count": 1,
+            "cause": "code_extension",
+            "extension": "yml",
+            "side": "head"
+          }
+        ],
+        "other_count": 0,
+        "other_groups": 0,
+        "unsupported_count": 245,
+        "unsupported_examples_omitted": 241,
+        "unsupported_examples": [
+          {
+            "file": "platform-rbac/athena/pkg/db/migrations/000001_initial_schema.up.sql",
+            "side": "head",
+            "extension": "sql",
+            "cause": "code_extension"
+          },
+          {
+            "file": "platform-rbac/.vscode/launch.json",
+            "side": "base",
+            "extension": "json",
+            "cause": "code_extension"
+          },
+          {
+            "file": "platform-rbac/vendor/github.com/cespare/xxhash/v2/xxhash_amd64.s",
+            "side": "base",
+            "extension": "s",
+            "cause": "assembly_extension"
+          },
+          {
+            "file": "platform-rbac/Dockerfile",
+            "side": "base",
+            "extension": "",
+            "cause": "build_filename"
+          }
+        ]
+      },
+      "budget_omitted": 5999,
+      "entries": 5,
+      "changes": 56,
+      "head_review_basis": {
+        "complete": 0,
+        "reasons": {
+          "context_omitted": 5
+        }
+      },
+      "analysis_diagnostics": {
+        "base": {
+          "go": {
+            "package_failures": {
+              "count": 21,
+              "digest": "0bca520e34a83ff9f22ae4ddf91386541247483ca39cbbe1afe8ee58a4b89b31",
+              "packages_by_cause": {
+                "type_error": 21
+              },
+              "examples_omitted": 18,
+              "examples": [
+                {
+                  "consumer_build": "platform-rbac",
+                  "package": "platform-rbac",
+                  "status": [
+                    "incomplete_package",
+                    "type_check_failed"
+                  ],
+                  "causes": {
+                    "type_error": 2
+                  }
+                },
+                {
+                  "consumer_build": "platform-rbac",
+                  "package": "platform-rbac/athena/cmd/athenaserver",
+                  "status": [
+                    "incomplete_package",
+                    "type_check_failed"
+                  ],
+                  "causes": {
+                    "type_error": 3
+                  }
+                },
+                {
+                  "consumer_build": "platform-rbac",
+                  "package": "platform-rbac/athena/pkg/application/handlers",
+                  "status": [
+                    "incomplete_package",
+                    "type_check_failed"
+                  ],
+                  "causes": {
+                    "type_error": 2
+                  }
+                }
+              ]
+            },
+            "owned_package_instances": 68,
+            "dependency_package_instances": 750,
+            "resolved_dependency_references": 4097,
+            "dependency_boundary_examples_omitted": 4097,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 21,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 21,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 5407,
+            "diagnostic_count": 50,
+            "diagnostic_examples_omitted": 49,
+            "examples": [
+              {
+                "package": "platform-rbac/pkg/api/apiLogic/v3apiLogic",
+                "cause": "type_error",
+                "file": "platform-rbac/pkg/api/apiLogic/v3apiLogic/add_workflow.go",
+                "line": 115,
+                "message": "undefined: IsMemberBlocked",
+                "consumer_build": "platform-rbac"
+              }
+            ]
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          },
+          "python_imports": {
+            "unresolved_occurrences": 11,
+            "files": 4,
+            "by_cause": {
+              "external_or_unresolved": 11
+            },
+            "module_groups": 8,
+            "module_groups_omitted": 7,
+            "modules": [
+              {
+                "module": "json",
+                "cause": "external_or_unresolved",
+                "count": 3
+              }
+            ]
+          }
+        },
+        "head": {
+          "go": {
+            "package_failures": {
+              "count": 21,
+              "digest": "0bca520e34a83ff9f22ae4ddf91386541247483ca39cbbe1afe8ee58a4b89b31",
+              "packages_by_cause": {
+                "type_error": 21
+              },
+              "examples_omitted": 18,
+              "examples": [
+                {
+                  "consumer_build": "platform-rbac",
+                  "package": "platform-rbac",
+                  "status": [
+                    "incomplete_package",
+                    "type_check_failed"
+                  ],
+                  "causes": {
+                    "type_error": 2
+                  }
+                },
+                {
+                  "consumer_build": "platform-rbac",
+                  "package": "platform-rbac/athena/cmd/athenaserver",
+                  "status": [
+                    "incomplete_package",
+                    "type_check_failed"
+                  ],
+                  "causes": {
+                    "type_error": 3
+                  }
+                },
+                {
+                  "consumer_build": "platform-rbac",
+                  "package": "platform-rbac/athena/pkg/application/handlers",
+                  "status": [
+                    "incomplete_package",
+                    "type_check_failed"
+                  ],
+                  "causes": {
+                    "type_error": 2
+                  }
+                }
+              ]
+            },
+            "owned_package_instances": 68,
+            "dependency_package_instances": 750,
+            "resolved_dependency_references": 4130,
+            "dependency_boundary_examples_omitted": 4130,
+            "dependency_boundary_examples": [],
+            "incomplete_package_instances": 21,
+            "discovery_incomplete_package_instances": 0,
+            "type_check_failed_package_instances": 21,
+            "unavailable_external_package_instances": 0,
+            "incomplete_package_references": 5552,
+            "diagnostic_count": 50,
+            "diagnostic_examples_omitted": 49,
+            "examples": [
+              {
+                "package": "platform-rbac/pkg/api/apiLogic/v3apiLogic",
+                "cause": "type_error",
+                "file": "platform-rbac/pkg/api/apiLogic/v3apiLogic/add_workflow.go",
+                "line": 115,
+                "message": "undefined: IsMemberBlocked",
+                "consumer_build": "platform-rbac"
+              }
+            ]
+          },
+          "python_environment": {
+            "incomplete_files": 0,
+            "files_by_cause": {},
+            "file_examples_omitted": 0,
+            "examples": []
+          },
+          "python_imports": {
+            "unresolved_occurrences": 11,
+            "files": 4,
+            "by_cause": {
+              "external_or_unresolved": 11
+            },
+            "module_groups": 8,
+            "module_groups_omitted": 7,
+            "modules": [
+              {
+                "module": "json",
+                "cause": "external_or_unresolved",
+                "count": 3
+              }
+            ]
+          }
+        }
+      },
+      "source_admission": {
+        "base": [],
+        "head": []
+      },
+      "tokens": 7638,
+      "native_facts": {
+        "base": {
+          "status": "available",
+          "snapshot": "e8dd67dd0caba706f4dd37deb84c8bbf9416bec1fdcd54e6b73b1457da761c8f",
+          "cache_key": "d8cc87a564a697da0d6c301990a565fee233651049e117c789dd3885567c2897",
+          "facts_sha256": "8b223473195b2311b7355a2d91b7f346e77b558685c7d0c1ebc0dcd72be2276e",
+          "unresolved_by_cause": {
+            "incomplete_package": 5407,
+            "interface_dispatch": 813,
+            "unresolved_dynamic_target": 7
+          },
+          "interface_sites": 813,
+          "interface_sites_with_candidates": 218,
+          "interface_candidate_edges": 394,
+          "top_interface_spellings": [
+            [
+              "db.PrepareContext",
+              230
+            ],
+            [
+              "m.ctrl.T.Helper",
+              165
+            ],
+            [
+              "mr.mock.ctrl.T.Helper",
+              165
+            ],
+            [
+              "err.Error",
+              33
+            ],
+            [
+              "db.DBStore.GetUserDetails",
+              8
+            ],
+            [
+              "db.DBStore.GetIAMResourcesTypes",
+              5
+            ],
+            [
+              "db.DBStore.GetUserType",
+              4
+            ],
+            [
+              "db.DBStore.GetCloudDls",
+              4
+            ],
+            [
+              "err2.Error",
+              4
+            ],
+            [
+              "db.DBStore.AddIAMAccessTime",
+              4
+            ],
+            [
+              "db.DBStore.UpdateIAMPermissions",
+              4
+            ],
+            [
+              "db.DBStore.GetIAMEntities",
+              4
+            ],
+            [
+              "db.DBStore.GetIAMEnvs",
+              4
+            ],
+            [
+              "db.DBStore.GetIAMProjects",
+              4
+            ],
+            [
+              "db.DBStore.GetAdminClouds",
+              3
+            ]
+          ],
+          "top_interface_files": [
+            [
+              "platform-rbac/pkg/db/mock/store.go",
+              330
+            ],
+            [
+              "platform-rbac/pkg/db/sqlc/db.go",
+              168
+            ],
+            [
+              "platform-rbac/athena/pkg/db/sqlc/db.go",
+              68
+            ],
+            [
+              "platform-rbac/pkg/utility/validator/admin/admin.go",
+              25
+            ],
+            [
+              "platform-rbac/pkg/api/apiLogic/v2apiLogic/iam.go",
+              24
+            ],
+            [
+              "platform-rbac/pkg/api/apiLogic/iam.go",
+              23
+            ],
+            [
+              "platform-rbac/pkg/api/apiLogic/user.go",
+              18
+            ],
+            [
+              "platform-rbac/athena/util/access.go",
+              12
+            ],
+            [
+              "platform-rbac/pkg/api/apiLogic/podLogic.go",
+              10
+            ],
+            [
+              "platform-rbac/pkg/api/controller/admin/interface.go",
+              9
+            ]
+          ]
+        },
+        "head": {
+          "status": "available",
+          "snapshot": "db8c55a1dbca6d946ff191809b95ca88b26cef0e34205d5340d670c6c65ee555",
+          "cache_key": "9a18874308493ea2a1a453defa82a160c7061ebfe70382a149c2645ab7fd9ebd",
+          "facts_sha256": "5af52a6fae673512fe6382dc9ddd183a6862a9e085fc65ecbcb06ca38b0c8609",
+          "unresolved_by_cause": {
+            "function_value_budget": 1,
+            "incomplete_package": 5552,
+            "interface_dispatch": 813,
+            "unresolved_dynamic_target": 10
+          },
+          "interface_sites": 813,
+          "interface_sites_with_candidates": 218,
+          "interface_candidate_edges": 394,
+          "top_interface_spellings": [
+            [
+              "db.PrepareContext",
+              230
+            ],
+            [
+              "m.ctrl.T.Helper",
+              165
+            ],
+            [
+              "mr.mock.ctrl.T.Helper",
+              165
+            ],
+            [
+              "err.Error",
+              33
+            ],
+            [
+              "db.DBStore.GetUserDetails",
+              8
+            ],
+            [
+              "db.DBStore.GetIAMResourcesTypes",
+              5
+            ],
+            [
+              "db.DBStore.GetUserType",
+              4
+            ],
+            [
+              "db.DBStore.GetCloudDls",
+              4
+            ],
+            [
+              "err2.Error",
+              4
+            ],
+            [
+              "db.DBStore.AddIAMAccessTime",
+              4
+            ],
+            [
+              "db.DBStore.UpdateIAMPermissions",
+              4
+            ],
+            [
+              "db.DBStore.GetIAMEntities",
+              4
+            ],
+            [
+              "db.DBStore.GetIAMEnvs",
+              4
+            ],
+            [
+              "db.DBStore.GetIAMProjects",
+              4
+            ],
+            [
+              "db.DBStore.GetAdminClouds",
+              3
+            ]
+          ],
+          "top_interface_files": [
+            [
+              "platform-rbac/pkg/db/mock/store.go",
+              330
+            ],
+            [
+              "platform-rbac/pkg/db/sqlc/db.go",
+              168
+            ],
+            [
+              "platform-rbac/athena/pkg/db/sqlc/db.go",
+              68
+            ],
+            [
+              "platform-rbac/pkg/utility/validator/admin/admin.go",
+              25
+            ],
+            [
+              "platform-rbac/pkg/api/apiLogic/v2apiLogic/iam.go",
+              24
+            ],
+            [
+              "platform-rbac/pkg/api/apiLogic/iam.go",
+              23
+            ],
+            [
+              "platform-rbac/pkg/api/apiLogic/user.go",
+              18
+            ],
+            [
+              "platform-rbac/athena/util/access.go",
+              12
+            ],
+            [
+              "platform-rbac/pkg/api/apiLogic/podLogic.go",
+              10
+            ],
+            [
+              "platform-rbac/pkg/api/controller/admin/interface.go",
+              9
+            ]
+          ]
+        }
+      }
+    }
+  ]
+}

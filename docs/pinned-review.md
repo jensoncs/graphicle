@@ -25,6 +25,27 @@ remain conservative about missing context. Analysis and admission gaps still
 produce `impact: "incomplete"`. See the [measurement contract](pilot-protocol.md#risk-measurements)
 for v1/v2 comparison semantics.
 
+Packets also include `analysis_coverage` with format
+`graphicle.changed-go-coverage.v1`, computed before packing. It answers a narrower
+question: is static analysis complete for the changed owned Go import components
+and their resolved dependency APIs? It excludes dependency implementations and
+callbacks, non-Go semantics, and runtime behavior. It can be `complete` while
+global `impact` remains `incomplete` and delivered context is truncated.
+
+Components include incoming and outgoing imports from both base and head. An
+unresolved call in a changed component blocks completeness; a known disconnected
+component is counted separately. Admission gaps, compiler failures, unknown
+ownership and other unclassified limitations still block globally. Changed
+unmapped inputs (including configuration, embeds and dependency implementation
+files) block this assessment; profile-excluded/non-compiler inputs are excluded.
+Dependency binding or module-layout changes are not certified by this v1 scope.
+With no changed owned Go components and no blockers, status is `not_applicable`.
+
+This field is always enabled and bounded; it does not grant review skipping or
+alter the existing `review_basis` / `review_reuse` proof rules. Sentinel can record
+it alongside v2 `impact` and delivery coverage using the
+[scoped analysis contract](pilot-protocol.md#changed-go-analysis-coverage).
+
 ## Persistent review serving
 
 Keep the HTTP process alive to reuse the compiled Go helper between reviews:

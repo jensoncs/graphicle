@@ -5,7 +5,6 @@
 //! a supplier's prior review too. No runtime target is inferred by this layer.
 use super::*;
 
-type Package = (String, String);
 #[derive(Default)]
 pub(super) struct Scopes {
     symbols: BTreeMap<String, String>,
@@ -84,71 +83,8 @@ impl Scopes {
     }
 }
 
-pub(super) fn annotate(report: &mut Value, a: &Analysis, b: &Analysis) -> Scopes {
-    let mut neighbors: BTreeMap<Package, BTreeSet<Package>> = a
-        .packages
-        .iter()
-        .chain(&b.packages)
-        .map(|p| {
-            (
-                (s(p, "consumer_build").to_owned(), s(p, "path").to_owned()),
-                BTreeSet::new(),
-            )
-        })
-        .collect();
-    for p in a.packages.iter().chain(&b.packages) {
-        let owner = (s(p, "consumer_build").to_owned(), s(p, "path").to_owned());
-        for dependency in p["dependencies"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-        {
-            let dep = (owner.0.clone(), dependency.to_owned());
-            if neighbors.contains_key(&dep) {
-                neighbors.get_mut(&owner).unwrap().insert(dep.clone());
-                neighbors.get_mut(&dep).unwrap().insert(owner.clone());
-            }
-        }
-    }
-    let mut component = BTreeMap::new();
-    let mut count = 0;
-    for package in neighbors.keys() {
-        if component.contains_key(package) {
-            continue;
-        }
-        let mut pending = vec![package.clone()];
-        while let Some(node) = pending.pop() {
-            if component.contains_key(&node) {
-                continue;
-            }
-            component.insert(node.clone(), count);
-            pending.extend(neighbors[&node].iter().cloned());
-        }
-        count += 1;
-    }
-    let mut fingerprints = vec![Vec::new(); count];
-    let mut files: BTreeMap<(String, String), BTreeSet<usize>> = BTreeMap::new();
-    for (side, analysis) in [("base", a), ("head", b)] {
-        for p in &analysis.packages {
-            let package = (s(p, "consumer_build").to_owned(), s(p, "path").to_owned());
-            let i = component[&package];
-            fingerprints[i].push(json!([side, package, p["content_instance"]]));
-            for file in p["selected_sources"].as_array().into_iter().flatten() {
-                files
-                    .entry((package.0.clone(), s(file, "file").to_owned()))
-                    .or_default()
-                    .insert(i);
-            }
-        }
-    }
-    let hashes: Vec<_> = fingerprints
-        .into_iter()
-        .map(|mut values| {
-            values.sort_by_key(Value::to_string);
-            crate::digest(&json!(["review-component-v1", values]))
-        })
-        .collect();
+pub(super) fn annotate(report: &mut Value, a: &Analysis, b: &Analysis, components: &components::Components) -> Scopes {
+    let components::Components { component, files, hashes, .. } = components;
     let mut blocked: BTreeSet<usize> = BTreeSet::new();
     // Native package equivalence does not prove equivalent deployment wiring.
     // Boundary paths still participate in impact; review reuse stays disabled
@@ -185,7 +121,7 @@ pub(super) fn annotate(report: &mut Value, a: &Analysis, b: &Analysis) -> Scopes
         global = true;
     }
     let mut scopes = Scopes::default();
-    for ((_, file), owners) in &files {
+    for ((_, file), owners) in files {
         scopes
             .files
             .entry(file.clone())

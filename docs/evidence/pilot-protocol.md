@@ -1075,3 +1075,199 @@ The direct review-layer storage test also passed: a held writer lock produces
 request return the same packet identity. Both targeted Rust review tests passed
 together. The release binary built successfully; `git diff --check` and Python
 syntax checks passed. Changes are local and uncommitted; no service was deployed.
+
+## G4 investigation: global completeness versus useful impact evidence (2026-11-05)
+
+**Finding:** current `impact` is gated by completeness of the entire admitted
+analysis. It is not a severity score or a predicate saying that no useful impact
+was found. Fixing interface resolution alone cannot make typical dependency-using
+Go snapshots complete under the current v2 contract.
+
+The investigation used the unchanged runtime at source revision `48e9816`, a
+locally built binary identified by SHA-256 in the evidence, and 16 synthetic
+review calls across 15 fixtures. It also inspected two older **PR-derived soak
+heads**, Nexus #963 and platform-rbac #638. These are not Sentinel's latest
+122-run production cohort. Their original packets and stores were read only.
+Each native fact set was matched to the exact base/head snapshot via the cache's
+input table; every unresolved-call cause count matched the packet histogram.
+No model calls or production operations were performed.
+
+[Machine-readable results, pins, hashes and full histograms](g4-investigation-20261105.json).
+[Reproducer](../../crates/graphicle/tools/investigate_review_coverage.py):
+
+```sh
+python3 crates/graphicle/tools/investigate_review_coverage.py \
+  --binary /path/to/graphicle --output /private/tmp/new-g4-investigation
+```
+
+Optional `--archive name=/path/to/packet.json` and
+`--archive-store name=/path/to/store` inspect retained facts for that packet.
+Missing or ambiguous cache matches are reported instead of substituting another
+revision. Use a new output directory; it contains private synthetic stores and
+raw fixture packets. The report does not contain workspace capabilities.
+
+### What the fixtures establish
+
+All cases attest complete source admission. Except for the explicit packing
+case, no entries or diffs were omitted for budget.
+
+| Fixture | `impact` | Analysis issues, base + head |
+| --- | --- | ---: |
+| Simple Go function change | `potential_impact` | 0 |
+| Identical simple Go source | `no_changes_in_scope` | 0 |
+| Same change plus unchanged `tooling/settings.json` | `incomplete` | 2 unsupported inputs |
+| Same change plus interface dispatch in a separate, unimported package | `incomplete` | 2 interface calls |
+| Identical source containing that interface call | `incomplete` | 2 interface calls; zero changed declarations |
+| Same change plus a broken, unimported package | `incomplete` | 4 package/type failures |
+| Concrete receiver, explicit interface conversion, or single-write local interface binding | `potential_impact` | 0 in each of three cases |
+| Interface stored in a local struct literal | `incomplete` | 2 interface calls |
+| Interface returned by a simple constructor | `incomplete` | 2 interface calls |
+| Resolved `strings.TrimSpace`, either in changed code or an unimported package | `incomplete` | 2 dependency-effect limits in each case |
+| Resolved, admitted vendored pure function | `incomplete` | 2 dependency-effect limits |
+
+The packing control returned `potential_impact` at both 4,000 and 64,000 tokens,
+with zero analysis issues. At 4,000 it omitted 24 candidates and delivery coverage
+was incomplete; at 64,000 nothing was omitted and coverage was complete. Thus
+packing is not the remaining cause of G4.
+
+The unrelated-interface fixture exposes a useful existing distinction: its
+changed head entry has `review_basis.complete=true` and
+`reason=complete_static_component`, while global `impact` is incomplete.
+Component reasoning already exists. This delivered-context/reuse proof can be
+invalidated by packing, so it must not be substituted for an analysis-only risk
+verdict.
+
+### What the archived cases establish
+
+Counts below combine base and head. Native examples were checked against the
+matching cached facts, including the synthetic soak-head revision.
+
+| Case | All issues | Interface dispatch | References in incomplete packages | Other issues |
+| --- | ---: | ---: | ---: | ---: |
+| Nexus #963-derived head | 2,846 | 2,179 | 0 | 667 |
+| platform-rbac #638-derived head | 12,972 | 1,626 | 10,959 | 387 |
+
+Nexus has zero Go type-check failures in this capture. Its other limits include
+268 depth limits, 188 unsupported inputs and two dependency-effect limits.
+platform-rbac has 21 failed package instances on each side, with no unavailable
+external packages; a retained diagnostic reports `undefined: IsMemberBlocked`.
+These are not evidence that another module cache or another interface index
+would solve its package failures. The source/build discrepancy needs its own
+investigation before attributing the error to the collector or repository.
+
+For Nexus, 1,534 of 2,179 unresolved interface sites (70.4%) already have
+implementation candidates. Its largest interface-bearing files include the XDS
+metrics modules; common spellings include `err.Error`, `resp.Body.Close`, and
+`ctx.Done`. For platform-rbac, 436 of 1,626 sites (26.8%) have candidates;
+`pkg/db/mock/store.go` contributes 330 sites **per side**, and `db.PrepareContext`
+contributes 230 per side. These are observed source spellings, not a safe-API
+classification. Generated mocks are ordinary `.go` files: `tests:false` does not
+establish that they are outside a production dependency closure.
+
+Deleting every interface warning would still leave both archived results
+incomplete. A method-set candidate list also cannot establish an exhaustive set
+of runtime receivers, particularly for values supplied by dependencies or callers.
+
+### Responsible code and recommended next work
+
+- `review.rs::analyze_go` adds `dependency_effects_unmodeled` for each consumer
+  build with dependency packages or resolved boundary calls. Even a standard
+  library call can trigger it. This is intentional API-only modeling, not a
+  missing-module failure.
+- `review_admission.rs::assess` starts with all analysis issues. `review.rs::compare`
+  combines both sides, adds unsupported inputs from the full source inventory,
+  and declares completeness only when the combined issue list is empty. It does
+  not restrict this verdict to selected entries or changed components.
+- `go_review.go::localValueBindings` and `boundExpression` already resolve safe
+  local initializers and concrete-to-interface conversions. Extending them for
+  constructor results and struct-field flows requires tracking writes, aliases,
+  escapes and interprocedural effects; the fixture is not permission to guess a
+  receiver for general constructor calls.
+- `go_review.go::expandInterfaces` already emits `may_call` implementation edges
+  and deliberately retains the unresolved interface call.
+- `review_reuse.rs::annotate` already maps package-local unresolved calls to
+  connected import components, but other issue classes currently block all
+  component proofs. `Scopes::finish` additionally checks delivered context.
+
+Recommended order:
+
+1. **Separate the intended questions before changing the verdict.** Sentinel can
+   already consume `changes`, `entries` and their selection reasons as positive
+   static evidence while retaining `impact=incomplete`. Neither those fields
+   nor `potential_impact` supplies defect severity or a low-risk clearance.
+2. **For a practical completeness signal, specify its scope explicitly.** A
+   possible future contract is completeness of changed owned-Go components and
+   dependency API resolution, with implementation effects/callbacks explicitly
+   outside that scope. Preserve v2's global verdict; changing its meaning needs
+   a versioned contract and comparison probes. Reuse the existing component
+   ownership machinery and report analysis coverage before packing. Unknown
+   ownership, missing inputs and unknown cross-boundary edges must remain
+   blockers; absence of a resolved graph edge is not proof of irrelevance.
+3. **Then improve confirmed receiver-flow precision.** The new field and
+   constructor fixtures reproduce gaps that local-initializer work would not
+   fix. Add counterexamples for reassignment, alias mutation, escaped pointers,
+   multiple constructor returns and dependency-supplied implementations before
+   allowing a complete resolution.
+4. **Re-measure real causes.** Obtain the latest 122-run packets/histograms and
+   inspect package failures, generated mocks and non-Go inputs against their
+   actual build/admission contracts. Do not suppress code merely because its
+   path contains `mock`, or label arbitrary JSON/YAML irrelevant.
+
+No runtime implementation, risk schema, source exclusions, or Sentinel behavior
+was changed by this investigation. Validation checked all 16 completed review
+calls, token bounds, full histogram sums, budget independence, the existing
+component proof, and exact-pin archive/native count agreement. Python syntax and
+`git diff --check` also passed.
+
+### G4 implementation: scoped Go analysis coverage (2026-11-05)
+
+Implemented recommendation 2 above on the working tree based on `48e9816`.
+Pinned packets now include `analysis_coverage` with the independent format
+`graphicle.changed-go-coverage.v1`. The existing import-component construction is
+shared with review reuse; its graph and fingerprint rules are unchanged. The
+assessment runs before packing, using full file changes and issues. It certifies
+only owned Go import components and resolved dependency APIs, explicitly excluding
+dependency implementation/callback effects, non-Go semantics and runtime behavior.
+Unknown ownership, compiler/admission failures and unresolved calls in changed
+components still block; changed unmapped files and dependency binding/layout
+changes are also conservative blockers. This does not grant review skipping.
+
+The [comparison artifact](g4-scoped-coverage-20261105.json) records binary/source
+hashes and all 16 baseline/candidate synthetic packet comparisons:
+
+| Measurement | Result |
+| --- | --- |
+| Global v2 impact and full issue histograms | Unchanged on all 16 packets |
+| Scoped coverage | 11 complete, 3 incomplete, 2 not applicable |
+| Previously globally incomplete, now scoped complete | 5: unchanged unrelated JSON, disconnected interface package, unrelated stdlib use, changed stdlib caller, vendored dependency API caller |
+| Actual blockers retained | Broken package, interface field dispatch, constructor-returned interface dispatch |
+| Delivered head review-basis summaries | Unchanged on all 16 packets |
+| New field size | 519–525 bytes of compact JSON in these fixtures |
+| Entry counts | Unchanged on 15 packets; at 4,000 tokens, packing fixture delivered 2 code entries versus 3 before, with 24 total entry/diff omissions in both runs |
+
+The fixed metadata consumes response budget. Packet identities change, and tight
+budgets can deliver fewer entries; this is not a latency or capacity improvement.
+Token totals also depend on generated identifiers and selected context, so their
+before/after difference is not an isolated tokenizer cost for the new field.
+
+Validation: 5 targeted Rust unit tests (including schema rejection of
+contradictory claims, base-only imports, build-world separation and full/delta
+packing), 3 existing review-reuse integration tests, and 3 real-service Python
+tests covering 24 scenarios / 27 calls passed. The service tests cover direct and
+reverse imports, partial admission, changed config/module/vendor/embed inputs,
+binding changes, capability advertisement and budget/delta/provided-diff
+invariance. The separate 16-packet comparison made no model calls.
+
+Reproduce the new service checks with a built binary:
+
+```sh
+GRAPHICLE_BIN=/path/to/graphicle python3 -m unittest discover \
+  -s crates/graphicle/tests -p test_review_analysis_coverage.py -v
+python3 crates/graphicle/tools/investigate_review_coverage.py \
+  --binary /path/to/graphicle --output /tmp/new-g4-coverage-run
+```
+
+No production deployment or latest 122-run re-probe was performed. Genuine
+interface-dispatch gaps remain unresolved. Sentinel should record the new scoped
+field alongside global impact and delivery coverage, then measure how often
+changed production components remain blocked and by which issue bucket.

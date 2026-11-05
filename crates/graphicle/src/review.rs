@@ -27,6 +27,10 @@ mod go;
 #[path = "review_diagnostics.rs"]
 mod diagnostics;
 
+#[path = "review_components.rs"]
+mod components;
+#[path = "review_analysis_coverage.rs"]
+mod analysis_coverage;
 #[path = "review_reuse.rs"]
 mod reuse;
 #[path = "service_graph.rs"]
@@ -2260,8 +2264,12 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
             "service_graph":{"base":a.services.summary(),"head":b.services.summary()}});
     if let Some(identity) = provided_diff.identity() { context["provided_diff"] = json!(identity); }
     let context_sha = crate::digest(&context);
+    let components = review_phase("review_components", || {
+        Ok(components::Components::new(&a, &b))
+    })?;
+    report["analysis_coverage"] = analysis_coverage::assess(&report, &components);
     let scopes = crate::phase::phase("review_reuse_scopes", || {
-        reuse::annotate(&mut report, &a, &b)
+        reuse::annotate(&mut report, &a, &b, &components)
     });
     let reusable = crate::phase::phase("review_reuse_decisions", || {
         reusable_reviews(&r, &head, &b, &report, previous.as_ref(), &context_sha)
@@ -2676,11 +2684,17 @@ mod tests {
                 json!([{"reason":"unsupported_source_language_or_contract"}])
             };
             let report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":complete,"issues":issues},"impact":impact});
+            let mut report = report;
+            let analysis_coverage = analysis_coverage::assess(&report, &components::Components {
+                component: BTreeMap::new(), files: BTreeMap::new(),
+                owned_files: BTreeMap::new(), hashes: vec![] });
+            report["analysis_coverage"] = analysis_coverage.clone();
             for budget in [2000, 8000, 64000] {
                 let (full, receipt) = pack(report.clone(), budget, None, None).unwrap();
                 let (delta, delta_receipt) =
                     pack(report.clone(), budget, Some(&receipt), None).unwrap();
                 for packet in [&full, &delta] {
+                    assert_eq!(packet["analysis_coverage"], analysis_coverage, "budget={budget}");
                     assert_eq!(packet["impact"], impact, "budget={budget}");
                     assert_eq!(packet["risk_schema"], "graphicle.review-risk.v2");
                     assert!(text::count(&packet.to_string()) <= budget);
