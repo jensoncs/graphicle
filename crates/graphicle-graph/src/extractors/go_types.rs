@@ -9,7 +9,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     path::{Path, PathBuf},
     process::Command,
-    sync::OnceLock,
+    sync::{Mutex, OnceLock, TryLockError},
     time::Duration,
 };
 
@@ -39,61 +39,80 @@ fn offline_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
 fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
     // Rust statics are not dropped at exit. Cache bytes, not a TempDir whose
     // destructor would never run; executable scratch files live only for a call.
-    static HELPER: OnceLock<Option<Vec<u8>>> = OnceLock::new();
-    let bytes = HELPER
-        .get_or_init(|| {
-            let dir = tempfile::tempdir().ok()?;
-            let source = dir.path().join("main.go");
-            let binary = dir.path().join(if cfg!(windows) {
-                "go-types.exe"
-            } else {
-                "go-types"
-            });
-            std::fs::write(&source, include_str!("go_types.go")).ok()?;
-            let review = dir.path().join("review.go");
-            std::fs::write(&review, include_str!("go_review.go")).ok()?;
-            let semantic = dir.path().join("semantic.go");
-            std::fs::write(&semantic, include_str!("go_semantic.go")).ok()?;
-            let package_cache = dir.path().join("cache.go");
-            std::fs::write(&package_cache, include_str!("go_review_cache.go")).ok()?;
-            for (name, source) in GO_EXPORT_SOURCES {
-                let target = dir.path().join(name);
-                std::fs::create_dir_all(target.parent()?).ok()?;
-                std::fs::write(target, source).ok()?;
+    static HELPER: OnceLock<Vec<u8>> = OnceLock::new();
+    static INITIALIZING: Mutex<()> = Mutex::new(());
+    // Failed or cancelled compilation must remain retryable in a retained server.
+    // Waiting for another initializer consumes this request's budget too.
+    if HELPER.get().is_none() {
+        let guard = loop {
+            crate::process::check_deadline().ok()?;
+            match INITIALIZING.try_lock() {
+                Ok(guard) => break guard,
+                Err(TryLockError::Poisoned(error)) => break error.into_inner(),
+                Err(TryLockError::WouldBlock) => std::thread::sleep(Duration::from_millis(5)),
             }
-            let host = crate::process::capture(
-                offline_command("go")
-                    .args(["env", "-json", "GOHOSTOS", "GOHOSTARCH"])
-                    .current_dir(dir.path()),
-                Duration::from_secs(5),
-            )
-            .ok()?;
-            if !host.success {
-                return None;
-            }
-            let host: Value = serde_json::from_slice(&host.stdout).ok()?;
-            let result = crate::process::capture(
-                offline_command("go")
-                    .args(["build", "-mod=vendor", "-o"])
-                    .arg(&binary)
-                    .arg(&source)
-                    .arg(&review)
-                    .arg(&semantic)
-                    .arg(&package_cache)
-                    .current_dir(dir.path())
-                    .env("GO111MODULE", "on")
-                    .env("GOMODCACHE", dir.path().join("modules"))
-                    // Helper compilation must also work in service/benchmark
-                    // environments without HOME or a writable user cache.
-                    .env("GOCACHE", dir.path().join("build"))
-                    .env("GOOS", host["GOHOSTOS"].as_str()?)
-                    .env("GOARCH", host["GOHOSTARCH"].as_str()?),
-                Duration::from_secs(60),
-            )
-            .ok()?;
-            result.success.then(|| std::fs::read(binary).ok()).flatten()
-        })
-        .as_ref()?;
+        };
+        if HELPER.get().is_none() {
+            let compile = || {
+                let dir = tempfile::tempdir().ok()?;
+                let source = dir.path().join("main.go");
+                let binary = dir.path().join(if cfg!(windows) {
+                    "go-types.exe"
+                } else {
+                    "go-types"
+                });
+                std::fs::write(&source, include_str!("go_types.go")).ok()?;
+                let review = dir.path().join("review.go");
+                std::fs::write(&review, include_str!("go_review.go")).ok()?;
+                let semantic = dir.path().join("semantic.go");
+                std::fs::write(&semantic, include_str!("go_semantic.go")).ok()?;
+                let package_cache = dir.path().join("cache.go");
+                std::fs::write(&package_cache, include_str!("go_review_cache.go")).ok()?;
+                for (name, source) in GO_EXPORT_SOURCES {
+                    let target = dir.path().join(name);
+                    std::fs::create_dir_all(target.parent()?).ok()?;
+                    std::fs::write(target, source).ok()?;
+                }
+                let host = crate::process::capture(
+                    offline_command("go")
+                        .args(["env", "-json", "GOHOSTOS", "GOHOSTARCH"])
+                        .current_dir(dir.path()),
+                    Duration::from_secs(5),
+                )
+                .ok()?;
+                if !host.success {
+                    return None;
+                }
+                let host: Value = serde_json::from_slice(&host.stdout).ok()?;
+                let result = crate::process::capture(
+                    offline_command("go")
+                        .args(["build", "-mod=vendor", "-o"])
+                        .arg(&binary)
+                        .arg(&source)
+                        .arg(&review)
+                        .arg(&semantic)
+                        .arg(&package_cache)
+                        .current_dir(dir.path())
+                        .env("GO111MODULE", "on")
+                        .env("GOMODCACHE", dir.path().join("modules"))
+                        // Helper compilation must also work in service/benchmark
+                        // environments without HOME or a writable user cache.
+                        .env("GOCACHE", dir.path().join("build"))
+                        .env("GOOS", host["GOHOSTOS"].as_str()?)
+                        .env("GOARCH", host["GOHOSTARCH"].as_str()?),
+                    Duration::from_secs(60),
+                )
+                .ok()?;
+                result.success.then(|| std::fs::read(binary).ok()).flatten()
+            };
+            let bytes = compile()?;
+            crate::process::check_deadline().ok()?;
+            let _ = HELPER.set(bytes);
+        }
+        drop(guard);
+    }
+    crate::process::check_deadline().ok()?;
+    let bytes = HELPER.get()?;
     let dir = tempfile::tempdir().ok()?;
     let binary = dir.path().join(if cfg!(windows) {
         "go-types.exe"

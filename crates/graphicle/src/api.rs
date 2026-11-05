@@ -922,8 +922,12 @@ async fn overridable(
             Err(error) => return crate::metering::refusal(error),
         };
     let args = admission.take_arguments().unwrap_or(args);
+    let deadline = crate::review::request_deadline(operation, &args);
     let result =
-        tokio::task::spawn_blocking(move || dispatch(&app, &workspace, &token, operation, &args))
+        tokio::task::spawn_blocking(move || {
+            let _deadline = graphicle::process::deadline_scope(deadline);
+            dispatch(&app, &workspace, &token, operation, &args)
+        })
             .await
             .map_err(|_| Error::bad(interrupted))
             .and_then(|result| result);
@@ -1127,7 +1131,9 @@ pub(crate) async fn dispatch_async(
             let capability = capability.to_owned();
             let operation = operation.to_owned();
             let args = args.clone();
+            let deadline = crate::review::request_deadline(&operation, &args);
             tokio::task::spawn_blocking(move || {
+                let _deadline = graphicle::process::deadline_scope(deadline);
                 dispatch(&app, &workspace, &capability, &operation, &args)
             })
             .await

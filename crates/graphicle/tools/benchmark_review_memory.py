@@ -23,7 +23,7 @@ import time
 from benchmark_pinned_review import canonical, review, save, sha
 from benchmark_review_cache_reuse import cache_counts, clone_store, environment
 from benchmark_review_server_reuse import log_stats
-from benchmark_review_soak import LoggedServer, batch_log, call, check, job_state, prepare_heads
+from benchmark_review_soak import LoggedServer, batch_log, call, check, job_state, prepare_heads, prime_cache
 
 
 class MacProcesses:
@@ -232,9 +232,12 @@ def main():
             data.update(base=requests[0]['base'], heads=[r['head'] for r in requests],
                         profile=requests[0]['profile'], max_tokens=requests[0]['max_tokens'],
                         queued_jobs=len(jobs), admission_memory=monitor.summary('admission'))
-            # Controls preserve the original cache state and all admitted snapshots.
+            monitor.mark('prime')
+            data['prime_untimed'] = prime_cache(client, work, requests[0])
+            data['prime_untimed']['memory'] = monitor.summary('prime')
+            assert job_state(work / 'store') == jobs
+            # Controls and service start with the same verified warm base.
             clone_store(work / 'store', folder / 'control-seed')
-            measured(client, monitor, requests[0], 0, 'prime', False)
             for index in range(1, args.heads + 1):
                 packet = measured(client, monitor, requests[index], index, 'new-head', False)
                 if index in control_heads:

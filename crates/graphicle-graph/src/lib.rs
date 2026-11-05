@@ -108,7 +108,7 @@ pub mod pascal_resolution;
 mod path_syntax;
 pub mod paths;
 pub mod pg_introspect;
-mod process;
+pub mod process;
 pub mod profile;
 pub mod prs;
 mod prs_api;

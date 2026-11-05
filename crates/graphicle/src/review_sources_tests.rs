@@ -466,3 +466,26 @@ fn concurrent_removal_keeps_read_snapshot_consistent_but_fails_final_check() {
     assert!(base.sources.is_empty() && head.sources.is_empty());
     assert_eq!(base.issues[0]["reason"], "missing_source_object");
 }
+
+#[test]
+#[cfg(unix)]
+fn review_deadline_bounds_storage_wait_and_recovers() {
+    let f = Fixture::new();
+    let pin = f.pin(&[("main.py", Content::Text("x = 1\n".into()))]);
+    let mut args = json!({"repository_id":f.repository,"base":[pin],"head":[pin],
+        "profile":{"goos":"linux","goarch":"amd64","tests":false},"max_tokens":8000});
+    let initial = crate::review::run(&f.store, &f.workspace, &f.token, &args).unwrap();
+    // Exercise the execution budget directly. HTTP request-budget admission is
+    // a separate transaction before this review starts, not covered by it.
+    let writer = f.store.connect().unwrap();
+    writer.execute_batch("BEGIN IMMEDIATE").unwrap();
+    args["timeout_ms"] = json!(100);
+    let started = std::time::Instant::now();
+    let error = crate::review::run(&f.store, &f.workspace, &f.token, &args).unwrap_err();
+    assert_eq!(error.code(), "timeout", "{}", error.message);
+    assert!(started.elapsed() < std::time::Duration::from_secs(2));
+    writer.execute_batch("ROLLBACK").unwrap();
+    args.as_object_mut().unwrap().remove("timeout_ms");
+    let recovered = crate::review::run(&f.store, &f.workspace, &f.token, &args).unwrap();
+    assert_eq!(recovered["packet_id"], initial["packet_id"]);
+}

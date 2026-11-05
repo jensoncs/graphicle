@@ -62,10 +62,12 @@ forwarded), and ``repr()`` omits it. Only the Python standard library is used.
 from __future__ import annotations
 
 import email.utils
+import http.client
 import ipaddress
 import json
 import math
 import os
+import socket
 import sys
 import time
 import urllib.error
@@ -153,6 +155,32 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+class _UnixHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, host: str, socket_path: str, **kwargs: Any) -> None:
+        super().__init__(host, **kwargs)
+        self.socket_path = socket_path
+
+    def connect(self) -> None:
+        connection = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            connection.settimeout(self.timeout)
+            connection.connect(self.socket_path)
+        except BaseException:
+            connection.close()
+            raise
+        self.sock = connection
+
+
+class _UnixHTTPHandler(urllib.request.HTTPHandler):
+    def __init__(self, socket_path: str) -> None:
+        super().__init__()
+        self.socket_path = socket_path
+
+    def http_open(self, request: urllib.request.Request) -> Any:
+        return self.do_open(lambda host, **kwargs: _UnixHTTPConnection(host, self.socket_path, **kwargs),
+                            request)
+
+
 def _retry_after(headers: Any) -> Optional[int]:
     raw = headers.get("Retry-After") if headers is not None and hasattr(headers, "get") else None
     if not isinstance(raw, str):
@@ -218,6 +246,8 @@ class Client:
     ``url`` is the service origin (``http://127.0.0.1:8854``), ``workspace`` the workspace id and
     ``capability`` its access key; ``timeout`` bounds each HTTP request in seconds. Plain ``http``
     to a host other than loopback raises ``ValueError`` unless ``insecure_http=True``.
+    ``unix:///absolute/path.sock`` uses HTTP over a Unix socket, with the same
+    capability authentication and no TCP connection, proxy or DNS lookup.
     """
 
     def __init__(self, url: str, workspace: str, capability: str, timeout: float = 60, *,
@@ -225,6 +255,15 @@ class Client:
         if any(ord(c) <= 32 or ord(c) == 127 for c in url):
             raise ValueError("url must not contain whitespace or control characters")
         parts = urllib.parse.urlsplit(url)
+        socket_path = None
+        if parts.scheme == "unix":
+            if (not hasattr(socket, "AF_UNIX") or parts.netloc or not parts.path.startswith("/")
+                    or parts.path.startswith("//") or "?" in url or "#" in url):
+                raise ValueError("Unix socket URL must be unix:///absolute/path.sock")
+            socket_path = os.fsdecode(urllib.parse.unquote_to_bytes(parts.path))
+            if "\0" in socket_path:
+                raise ValueError("Unix socket path must not contain NUL")
+            parts = urllib.parse.urlsplit("http://localhost")
         if (parts.scheme not in ("http", "https") or not parts.hostname
                 or parts.username is not None or parts.password is not None
                 or parts.path not in ("", "/") or "?" in url or "#" in url):
@@ -238,6 +277,7 @@ class Client:
         if not workspace or not capability:
             raise ValueError("workspace and capability are required")
         self.url = url.rstrip("/")
+        self._http_origin = "http://localhost" if socket_path is not None else self.url
         self.workspace = workspace
         self.timeout = timeout
         self._capability = capability
@@ -245,6 +285,8 @@ class Client:
         handlers: List[urllib.request.BaseHandler] = [_NoRedirect()]
         if _is_loopback(parts.hostname):
             handlers.append(urllib.request.ProxyHandler({}))
+        if socket_path is not None:
+            handlers.append(_UnixHTTPHandler(socket_path))
         self._opener = urllib.request.build_opener(*handlers)
 
     @classmethod
@@ -269,7 +311,7 @@ class Client:
         headers = {"Accept": "application/json", "X-Workspace-Capability": self._capability}
         if data is not None:
             headers["Content-Type"] = "application/json"
-        request = urllib.request.Request(self.url + path, data=data, headers=headers, method=method)
+        request = urllib.request.Request(self._http_origin + path, data=data, headers=headers, method=method)
         try:
             with self._opener.open(request, timeout=self.timeout if timeout is None else timeout) as response:
                 raw = response.read()
@@ -417,7 +459,7 @@ class Project:
         try:
             packet = self.client.request("POST", f"{self.client._base}/repositories/command",
                 {"operation": "context", "arguments": {"repository_id": self.id, "question": question,
-                 "max_tokens": min(8000, max_bytes), "max_chars": max_bytes, "memory_retrieval": False}}, timeout=timeout)
+                 "max_tokens": min(8000, max_bytes), "max_chars": max_bytes, "memory_retrieval": False, "include": ["file:"]}}, timeout=timeout)
             return compose(primary, packet, self.id, expected_snapshot, max_bytes)
         except (GraphicleError, OSError, TimeoutError, ValueError, TypeError, UnicodeError):
             result["secondary"]["status"] = "unavailable"
@@ -429,7 +471,7 @@ class Project:
 
     def impact(self, base: Sequence[Mapping[str, Any]], head: Sequence[Mapping[str, Any]], *,
                profile: Mapping[str, Any], max_depth: Optional[int] = None,
-               max_tokens: Optional[int] = None,
+               max_tokens: Optional[int] = None, timeout_ms: Optional[int] = None,
                previous_packet_id: Optional[str] = None,
                business_context: Optional[Mapping[str, Any]] = None,
                reuse_text: Optional[bool] = None,
@@ -446,6 +488,9 @@ class Project:
         array carries pinned, caller-attested Git assertions from review-history.
         compact_provenance=True lets the server share repeated service assertions
         automatically. apply_review_delta restores the inline citation view.
+        timeout_ms (1..600000) asks the server to stop work before returning a
+        structured timeout. Set the client transport timeout higher to receive it;
+        a transport timeout alone does not confirm that server work stopped.
         provided_diff declares exact pinned file hashes and inclusive line ranges
         already supplied to the reviewer; fully covered entries yield their budget.
         """
@@ -457,7 +502,7 @@ class Project:
             raise TypeError("impact requires a Go build profile with goos and goarch")
         return self.command("impact.report", base=[dict(pin) for pin in base],
                             head=[dict(pin) for pin in head], profile=dict(profile),
-                            **_present({"max_depth": max_depth, "max_tokens": max_tokens,
+                            **_present({"max_depth": max_depth, "max_tokens": max_tokens, "timeout_ms": timeout_ms,
                                         "previous_packet_id": previous_packet_id,
                                         "business_context": business_context, "reuse_text": reuse_text,
                                         "compact_provenance": compact_provenance,

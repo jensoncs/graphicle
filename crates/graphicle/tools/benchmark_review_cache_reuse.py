@@ -11,6 +11,7 @@ are untimed. No source/dependency collection, models or OS cache flushing occurs
 """
 import argparse
 import base64
+from contextlib import closing
 import json
 import os
 from pathlib import Path
@@ -28,13 +29,13 @@ def connect_readonly(store):
 
 def clone_store(source, destination):
     destination.mkdir(parents=True, exist_ok=False)
-    with connect_readonly(source) as original, sqlite3.connect(destination / 'reviews.sqlite3') as target:
+    with closing(connect_readonly(source)) as original, closing(sqlite3.connect(destination / 'reviews.sqlite3')) as target, target:
         original.backup(target)
     shutil.copyfile(Path(source) / 'local-session.json', destination / 'local-session.json')
 
 
 def cache_counts(store):
-    with connect_readonly(store) as db:
+    with closing(connect_readonly(store)) as db:
         full = db.execute('SELECT count(*) FROM repo_review_analysis').fetchone()[0]
         count, size = db.execute('SELECT count(*), coalesce(sum(length(data)),0) FROM repo_review_package_facts').fetchone()
     return {'full_analyses': full, 'package_entries': count, 'package_payload_bytes': size}
@@ -55,7 +56,7 @@ def prepare(binary, case, root, config):
     repository = request['repository_id']
     assert all(pin['repository_id'] == repository for pin in request['base'] + request['head'])
     previous_pin = request['head'][0]
-    with connect_readonly(case['archive_store']) as archive:
+    with closing(connect_readonly(case['archive_store'])) as archive:
         old = json.loads(archive.execute('SELECT manifest FROM repo_snapshots WHERE repository_id=? AND sha256=?',
                                         (repository, previous_pin['snapshot'])).fetchone()[0])
         row = archive.execute('SELECT manifest,metadata FROM repo_snapshots WHERE repository_id=? AND sha256=?',
@@ -153,7 +154,7 @@ def main():
             folder = root / case['name']
             work = folder / f'{index}-{arm}'
             clone_store(folder / 'seed', work / 'store')
-            with sqlite3.connect(work / 'store/reviews.sqlite3') as db:
+            with closing(sqlite3.connect(work / 'store/reviews.sqlite3')) as db, db:
                 db.execute('PRAGMA foreign_keys=ON')
                 if arm != 'normal-reuse':
                     db.execute('DELETE FROM repo_review_analysis')

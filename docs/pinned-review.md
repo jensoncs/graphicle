@@ -55,6 +55,88 @@ context alive across requests. A process restart loses the helper cache but
 retains persisted source/compiler caches. The stdio MCP startup drain is a
 separate mechanism and is not controlled by this HTTP flag.
 
+### Unix socket transport
+
+On Unix, run the same HTTP API without opening a TCP listener:
+
+```sh
+mkdir -p /run/graphicle-review
+chmod 700 /run/graphicle-review
+graphicle --data-dir /var/lib/graphicle-review serve --no-worker \
+  --socket /run/graphicle-review/review.sock
+```
+
+Create the directory as the service user. The socket path must be absolute and
+its existing parent must be an owned, private directory, not a symlink. The
+socket is mode 0600. Capabilities and repository authorization still apply.
+`--socket` conflicts with explicit `--listen`, `--port` and `--open`. It does not
+write the TCP discovery file `server.json`. A pre-existing path is refused;
+normal shutdown removes only the socket created by this process. After SIGKILL,
+confirm that the process is stopped before removing its stale socket.
+`build.info.serve_unix_socket` reports platform support.
+
+Use `Client("unix:///run/graphicle-review/review.sock", workspace, capability)`
+or `LocalServer(binary, store, socket_path="/run/graphicle-review/review.sock",
+serve_args=["--no-worker"])`. The SDK uses Unix HTTP directly, without a relay,
+DNS lookup, proxy or TCP fallback. Non-SDK clients can use HTTP with Host
+`localhost` (for example, curl's `--unix-socket`).
+
+### Server-side review deadline
+
+On Unix, set optional `timeout_ms` (integer 1–600000) on a pinned review request, or pass
+it to `Project.impact`. `build.info.review_deadline` advertises
+`cooperative-timeout-ms-v1` (null on other platforms, which reject the option).
+The command and impact HTTP routes start the execution budget before entering
+the blocking pool; CLI/MCP calls start it when the pinned review is dispatched.
+HTTP parsing/admission and response delivery are outside this execution budget.
+Waiting for Go helper initialization consumes the budget. Source loading, materialization and
+analysis phases check it; native subprocesses and storage lock waits use the
+remaining time. Failed or interrupted helper compilation is retryable.
+
+On expiry the request returns HTTP 504 with `graphicle.error.v1`, code `timeout`,
+after synchronous work has unwound, native subprocess groups have been
+stopped, and direct children have been reaped. It does not turn cancellation into an incomplete packet.
+The HTTP process and previously warmed caches remain usable. The deadline is
+cooperative: an active CPU phase or filesystem operation may run past the limit
+until its next check. It is not a hard real-time execution bound or a separate
+cancel API. A timeout may occur at a transaction boundary, so callers should not
+assume that every cache/receipt write was rolled back.
+
+Keep the client transport timeout longer than the requested server deadline and
+allow time for cleanup. A client disconnect or transport timeout alone still
+does not prove that work stopped; wait for the structured server response, or
+use the existing process-supervision recovery policy. With no `timeout_ms`, the
+existing native operation limits apply.
+
+### Context from the admitted review head
+
+The existing `context` operation reads the project's current admitted files.
+It does not need a second sync, graph projection, or a running worker. Reuse the
+review project after admitting its head and restrict fallback retrieval to file
+sources:
+
+```python
+from graphicle_sdk import Client, Project
+
+client = Client("unix:///run/graphicle-review/review.sock", workspace, capability,
+                timeout=150)
+project = Project(client, repository_id)
+packet = project.impact([base_pin], [head_pin], profile=profile,
+                        max_tokens=8000, timeout_ms=120000)
+fallback = project.secondary_context(primary_diff, question, enabled=True,
+    expected_snapshot=head_pin["snapshot"], max_bytes=12000)
+# Consume fallback["secondary"]["evidence"] only when status == "included".
+```
+
+`secondary_context` requests only `file:` evidence with memory retrieval disabled
+and validates the returned repository, snapshot, hashes and byte spans. If another
+admission advances the project before retrieval, it returns `stale_snapshot` with
+no evidence. Direct `context` clients must compare the response's `snapshot`
+against the review head themselves. This is current-head retrieval, not a query
+against an arbitrary historical snapshot. Serialize admission/retrieval per
+project when fallback context must be available for every head. Supplementary
+context never grants review coverage or permission to skip review.
+
 ## Basic language support
 
 Basic analysis is selected automatically for admitted sources in the existing

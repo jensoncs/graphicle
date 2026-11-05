@@ -31,6 +31,8 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
         "code_graph": true, "memory": true, "observer": true,
         "local_inference": cfg!(feature = "local-inference"),
         "change_impact": true,
+        "serve_unix_socket": cfg!(unix),
+        "review_deadline": if cfg!(unix) { Some("cooperative-timeout-ms-v1") } else { None },
         "secondary_context": "sdk-opt-in-pinned-evidence-v1",
         "statement_flow": "go-intraprocedural-v1",
         "architecture_preview": "isolated-episode-topology-v1",

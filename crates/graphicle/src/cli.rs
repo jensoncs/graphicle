@@ -234,6 +234,9 @@ enum Command {
         listen: IpAddr,
         #[arg(long, default_value_t = 8854)]
         port: u16,
+        /// Serve HTTP on a Unix socket in an existing private, owned directory.
+        #[arg(long, conflicts_with_all = ["listen", "port", "open"])]
+        socket: Option<PathBuf>,
         #[arg(long)]
         open: bool,
         /// Serve HTTP without the built-in workflow workers or schedulers.
@@ -1386,6 +1389,7 @@ where
                 ServeOptions {
                     listen: "127.0.0.1".parse().unwrap(),
                     port,
+                    socket: None,
                     open: true,
                     no_worker: false,
                     learning: false,
@@ -1400,6 +1404,7 @@ where
         Command::Serve {
             listen,
             port,
+            socket,
             open,
             no_worker,
             mcp_learning,
@@ -1422,6 +1427,7 @@ where
                 ServeOptions {
                     listen,
                     port,
+                    socket,
                     open,
                     no_worker,
                     learning: mcp_learning,
@@ -2414,6 +2420,7 @@ async fn worker_loop(worker: Worker) -> Result<()> {
 struct ServeOptions {
     listen: IpAddr,
     port: u16,
+    socket: Option<PathBuf>,
     open: bool,
     no_worker: bool,
     learning: bool,
@@ -2421,6 +2428,49 @@ struct ServeOptions {
     mcp: api::McpOptions,
     public_origin: Option<String>,
     session: local::Session,
+}
+
+/// Remove only the socket inode this invocation created, including on startup
+/// errors. Existing paths are never unlinked to make room for a new listener.
+#[cfg(unix)]
+struct SocketFile {
+    path: PathBuf,
+    device: u64,
+    inode: u64,
+}
+
+#[cfg(unix)]
+impl Drop for SocketFile {
+    fn drop(&mut self) {
+        use std::os::unix::fs::MetadataExt;
+        if std::fs::symlink_metadata(&self.path)
+            .is_ok_and(|m| m.dev() == self.device && m.ino() == self.inode)
+        {
+            let _ = std::fs::remove_file(&self.path);
+        }
+    }
+}
+
+#[cfg(unix)]
+fn bind_unix_socket(path: &std::path::Path) -> Result<(tokio::net::UnixListener, SocketFile)> {
+    use std::os::unix::fs::{MetadataExt, PermissionsExt};
+    if !path.is_absolute() {
+        return Err(Error::bad("--socket requires an absolute path"));
+    }
+    let parent = path.parent().ok_or_else(|| Error::bad("Socket needs a parent directory"))?;
+    let metadata = std::fs::symlink_metadata(parent)?;
+    // The private parent closes the interval between bind and chmod. Socket
+    // permissions alone are not an access boundary on every Unix platform.
+    if !metadata.is_dir() || metadata.uid() != unsafe { libc::geteuid() }
+        || metadata.mode() & 0o077 != 0
+    {
+        return Err(Error::bad("Socket parent must be an owned, private directory (mode 0700), not a symlink"));
+    }
+    let listener = tokio::net::UnixListener::bind(path)?;
+    let metadata = std::fs::symlink_metadata(path)?;
+    let guard = SocketFile { path: path.to_path_buf(), device: metadata.dev(), inode: metadata.ino() };
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
+    Ok((listener, guard))
 }
 /// Host values the local server accepts for `address`. The socket always
 /// prints its port. HTTP clients omit port 80, so that form is accepted too.
@@ -2441,6 +2491,7 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
     let ServeOptions {
         listen,
         port,
+        socket,
         open,
         no_worker,
         learning,
@@ -2462,12 +2513,21 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
             "Bind this local app to loopback; use an authenticated reverse proxy for remote access",
         ));
     }
-    let address = SocketAddr::new(listen, port);
-    let listener = tokio::net::TcpListener::bind(address)
-        .await
-        .map_err(|error| crate::terminal::bind_error(port, error))?;
-    let actual = listener.local_addr()?;
-    let hosts = serve_hosts(actual);
+    #[cfg(not(unix))]
+    if socket.is_some() {
+        return Err(Error::bad("--socket requires Unix domain sockets"));
+    }
+    let listener = if socket.is_none() {
+        Some(tokio::net::TcpListener::bind(SocketAddr::new(listen, port))
+            .await.map_err(|error| crate::terminal::bind_error(port, error))?)
+    } else { None };
+    #[cfg(unix)]
+    let (unix_listener, _socket_file) = match &socket {
+        Some(path) => { let (listener, guard) = bind_unix_socket(path)?; (Some(listener), Some(guard)) }
+        None => (None, None),
+    };
+    let actual = listener.as_ref().map(|listener| listener.local_addr()).transpose()?;
+    let hosts = actual.map(serve_hosts).unwrap_or_else(|| vec!["localhost".to_owned()]);
     let mut app = App::new(store, config, hosts)?;
     if let Some(origin) = public_origin {
         app = app.hosted(&origin)?;
@@ -2477,7 +2537,8 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
     let secret = format!("{}{}", crate::id(), crate::id());
     app.instance_secret = Some(std::sync::Arc::new(secret.clone()));
     let directory = app.worker.store.directory.to_path_buf();
-    if let Err(error) = crate::terminal::record_server(&directory, actual.port(), &secret) {
+    if let Some(actual) = actual
+        && let Err(error) = crate::terminal::record_server(&directory, actual.port(), &secret) {
         eprintln!("graphicle: could not record the server ({})", error.message);
     }
     let mut extension_context = ServeContext {
@@ -2493,7 +2554,12 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
     // Install handlers before announcing readiness. A service manager can send
     // SIGTERM immediately after that announcement, before Axum polls its future.
     let shutdown = shutdown_signal()?;
-    let url = format!("http://{actual}");
+    let url = match actual {
+        Some(actual) => format!("http://{actual}"),
+        None => url::Url::from_file_path(socket.as_ref().unwrap())
+            .map_err(|_| Error::bad("Invalid absolute socket path"))?
+            .to_string().replacen("file:", "unix:", 1),
+    };
     eprintln!("Graphicle is ready at {url}");
     if open {
         let ticket=app.browser_ticket(json!({"workspace":session.workspace,"capability":session.capability,"project":session.project}))?;
@@ -2511,16 +2577,24 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
     for task in extension_tasks {
         background.push(tokio::spawn(task));
     }
-    let result = axum::serve(listener, api::router(app))
-        .with_graceful_shutdown(shutdown)
-        .await;
+    let router = api::router(app);
+    let result = if let Some(listener) = listener {
+        axum::serve(listener, router).with_graceful_shutdown(shutdown).await
+    } else {
+        #[cfg(unix)]
+        { axum::serve(unix_listener.unwrap(), router).with_graceful_shutdown(shutdown).await }
+        #[cfg(not(unix))]
+        { unreachable!("Unix sockets refused above") }
+    };
     for worker in workers {
         worker.abort();
     }
     for task in background {
         task.abort();
     }
-    crate::terminal::forget_server(&directory, &secret);
+    if actual.is_some() {
+        crate::terminal::forget_server(&directory, &secret);
+    }
     result.map_err(Error::from)
 }
 

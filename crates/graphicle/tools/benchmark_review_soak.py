@@ -2,7 +2,8 @@
 
 Cases: name, seed_store, next_request and edit_path. Each private store derives
 11 distinct synthetic heads from the archived head: an unused owned Go constant
-changes value. Head zero warms the helper; four heads run sequentially, four in
+changes value. Head zero warms the helper and both sides' facts, then a replay
+verifies the warm state; four heads run sequentially, four in
 two concurrent pairs, and two sequentially again to check recovery. Each is
 compared with a fresh CLI process on a
 clone of the same post-warm cache state. Admission, cloning, warmup and model
@@ -11,6 +12,7 @@ calls are outside review timing. No original store or source is changed.
 import argparse
 import base64
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -36,9 +38,24 @@ class LoggedServer(LocalServer):
 
 
 def job_state(store):
-    with connect_readonly(store) as db:
+    with closing(connect_readonly(store)) as db:
         assert db.execute('SELECT count(*) FROM am_connectors').fetchone()[0] == 0
         return db.execute('SELECT id,kind,state,attempt,lease_token,lease_until FROM am_jobs ORDER BY id').fetchall()
+
+
+def prepare_manifest(client, repository, expected, manifest, metadata):
+    """Use the existing multipart protocol; return the final missing-list page."""
+    parts = [manifest[i:i + 5000] for i in range(0, len(manifest), 5000)] or [[]]
+    prepared = None
+    for index, part in enumerate(parts):
+        args = {'repository_id': repository, 'manifest': part,
+                'manifest_complete': index == len(parts) - 1, 'missing_limit': 256}
+        if index == 0:
+            args.update(expected_snapshot=expected, metadata=metadata)
+        else:
+            args['sync_id'] = prepared['sync_id']
+        prepared = client.command('sync.prepare', **args)
+    return prepared
 
 
 def prepare_heads(client, work, case, head_count=11):
@@ -48,7 +65,7 @@ def prepare_heads(client, work, case, head_count=11):
     repo = request['repository_id']
     path = case['edit_path']
     assert path.endswith('.go') and not path.endswith('_test.go') and 'vendor' not in Path(path).parts
-    with connect_readonly(work / 'store') as db:
+    with closing(connect_readonly(work / 'store')) as db:
         row = db.execute('SELECT manifest,metadata FROM repo_snapshots WHERE repository_id=? AND sha256=?',
                          (repo, pin['snapshot'])).fetchone()
         manifest, metadata = map(json.loads, row)
@@ -66,9 +83,10 @@ def prepare_heads(client, work, case, head_count=11):
         content = original + b'\nconst ' + marker + b' = ' + str(index).encode() + b'\n'
         updated = {**manifest, path: {'sha256': hashlib.sha256(content).hexdigest(), 'bytes': len(content)}}
         commit = hashlib.sha1(f'graphicle synthetic soak {case["name"]} {index}'.encode()).hexdigest()
-        page = client.command('sync.prepare', repository_id=repo, expected_snapshot=expected,
-                              manifest=[{'path': p, **v} for p, v in updated.items()],
-                              metadata={**metadata, 'commit': commit}, missing_limit=256)
+        page = prepare_manifest(client, repo, expected,
+                                [{'path': p, **v} for p, v in updated.items()],
+                                {**metadata, 'commit': commit})
+        # Only this synthetic edit is new; all other objects must be retained.
         assert page['missing'] == [path] and not page.get('next_cursor')
         client.command('sync.upload', repository_id=repo, sync_id=page['sync_id'],
                        files=[{'path': path, 'content_base64': base64.b64encode(content).decode()}])
@@ -101,10 +119,35 @@ def batch_log(work, offset, count):
         time.sleep(0.01)
 
 
-def check(packet, request):
-    assert packet['head'] == request['head']
-    assert packet['analysis_cache']['base_hit'] and not packet['analysis_cache']['head_hit']
+def check(packet, request, *, base_hit=True, head_hit=False):
+    assert packet['base'] == request['base'] and packet['head'] == request['head']
     assert packet['tokens'] <= request['max_tokens']
+    for side, expected in [('base', base_hit), ('head', head_hit)]:
+        if expected is not None:
+            assert packet['analysis_cache'][side + '_hit'] == expected, (
+                f'Expected {side} cache hit={expected}; got {packet["analysis_cache"]}')
+
+
+def prime_cache(client, work, request):
+    """Untimed warmup works with cold captures; verify both sides before cloning."""
+    offset = (work / 'server.log').stat().st_size
+    packet, elapsed = call(client, request)
+    check(packet, request, base_hit=None, head_hit=None)
+    log = batch_log(work, offset, 1)
+    save(work / 'prime.json', packet)
+    (work / 'prime.log').write_text(log)
+    stats = {'seconds': elapsed, 'analysis_cache': packet['analysis_cache'], **log_stats(log)}
+
+    offset = (work / 'server.log').stat().st_size
+    verified, elapsed = call(client, request)
+    check(verified, request, base_hit=True, head_hit=True)
+    assert canonical(verified) == canonical(packet), 'Warmup replay changed the packet'
+    log = batch_log(work, offset, 1)
+    save(work / 'prime-verify.json', verified)
+    (work / 'prime-verify.log').write_text(log)
+    stats['verification'] = {'seconds': elapsed, 'analysis_cache': verified['analysis_cache'],
+                             'packet_equal': True, **log_stats(log)}
+    return stats
 
 
 def main():
@@ -136,12 +179,7 @@ def main():
             requests = prepare_heads(client, work, case)
             jobs = job_state(work / 'store')
             assert len(jobs) > len(prior_jobs)
-            offset = (work / 'server.log').stat().st_size
-            packet, elapsed = call(client, requests[0])
-            check(packet, requests[0])
-            prime_log = batch_log(work, offset, 1)
-            save(work / 'prime.json', packet)
-            (work / 'prime.log').write_text(prime_log)
+            priming = prime_cache(client, work, requests[0])
             assert job_state(work / 'store') == jobs
             digest = cache_digest(work / 'store')
             for index in range(1, 11):
@@ -151,7 +189,7 @@ def main():
                 'heads': [r['head'] for r in requests], 'edit_path': case['edit_path'],
                 'max_tokens': requests[0]['max_tokens'], 'synthetic_heads': True,
                 'initial_cache_digest': digest, 'queued_jobs_preserved': len(jobs),
-                'prime_untimed': {'seconds': elapsed, **log_stats(prime_log)},
+                'prime_untimed': priming,
                 'arm_order': ['cli', 'server'] if case_index % 2 == 0 else ['server', 'cli']}
             print(name, 'prepared 11 synthetic heads; queued jobs preserved', len(jobs), flush=True)
             references = {}

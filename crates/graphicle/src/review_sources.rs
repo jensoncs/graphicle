@@ -70,6 +70,7 @@ fn load(
     };
     let mut budget = admission::SourceBudget::default();
     for pin in pins {
+        checkpoint()?;
         if store::repo(db, principal, &pin.repository_id).is_err() {
             input
                 .issues
@@ -150,6 +151,7 @@ fn load(
             .as_object()
             .ok_or_else(|| Error::bad("Invalid stored source manifest"))?;
         for (path, entry) in files {
+        checkpoint()?;
             store::path(path)?;
             if local::excluded_pinned_source_path(path) {
                 input
@@ -222,6 +224,7 @@ pub(super) fn check_retained<'a>(
         .collect();
     let objects: Vec<_> = objects.into_iter().collect();
     for batch in objects.chunks(RETENTION_BATCH) {
+        checkpoint()?;
         let sql = retention_query(batch.len());
         let mut query = db.prepare_cached(&sql)?;
         let parameters = batch

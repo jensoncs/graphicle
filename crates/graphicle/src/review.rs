@@ -88,6 +88,9 @@ pub struct Profile {
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Request {
+    /// Cooperative wall-clock budget, including native subprocess work.
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
     pub repository_id: String,
     pub base: Vec<Pin>,
     pub head: Vec<Pin>,
@@ -237,6 +240,12 @@ fn key(world: &str, symbol: &str) -> String {
     crate::digest(&json!([world, symbol]))
 }
 fn validate(r: &Request) -> Result<()> {
+    if !cfg!(unix) && r.timeout_ms.is_some() {
+        return Err(Error::bad("Review request deadlines require Unix process groups"));
+    }
+    if r.timeout_ms.is_some_and(|ms| !(1..=600_000).contains(&ms)) {
+        return Err(Error::bad("timeout_ms must be in 1..600000"));
+    }
     if r.base.is_empty()
         || r.head.is_empty()
         || r.base.len() > 64
@@ -400,11 +409,12 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
         };
         let request = json!({"roots":roots,"goos":profile.goos,"goarch":profile.goarch,"tags":profile.tags,"tests":profile.tests,"workspace":profile.workspace,
             "cache_identity":cache_identity,"package_cache":packages.entries});
-        let tree = crate::phase::phase("review_materialize", || go::materialize(input))?;
+        let tree = review_phase("review_materialize", || go::materialize(input))?;
         crate::phase::phase("review_native_facts", || {
             graphicle::extractors::go_types::review_encoded(tree.path(), &request)
         })
     };
+    checkpoint()?;
     let mut raw = match raw {
         Ok(v) => v,
         Err(error) => {
@@ -428,6 +438,7 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     out.analyzer = facts.analyzer;
     out.toolchain = facts.toolchain;
     for world in facts.worlds {
+        checkpoint()?;
         let dependency_packages = world
             .packages
             .iter()
@@ -2065,7 +2076,34 @@ fn check_receipt_access(
     Ok(())
 }
 
+/// Captured before HTTP blocking-pool admission; invalid values are rejected by
+/// normal request validation, after authorization.
+pub(crate) fn request_deadline(operation: &str, args: &Value) -> Option<std::time::Instant> {
+    if !cfg!(unix) || !matches!(operation, "graph.impact" | "impact.report") { return None; }
+    args["timeout_ms"].as_u64().filter(|ms| (1..=600_000).contains(ms))
+        .map(|ms| std::time::Instant::now() + std::time::Duration::from_millis(ms))
+}
+
+fn checkpoint() -> Result<()> {
+    graphicle::process::check_deadline().map_err(|_| Error::timeout("Review request deadline exceeded"))
+}
+
+fn review_phase<T>(name: &str, f: impl FnOnce() -> Result<T>) -> Result<T> {
+    checkpoint()?;
+    let result = crate::phase::phase(name, f);
+    checkpoint()?;
+    result
+}
+
 pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<Value> {
+    let _deadline = graphicle::process::deadline_scope(request_deadline("graph.impact", args));
+    let result = run_inner(store, workspace, token, args);
+    // Convert swallowed compiler/storage timeout errors at the request boundary.
+    checkpoint()?;
+    result
+}
+
+fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<Value> {
     // Authorization precedes parsing scope details, preserving the core API's
     // refusal boundary even for legacy/unsupported request shapes.
     let anchor = crate::string(args, "repository_id", 100)?;
@@ -2088,7 +2126,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         Ok(Some(receipt))
     })?;
     let (base, head) = sources::load_sides(store, workspace, token, &r)?;
-    let provided_diff = crate::phase::phase("review_provided_diff_validate", || {
+    let provided_diff = review_phase("review_provided_diff_validate", || {
         diff_context::Context::new(&r.provided_diff, &base, &head)
     })?;
     if let Some(options) = &r.business_context {
@@ -2112,6 +2150,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     }
     let identity = (!go::scope(&base)?.roots.is_empty() || !go::scope(&head)?.roots.is_empty()).then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
         .map(|v| crate::digest(&v));
+    checkpoint()?;
     let fact_key = |input: &Input| identity.as_ref().map(|identity| go::fact_key(input, &r.profile, identity));
     let key_a = fact_key(&base);
     let key_b = fact_key(&head);
@@ -2123,7 +2162,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     };
     let (cached_a, checksum_a) = read_cache(&key_a)?.unzip();
     let hit_a = cached_a.is_some();
-    let load_packages = || crate::phase::phase("review_load_package_cache", || {
+    let load_packages = || review_phase("review_load_package_cache", || {
         crate::review_cache::load_packages(store,workspace,token,anchor)
     });
     // Full cached facts need no dependency exports. Keep one shared pool for
@@ -2131,7 +2170,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     let loaded_packages = identity.is_some() && !hit_a;
     let mut package_pool = if loaded_packages { load_packages()? } else { crate::review_cache::PackagePool::default() };
     package_pool.identity = identity.clone().unwrap_or_default();
-    let mut a = crate::phase::phase("review_analyze_base", || {
+    let mut a = review_phase("review_analyze_base", || {
         analyze(&base, &r.profile, cached_a, &mut package_pool)
     })?;
     let (cached_b, checksum_b) = if key_a.is_some() && key_a == key_b {
@@ -2144,13 +2183,13 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         package_pool = load_packages()?;
         package_pool.identity = identity.clone().unwrap_or_default();
     }
-    let mut b = crate::phase::phase("review_analyze_head", || {
+    let mut b = review_phase("review_analyze_head", || {
         analyze(&head, &r.profile, cached_b, &mut package_pool)
     })?;
-    crate::phase::phase("review_service_links_base", || services::attach(&base, &mut a))?;
-    crate::phase::phase("review_service_links_head", || services::attach(&head, &mut b))?;
-    let mut report = crate::phase::phase("review_compare", || compare(&base, &head, &a, &b, &r))?;
-    let coverage_ids = crate::phase::phase("review_execution_coverage", || store.authorized_read(workspace, token, "read", |db, p| {
+    review_phase("review_service_links_base", || services::attach(&base, &mut a))?;
+    review_phase("review_service_links_head", || services::attach(&head, &mut b))?;
+    let mut report = review_phase("review_compare", || compare(&base, &head, &a, &b, &r))?;
+    let coverage_ids = review_phase("review_execution_coverage", || store.authorized_read(workspace, token, "read", |db, p| {
         let visible = |pins: &[Pin]| {
             pins.iter()
                 .filter(|pin| store::repo(db, p, &pin.repository_id).is_ok())
@@ -2233,7 +2272,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         provided_diff.annotate(&mut report)
     });
     if r.compact_provenance { report["_compact_provenance"] = json!(true); }
-    let (mut report, receipt) = crate::phase::phase("review_pack", || {
+    let (mut report, receipt) = review_phase("review_pack", || {
         pack(report, r.max_tokens, previous.as_ref(), Some(&scopes))
     })?;
     // Execution diagnostics are outside packet identity, like the token count.
@@ -2246,7 +2285,9 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
     if text::count(&report.to_string()) > r.max_tokens {
         return Err(Error::bad("Review diagnostics exceed token budget"));
     }
+    checkpoint()?;
     store.authorized(workspace,token,"read",|db,p|{
+        checkpoint()?;
         store::repo(db,p,anchor)?;
         if let Some(previous)=&previous {check_receipt_access(db,p,previous)?;}
         for repository in base.sources.values().chain(head.sources.values()).map(|s|&s.repository).collect::<BTreeSet<_>>(){store::repo(db,p,repository)?;}
@@ -2281,6 +2322,7 @@ pub fn run(store: &Store, workspace: &str, token: &str, args: &Value) -> Result<
         }
         db.execute("INSERT OR IGNORE INTO repo_review_packets(id,repository_id,principal_hash,receipt,created_at) VALUES(?,?,?,?,?)",params![s(&report,"packet_id"),anchor,p.hash,receipt.to_string(),crate::now()])?;
         db.execute("DELETE FROM repo_review_packets WHERE repository_id=? AND principal_hash=? AND id NOT IN (SELECT id FROM repo_review_packets WHERE repository_id=? AND principal_hash=? ORDER BY rowid DESC LIMIT 20)",params![anchor,p.hash,anchor,p.hash])?;
+        checkpoint()?;
         Ok(report)
     })
 }
@@ -2327,7 +2369,7 @@ pub(crate) fn pin_schema() -> Value {
 }
 pub fn properties() -> Value {
     let pin = pin_schema();
-    json!({"base":{"type":"array","items":pin,"minItems":1,"maxItems":64},"head":{"type":"array","items":pin,"minItems":1,"maxItems":64},"profile":{"type":"object","properties":{"goos":{"type":"string"},"goarch":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}},"tests":{"type":"boolean"},"workspace":{"type":"string"}},"required":["goos","goarch"],"additionalProperties":false},"max_depth":{"type":"integer","minimum":0,"maximum":32},"max_tokens":{"type":"integer","minimum":512,"maximum":64000},"previous_packet_id":{"type":"string"},"reuse_text":{"type":"boolean"},"compact_provenance":{"type":"boolean","description":"Share repeated pinned service assertions when beneficial; clients must support service_provenance references"},"reviewed_entries":{"type":"array","maxItems":1000,"items":{"type":"string"}},"provided_diff":diff_context::schema(),"business_context":crate::business_context::schema(),"repo":{"type":"string"}})
+    json!({"base":{"type":"array","items":pin,"minItems":1,"maxItems":64},"head":{"type":"array","items":pin,"minItems":1,"maxItems":64},"profile":{"type":"object","properties":{"goos":{"type":"string"},"goarch":{"type":"string"},"tags":{"type":"array","items":{"type":"string"}},"tests":{"type":"boolean"},"workspace":{"type":"string"}},"required":["goos","goarch"],"additionalProperties":false},"timeout_ms":{"type":"integer","minimum":1,"maximum":600000,"description":"Cooperative request deadline; expiry returns timeout only after synchronous work and native children stop"},"max_depth":{"type":"integer","minimum":0,"maximum":32},"max_tokens":{"type":"integer","minimum":512,"maximum":64000},"previous_packet_id":{"type":"string"},"reuse_text":{"type":"boolean"},"compact_provenance":{"type":"boolean","description":"Share repeated pinned service assertions when beneficial; clients must support service_provenance references"},"reviewed_entries":{"type":"array","maxItems":1000,"items":{"type":"string"}},"provided_diff":diff_context::schema(),"business_context":crate::business_context::schema(),"repo":{"type":"string"}})
 }
 
 #[cfg(test)]

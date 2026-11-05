@@ -1,6 +1,6 @@
 //! Select compiler working directories from admitted module files, not suffixes
 //! found anywhere below an otherwise non-Go repository root.
-use super::{Input, Profile, basic, issue};
+use super::{Input, Profile, basic, checkpoint, issue};
 use crate::{Error, Result};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
@@ -32,6 +32,7 @@ fn materialize_sources(input: &Input, root: &Path) -> Result<()> {
     use std::io::Write;
     let mut directories = BTreeSet::new();
     for pin in &input.pins {
+        checkpoint()?;
         let directory = Path::new(&pin.directory);
         std::fs::create_dir(root.join(directory))?;
         directories.insert(directory);
@@ -43,6 +44,7 @@ fn materialize_sources(input: &Input, root: &Path) -> Result<()> {
         options.mode(0o600);
     }
     for (path, source) in &input.sources {
+        checkpoint()?;
         let target = root.join(path);
         let parent = Path::new(path).parent().unwrap();
         if directories.insert(parent) {
@@ -139,6 +141,7 @@ pub(super) fn scope(input: &Input) -> Result<Scope> {
         issues: vec![],
     };
     for pin in &input.pins {
+        checkpoint()?;
         let modules: BTreeSet<_> = input
             .sources
             .keys()

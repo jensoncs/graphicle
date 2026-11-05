@@ -58,6 +58,23 @@ Licensed under the Apache License 2.0; see LICENSE and NOTICE. The native
 server and optional model/runtime dependencies are separate artifacts with
 their own notices; this SDK does not bundle them.
 
+## Retained local service
+
+`LocalServer(binary, store, socket_path="/run/graphicle-review/review.sock",
+serve_args=["--no-worker"])` runs HTTP on a private Unix socket instead of TCP.
+Create its parent as the service user with mode 0700 first. For an existing
+service use `Client("unix:///run/graphicle-review/review.sock", workspace,
+capability, timeout=150)`. Workspace authorization still applies.
+
+`Project.impact(..., timeout_ms=120000)` requests a server-side review deadline.
+A structured `GraphicleError` with code `timeout` means the synchronous review
+has stopped; a client transport timeout alone does not. Keep the transport limit
+longer than the server deadline. Reuse the same project with
+`secondary_context(..., enabled=True, expected_snapshot=head_snapshot)` for
+fallback file evidence without another sync. It rejects a stale current head.
+See [serving, deadlines and snapshot context](../../docs/pinned-review.md#persistent-review-serving)
+for lifecycle and cooperative-deadline limits.
+
 ## Pinned change review
 
 `Project.impact` uses Core's pinned Go review contract. Check

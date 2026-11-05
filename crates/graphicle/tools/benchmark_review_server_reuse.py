@@ -11,6 +11,7 @@ Queued background work is cancelled only in scratch clones to isolate reviews;
 fixtures with connectors are refused because they can schedule new work.
 """
 import argparse
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -27,7 +28,7 @@ from benchmark_review_cache_reuse import cache_counts, clone_store, connect_read
 def cache_digest(store):
     """Include artifacts, access bindings and LRU order, not only row counts."""
     digest = hashlib.sha256()
-    with connect_readonly(store) as db:
+    with closing(connect_readonly(store)) as db:
         for table in ['repo_review_analysis', 'repo_review_analysis_inputs',
                       'repo_review_package_facts', 'repo_review_package_inputs']:
             digest.update(table.encode())
@@ -46,7 +47,7 @@ def log_stats(log):
 
 
 def assert_idle_worker(store):
-    with connect_readonly(store) as db:
+    with closing(connect_readonly(store)) as db:
         assert db.execute("SELECT count(*) FROM am_jobs WHERE state IN ('queued','retry','running')").fetchone()[0] == 0
         assert db.execute('SELECT count(*) FROM am_connectors').fetchone()[0] == 0
 
@@ -102,7 +103,7 @@ def main():
             warm_work = folder / 'warm-http'
             clone_store(case['seed_store'], warm_work / 'store')
             # Force the previous head through the helper without changing sources.
-            with sqlite3.connect(warm_work / 'store/reviews.sqlite3') as db:
+            with closing(sqlite3.connect(warm_work / 'store/reviews.sqlite3')) as db, db:
                 db.execute('PRAGMA foreign_keys=ON')
                 db.execute('DELETE FROM repo_review_analysis')
                 assert db.execute('SELECT count(*) FROM am_connectors').fetchone()[0] == 0

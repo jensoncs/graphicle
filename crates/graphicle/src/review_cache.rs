@@ -105,6 +105,7 @@ pub(crate) fn save_packages(
 ) -> Result<()> {
     if used.is_empty() { return Ok(()); }
     for key in used.iter().take(PACKAGE_COUNT) {
+        graphicle::process::check_deadline()?;
         let Some(data) = pool.entries.get(key) else {
             continue;
         };

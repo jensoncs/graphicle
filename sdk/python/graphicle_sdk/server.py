@@ -18,8 +18,12 @@ Pass ``serve_args=["--no-worker"]`` for an HTTP process without built-in job wor
 or schedulers, for example to retain compiler helpers for pinned reviews. Queued
 jobs remain intact and need a separate ``graphicle worker``; explicit API calls
 and extension background tasks still run. This is not a restriction on API access.
-On exit the
-process is stopped (SIGTERM, then SIGKILL after ``stop_timeout`` seconds).
+Pass ``socket_path="/private/service/review.sock"`` to listen on a Unix socket
+instead of TCP. The absolute path's parent must already exist, be owned by the
+service user, and have no group/other permissions (0700). Socket permissions are
+0600; workspace capabilities are still required. Normal shutdown removes the
+socket; after SIGKILL, confirm the process stopped before removing a stale socket.
+On exit the process is stopped (SIGTERM, then SIGKILL after ``stop_timeout`` seconds).
 
 ``binary`` defaults to ``$GRAPHICLE_BIN``, then ``graphicle`` on ``PATH``. ``config`` is the model
 configuration file (see ``graphicle config-example``); without one the service has no models, and
@@ -44,17 +48,17 @@ from .client import GraphicleError, Client
 
 __all__ = ["LocalServer"]
 
-_READY = re.compile(r"Graphicle is ready at (https?://\S+)")
+_READY = re.compile(r"Graphicle is ready at ((?:https?|unix)://\S+)")
 PathLike = Union[str, "os.PathLike[str]"]
 
 
 class LocalServer:
-    """Context manager that runs ``graphicle serve`` on a free loopback port."""
+    """Run ``graphicle serve`` on loopback or a private Unix socket."""
 
     def __init__(self, binary: Optional[PathLike], data_dir: PathLike, config: Optional[PathLike] = None,
                  *, name: str = "My workspace", port: int = 0, env: Optional[Mapping[str, str]] = None,
                  startup_timeout: float = 60.0, stop_timeout: float = 10.0, timeout: float = 60.0,
-                 serve_args: Sequence[str] = ()) -> None:
+                 serve_args: Sequence[str] = (), socket_path: Optional[PathLike] = None) -> None:
         resolved = binary or os.environ.get("GRAPHICLE_BIN") or shutil.which("graphicle")
         if not resolved:
             raise FileNotFoundError("graphicle binary not found; pass binary= or set GRAPHICLE_BIN")
@@ -65,6 +69,9 @@ class LocalServer:
         self.config = Path(config).expanduser() if config is not None else None
         self.name = name
         self.port = port
+        if socket_path is not None and port != 0:
+            raise ValueError("socket_path and a TCP port are mutually exclusive")
+        self.socket_path = Path(socket_path).expanduser().absolute() if socket_path is not None else None
         self.env = dict(env) if env is not None else None
         self.startup_timeout = startup_timeout
         self.stop_timeout = stop_timeout
@@ -96,8 +103,9 @@ class LocalServer:
             raise GraphicleError(None, f"graphicle init failed: {(init.stderr or init.stdout).strip()}")
         self.session = json.loads((self.data_dir / "local-session.json").read_text(encoding="utf-8"))
         self._log.clear()
+        endpoint = ["--socket", str(self.socket_path)] if self.socket_path is not None else ["--port", str(self.port)]
         self.process = subprocess.Popen(
-            self._command("serve", "--port", str(self.port), *self.serve_args), env=self.env,
+            self._command("serve", *endpoint, *self.serve_args), env=self.env,
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
             text=True, encoding="utf-8", errors="replace")
         announced: "queue.Queue[Optional[str]]" = queue.Queue()

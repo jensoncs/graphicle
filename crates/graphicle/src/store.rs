@@ -428,7 +428,10 @@ impl Store {
     }
     pub fn connect(&self) -> Result<Connection> {
         let db = Connection::open(self.database.as_ref())?;
-        db.busy_timeout(Duration::from_secs(10))?;
+        let timeout = graphicle::process::bounded_timeout(Duration::from_secs(10))?;
+        // SQLite uses whole milliseconds. Round up so an exhausted request
+        // budget is reported as timeout, not SQLITE_BUSY just before expiry.
+        db.busy_timeout(timeout.saturating_add(Duration::from_nanos(999_999)))?;
         db.pragma_update(None, "foreign_keys", true)?;
         db.pragma_update(None, "secure_delete", true)?;
         Ok(db)

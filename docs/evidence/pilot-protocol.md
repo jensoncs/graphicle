@@ -953,3 +953,125 @@ Sentinel's Linux host before setting production memory limits. Longer varied
 new-head traffic without periodic idle pauses remains outside this test.
 
 [Per-request measurements, idle endpoints, pins, hashes and checks](retained-review-memory-20261105.json).
+
+## Captured-store soak corrections (2026-11-05)
+
+Sentinel reported that swapping `fcddad5b` for `4da9de65` on its fresh-store path
+produced identical packets on five Go-changing heads, with timings within 3%.
+The other three heads changed no Go and were skipped. The reported step times
+were metadata-service #316 157 → 161 s, argus #141 138 → 141 s, Nexus #1028
+476 → 479 s, siren #174 98 → 100 s and odin #199 155 → 155 s. Repeated source
+admission/preparation dominated that path. These are supplied probe results,
+not local reruns, and do not establish an end-to-end gain from a binary swap.
+
+Sentinel's Siren soak did complete: it reported median warm new-head review
+latency of 6.3 s for retained HTTP versus 13.3 s for fresh CLI, twenty matching
+packet pairs, 7.0 s per concurrent pair and normal recovery runs. That review-call
+gain does not include source admission. The four other cases stopped in the
+harness: three manifests exceeded the per-request 5,000-entry cap, and Nexus's
+captured store did not already contain cached base facts.
+
+The shared [soak helpers](../../crates/graphicle/tools/benchmark_review_soak.py)
+now send manifest parts of at most 5,000 entries, preserve metadata and expected
+snapshot on the first part, and continue using the returned `sync_id` until
+`manifest_complete:true`. Synthetic heads still require exactly one missing
+object: their edited file. Existing retained objects are not uploaded again.
+
+Warmup now accepts a cold captured base, analyzes head zero, and replays the
+same request to require both sides to hit the full-analysis cache and the packet
+to match. Both calls are untimed preparation, recorded in `prime_untimed` and
+`prime_untimed.verification`. An uncacheable fixture still fails verification.
+Measured heads retain the strict invariant: base hit, previously unseen head
+miss, correct pins and bounded tokens. CLI controls are cloned only after warmup
+verification. The memory driver uses the same helper and keeps warmup in
+`prime_untimed`, outside its measured `rows` array. Historical evidence above
+retains the earlier priming method and row counts.
+
+The regression also exposed Python SQLite resource warnings in the benchmark
+helpers. Their read and backup connections now close explicitly; a SQLite
+transaction context alone does not close the connection. Write contexts retain
+their existing commit/rollback behavior. This changes benchmark resource handling,
+not the Graphicle server's allocator or store implementation.
+
+The [regression test](../../crates/graphicle/tests/test_review_soak.py) covers
+manifest boundaries at 0, 5,000, 5,001 and 10,001 entries and rejects invalid
+measured cache states, pins and budgets. Its real-process case starts from a
+5,003-file captured store with zero compiler fact sets and runs the full soak,
+checking all ten same-pin CLI/server pairs, warmup verification, the original
+store's cache/job state and server cleanup.
+
+Run it with Go on `PATH` and a built binary that supports `serve --no-worker`:
+
+```sh
+GRAPHICLE_BIN=/path/to/graphicle python3 -m unittest discover \
+  -s crates/graphicle/tests -p test_review_soak.py -v
+```
+
+These are benchmark-only changes; Sentinel can rerun the four blocked cases
+with the updated Python tools and the same binary. Persistent-store integration
+and live end-to-end qualification remain pending; concurrency two is not promoted
+based on the Siren result alone.
+
+## Sentinel retained-service handoff (2026-11-05)
+
+The implementation and integration contract are documented in
+[persistent review serving](../pinned-review.md#persistent-review-serving).
+This work targets service transport, cancellation, and store reuse; it does not
+claim a measured improvement to Sentinel's source collection or dependency
+preparation times.
+
+| Item | Graphicle change | Remaining qualification |
+| --- | --- | --- |
+| G1: Unix transport | Core `serve --socket`, private directory/0600 socket, inode-safe cleanup; Python SDK Unix HTTP transport | Sentinel's sandbox/service-manager integration and Linux qualification |
+| G2: request deadline | Unix `timeout_ms`, cooperative phase/file checks, bounded subprocess and SQLite waits; interrupted helper compilation stays retryable | Set a longer transport limit; a lost response still requires supervision; CPU/filesystem checks are cooperative |
+| G3: snapshot context | Reuse existing `context` on the review project; SDK secondary retrieval now filters to `file:` sources, disables memory retrieval, and checks the head snapshot | Serialize admission/retrieval per project or handle `stale_snapshot`; historical snapshot queries are not added |
+| G4: incomplete impact | No weakening of the v2 risk contract; packet trimming already does not change `impact` | Representative current production packet/histogram needed to diagnose interface gaps; unresolved dispatch and dependency effects remain honest analysis limits |
+| G5: captured-store soak | Multipart manifests and verified cold-cache warmup, detailed above | Rerun the four previously blocked production captures |
+| G6: dependency closure selection | Deferred | Collector must continue supplying verified pinned dependencies |
+
+G4 inspection confirms two distinct values: `impact` is calculated from all
+analysis issues before packing; `coverage.complete` also reflects delivery
+omissions. Interface candidate expansion emits potential implementation edges
+but does not prove a closed set of runtime receivers. It deliberately retains
+`interface_dispatch` (or its candidate-budget limit). Dependency API resolution
+also does not prove library implementation effects/callbacks, reported as
+`dependency_effects_unmodeled`. Dropping those warnings would change the meaning
+of the risk schema, not fix a transport or packing defect. A simple fully
+resolved Go change can produce `potential_impact`; that does not establish
+complete coverage for the supplied production runs.
+
+Validation on the local macOS build:
+
+- Four Unix socket tests passed: private-parent/path refusal, permissions,
+  capability enforcement, no TCP client path, live duplicate-start protection,
+  graceful restart, and replacement-inode preservation.
+- Two retained-service tests passed: same-head context with unchanged queued
+  jobs/snapshots and stale-head refusal; cancellation of an intentionally stalled
+  Go compilation and its child, timeout of a concurrent initializer waiter,
+  successful retry in the same server, and subsequent full-cache hits without
+  recompiling the helper.
+- Three subprocess unit tests passed, compiled directly from `process.rs` using
+  the release dependency artifacts. They cover nested request scopes/restoration,
+  subprocess group timeout, pipe draining, and bounded output.
+- The 39 SDK origin/deadline/retry and secondary-evidence checks passed.
+- The updated 5,003-file soak passed on the final binary: 20 measured reviews,
+  ten matching same-pin CLI/server pairs, strict cache/pin checks, cold-base
+  warmup and verification, unchanged original stores/jobs, and no SQLite
+  `ResourceWarning` with warnings enabled.
+- The existing full/delta budget-invariance test passed for all three impact
+  values at 2,000, 8,000 and 64,000 tokens. This validates packing semantics,
+  not production call-graph completeness.
+
+An initially overbroad HTTP lock test demonstrated that ingress accounting
+reserves the request in a write transaction **before** review dispatch. A lock
+held before admission therefore returns the existing storage refusal, not the
+review execution timeout. The execution deadline does not cover HTTP admission
+or completion accounting. The documentation makes this boundary explicit;
+transport failures still require the collector's supervision policy. The
+review-layer lock check exercises the actual bounded execution wait directly.
+
+The direct review-layer storage test also passed: a held writer lock produces
+`timeout` within the execution budget, then releasing the lock lets the next
+request return the same packet identity. Both targeted Rust review tests passed
+together. The release binary built successfully; `git diff --check` and Python
+syntax checks passed. Changes are local and uncommitted; no service was deployed.

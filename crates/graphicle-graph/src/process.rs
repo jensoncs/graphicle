@@ -2,11 +2,56 @@
 // Upstream: graphify/extractors/fortran.py, graphify/llm.py
 //! Native bounded subprocess execution for upstream command integrations.
 use std::{
+    cell::Cell,
     io::{self, Read, Write},
     process::{Command, Stdio},
-    time::Duration,
+    time::{Duration, Instant},
 };
 use wait_timeout::ChildExt;
+
+thread_local! {
+    static DEADLINE: Cell<Option<Instant>> = const { Cell::new(None) };
+}
+
+/// A synchronous request's deadline. It stays on its blocking thread and is
+/// restored on return or unwind; nested work can shorten it, never extend it.
+pub struct DeadlineScope {
+    previous: Option<Instant>,
+    _thread: std::marker::PhantomData<std::rc::Rc<()>>,
+}
+
+pub fn deadline_scope(deadline: Option<Instant>) -> DeadlineScope {
+    let previous = DEADLINE.with(|slot| {
+        let previous = slot.get();
+        slot.set(match (previous, deadline) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (a, b) => a.or(b),
+        });
+        previous
+    });
+    DeadlineScope { previous, _thread: std::marker::PhantomData }
+}
+
+impl Drop for DeadlineScope {
+    fn drop(&mut self) {
+        DEADLINE.with(|slot| slot.set(self.previous));
+    }
+}
+
+pub fn check_deadline() -> io::Result<()> {
+    bounded_timeout(Duration::MAX).map(|_| ())
+}
+
+/// Bound a subprocess or blocking storage wait by the current request budget.
+pub fn bounded_timeout(timeout: Duration) -> io::Result<Duration> {
+    DEADLINE.with(|slot| match slot.get() {
+        None => Ok(timeout),
+        Some(deadline) => deadline.checked_duration_since(Instant::now())
+            .filter(|left| !left.is_zero())
+            .map(|left| left.min(timeout))
+            .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "request deadline exceeded")),
+    })
+}
 
 pub struct Output {
     pub success: bool,
@@ -34,6 +79,7 @@ pub fn capture_bounded(
     input: Option<Vec<u8>>,
     max_bytes: usize,
 ) -> io::Result<Output> {
+    let timeout = bounded_timeout(timeout)?;
     fn drain(mut stream: impl Read, max: usize) -> io::Result<Vec<u8>> {
         let mut bytes = Vec::new();
         let mut buffer = [0u8; 8192];
@@ -122,6 +168,22 @@ pub fn capture_bounded(
 mod tests {
     #[cfg(unix)]
     use super::*;
+    #[test]
+    #[cfg(unix)]
+    fn request_deadline_bounds_children_and_does_not_leak_to_the_next_request() {
+        let started = Instant::now();
+        {
+            let _request = deadline_scope(Some(started + Duration::from_millis(40)));
+            let _nested = deadline_scope(Some(started + Duration::from_secs(30)));
+            let result = capture(Command::new("/bin/sh").args(["-c", "sleep 10 & wait"]), Duration::from_secs(5));
+            assert_eq!(result.err().unwrap().kind(), io::ErrorKind::TimedOut);
+            assert!(started.elapsed() < Duration::from_secs(2));
+            assert_eq!(check_deadline().unwrap_err().kind(), io::ErrorKind::TimedOut);
+        }
+        let result = capture(Command::new("/bin/sh").args(["-c", "printf recovered"]), Duration::from_secs(1)).unwrap();
+        assert!(result.success);
+        assert_eq!(result.stdout, b"recovered");
+    }
     #[test]
     #[cfg(unix)]
     fn output_limit_refuses_without_pipe_deadlock() {

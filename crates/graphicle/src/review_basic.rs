@@ -165,6 +165,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
     let mut groups = BTreeMap::<String, Vec<String>>::new();
     let mut imports = BTreeMap::<String, serde_json::Map<String, Value>>::new();
     for (path, lang) in &files {
+        checkpoint()?;
         *counts.entry(lang).or_default() += 1;
         let source = &input.sources[path];
         let content = source.content.text().unwrap();
@@ -367,6 +368,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
         }
     }
     for (repo, analyses) in imports {
+        checkpoint()?;
         if analyses.len() > structure::GRAPH_FILE_LIMIT {
             out.issues.push(issue(
                 "basic_import_limit",
@@ -420,6 +422,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
         }
     }
     for (file, lang) in &files {
+        checkpoint()?;
         if !matches!(*lang, "bash" | "terraform") {
             continue;
         }
@@ -556,6 +559,7 @@ mod tests {
     }
     fn report(base: &Input, head: &Input) -> Value {
         let request = Request {
+            timeout_ms: None,
             compact_provenance: false,
             repository_id: "repo".into(),
             base: vec![],
