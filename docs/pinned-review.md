@@ -555,9 +555,27 @@ initialization may have side effects. An unmapped edit keeps conservative scope.
 
 Local function aliases, closures and interface receivers resolve when one
 initializing write proves the target and the variable's address does not escape.
-Reassignment (including captured writes), parameters, fields and mutable global
-callbacks retain explicit uncertainty. Arbitrary runtime dispatch cannot be
-proven from syntax alone. For interface dispatch, compiler-checked concrete
+Interface receivers also resolve through fresh struct literals and single-write
+local holders whose storage is neither mutated nor exposed. Keyed, positional,
+pointer, nested and promoted interface fields use compiler field selections.
+Whole-holder or field reassignment, address escape, pointer aliases, captured
+writes and concrete holder methods that can implicitly take its address reject
+the initializer proof. This is conservative across the whole function, rather
+than a flow-sensitive simulation of successive assignments.
+
+For direct owned free functions in the same package, interface-return summaries can
+prove a concrete receiver when every return has the same exact concrete type.
+This includes forwarding factories and same-type branches. Named results,
+defer, generics, recursion, mixed/unknown results and function-variable factories
+remain outside this proof. Cross-package interface-returning APIs remain opaque;
+dependency implementation bodies are not imported into this analysis. The
+original factory call remains a dependency edge. A 256-step per-receiver limit
+falls back to explicit uncertainty, and the helper source identity invalidates
+old analysis caches automatically. No opt-in is needed.
+
+Unknown interface parameters and mutable global callbacks retain uncertainty.
+Exact method identity does not prove runtime success (a typed nil pointer can
+still panic) or defect absence. For unresolved interface dispatch, compiler-checked concrete
 implementations in the same admitted consumer build may supply `may_call`
 candidates with `interface_implementation` evidence. Each must satisfy the entire
 interface; none is asserted to be the runtime target. The original unresolved

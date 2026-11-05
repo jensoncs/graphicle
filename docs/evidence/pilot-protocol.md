@@ -1271,3 +1271,201 @@ No production deployment or latest 122-run re-probe was performed. Genuine
 interface-dispatch gaps remain unresolved. Sentinel should record the new scoped
 field alongside global impact and delivery coverage, then measure how often
 changed production components remain blocked and by which issue bucket.
+
+### G4 follow-up: interface receiver origins (2026-11-05)
+
+Investigated the remaining field and constructor gaps on source revision
+`37bece6`, without changing runtime resolution or relaxing coverage. The
+[reproducer](../../crates/graphicle/tools/investigate_interface_receivers.py)
+builds the current native helper from bundled sources with offline module policy,
+then checks 27 synthetic cases. An optional Graphicle binary measures the same
+cases as pinned base/head reviews, changing `Concrete.Get` in each package.
+Reviewed code is parsed/type-checked, never executed. The packet binary is the
+same binary recorded by the preceding scoped-coverage validation. Source and
+binary hashes, complete fixture sources, native call identities, candidates and
+packet coverage are in [the results](g4-interface-receivers-20261105.json).
+
+| Group | Cases | Native receiver result | Scoped packet result |
+| --- | ---: | --- | --- |
+| Already supported controls | 5 | Exact `Concrete.Get` target | Complete |
+| Interface-returning constructors | 5 | `interface_dispatch` | Incomplete |
+| Interface-valued fields | 5 | `interface_dispatch` | Incomplete |
+| Mutation, unknown-input and richer-proof cases | 12 | `interface_dispatch` | Incomplete |
+
+Every packet has exactly one changed component. Each unresolved case has two
+component blockers (one per side); there are zero global, outside-component,
+outside-scope, binding-change or unmapped-file blockers. All native packages
+type-check. Each unresolved site has two `interface_implementation` candidates,
+including the immutable cases: candidates are possible implementations of the
+contract, not evidence of which value reaches the call. These are controlled
+examples, not an estimate of the production frequency of either receiver shape.
+
+#### Confirmed causes
+
+1. `go_review.go::localValueBindings` (line 438) tracks single initializing writes
+   to local identifiers and rejects reassignment/address escape.
+   `boundExpression` (line 509) follows those bindings and interface conversions.
+   It stops at selectors and ordinary calls. The receiver resolver (line 787)
+   consequently sees the declared interface type for both `h.value` and `New()`.
+   Direct concrete receivers, explicit interface conversions, single local
+   interface bindings, concrete-typed fields, and constructors declared to return
+   a concrete type already resolve; they do not need another implementation.
+2. There is no return-type summary for owned functions whose declared result is
+   an interface. Even `func New() Value { return Concrete{} }` stays unresolved.
+   Returning `&Concrete{}`, storing `New()` in a local, same-concrete-type branches,
+   and a forwarding factory all reproduce the gap.
+3. Field handling is absent from the exact receiver proof. Immediate literal
+   projection, keyed and positional local literals, pointer literals, and an
+   embedded interface's promoted method all remain unresolved.
+4. `functionValueFlow` (line 1341), `candidates` (1481), and `storage` (1559) are
+   existing bounded **possible-target** machinery. They pool assignments and
+   parameter inputs, track storage escapes, and emit `may_call` edges while
+   preserving uncertainty. They are not an exact-value proof. In particular,
+   their conservative escape pass marks method receivers as unsafe storage, so
+   the very `h.value.Get()` call can disqualify `h`. Reusing this path unchanged
+   cannot establish an exact receiver; deleting its guards would be unsound.
+
+#### Smallest useful implementation order
+
+**First: exact return summaries for owned constructors.** Start with direct,
+non-generic functions in the analyzed package, an unnamed single result, and a
+body consisting of one explicit return whose expression has a compiler-known
+concrete named or pointer type. Match compiler function identities, not `New`
+spelling. Follow the existing single-write local binding when the result is
+stored before calling the method. Retain the ordinary call edge to the factory
+so its changes still invalidate callers. This targets three reproduced cases:
+single return, local result, and pointer return. Do not inspect dependency
+implementations across the declared API-only boundary. Named results, defer,
+unknown results, function-value factories, recursion, branches and forwarding
+calls stay outside this initial proof; add them only with separate evidence.
+
+**Second: immediate literal field projection.** A receiver such as
+`(Holder{value: Concrete{}}).value.Get()` has no intervening local storage to
+mutate. Resolve the selected field by compiler identity/index, preserving Go's
+pointer and promoted-method rules. Begin with direct fields; nested and promoted
+fields need dedicated cases. This is smaller than general heap/alias analysis.
+
+**Third: local struct field values.** Reuse the single-write binding and mutation
+analysis where their invariants fit, but establish an explicit exact-storage
+proof. At minimum, field writes, pointer aliases, taking the holder's address,
+passing it to unknown code, implicit address-taking by pointer receiver methods,
+and captured closure writes must invalidate an initializer-based proof. The
+current candidate-flow result must never silently become an exact receiver.
+
+The counterexamples make the required refusals concrete:
+
+```go
+// Reading the explicit return alone would incorrectly select Concrete.Get.
+func New() (v Value) {
+    defer func() { v = Other{} }()
+    return Concrete{}
+}
+
+// There is only one write to the local h, but the interface field changes.
+h := &Holder{value: Concrete{}}
+alias := h
+alias.value = input
+return h.value.Get()
+```
+
+Additional cases cover mixed return types, passthrough interface parameters,
+recursive factories, direct field writes, pointer-receiver mutation without
+explicit `&h`, escaped holders, closure mutation, zero interface fields,
+reassigned interface locals, and address escapes. Some can eventually support
+more precise analysis; none may be resolved merely by choosing the initializer
+or the first observed return.
+
+Acceptance for each implementation: intended fixtures acquire the correct exact
+method target and lose only their justified `interface_dispatch` limits; unknown
+cases retain uncertainty; changing the factory or initializer changes its target;
+base/head ownership and review-reuse proofs remain correct. Native helper source
+changes must invalidate the affected cached facts using the existing analyzer
+identity, verified in a retained-store test. Measure production receiver shapes
+inside changed components before estimating benefit: the current generic
+`interface_dispatch` histogram cannot distinguish these origins.
+
+Validation completed: 27 native analyses and 27 pinned review calls, all expected
+results, zero model calls, Python syntax check and `git diff --check` passed.
+No production analyzer changes or deployment occurred.
+
+```sh
+python3 crates/graphicle/tools/investigate_interface_receivers.py \
+  --binary /path/to/graphicle --output /tmp/new-interface-receiver-probe
+```
+
+### G4 receiver fixes and reassignment reassessment (2026-11-05)
+
+Implemented the ten resolvable field/factory cases from the preceding probe.
+The existing exact local bindings now feed a bounded receiver proof in
+`go_review.go`. It resolves compiler-selected fields of fresh literals and
+unexposed single-write local holders, including nested/pointer/promoted fields.
+All uses of a holder are checked before trusting its initializer; reassignment,
+field writes, address/alias escapes, captured writes and potentially mutating
+concrete holder methods invalidate that storage proof.
+
+Direct free functions in the same owned package receive exact return summaries
+only when every return proves the same concrete type. This covers forwarding
+functions and same-type branches as well as single returns. The original factory
+call edge remains. Named results/defer, recursive or generic factories, unknown
+or mixed return types, and cross-package interface-returning APIs remain
+unresolved. Resolution is bounded to 256 expression steps and uses compiler
+objects, not spelling or pooled implementation candidates. The existing candidate
+analysis continues to provide `may_call` context for unresolved sites.
+
+[Before/after evidence](g4-interface-receiver-fix-20261105.json) records the exact
+baseline/candidate binaries and native source hashes on the same 27 fixtures:
+
+| Measurement | Before | After |
+| --- | ---: | ---: |
+| Complete changed-component analysis | 5 | 15 |
+| Component issue instances, base + head | 44 | 24 |
+| Mutation/unknown-value cases retaining uncertainty | 12 | 12 |
+| Code entries delivered across the matrix | 162 | 162 |
+| Entries/diffs omitted for budget | 0 | 0 |
+
+All ten intended cases now bind `Concrete.Get` directly. The twelve refusal
+cases retain their original issue histograms. No analysis-scope, global verdict
+definition, packing rule or review-skipping permission was weakened. The global
+verdict becomes `potential_impact` on the ten cases because their actual analysis
+gap is resolved, not because a warning is ignored.
+
+Validation passed:
+
+- Full Go helper test suite; 36 exact-receiver regression cases also verify
+  field/whole-holder reassignment, implicit address-taking, pointer/field aliases,
+  closure and range writes, nested escapes, nil handling, mixed returns, deferred
+  named-result mutation and a 300-function chain exceeding the analysis bound.
+- Three new service tests: the 27-case matrix; warm target and review-reuse
+  invalidation for both factories and fields; and old-to-new binary cache upgrade.
+- Three existing scoped-coverage service tests, including budget, delta and
+  supplied-diff invariance, admission failures and changed unmodeled inputs.
+- Separate 27-native / 27-packet before/after probe, Python syntax and
+  `git diff --check`.
+
+The reassignment check first warms an exact `Concrete.Get` result, changes the
+initializer to `Other`, and verifies an exact `Other.Get` result with no stale
+review reuse. Reassigning the interface from an unknown input then restores
+`interface_dispatch` and incomplete scoped coverage. This implementation refuses
+mutated storage across the function; it does not claim flow-sensitive knowledge
+of the last assignment.
+
+The retained-store upgrade test verifies that new helper identity rejects the
+old incomplete native facts, recomputes complete analysis, and hits the cache on
+the following identical request. The first review after an analyzer upgrade
+therefore needs to rebuild affected facts. No structural parse-cache revision or
+request/schema change is needed.
+
+Reproduce with the new build (`--expect-resolved` selects the post-fix assertions):
+
+```sh
+GRAPHICLE_BIN=/path/to/new/graphicle \
+GRAPHICLE_BEFORE_RECEIVERS_BIN=/path/to/old/graphicle \
+  python3 -m unittest discover -s crates/graphicle/tests -p test_interface_receivers.py -v
+python3 crates/graphicle/tools/investigate_interface_receivers.py \
+  --expect-resolved --binary /path/to/new/graphicle --output /tmp/new-receiver-fix-probe
+```
+
+These are synthetic precision measurements, not production completion rates or
+latency results. No deployment or production PR re-probe occurred. Sentinel can
+use the updated binary without a protocol change; the same-PR production probe
+is still needed to measure how often these receiver shapes occur in practice.

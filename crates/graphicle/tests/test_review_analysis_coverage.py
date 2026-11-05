@@ -51,9 +51,11 @@ class ChangedGoCoverage(unittest.TestCase):
     def test_synthetic_matrix(self):
         complete = {'plain', 'unused_json', 'unrelated_interface_package', 'concrete_receiver',
                     'explicit_interface_conversion', 'unrelated_stdlib_api', 'local_interface_binding',
-                    'stdlib_api', 'vendored_pure_api', 'packing_only'}
+                    'stdlib_api', 'vendored_pure_api', 'packing_only',
+                    'interface_field_literal', 'interface_constructor_result'}
         global_complete = {'plain', 'concrete_receiver', 'explicit_interface_conversion',
-                           'local_interface_binding', 'packing_only'}
+                           'local_interface_binding', 'packing_only',
+                           'interface_field_literal', 'interface_constructor_result'}
         for name, files, changed in fixtures():
             with self.subTest(name=name):
                 before = {p: t.replace('VALUE', '1') for p, t in files.items()}

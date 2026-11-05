@@ -1,0 +1,1542 @@
+{
+  "format": "graphicle.interface-receiver-investigation.v1",
+  "source_revision": "37bece660224d5c076032e1ba7a51b698b3490c8",
+  "native_source_sha256": {
+    "go_types.go": "d10c5fee17c421c5cc2980b304f52371dabf0b9b4fc54eff77f63c0b536176b5",
+    "go_review.go": "2d0783696394db2d1cf53329c62659eee7af1795bacedfd530058dd5f94a8504",
+    "go_semantic.go": "7331d03be84a8090a8157bafd2935944d275d30a5c7601de3f9d221bf393760b",
+    "go_review_cache.go": "b2f32b488192ebdf071f55e8d470c2825dae0f0543d593cd024b82054cd740ac"
+  },
+  "native_helper_sha256": "c51a7774f1ac1c75cbc332c9db293a11a22fb59151bbdf882d7d248d6d574950",
+  "tool_sha256": "f516f76bdfe4c7e595cca4637af0a5d30c905cb87cf4a735be701579ec8b1668",
+  "go_version": "go version go1.27.3 darwin/arm64",
+  "profile": {
+    "goos": "linux",
+    "goarch": "amd64",
+    "tests": false
+  },
+  "synthetic": [
+    {
+      "name": "concrete_receiver",
+      "group": "control",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { return (Concrete{}).Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target": "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "target_file": "app/main.go",
+        "target_offset": 86,
+        "target_package": "example.test/g4",
+        "spelling": "(Concrete{}).Get",
+        "file": "app/main.go",
+        "start": 247,
+        "end": 265,
+        "line": 9,
+        "relation": "calls"
+      },
+      "candidate_targets": [],
+      "unresolved_by_cause": {},
+      "packet": {
+        "impact": "potential_impact",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "complete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "f5188d35084cc36e5d9ed96fff735bb341fdc7f8baca70735be53b9b20ab2f6e",
+          "changed_components": 1,
+          "blocking_component_issues": 0,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 0,
+          "groups": [],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "interface_conversion",
+      "group": "control",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { return Value(Concrete{}).Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target": "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "target_file": "app/main.go",
+        "target_offset": 86,
+        "target_package": "example.test/g4",
+        "spelling": "Value(Concrete{}).Get",
+        "file": "app/main.go",
+        "start": 247,
+        "end": 270,
+        "line": 9,
+        "relation": "calls"
+      },
+      "candidate_targets": [],
+      "unresolved_by_cause": {},
+      "packet": {
+        "impact": "potential_impact",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "complete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "dee37a9590b870e43355682312f5893a556830b78ae6632b1bf7784df2c53537",
+          "changed_components": 1,
+          "blocking_component_issues": 0,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 0,
+          "groups": [],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "single_local",
+      "group": "control",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { var v Value = Concrete{}; return v.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target": "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "target_file": "app/main.go",
+        "target_offset": 86,
+        "target_package": "example.test/g4",
+        "spelling": "v.Get",
+        "file": "app/main.go",
+        "start": 273,
+        "end": 280,
+        "line": 9,
+        "relation": "calls"
+      },
+      "candidate_targets": [],
+      "unresolved_by_cause": {},
+      "packet": {
+        "impact": "potential_impact",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "complete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "2e888fe175d2fc104f16f848c4ff6983cf3995be8b9652d1744a5fbbc8272bb5",
+          "changed_components": 1,
+          "blocking_component_issues": 0,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 0,
+          "groups": [],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "concrete_return",
+      "group": "control",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc New() Concrete { return Concrete{} }\nfunc Use(input Value, flag bool) int { return New().Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target": "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "target_file": "app/main.go",
+        "target_offset": 86,
+        "target_package": "example.test/g4",
+        "spelling": "New().Get",
+        "file": "app/main.go",
+        "start": 288,
+        "end": 299,
+        "line": 9,
+        "relation": "calls"
+      },
+      "candidate_targets": [],
+      "unresolved_by_cause": {},
+      "packet": {
+        "impact": "potential_impact",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "complete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "fa7d30802bb33124afcec3ead0c0ee51ce1ae1ee01df27bb12309b487d885c32",
+          "changed_components": 1,
+          "blocking_component_issues": 0,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 0,
+          "groups": [],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "concrete_field",
+      "group": "control",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\ntype Fixed struct { value Concrete }\nfunc Use(input Value, flag bool) int { h := Fixed{}; return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target": "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "target_file": "app/main.go",
+        "target_offset": 86,
+        "target_package": "example.test/g4",
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 297,
+        "end": 310,
+        "line": 9,
+        "relation": "calls"
+      },
+      "candidate_targets": [],
+      "unresolved_by_cause": {},
+      "packet": {
+        "impact": "potential_impact",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "complete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "ceb94a1cf4d2c97ecce9f140663811e3f654d03fba216f378591adc2bd10700f",
+          "changed_components": 1,
+          "blocking_component_issues": 0,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 0,
+          "groups": [],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "single_return",
+      "group": "constructor",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc New() Value { return Concrete{} }\nfunc Use(input Value, flag bool) int { return New().Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "New().Get",
+        "file": "app/main.go",
+        "start": 285,
+        "end": 296,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "13465e69e0e3864a66155ccfddcf62710e112f1df4f35ef1789e348ca3001366",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "local_result",
+      "group": "constructor",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc New() Value { return Concrete{} }\nfunc Use(input Value, flag bool) int { v := New(); return v.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "v.Get",
+        "file": "app/main.go",
+        "start": 297,
+        "end": 304,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "8a60557bff6d3074b6b1413f89056a5478823b93bf5b92b699041a0322578c2f",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "pointer_return",
+      "group": "constructor",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc New() Value { return &Concrete{} }\nfunc Use(input Value, flag bool) int { return New().Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "New().Get",
+        "file": "app/main.go",
+        "start": 286,
+        "end": 297,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "1dcb0682b2e9d26b76d71767502d70c626c6884132749e813a0a265d8247eb58",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "same_type_branches",
+      "group": "constructor",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc New(b bool) Value { if b { return Concrete{} }; return Concrete{} }\nfunc Use(input Value, flag bool) int { return New(true).Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "New(true).Get",
+        "file": "app/main.go",
+        "start": 319,
+        "end": 334,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "dff319f7f1b7fca8df55b56d7b844f96934b39e45620f3e9219a485577dd6437",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "forwarding_return",
+      "group": "constructor",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc Inner() Value { return Concrete{} }; func New() Value { return Inner() }\nfunc Use(input Value, flag bool) int { return New().Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "New().Get",
+        "file": "app/main.go",
+        "start": 324,
+        "end": 335,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "0762688774e90b63bb9dffb8ef813e15042b0d1268c25ccd6189636cff149e8a",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "mixed_return_types",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc New(b bool) Value { if b { return Concrete{} }; return Other{} }\nfunc Use(input Value, flag bool) int { return New(flag).Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "New(flag).Get",
+        "file": "app/main.go",
+        "start": 316,
+        "end": 331,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "fa81e210a30d9c723661bc0ce1c63467b7f5eb4ddf4da9829cf68e62244cddb1",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "named_result_defer",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc New() (v Value) { defer func() { v = Other{} }(); return Concrete{} }\nfunc Use(input Value, flag bool) int { return New().Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "New().Get",
+        "file": "app/main.go",
+        "start": 321,
+        "end": 332,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "287e66399a14120f8c1a8cc52e2b7802d8247a611d8153d569a67cba58b6b3b9",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "parameter_passthrough",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc New(v Value) Value { return v }\nfunc Use(input Value, flag bool) int { return New(input).Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "New(input).Get",
+        "file": "app/main.go",
+        "start": 283,
+        "end": 299,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "ea833174bdb15e7f66b8181c44666a68c5e77584bc73a4c6e6595662bc7eb7da",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "recursive_factory",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc New(b bool) Value { if b { return Concrete{} }; return New(b) }\nfunc Use(input Value, flag bool) int { return New(flag).Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "New(flag).Get",
+        "file": "app/main.go",
+        "start": 315,
+        "end": 330,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "af87d351f5c02df4af35c2718d0553ce3714af5783b895b3b6e4dbf123299230",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "immediate_literal",
+      "group": "field",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { return (Holder{value: Concrete{}}).value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "(Holder{value: Concrete{}}).value.Get",
+        "file": "app/main.go",
+        "start": 247,
+        "end": 286,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "a5b374b58c186a14eff95080c1bfea03096f34b1e3c380e425a54eb75e022c8b",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "keyed_local",
+      "group": "field",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { h := Holder{value: Concrete{}}; return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 279,
+        "end": 292,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "21f423c185bd663b3ae8729868ae6d140837563c6c3ed0315b711a97ccc461aa",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "positional_local",
+      "group": "field",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { h := Holder{Concrete{}}; return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 272,
+        "end": 285,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "bf9a191ffe5af1904e894a7cc0851fde29a9d77c4081190c5183845042ecc3d0",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "pointer_local",
+      "group": "field",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { h := &Holder{value: Concrete{}}; return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 280,
+        "end": 293,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "0d30943fa9d01b287ad67c42605c685545cd947e7556d4771452a70cf5825e9e",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "field_reassigned",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { h := Holder{value: Concrete{}}; if flag { h.value = input }; return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 308,
+        "end": 321,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "46fcf672abc83216dfda4297e336144802a42e98aa3ba27fe0fe8fc1a1854280",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "pointer_alias_mutation",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { h := &Holder{value: Concrete{}}; alias := h; alias.value = input; return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 313,
+        "end": 326,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "324edffa0ee2fc0c247e6615e7c2a1aef9512f08e17a86debd4fd6ff97327bde",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "implicit_address_receiver",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc (h *Holder) Reset(v Value) { h.value = v }\nfunc Use(input Value, flag bool) int { h := Holder{value: Concrete{}}; h.Reset(input); return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 342,
+        "end": 355,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "5e8de24aafb7025b87465c9df16fea4957ba133edf5c689c68476a6ce0a736b3",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "holder_escape",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc Replace(h *Holder, v Value) { h.value = v }\nfunc Use(input Value, flag bool) int { h := Holder{value: Concrete{}}; Replace(&h, input); return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 347,
+        "end": 360,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "9d7322eb3a66c21d850f0c9aac51a105d91e436494c6ca23efefb739cd35c964",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "closure_mutation",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { h := Holder{value: Concrete{}}; func() { h.value = input }(); return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 309,
+        "end": 322,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "88470c14c15aac20822a809c75ebafa6ccc91f0423894677efea94d2fad13ac9",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "zero_interface_field",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { var h Holder; return h.value.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.value.Get",
+        "file": "app/main.go",
+        "start": 261,
+        "end": 274,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "60c7178d19fe2cf5e8040f5280c6d7fdde3b286b74ca6ac2d371a31d4138ddd1",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "local_reassigned",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\n\nfunc Use(input Value, flag bool) int { var v Value = Concrete{}; if flag { v = input }; return v.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "v.Get",
+        "file": "app/main.go",
+        "start": 296,
+        "end": 303,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "a069c95d940b1824738b58666acb6703976bd41be58f84861485db6b0d793817",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "local_address_escape",
+      "group": "counterexample",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\nfunc Replace(v *Value, other Value) { *v = other }\nfunc Use(input Value, flag bool) int { var v Value = Concrete{}; Replace(&v, input); return v.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "v.Get",
+        "file": "app/main.go",
+        "start": 343,
+        "end": 350,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "4688541835224a20a4dc249eae16fe019296dd9f60ad2cf9e5c7c369ebc97236",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    },
+    {
+      "name": "promoted_interface",
+      "group": "field",
+      "source": "package app\ntype Value interface { Get() int }\ntype Concrete struct{}\nfunc (Concrete) Get() int { return 2 }\ntype Other struct{}\nfunc (Other) Get() int { return 9 }\ntype Holder struct { value Value }\ntype Embedded struct { Value }\nfunc Use(input Value, flag bool) int { h := Embedded{Value: Concrete{}}; return h.Get() }\n",
+      "receiver_call": {
+        "caller": "example.test/g4|app/main.go|example.test/g4.Use|function",
+        "target_offset": 0,
+        "spelling": "h.Get",
+        "file": "app/main.go",
+        "start": 311,
+        "end": 318,
+        "line": 9,
+        "relation": "calls",
+        "reason": "interface_dispatch"
+      },
+      "candidate_targets": [
+        "example.test/g4|app/main.go|(example.test/g4.Concrete).Get|function",
+        "example.test/g4|app/main.go|(example.test/g4.Other).Get|function"
+      ],
+      "unresolved_by_cause": {
+        "interface_dispatch": 1
+      },
+      "packet": {
+        "impact": "incomplete",
+        "risk_schema": "graphicle.review-risk.v2",
+        "analysis_coverage": {
+          "format": "graphicle.changed-go-coverage.v1",
+          "status": "incomplete",
+          "scope": "owned_go_import_components_and_dependency_apis",
+          "scope_sha256": "767154706197fe69423294e02dd726d00198a132b66416c00df97fe57f37eaa0",
+          "changed_components": 1,
+          "blocking_component_issues": 2,
+          "blocking_global_issues": 0,
+          "outside_component_issues": 0,
+          "outside_scope_issues": 0,
+          "unmapped_changed_files": 0,
+          "binding_changed": false,
+          "exclusions": [
+            "dependency_implementations_and_callbacks",
+            "non_go_semantics",
+            "runtime_behavior"
+          ],
+          "review_skipping_permitted": false
+        },
+        "issue_histogram": {
+          "counted": 2,
+          "groups": [
+            {
+              "reason": "unresolved_edge",
+              "count": 2,
+              "cause": "interface_dispatch"
+            }
+          ],
+          "other_count": 0,
+          "other_groups": 0
+        }
+      }
+    }
+  ],
+  "packet_binary_sha256": "486d4e06e3f1e6a33fed4532d56f4f50be6fb375d93a702f51a24ff10894cdbb"
+}

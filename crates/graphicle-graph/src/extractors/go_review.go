@@ -535,6 +535,267 @@ func boundExpression(expr ast.Expr, bindings map[types.Object]ast.Expr, info *ty
 	}
 }
 
+// Exact dynamic receiver types, separate from the may-call constraint graph.
+// No reviewed code is evaluated. Local aggregate storage is usable only when
+// every use loads a field value without exposing or writing its storage.
+type receiverFlow struct {
+	info      *types.Info
+	bindings  map[types.Object]ast.Expr
+	unsafe    map[types.Object]bool
+	returns   map[*types.Func][]ast.Expr
+	summaries map[*types.Func]types.Type
+}
+
+func exactReceiverFlow(files []*ast.File, info *types.Info, bindings map[types.Object]ast.Expr) *receiverFlow {
+	f := &receiverFlow{info: info, bindings: bindings, unsafe: map[types.Object]bool{},
+		returns: map[*types.Func][]ast.Expr{}, summaries: map[*types.Func]types.Type{}}
+	parents := map[ast.Node]ast.Node{}
+	for _, file := range files {
+		var stack []ast.Node
+		ast.Inspect(file, func(n ast.Node) bool {
+			if n == nil {
+				stack = stack[:len(stack)-1]
+				return false
+			}
+			if len(stack) > 0 {
+				parents[n] = stack[len(stack)-1]
+			}
+			stack = append(stack, n)
+			return true
+		})
+		for _, decl := range file.Decls {
+			d, ok := decl.(*ast.FuncDecl)
+			if !ok || d.Recv != nil || d.Body == nil {
+				continue
+			}
+			fn, ok := info.Defs[d.Name].(*types.Func)
+			if !ok {
+				continue
+			}
+			sig := fn.Type().(*types.Signature)
+			if sig.TypeParams().Len() != 0 || sig.Results().Len() != 1 || sig.Results().At(0).Name() != "" {
+				continue
+			}
+			valid := true
+			var results []ast.Expr
+			ast.Inspect(d.Body, func(n ast.Node) bool {
+				switch n := n.(type) {
+				case *ast.FuncLit:
+					return false
+				case *ast.DeferStmt:
+					valid = false
+				case *ast.ReturnStmt:
+					if len(n.Results) != 1 {
+						valid = false
+					} else {
+						results = append(results, n.Results[0])
+					}
+				}
+				return true
+			})
+			if valid && len(results) > 0 {
+				f.returns[fn] = results
+			}
+		}
+	}
+	for id, obj := range info.Uses {
+		if bindings[obj] != nil && !fieldValueUse(id, parents, info) {
+			f.unsafe[obj] = true
+		}
+	}
+	return f
+}
+
+func interfaceMethod(obj types.Object) (*types.Interface, bool) {
+	fn, ok := obj.(*types.Func)
+	if !ok {
+		return nil, false
+	}
+	recv := fn.Type().(*types.Signature).Recv()
+	if recv == nil {
+		return nil, false
+	}
+	contract, ok := recv.Type().Underlying().(*types.Interface)
+	return contract, ok
+}
+
+func fieldValueUse(id *ast.Ident, parents map[ast.Node]ast.Node, info *types.Info) bool {
+	var current ast.Node = id
+	field := false
+	for {
+		switch p := parents[current].(type) {
+		case *ast.ParenExpr:
+			current = p
+		case *ast.StarExpr:
+			current = p
+		case *ast.SelectorExpr:
+			if p.X != current {
+				return false
+			}
+			sel := info.Selections[p]
+			if sel == nil {
+				return false
+			}
+			if sel.Kind() != types.FieldVal {
+				// Loading an interface method copies its receiver value. Calling
+				// a concrete holder method can take &holder implicitly and mutate it.
+				_, dynamic := interfaceMethod(sel.Obj())
+				return dynamic && (field || len(sel.Index()) > 1)
+			}
+			field, current = true, p
+		default:
+			if !field {
+				return false
+			}
+			switch p := parents[current].(type) {
+			case *ast.UnaryExpr:
+				if p.Op == token.AND {
+					return false
+				}
+			case *ast.AssignStmt:
+				for _, lhs := range p.Lhs {
+					if lhs == current {
+						return false
+					}
+				}
+			case *ast.RangeStmt:
+				if p.Key == current || p.Value == current {
+					return false
+				}
+			case *ast.IncDecStmt:
+				return false
+			}
+			expr, ok := current.(ast.Expr)
+			if !ok || info.TypeOf(expr) == nil {
+				return false
+			}
+			switch info.TypeOf(expr).Underlying().(type) {
+			case *types.Interface, *types.Basic:
+				return true
+			default:
+				return false // aggregate/closure aliases may expose storage
+			}
+		}
+	}
+}
+
+func receiverStep(remaining *int) bool {
+	*remaining--
+	return *remaining >= 0
+}
+
+// Project compiler-selected fields from fresh literals or unexposed local
+// storage. Never pool fields by name across different objects or call contexts.
+func (f *receiverFlow) field(expr ast.Expr, indexes []int, remaining *int) ast.Expr {
+	if expr == nil || !receiverStep(remaining) {
+		return nil
+	}
+	if len(indexes) == 0 {
+		return expr
+	}
+	switch e := unparen(expr).(type) {
+	case *ast.Ident:
+		obj := f.info.Uses[e]
+		if !f.unsafe[obj] {
+			return f.field(f.bindings[obj], indexes, remaining)
+		}
+	case *ast.UnaryExpr:
+		if e.Op == token.AND {
+			return f.field(e.X, indexes, remaining)
+		}
+	case *ast.StarExpr:
+		return f.field(e.X, indexes, remaining)
+	case *ast.SelectorExpr:
+		if sel := f.info.Selections[e]; sel != nil && sel.Kind() == types.FieldVal {
+			return f.field(f.field(e.X, sel.Index(), remaining), indexes, remaining)
+		}
+	case *ast.CompositeLit:
+		t := f.info.TypeOf(e)
+		if t == nil {
+			return nil
+		}
+		if ptr, ok := t.(*types.Pointer); ok {
+			t = ptr.Elem()
+		}
+		st, ok := t.Underlying().(*types.Struct)
+		if !ok || indexes[0] >= st.NumFields() {
+			return nil
+		}
+		for i, item := range e.Elts {
+			if pair, ok := item.(*ast.KeyValueExpr); ok {
+				if key, ok := pair.Key.(*ast.Ident); ok && key.Name == st.Field(indexes[0]).Name() {
+					return f.field(pair.Value, indexes[1:], remaining)
+				}
+			} else if i == indexes[0] {
+				return f.field(item, indexes[1:], remaining)
+			}
+		}
+	}
+	return nil
+}
+
+func (f *receiverFlow) actual(expr ast.Expr, remaining *int, active map[*types.Func]bool) types.Type {
+	if expr == nil || !receiverStep(remaining) {
+		return nil
+	}
+	expr = unparen(expr)
+	t := f.info.TypeOf(expr)
+	if t == nil || t == types.Typ[types.UntypedNil] {
+		return nil
+	}
+	if _, parameter := types.Unalias(t).(*types.TypeParam); parameter {
+		return nil
+	}
+	if _, dynamic := t.Underlying().(*types.Interface); !dynamic {
+		return t
+	}
+	switch e := expr.(type) {
+	case *ast.Ident:
+		return f.actual(f.bindings[f.info.Uses[e]], remaining, active)
+	case *ast.SelectorExpr:
+		if sel := f.info.Selections[e]; sel != nil && sel.Kind() == types.FieldVal {
+			return f.actual(f.field(e.X, sel.Index(), remaining), remaining, active)
+		}
+	case *ast.CallExpr:
+		if tv := f.info.Types[e.Fun]; tv.IsType() && len(e.Args) == 1 {
+			return f.actual(e.Args[0], remaining, active)
+		}
+		// Only direct owned function declarations in this package have summaries.
+		id, ok := unparen(e.Fun).(*ast.Ident)
+		if !ok {
+			return nil
+		}
+		fn, ok := f.info.Uses[id].(*types.Func)
+		if !ok || active[fn] || len(f.returns[fn]) == 0 {
+			return nil
+		}
+		if result, ok := f.summaries[fn]; ok {
+			return result
+		}
+		active[fn] = true
+		defer delete(active, fn)
+		var result types.Type
+		for _, value := range f.returns[fn] {
+			actual := f.actual(value, remaining, active)
+			if actual == nil || (result != nil && !types.Identical(result, actual)) {
+				return nil
+			}
+			result = actual
+		}
+		f.summaries[fn] = result
+		return result
+	}
+	return nil
+}
+
+func (f *receiverFlow) receiver(selector *ast.SelectorExpr) types.Type {
+	remaining := 256
+	selection := f.info.Selections[selector]
+	indexes := selection.Index()
+	expr := f.field(selector.X, indexes[:len(indexes)-1], &remaining)
+	return f.actual(expr, &remaining, map[*types.Func]bool{})
+}
+
 func (r *reviewCollector) packageRecord(m *metadata) reviewPackage {
 	p := reviewPackage{EmbedPatterns: append(append(append([]string{}, m.EmbedPatterns...), m.TestEmbedPatterns...), m.XTestEmbedPatterns...), Dependencies: m.Deps, Path: m.ImportPath, Directory: r.relative(m.Dir), Files: []string{}, Imports: map[string]string{}}
 	p.AnalysisRole = "dependency"
@@ -601,9 +862,11 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 	}
 	var bindings map[types.Object]ast.Expr
 	var flow *callableFlow
+	var receivers *receiverFlow
 	if owned {
 		bindings = localValueBindings(files, info)
 		flow = functionValueFlow(files, info, bindings)
+		receivers = exactReceiverFlow(files, info, bindings)
 	}
 	p := r.packageRecord(m)
 	p.AnalysisRole = "owned"
@@ -783,8 +1046,11 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 						recv = ptr.Elem()
 					}
 					contract, dynamic = recv.Underlying().(*types.Interface)
+					if promoted, ok := interfaceMethod(obj); ok {
+						contract, dynamic = promoted, true
+					}
 					if dynamic {
-						actual := info.TypeOf(boundExpression(f.X, bindings, info))
+						actual := receivers.receiver(f)
 						if actual != nil {
 							if _, uncertain := actual.Underlying().(*types.Interface); !uncertain {
 								resolved, _, _ := types.LookupFieldOrMethod(actual, true, obj.Pkg(), f.Sel.Name)
