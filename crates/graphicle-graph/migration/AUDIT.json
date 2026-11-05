@@ -1,6 +1,6 @@
 {
   "upstream_commit": "92741d162b2094ffc2fed58cfbd8ee823e9da62c",
-  "updated_utc": "2026-10-25T13:32:37.758903+00:00",
+  "updated_utc": "2026-10-31T11:03:20.589354+00:00",
   "archive_files": 1101,
   "application_files": 96,
   "currently_verified_application_files": 96,
@@ -9,6 +9,6 @@
   "stale_receipts": [],
   "complete_port": true,
   "qualification_manifests": [
-    "migration/qualification/b4274287ad6bc03f59da0a6fa7ff26a659fcc1edd8f0950bedd53afd7127e86d-954d397ab169.json"
+    "migration/qualification/e9b09aed9ca8a1995d9b2ce9114cd7a0ba0efa9136c540d197117746cf44c447-4d283f8d94cc.json"
   ]
 }

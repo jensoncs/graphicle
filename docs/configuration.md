@@ -67,7 +67,8 @@ You can add a model in any of three ways:
   one of these keys or a local Ollama.
 - **In the app:** open **Connections → Answering models → Configure model**.
   The app saves the profile in the workspace, and it saves the API key in the
-  encrypted vault.
+  encrypted vault. `ask`, `ask --pack`, `plan`, `fix` and `review` read the
+  key from the vault.
 - **In a file:** write `models.json` in the data folder, which Graphicle reads
   automatically, or pass `--config PATH`. `graphicle config example` prints a
   starting point:
@@ -110,13 +111,14 @@ You can add a model in any of three ways:
 | `embedding_model` | The profile that embeds passages for the dense arm of answers. `graphicle run embed --wait` builds the vectors. Each run makes at most `--max-calls` calls (default 4, at most 32), so a large project needs several runs |
 | `worker_concurrency` | Jobs run at once, from 1 to 64 (default 1) |
 | `models.NAME.protocol` | `ollama`; `chat` (Chat Completions, for OpenAI-compatible servers such as vLLM or llama.cpp); `responses`; `anthropic`; `gemini`; `azure_chat`; `azure_responses`. `local_onnx` needs a build with `local-inference` |
-| `base_url` | HTTPS, or HTTP on loopback. A plain-HTTP host on your network must be listed in `GRAPHICLE_PROVIDER_HTTP_HOSTS` (exact host names or addresses, separated by commas). Such a profile cannot have a `key_env` |
+| `base_url` | HTTPS, or HTTP on loopback. A plain-HTTP host on your network must be listed in `GRAPHICLE_PROVIDER_HTTP_HOSTS` (exact host names or addresses, separated by commas). Such a profile cannot have a `key_env`, unless its host is listed in `GRAPHICLE_PROVIDER_HTTP_KEY_HOSTS` instead (the same format; it also counts as listed in the first). The key then crosses the network in clear text, so anyone who can watch that network can read it. This is off by default, and listing a host there is your choice; Graphicle then prints a one-line warning that names such a host |
 | `model` | The provider's model name |
 | `key_env` | The name of the environment variable that holds the API key. The key itself never goes in the file |
-| `input_limit`, `output_limit` | Token limits: 512 to 128,000 (default 16,000) and 64 to 16,000 (default 2,048) |
+| `input_limit`, `output_limit` | Token limits: 512 to 1,048,576 (default 16,000) and 64 to 131,072 (default 2,048). A reasoning model counts its reasoning in the output |
 | `temperature` | Optional, from 0 to 2 |
 | `structured_output` | `true` by default. Set it to `false` for servers without schema-constrained output; replies are still validated. With `anthropic`, `true` offers the result as a tool the model is asked to call (Claude Opus 5.5, Claude Sonnet 5.5 and Claude Fable 5.1 refuse a forced tool call); `graphicle config set model anthropic` writes `false`, which asks for the JSON in the prompt |
-| `extra_body` | `chat` and `azure_chat` only: up to 16 extra request fields, such as `chat_template_kwargs` |
+| `extra_body` | `chat` and `azure_chat` only: up to 16 extra request fields, such as `chat_template_kwargs` or `reasoning_effort` |
+| `price` | Optional: what the provider charges, in US dollars per million tokens: `{"input": N, "output": N, "cached_input": N}` (`cached_input` optional). `ask --pack` and `plan` show a call's cost from it; Graphicle has no prices built in |
 
 An OpenAI-compatible server, such as vLLM, llama.cpp or LM Studio, takes a
 `chat` profile. Two commands write one; the second makes it the answer model:
@@ -129,6 +131,161 @@ graphicle config set default_model local
 Add `"key_env":"VARIABLE"` when the server needs a key. A server that speaks
 OpenAI's Responses API, such as vLLM, also works with `graphicle config set
 model openai --url URL --model NAME`, which sends the key in `OPENAI_API_KEY`.
+
+### Muse Spark
+
+Muse Spark and Muse Wonder, Meta's models with a context window of
+1,048,576 tokens, are served by the Meta Model API. One command writes the
+profile and makes it the answer model; the key stays in `MODEL_API_KEY`:
+
+```sh
+export MODEL_API_KEY=...        # your Meta Model API key
+graphicle config set model meta                    # Muse Spark 1.3
+graphicle config set model meta:muse-wonder-1.0    # Muse Wonder
+graphicle config set model meta:muse-spark-1.2     # another Muse Spark model
+```
+
+The profile it writes, as `models.meta` in `models.json`:
+
+```json
+{
+  "protocol": "responses",
+  "base_url": "https://api.meta.ai/v1",
+  "model": "muse-spark-1.3",
+  "key_env": "MODEL_API_KEY",
+  "input_limit": 1016576,
+  "output_limit": 32000,
+  "reasoning_effort": "medium"
+}
+```
+
+- The profile speaks the Responses API, the one where a 24-hour prompt cache
+  retention can be asked for. Profiles written by earlier versions speak
+  Chat Completions and keep working.
+- The context window holds the input and the output together, so the input
+  limit is 1,048,576 less the output limit.
+- Muse Spark and Muse Wonder always reason, and the reasoning counts in the
+  output. `reasoning_effort` takes `minimal`, `low`, `medium`, `high`,
+  `xhigh` or `max`; the API refuses `none`, and so does Graphicle for this
+  API. Graphicle sends it as `reasoning.effort` on the Responses API and as
+  `reasoning_effort` on Chat Completions.
+- `muse-spark-1.3` is the model Meta recommends for new work;
+  `muse-spark-1.2` and `muse-spark-1.1` cost the same and stay available.
+  `muse-wonder-1.0` is Meta's model for complex software engineering, the
+  one to try first for `graphicle fix`.
+- The `-contributor` models cost less because Meta may train on what you
+  send. `config set model meta` refuses them; to choose one, write the model
+  name in the configuration file yourself.
+- `graphicle ask --pack`, `graphicle plan` and `graphicle fix` fill the input
+  limit with a pack of the project's code ([packs](pack.md)).
+
+**The prompt cache.** The Meta Model API caches the longest repeated start of
+a prompt by itself and bills those input tokens at the cached price. For
+calls to it, `ask --pack`, `plan` and `fix` send the same instructions first,
+then the pack, then the question, and add:
+
+- `prompt_cache_key`: `graphicle:<project>@<commit>:<prefix>`, from the
+  project's name, the first 12 characters of its commit and of the pack's
+  prefix hash, and nothing the question says;
+- `prompt_cache_retention: "24h"` (Responses API only).
+
+With the cache layout of a pack (`--layout cache`), the repository part of
+the pack is the same for every question at a commit, so most of a follow-up
+question's input can be billed at the cached price. The cache is the
+provider's: Meta's documentation calls the retention a hint, not a
+guarantee, and the usage line shows how many input tokens were cached.
+Other providers get the key only when their profile sets `"prompt_cache":
+true`; `"prompt_cache": false` turns it off for the Meta Model API.
+
+**Exact counts.** Before a request whose estimate comes to 80% of the input
+limit or more is sent, Graphicle counts it with the API's
+`POST /responses/input_tokens`, which generates nothing, and packs again
+smaller while it would not fit. Without a key, or if the count fails, the
+estimate stands. `"count_tokens": false` turns this off; `"count_tokens":
+true` turns it on for another Responses API server. For Muse Spark Open on
+your own server, set `"tokenizer"` to its `tokenizer.json`: packs for
+`ask --pack`, `plan` and `fix` are then counted with it exactly.
+
+### Prices, the spend log and caps
+
+Prices stay in your configuration, never in the program. A profile's `price`
+is in US dollars per million tokens. Meta's list prices for Standard mode on
+26 October 2026 (the Meta Model API's pricing page,
+https://dev.meta.ai/docs/pricing-rate-limits):
+
+| Model | Input | Cached input | Output |
+|---|---|---|---|
+| `muse-spark-1.3` (and 1.2, 1.1) | $1.25 | $0.15 | $4.25 |
+| `muse-wonder-1.0` | $4.00 | $0.20 | $20.00 |
+
+```sh
+graphicle config set models.meta.price '{"input":1.25,"output":4.25,"cached_input":0.15}'
+graphicle config set models.meta.price '{"input":4,"output":20,"cached_input":0.2}'   # for muse-wonder-1.0
+```
+
+Check the pricing page before you rely on these: prices change.
+
+**The spend log.** Every model call of `ask --pack`, `plan` and `fix` adds
+one line to `usage.jsonl` in Graphicle's data folder: the time, command,
+profile, provider, model, project, commit, prompt cache key, the input,
+cached, output and reasoning tokens from the provider's usage, the seconds,
+the cost at the profile's price (`null` without one) and the status. It never
+holds the prompt or the answer. After each answer, one line sums it up, for
+example:
+
+```text
+1,012,345 tokens in (936,000 cached, 92%), 2,345 out; $0.25 at the configured price; 41.3 s.
+```
+
+`graphicle usage` adds the log up by day and model: calls, tokens, the cached
+share and the cost, and lists the calls not logged yet (below) with their
+profile, start time, process and worst case. `--since 2026-10-26` (or a time
+such as `2026-10-26T12:00:00Z`) starts later, `--json` prints it for
+programs (the calls not logged yet as `pending`), and `--clear-pending`
+removes the reservations of calls not logged yet, for example after a crash.
+
+**Caps.** Two optional profile settings, in US dollars at the profile's
+price, refuse a call before it is sent:
+
+- `max_cost_per_call`: a call whose worst case costs more. The worst case is
+  the whole input at the uncached price plus the output limit at the output
+  price. The input is the provider's exact count where there is one, else
+  Graphicle's estimate times the profile's calibration (when the provider
+  counts more than the estimate) plus 10%.
+- `max_cost_per_day`: a call whose worst case, added to the day's cost of
+  the profile so far (UTC days), would pass it. The day's cost counts every
+  logged call at its cost, or at its worst case when the provider reported
+  no usage, and every call not logged yet at its worst case: from before it
+  is sent until it is logged, a call's worst case is held in
+  `usage-pending.json`, so calls made at the same time count against each
+  other. A held worst case counts whatever its day, so a call started before
+  midnight (UTC) and still running counts against the new day. It stops
+  counting when the call is logged, when its process is no longer running
+  (where that can be told: Linux and macOS), or 40 minutes after it was
+  made (the longest a model call may take, 30 minutes, and a margin);
+  `graphicle usage --clear-pending` removes them all at once.
+
+```sh
+graphicle config set models.meta.max_cost_per_call 2
+graphicle config set models.meta.max_cost_per_day 10
+```
+
+A cap needs the profile's `price`. A refusal names the cap and its setting,
+for example `models.meta.max_cost_per_call`. If the spend log cannot be
+read, calls of a profile with a day cap are refused; a line of it that is not
+a JSON object is skipped, and `graphicle usage` lists the lines it skipped.
+
+The same kind of profile works for Muse Spark Open, or any model, on your
+own vLLM or SGLang server, and for hosted OpenAI-compatible endpoints:
+
+```sh
+graphicle config set model compatible:MODEL --url http://127.0.0.1:8000/v1
+graphicle config set models.compatible.input_limit 1000000
+```
+
+Add `--key-env VARIABLE` when the endpoint needs a key, and set
+`input_limit` to the context length the server runs with, less the output
+limit.
 
 Graphicle sends `ollama` requests with thinking turned off (`think: false`),
 so a thinking model such as `qwen3:4b` writes its answer within
@@ -150,6 +307,14 @@ excerpts and answers with exact quotes (the default `basic` workflow). To let
 the model search and read further before it answers, and check its answer, run
 `graphicle ask "question" --workflow reflect`. With `--retain`, that answer is
 saved as a memory draft for review.
+
+An answer keeps at most 12 citations and 20 unanswered parts. When the
+model's reply has more, its first ones are kept, and the job's result gives
+under `trimmed_to_cap` how many the model returned and how many were kept.
+With `--workflow reflect`, a source the model asks to read that the answer
+does not have (a path it guessed, or a file that `sync` leaves out) is
+skipped: the job's trace records the read with `"unavailable": true`, and
+the next step is told.
 
 ## Retrieval
 
@@ -430,7 +595,7 @@ cannot raise them.
 | Calls collected from one file | 50,000 | 10,000,000 | `limits.file_calls` | `GRAPHICLE_MAX_FILE_CALLS` | The call list is cut at the limit. Listed under `limited` (`calls`) |
 | Syntax nodes read in one file | 2,000,000 | 1,000,000,000 | `limits.file_nodes` | `GRAPHICLE_MAX_FILE_NODES` | The analysis stops at the limit. Listed under `limited` (`nodes`) |
 | Declarations and links kept per file, and imports of Python, JavaScript, TypeScript, Rust and Markdown files | 16,000 each | 10,000,000 | `limits.file_symbols` | `GRAPHICLE_MAX_FILE_SYMBOLS` | The list is cut at the limit. Listed under `limited` (`symbols`) |
-| One document file (PDF, Office, EPUB, HTML, image) | 128 MiB | 4 GiB | `limits.document_bytes` | `GRAPHICLE_MAX_DOCUMENT_BYTES` | A folder sync lists it under `skipped`; an upload is refused |
+| One document file (PDF, Office, EPUB, image; HTML that is uploaded or that the Confluence connector brings in, and a folder's HTML file past the text-file size or not UTF-8) | 128 MiB | 4 GiB | `limits.document_bytes` | `GRAPHICLE_MAX_DOCUMENT_BYTES` | A folder sync lists it under `skipped`; an upload is refused |
 | Text of one document: extracted from a file, or one connector or uploaded document | 8 MiB | 512 MiB | `limits.document_text_bytes` | `GRAPHICLE_MAX_DOCUMENT_TEXT_BYTES` | A folder sync lists it under `skipped`; a connector sync lists it under `skipped` and goes on; an import or upload is refused with the document's name |
 | An Office or EPUB archive, expanded | 512 MiB | 16 GiB | `limits.archive_bytes` | `GRAPHICLE_MAX_ARCHIVE_BYTES` | The document is not converted |
 | Entries of an Office or EPUB archive | 40,000 | 10,000,000 | `limits.archive_entries` | `GRAPHICLE_MAX_ARCHIVE_ENTRIES` | The same |
@@ -528,7 +693,12 @@ environment variable `GRAPHICLE_SYNC_TRACKED_IGNORED` (`0` or `1`) overrides
 the setting. It skips
 `.git`, `node_modules`, `target`, build output, `.env` files, keys and
 credential files, symbolic links and binary files other than documents. It
-reads PDF, DOCX, PPTX, XLSX, ODF and EPUB documents, HTML and UTF-8 text. It
+reads PDF, DOCX, PPTX, XLSX, ODF and EPUB documents as their extracted text,
+and HTML and other UTF-8 text files as they are on disk, with their own line
+numbers (an HTML file past `limits.file_bytes`, or one that is not UTF-8, such
+as a Latin-1 or Shift-JIS page, is read as its extracted text, as earlier
+versions read every HTML file; an HTML file read as it is counts its markup
+toward `limits.project_bytes`). It
 also skips Graphicle's own writes: the `<file>.graphicle-bak` backups, Claude
 Code's personal `.claude/settings.local.json`, a `.mcp.json` or
 `.vscode/mcp.json` holding only Graphicle's entries, and the Graphicle section
@@ -634,6 +804,7 @@ turns both off.
 |---|---|
 | `.graphicle/` | The graph's output folder in the project. `GRAPHICLE_OUT` sets another one |
 | `.graphicleignore` | Paths the graph leaves out, in `.gitignore` syntax. `--no-gitignore` stops `extract` from reading `.gitignore` |
+| `.graphicle/.graphicle_build_state.json` | What the last full `update` read when it found nothing to change: the engine build, the settings that change its output, the scanned files' sizes and times, the configuration files above the project, and the files extraction read outside the scan with their sizes and times or their absence (a header that a quoted C, C++ or Objective-C include resolves to in an ignored or pruned folder, a Sphinx `conf.py` above a `.txt` page, a module probed by name above the project, every file a result names as resolved). A full `update`, a `watch` rebuild or a Git hook's full rebuild (after a checkout, merge or rewrite) with none of it changed since stops early, says "No relevant changes", and leaves the outputs as they are. The check compares the scanned files' recorded sizes and times (on Unix also each file's status-change time and inode) and reads none of them. An update that writes a new graph, or in which a file changed while it ran or in the two seconds before it, leaves no record, as does one in which a file failed to extract in a way a retry may pass (a read error, for instance). A file that fails because of its content (a parse error, a size limit, an encoding the extractor refuses) fails the same way every time: it is recorded like the other files, and a change to it takes the full update. A cached extraction is replayed as the full `update` replays it: a header added where an include found none is seen by neither until the including file changes. Compiler-owned Go resolution leaves no record because its toolchain, module cache and local replacement modules can change outside the scan. `--force`, `--precise`, incremental rebuilds (the post-commit hook and `serve --watch`) and a JavaScript workspace in a folder above the project never stop early; an update that extracted a Pascal file anew (not from the cache) or looked up C# view models (both look over the whole project without the ignore rules) leaves no record, and the next one, which replays the cached results, records |
 | `~/.graphicle-graph/` | Engine settings: custom LLM providers (`providers.json`, managed with `graphicle graph provider add`), the global graph and grammar packs |
 | `--backend NAME --model NAME` | The LLM that reads documents, papers and images in a full `extract` (code always goes through the parser). Without `--backend`, the engine takes the first key it finds: `GEMINI_API_KEY` or `GOOGLE_API_KEY`, `MOONSHOT_API_KEY`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, then Azure OpenAI (`AZURE_OPENAI_API_KEY` with `AZURE_OPENAI_ENDPOINT`) or an Ollama address (`OLLAMA_BASE_URL`). `--code-only` never calls an LLM, and `--dry-run` reports what a full extract would send |
 | `--precise` or `GRAPHICLE_PRECISE=1` | Adds precise call resolution to `extract`, `update`, `watch` and `serve --watch` |

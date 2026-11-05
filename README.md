@@ -15,15 +15,6 @@
 </p>
 
 <p align="center">
-  <a href="https://www.producthunt.com/products/graphicle?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-graphicle">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1294027&amp;theme=dark">
-      <img alt="Graphicle on Product Hunt" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1294027&amp;theme=light" width="250" height="54">
-    </picture>
-  </a>
-</p>
-
-<p align="center">
   Graphicle maps your repository into a code graph, remembers your project's docs, decisions and past agent sessions,
   and gives your coding agent cited excerpts from both: the exact files and lines. It runs on your machine: no API key needed, no account, <a href="#privacy-and-local-first">no telemetry</a>.<br>
   <sub>Works with Claude Code · Cursor · Codex · VS Code · Claude Desktop · any MCP client</sub>
@@ -35,18 +26,22 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/hero-setup-dark.png">
-    <img src="assets/hero-setup-light.png" alt="A terminal in ~/code/shop, a small Python repository. graphicle setup --yes syncs its 4 files, builds the code graph (11 nodes, 15 edges) and prints a summary: 4 files and 6 symbols; Claude Code, Codex, Cursor, VS Code and Claude Desktop added, one MCP server each with the code graph, recall and memory, and Claude Code given five of its tools; session capture added for Claude Code and Codex; AGENTS.md added; post-commit, post-merge and post-checkout Git hooks added; files that change are synced before each answer; no answer model, so graphicle ask shows the evidence without a written answer. Real output of Graphicle 0.1.8, cut after the summary." width="860">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/hero-rust-port-dark.png">
+    <img src="assets/hero-rust-port-light.png" alt="Graphify, ported to Rust. Plus memory. Code graph and memory for your coding agents, updated after every commit. First build of Kubernetes v1.37.1, a code-only graph, one run each with 3 CPUs and 8 workers: Graphify 0.9.100 29 min 18 s, Graphicle 0.1.11 1 min 14 s, 23.9 times less time; across 13 codebases, 3.4 to 23.9 times less time in 34 of 39 measurements (first builds and updates); Graphify 0.9.100 was faster in the other 5: updates with no change, where it now stops early. Update after each commit, the median over 30 recent code commits with 4 CPUs each: prometheus 32.1 s for Graphify 0.9.100 against 4.9 s for Graphicle 0.1.11, tokio 11.9 s against 2.0 s, poetry 11.7 s against 1.6 s, 5.8 to 7.2 times less time; a graph left alone was stale at 25 to 30 of the 30 commits. Less memory: lower peak memory than Graphify 0.9.100 in 34 of 39 measurements, 0.30 to 0.96 times its figure. Plus agent memory: LoCoMo-10 87.7, level with Hindsight 0.10.2 (87.3) and above Mem0 OSS 2.2.1 (81.9), with about 12 model calls per conversation against 160 and 332. One program: code graph, memory, one MCP server and an app in one install; local, no API key, no telemetry. Labels: Graphicle 0.1.11, built from its release source, against Graphify 0.9.100 on one Linux machine, measured runs one at a time; the graphs differ slightly (node counts within 1.6%, edge counts within 1.1%); in the 5 updates where Graphify was faster, it also used less memory; agent memory from a pre-release build on development sets, with one open model as every system's reader and judge." width="860">
   </picture>
+  <br><sub>Graphicle 0.1.11 against Graphify 0.9.100, labelled as in the picture; every measurement and its method are in <a href="docs/benchmarks.md">docs/benchmarks.md</a>. The code-graph engine is a Rust port of Graphify, <a href="#license-and-credits">credited below</a>. Graphicle is not affiliated with Graphify Labs.</sub>
 </p>
+
+## From a bug on the screen to a tested fix
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/speed-kubernetes-dark.svg">
-    <img src="assets/speed-kubernetes-light.svg" alt="Questions on kubernetes: Graphicle 0.1.8 against 0.1.7. Time per question, the median seconds of a graphicle context call: 22 questions on 16 cores, 0.1.7 2.99 s, 0.1.8 1.34 s; 22 questions on 4 cores, 3.89 s and 1.38 s; 22 questions on 4 cores with the file cache dropped before each call, 4.55 s and 1.90 s; 8 lookups on 16 cores, 2.52 s and 0.96 s. Peak memory of a call, the median over the 22 questions on 16 cores: 3.5 GB and 0.6 GB. On the same store, both releases gave the same packet for every question, byte for byte. Our Linux server (Intel Xeon Platinum 8480C); kubernetes at ca8a2a9e4, a shallow clone of 30,315 files; the 22 questions of issue 8; each call a new process, as the prompt hook runs it; 25 October 2026." width="860">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/flow-excalidraw-dark.png">
+    <img src="assets/flow-excalidraw-light.png" alt="From a bug on the screen to a tested fix: Graphicle with Meta's models, live on a real excalidraw bug. 1, See it: Muse Spark 1.3 with computer use, 20 s, opens the main menu and clicks the canvas, and the menu stays open. 2, Find it: SAM 3.1 and Muse Spark 1.3, 18 s: SAM outlines the menu items at the point the model chose, and Graphicle ranks the code that draws them, first App.tsx line 1175, then DefaultItems.tsx line 377. 3, Fix it: Muse Wonder 1.0, 2 min 51 s, reads a pack of 193,474 tokens from 117 files; round 1's tests fail, the failing lines are fed back, and round 2's tests pass. 4, Check it: Muse Spark 1.3 on the rebuilt app, 22 s: with the fix built in, the same two steps, and the menu closes. Fixed and checked in 5 min 12 s, with 12 model calls, for $1.64. A live run on 30 Oct 2026 on excalidraw issue #12053, built from source; the fix passes excalidraw's own regression test; costs come from Meta's reported tokens at list prices." width="860">
   </picture>
-  <br><sub>Graphicle 0.1.8 against 0.1.7 on kubernetes (a shallow clone at <code>ca8a2a9e4</code>), the 22 questions of <a href="https://github.com/graphicle-ai/graphicle/issues/8">issue #8</a>, our Linux server: a median of 1.34 s per <code>graphicle context</code> call on 16 cores, against 2.99 s, each call a new process. <a href="docs/benchmarks.md#our-own-run-on-kubernetes-017-and-018">Method and every row</a></sub>
 </p>
+
+Built during Meta's Global AI Developer Hackathon ([what was built, and when](HACKATHON.md)). With a key for the Meta Model API, `graphicle see` lets Muse Spark reproduce a bug in a web app with computer use, `graphicle pixel` finds the code that draws what the model points at, and `graphicle fix` patches it with a model such as Muse Wonder and runs your tests; when a round fails, the next one reads the failing lines and the files they name. The picture is one live run on excalidraw issue #12053, built from source, and the fix passes excalidraw's own regression test ([see it, find it, fix it, check it](docs/flow.md)).
 
 ## Agent memory, compared
 
@@ -81,6 +76,13 @@ Windows: a preview build for x86-64, not yet code-signed ([Windows (preview)](do
 `graphicle setup` indexes the repository, builds its code graph and connects the coding agents it finds. It also turns on session
 capture, adds a two-line section to `AGENTS.md` (unless Claude Code is the only agent) and installs Git hooks that keep the project current. It lists every file it changes and
 backs each one up first; `graphicle disconnect` undoes it all.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/hero-setup-dark.png">
+    <img src="assets/hero-setup-light.png" alt="A terminal in ~/code/shop, a small Python repository. graphicle setup --yes syncs its 4 files, builds the code graph (11 nodes, 15 edges) and prints a summary: 4 files and 6 symbols; Claude Code, Codex, Cursor, VS Code and Claude Desktop added, one MCP server each with the code graph, recall and memory, and Claude Code given five of its tools; session capture added for Claude Code and Codex; AGENTS.md added; post-commit, post-merge and post-checkout Git hooks added; files that change are synced before each answer; no answer model, so graphicle ask shows the evidence without a written answer. Real output of Graphicle 0.1.8, cut after the summary." width="860">
+  </picture>
+</p>
 
 Then ask your agent to *"use graphicle to find where failed requests are retried"*, or ask from the terminal:
 
@@ -127,7 +129,7 @@ then run `graphicle setup --yes` in this repository and list every file it chang
 
 ## Why Graphicle
 
-- **Native and fast.** One Rust program. On 13 codebases, Graphicle's 0.1.1 memory engine (a pre-release build) took 3.0 to 22.7 times less time than Graphify 0.9.91 in all 39 measurements (code-only extract, priming update and update with no change, on the same machine with 3 CPUs and 8 workers each). The graphs differ slightly: node counts within 4.7%, edge counts within 2.0% ([speed table](docs/benchmarks.md#speed-on-13-codebases-against-graphify-0991)). A later pre-release build with 0.1.1's memory changes, whose graphs also differ from Graphify's, used less peak memory than Graphify 0.9.91 in all 39 measurements, from 0.29 to 0.97 times Graphify's figure ([memory table](docs/benchmarks.md#peak-memory-against-graphify-0991)).
+- **Native and fast.** One Rust program. On 13 codebases, Graphicle 0.1.11 took 3.4 to 23.9 times less time than Graphify 0.9.100 in 34 of 39 measurements (code-only extract, priming update and update with no change, on one machine with 3 CPUs and 8 workers each); in the other 5, updates with nothing to change, Graphify 0.9.100 now stops early and took less time. The graphs differ slightly: node counts within 1.6%, edge counts within 1.1% ([speed table](docs/benchmarks.md#speed-on-13-codebases-against-graphify-09100)). Graphicle used less peak memory in the same 34 measurements, from 0.30 to 0.96 times Graphify's figure ([memory table](docs/benchmarks.md#peak-memory-against-graphify-09100)). After each of 30 recent code commits in three repositories, Graphicle 0.1.11's median update took 5.8 to 7.2 times less time than Graphify 0.9.100's, with 4 CPUs per run ([updates after commits](docs/benchmarks.md#updates-after-commits-against-graphify-09100)).
 - **Cited context, within a budget you set.** Your agent asks Graphicle and gets the relevant code, docs and decisions as cited excerpts, within a token budget you set. In our tests it tied grep on finding code, and we do not claim it saves tokens ([what we measured](#benchmarks)).
 - **Answers you can check.** Every excerpt names its file and lines. Memories an agent proposes wait for your approval.
 - **One program, not a stack.** The code graph, the memory, one MCP server, the web app and the command line come in one install, with one SQLite file. No Python, Docker or database server.
@@ -139,8 +141,12 @@ then run `graphicle setup --yes` in this repository and list every file it chang
   traces a path and exports an interactive HTML graph. After `graphicle graph extract . --code-only`, `graphicle graph affected "retry()"` lists what depends on a symbol.
 - **Project memory.** Docs (Markdown, PDF, Office, HTML), reviewed decisions and procedures, and past Claude Code and Codex sessions, searchable alongside the code.
 - **Cited context on a budget.** `graphicle context` and the MCP tools return excerpts with their sources, within a token budget, without calling a model.
+- **Packs for long-context models.** `graphicle pack` fills a token budget, up to 2,000,000 tokens, with the code a question needs: architecture, focus code with line numbers, call paths, tests and a manifest. `graphicle ask --pack` and `graphicle plan` send one to a model such as Muse Spark ([packs](docs/pack.md)). In the cache layout the repository part of a pack is the same for every question about a commit, so a provider's prompt cache can bill follow-up questions at its cached price. `graphicle fix` makes a change for an issue on a new branch and runs your tests on it ([fix](docs/fix.md)).
 - **One MCP server.** `graphicle mcp` serves the code-graph tools, under Graphify's tool names such as `query_graph`, `get_neighbors` and `shortest_path`, next to the memory tools. With `--pull-requests` it also serves the pull-request tools `list_prs`, `get_pr_impact` and `triage_prs`, which use the GitHub CLI ([MCP](docs/mcp.md)).
 - **Memory tied to your code.** Reviewed memories are tied to the functions they are about: a memory goes stale when that code changes, and edits elsewhere in the file usually leave it current ([the exact rule](crates/graphicle/README.md#memory-anchored-to-code-symbols)). Mentions of code in your docs are linked to the definitions they name (`graphicle call graph.doc_links` lists them).
+- **Reviews of a change.** `graphicle review` reviews what a branch adds with the code around it, the callers, callees and tests of what it changes, and keeps only comments on changed lines whose citations hold. A GitHub Action posts the review on pull requests ([review](docs/review.md)).
+- **A project wiki a model keeps.** `graphicle wiki build` writes one cited article per area of the code and an index, `wiki update` rewrites only what changed, and `wiki check` lists stale doc mentions, stale memories and broken citations, then proposes corrections for your approval; every model call is opt-in and capped ([wiki](docs/wiki.md)).
+- **From the screen to the code.** `graphicle see` lets a model reproduce a bug in a web app with computer use on the Meta Model API, `graphicle pixel` finds the code that draws what it points at, and `graphicle fix` patches it and runs your tests ([see it, find it, fix it, check it](docs/flow.md)).
 - **Across repositories.** Recall can span the repositories of a workspace: `graphicle context --workspace`, or [the workspace MCP endpoint](docs/mcp.md#several-projects-in-one-connection).
 - **Always current.** Before each answer Graphicle syncs the few files you changed; Git hooks sync after each commit, merge and checkout.
 - **Sessions carry over.** Session capture keeps each finished turn, and once you have reviewed memories, each new session starts with them and the latest turns.
@@ -157,6 +163,7 @@ then run `graphicle setup --yes` in this repository and list every file it chang
 | Cursor | `~/.cursor/mcp.json` | |
 | VS Code | `.vscode/mcp.json` in the repository | |
 | Claude Desktop | `claude_desktop_config.json` in Claude's settings folder | |
+| Muse Code | `~/.config/muse/settings.json` ([Muse Code](docs/muse-code.md)) | hooks in the plugin, a preview: `graphicle connect muse --hooks` |
 | Any other MCP client | a short JSON entry ([MCP](docs/mcp.md)) | |
 
 ## How it works
@@ -190,7 +197,47 @@ The left column is a code-graph tool, such as Graphify's open-source engine, plu
 
 Every figure is labelled, and [docs/benchmarks.md](docs/benchmarks.md) has the full tables, methods and limits. In the agent tests, a difference counts only when its 95% interval excludes 0; otherwise it is a tie. Long sessions and memory built up across coding sessions are not tested yet.
 
-- **Time per question** (0.1.8, the chart at the top). On kubernetes at `ca8a2a9e4` (a shallow clone, 30,315 files), over the 22 questions of issue #8, the median `graphicle context` call took 1.34 s with 0.1.8 against 2.99 s with 0.1.7 on 16 cores of our Linux server, 1.38 s against 3.89 s on 4 cores, and 1.90 s against 4.55 s on 4 cores with the file cache dropped before each call; 8 lookups took 0.96 s against 2.52 s on 16 cores. Each call was a new process, as the prompt hook runs it. On the same store, both releases gave the same packet for every question, and the peak memory of a call fell from 3.5 GB to 0.6 GB ([method and rounds](docs/benchmarks.md#our-own-run-on-kubernetes-017-and-018)).
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/speed-kubernetes-dark.svg">
+    <img src="assets/speed-kubernetes-light.svg" alt="Questions on kubernetes: Graphicle 0.1.8 against 0.1.7. Time per question, the median seconds of a graphicle context call: 22 questions on 16 cores, 0.1.7 2.99 s, 0.1.8 1.34 s; 22 questions on 4 cores, 3.89 s and 1.38 s; 22 questions on 4 cores with the file cache dropped before each call, 4.55 s and 1.90 s; 8 lookups on 16 cores, 2.52 s and 0.96 s. Peak memory of a call, the median over the 22 questions on 16 cores: 3.5 GB and 0.6 GB. On the same store, both releases gave the same packet for every question, byte for byte. Our Linux server (Intel Xeon Platinum 8480C); kubernetes at ca8a2a9e4, a shallow clone of 30,315 files; the 22 questions of issue 8; each call a new process, as the prompt hook runs it; 25 October 2026." width="860">
+  </picture>
+</p>
+
+- **Time per question** (0.1.8, the chart above). On kubernetes at `ca8a2a9e4` (a shallow clone, 30,315 files), over the 22 questions of issue #8, the median `graphicle context` call took 1.34 s with 0.1.8 against 2.99 s with 0.1.7 on 16 cores of our Linux server, 1.38 s against 3.89 s on 4 cores, and 1.90 s against 4.55 s on 4 cores with the file cache dropped before each call; 8 lookups took 0.96 s against 2.52 s on 16 cores. Each call was a new process, as the prompt hook runs it. On the same store, both releases gave the same packet for every question, and the peak memory of a call fell from 3.5 GB to 0.6 GB ([method and rounds](docs/benchmarks.md#our-own-run-on-kubernetes-017-and-018)).
+
+### Update with nothing to change (0.1.13)
+
+`graphicle-graph update` stops early when nothing changed since a full update that changed nothing, and keeps the graph as it is ([how it decides](docs/configuration.md)).
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/early-stop-0113-dark.png">
+    <img src="assets/early-stop-0113-light.png" alt="Bar chart of an update with nothing to change, Graphicle 0.1.12's full update against 0.1.13's early stop, on one cloud machine with 8 CPUs and 8 workers; medians of 3 runs for 0.1.12 and 5 for 0.1.13; the outputs were the same. kubernetes v1.37.1: 164.8 s against 15.7 s, 10.5 times less time; react v19.3.0: 22.6 s against 1.02 s, 22.2 times less time; redis 8.10.2: 3.40 s against 0.25 s, 13.7 times less time. 0.1.13 took 10.5 to 22.2 times less time." width="860">
+  </picture>
+</p>
+
+### Speed and memory of 0.1.11 against Graphify 0.9.100
+
+Graphicle 0.1.11, built from its release source, against Graphify 0.9.100 on one cloud Linux machine (AMD EPYC 9V84), measured runs one at a time, alternating between the programs; the picture at the top and the two charts below show the results ([method and every measurement](docs/benchmarks.md#graphicle-0111-against-graphify-09100)).
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/bench-13-codebases-0111-time-dark.png">
+    <img src="assets/bench-13-codebases-0111-time-light.png" alt="Bar chart of the time Graphicle 0.1.11 and Graphify 0.9.100 took on 13 codebases, for 3 operations: first build (a code-only extract), priming update and update with no change; one Linux machine, 3 CPUs and 8 workers per run, medians of 3 runs (1 for kubernetes and vscode). Each pair of bars is drawn to its own scale; a shorter bar is less time. Graphicle against Graphify, for the 3 operations in that order: kubernetes 1 min 14 s against 29 min 18 s, 1 min 51 s against 37 min 50 s, 1 min 15 s against 25 min 49 s; vscode 1 min 53 s against 10 min 5 s, 2 min 28 s against 14 min 29 s, 2 min 6 s against 9 min 27 s; next.js 1 min 32 s against 6 min 13 s, 2 min 36 s against 10 min 9 s, 2 min 38 s against 9 min 2 s; spring-boot 21.0 s against 2 min 9 s, 28.2 s against 3 min 14 s, 19.7 s against 1 min 47 s; rails 10.3 s against 1 min 19 s, 13.2 s against 1 min 43 s, 8.94 s against 1 min 6 s; react 11.8 s against 1 min 10 s, 17.2 s against 1 min 40 s, 14.5 s against 4.12 s; pandas 10.2 s against 1 min 3 s, 9.60 s against 1 min 8 s, 6.07 s against 43.1 s; scikit-learn 5.97 s against 35.1 s, 5.35 s against 35.3 s, 3.32 s against 0.94 s; prometheus 3.86 s against 25.8 s, 5.10 s against 31.4 s, 3.23 s against 19.7 s; redis 3.03 s against 16.6 s, 3.95 s against 21.0 s, 2.31 s against 0.95 s; tokio 1.35 s against 8.05 s, 1.99 s against 10.9 s, 1.14 s against 0.53 s; ripgrep 0.41 s against 2.60 s, 0.63 s against 3.26 s, 0.31 s against 0.30 s; flask 0.36 s against 2.40 s, 0.33 s against 2.30 s, 0.18 s against 1.59 s. Graphicle took 3.4 to 23.9 times less time in 34 of 39 measurements. Graphify 0.9.100 took less time in the other 5, the updates with no change in react, scikit-learn, redis, tokio and ripgrep, where it stops early. The graphs differ slightly: node counts within 1.6%, edge counts within 1.1%." width="860">
+  </picture>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/bench-13-codebases-0111-memory-dark.png">
+    <img src="assets/bench-13-codebases-0111-memory-light.png" alt="Bar chart of the peak memory of Graphicle 0.1.11 and Graphify 0.9.100 on 13 codebases, for 3 operations: first build (a code-only extract), priming update and update with no change; one Linux machine, 3 CPUs and 8 workers per run, medians of 3 runs (1 for kubernetes and vscode). Graphicle: the larger of its peak RSS and peak PSS; Graphify: the peak PSS of its process tree. Each pair of bars is drawn to its own scale; a shorter bar is less memory. Graphicle against Graphify, for the 3 operations in that order: kubernetes 3,059 MiB against 3,541 MiB, 10,167 MiB against 15,395 MiB, 6,427 MiB against 13,941 MiB; vscode 3,182 MiB against 5,927 MiB, 6,502 MiB against 10,108 MiB, 4,189 MiB against 10,499 MiB; next.js 1,443 MiB against 2,810 MiB, 2,907 MiB against 3,423 MiB, 2,926 MiB against 3,525 MiB; spring-boot 1,075 MiB against 1,121 MiB, 2,480 MiB against 3,218 MiB, 1,575 MiB against 2,718 MiB; rails 429 MiB against 503 MiB, 947 MiB against 1,044 MiB, 504 MiB against 879 MiB; react 357 MiB against 685 MiB, 757 MiB against 972 MiB, 435 MiB against 56 MiB; pandas 688 MiB against 1,778 MiB, 803 MiB against 2,323 MiB, 688 MiB against 2,164 MiB; scikit-learn 389 MiB against 941 MiB, 508 MiB against 1,498 MiB, 382 MiB against 44 MiB; prometheus 238 MiB against 548 MiB, 512 MiB against 622 MiB, 267 MiB against 543 MiB; redis 181 MiB against 455 MiB, 429 MiB against 587 MiB, 226 MiB against 43 MiB; tokio 117 MiB against 283 MiB, 241 MiB against 255 MiB, 139 MiB against 41 MiB; ripgrep 78 MiB against 261 MiB, 107 MiB against 126 MiB, 67 MiB against 40 MiB; flask 76 MiB against 207 MiB, 69 MiB against 114 MiB, 52 MiB against 99 MiB. Graphicle's peak was 0.30 to 0.96 times Graphify 0.9.100's in 34 of 39 measurements, and higher in the other 5, the updates with no change in react, scikit-learn, redis, tokio and ripgrep, where Graphify stops early and its peak was 40 to 56 MiB." width="860">
+  </picture>
+</p>
+
+- **Updates after commits.** After each of 30 recent code commits in prometheus, tokio and poetry, Graphicle's update took a median 4.9, 2.0 and 1.6 s against 32.1, 11.9 and 11.7 s for Graphify: 5.8 to 7.2 times less time, with 4 CPUs per run. After an update, both programs' graphs had the same number of differences from a fresh build at every step (none on tokio; on prometheus and poetry, mostly differences already present after an update with no change), and a graph left as it was differed from the next fresh build at 25 to 30 of the 30 steps. In a sample of 30 notes tied to code, every change to a noted function was flagged, with no false flag; a wider exploratory check found false flags (precision 0.68 to 0.86) and, on poetry, misses (recall 0.90) ([details](docs/benchmarks.md#updates-after-commits-against-graphify-09100)).
+- **Speed on 13 codebases.** 3 operations each, 3 CPUs and 8 workers per run: Graphicle took 3.4 to 23.9 times less time in 34 of 39 measurements, including every first build (Kubernetes v1.37.1, one run each: 1 min 14 s against 29 min 18 s). Graphify 0.9.100 took less time in the other 5, all updates with nothing to change, where it now stops early: 0.28 to 0.97 times Graphicle's time (react: 4.1 s against 14.5 s). The graphs differ slightly: node counts within 1.6%, edge counts within 1.1% ([every measurement](docs/benchmarks.md#speed-on-13-codebases-against-graphify-09100)).
+- **Peak memory.** Lower in the same 34 measurements, 0.30 to 0.96 times Graphify's figure (Kubernetes extract: 3,059 against 3,541 MiB), and higher in the 5 updates where Graphify stops early ([every measurement](docs/benchmarks.md#peak-memory-against-graphify-09100)).
 
 ### Finding the files a fix changes
 
@@ -207,19 +254,12 @@ Every figure is labelled, and [docs/benchmarks.md](docs/benchmarks.md) has the f
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/graphicle-011-13-repos-dark.svg">
-    <img src="assets/graphicle-011-13-repos-light.svg" alt="Two bar charts comparing Graphicle with Graphify 0.9.91 (Python) on 13 codebases. Left, speed: Graphify 0.9.91's time divided by Graphicle's for a code-only extract, highest first: kubernetes 22.7×, rails 7.0×, flask 6.9×, prometheus 6.6×, react 6.2×, scikit-learn 6.1×, pandas 5.8×, vscode 5.4×, ripgrep 5.3×, tokio 5.1×, redis 4.3×, next.js 4.0×, spring-boot 3.3×. A line on each bar spans its 3 operations (code-only extract, priming update and update with no change). Graphicle took less time in all 39 measurements and in every run, 3.0× to 22.7× less. Speed label: Graphicle's 0.1.1 memory engine (a pre-release build) against Graphify 0.9.91 on the same machine, 3 CPUs and 8 workers each, one session per program, 15 Oct 2026; median of 3 runs (1 for Kubernetes and VS Code). The graphs differ slightly: node counts within 4.7%, edge counts within 2.0%. Right, peak memory: Graphicle's peak divided by Graphify 0.9.91's peak for a code-only extract, lowest first: ripgrep 0.31×, flask 0.37×, pandas 0.38×, redis 0.39×, tokio 0.40×, scikit-learn 0.41×, prometheus 0.43×, react 0.50×, next.js 0.51×, vscode 0.52×, kubernetes 0.76×, rails 0.77×, spring-boot 0.94×. Lower in all 39 measurements, at 0.29× to 0.97× of Graphify's peak, on a pre-release memory build whose graphs differ from Graphify's; Graphicle's peak RSS or PSS, whichever is larger, against Graphify's peak PSS. A build of the merged 0.1.1 source stayed below in the 5 measurements rechecked. Speed and memory tables and method: docs/benchmarks.md." width="860">
-  </picture>
-</p>
-
-<p align="center">
-  <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/graphicle-011-hero-dark.svg">
     <img src="assets/graphicle-011-hero-light.svg" alt="Four bar charts: Graphicle 0.1.1 against Graphify 0.9.91 (Python) and Claude Code alone. 1) Build the code graph, Kubernetes code-only extract, lower is better: Graphicle 0.1.1 (pre-release) 1 min 8 s, Graphify 0.9.91 25 min 47 s, 22.7× less time on this run. Graphicle's 0.1.1 memory engine, a pre-release build; one run each on the same machine, 3 CPUs and 8 workers each; the graphs differ slightly: node counts within 4.7%, edge counts within 2.0%. 2) Peak memory, Kubernetes code-only extract, lower is better: Graphicle 0.1.1 2,148 MiB (peak RSS, highest of 2 runs), Graphify 0.9.91 2,767 MiB (peak PSS). Lower in all 39 measurements (13 repositories × 3 operations, on a pre-release memory build; the graphs differ). 3) Facts found on Graphify's showcase corpus, 30 questions, higher is better: Claude Code alone 94.7%, Graphicle 0.1.1 99.2%, Graphify 0.9.91 87.8%. More than Graphify by 11.4 points, 95% CI [4.2, 19.7]; against Claude Code alone, a tie. 4) Tokens per answer in the same test, median, lower is better: Claude Code alone 60.8k, Graphicle 0.1.1 69.2k, Graphify 0.9.91 87.1k. Fewer than Graphify: mean difference −31.8k, 95% CI [−58.9k, −8.2k]; against Claude Code alone, no difference measured. Agent panels: Claude Code 2.1.287, Opus 5.5, effort medium; Graphicle 0.1.1 agent defaults (pre-release build); paired 95% CIs. Tests run 15 Oct 2026. Ties are shown as ties. Method and published results: docs/benchmarks.md." width="860">
   </picture>
 </p>
 
-- **Speed.** The 13-codebase chart and the first panel of the four-panel chart above: on 13 codebases, 3 operations each, Graphicle's 0.1.1 memory engine (a pre-release build) took 3.0 to 22.7 times less time than Graphify 0.9.91 in all 39 measurements, on the same machine with 3 CPUs and 8 workers each (one session per program; median of 3 runs, 1 for Kubernetes and VS Code). The graphs differ slightly: node counts within 4.7%, edge counts within 2.0% ([every measurement, with both graphs' sizes](docs/benchmarks.md#speed-on-13-codebases-against-graphify-0991)). [docs/benchmarks.md](docs/benchmarks.md) also has the earlier runs in which both programs built the same graph: the 0.1.0 engine against Graphify 0.9.88 on Kubernetes ([Kubernetes run](docs/benchmarks.md#speed-on-kubernetes)), and a pre-release build on Django, which ran a code-only extract in 7.5 s against 72.8 s for Graphify 0.9.77 (medians of five alternating runs, one shared Linux host, 8 workers; [the 8 October record](docs/benchmarks.md#speed-against-graphify-0977)).
+- **Speed.** The first panel of the four-panel chart above: on 13 codebases, 3 operations each, Graphicle's 0.1.1 memory engine (a pre-release build) took 3.0 to 22.7 times less time than Graphify 0.9.91 in all 39 measurements, on the same machine with 3 CPUs and 8 workers each (the programs measured one after the other; median of 3 runs, 1 for Kubernetes and VS Code). The graphs differ slightly: node counts within 4.7%, edge counts within 2.0% ([every measurement, with both graphs' sizes](docs/benchmarks.md#speed-on-13-codebases-against-graphify-0991)). [docs/benchmarks.md](docs/benchmarks.md) also has the earlier runs in which both programs built the same graph: the 0.1.0 engine against Graphify 0.9.88 on Kubernetes ([Kubernetes run](docs/benchmarks.md#speed-on-kubernetes)), and a pre-release build on Django, which ran a code-only extract in 7.5 s against 72.8 s for Graphify 0.9.77 (medians of five alternating runs, one shared Linux host, 8 workers; [the 8 October record](docs/benchmarks.md#speed-against-graphify-0977)).
 - **Updates.** After each of 30 commits on prometheus, tokio and poetry, Graphicle 0.1.0's `graph update` took 6 to 8 times less time than Graphify 0.9.91's (one Linux node, 4 CPUs per run), and both matched a fresh build apart from three kinds of keying difference that both programs share. In a 30-note sample, the 15 notes whose function changed were flagged and no other; a wider exploratory check found some false flags ([details and limits](docs/benchmarks.md#updates-after-commits)).
 - **Peak memory.** A pre-release build with 0.1.1's changes to how the engine holds its data, later than the one timed above, used less peak memory than Graphify 0.9.91 in all 39 measurements (13 repositories; extract and two kinds of update), for example 2,092 against 2,767 MiB on the Kubernetes extract and 1,426 against 2,800 MiB on the next.js extract. A build of the merged 0.1.1 source stayed below in the 5 measurements rechecked; the second panel of the four-panel chart shows its Kubernetes extract, 2,148 against 2,767 MiB (the higher peak of 2 runs). One Linux 8×H100 node, GPUs not used; 8 workers; Graphicle's peak RSS against Graphify's peak PSS ([every measurement](docs/benchmarks.md#peak-memory-against-graphify-0991)).
 - **Finding code** (Claude Code 2.1.287 on a Linux node, Opus 5.5, effort medium). Graphicle ties grep. On 100 SWE-bench Verified tasks, plain Claude Code, Graphicle 0.1.0's default setup and Graphify 0.9.91 found every file the fix changed in 95, 95 and 94 of them; Graphicle used 16% and Graphify 29% more tokens than plain Claude Code, and the agent never called Graphicle's tools. On 93 tasks from our own code, which the model has not seen, all three tied again, and a prototype card from Graphicle 0.1.0's index (not shipped) used about 20% fewer tokens than Graphify.
@@ -279,12 +319,12 @@ More answers: [FAQ](docs/faq.md) · [Troubleshooting](docs/troubleshooting.md) �
 
 ## Documentation
 
-[Quick start](docs/quickstart.md) · [Agents](docs/agents.md) · [MCP](docs/mcp.md) · [Install](docs/install.md) · [Configuration](docs/configuration.md) ·
-[Team server](docs/team.md) · [Shared context in GCS](docs/shared-context.md) · [Pinned change review](docs/pinned-review.md) · [Moving from Graphify](docs/migrate-from-graphify.md) · [Benchmarks](docs/benchmarks.md) · [FAQ](docs/faq.md) · [Changelog](CHANGELOG.md)
+[Quick start](docs/quickstart.md) · [Agents](docs/agents.md) · [Muse Code](docs/muse-code.md) · [MCP](docs/mcp.md) · [Packs](docs/pack.md) · [Fix](docs/fix.md) · [Flow](docs/flow.md) · [Review](docs/review.md) · [Wiki](docs/wiki.md) · [Install](docs/install.md) · [Configuration](docs/configuration.md) ·
+[Team server](docs/team.md) · [Shared context in GCS](docs/shared-context.md) · [Pinned change review](docs/pinned-review.md) · [Moving from Graphify](docs/migrate-from-graphify.md) · [Benchmarks](docs/benchmarks.md) · [FAQ](docs/faq.md) · [Changelog](CHANGELOG.md) · [Built at Meta's hackathon](HACKATHON.md)
 
 The code: [`crates/graphicle/`](crates/graphicle/README.md) (the program: command line, app, HTTP and MCP server), [`crates/graphicle-graph/`](crates/graphicle-graph/README.md) (the code-graph engine),
 [`crates/graphicle-memory/`](crates/graphicle-memory/README.md) (the memory library), SDKs for [Python](sdk/python/README.md) and [TypeScript](sdk/typescript/README.md),
-and a team server recipe in [`deploy/`](deploy/README.md). Each crate builds on its own ([building from source](docs/install.md)).
+a team server recipe in [`deploy/`](deploy/README.md), the benchmark kits in [`bench/`](bench/), and the hosted demo in [`demo/`](demo/README.md). Each crate builds on its own ([building from source](docs/install.md)).
 
 ## Contributing
 
@@ -303,5 +343,5 @@ contributors, licensed under Apache-2.0, with portions that remain available und
 
 <p align="center"><br><b>If Graphicle is useful to you, star the repository so other developers find it.</b><br>
   <sub><a href="#quick-start">Try it</a> · <a href="https://github.com/graphicle-ai/graphicle/issues">Report a bug</a> · <a href="CONTRIBUTING.md">Contribute</a> · <a href="https://discord.com/invite/rWuU7cWU4E">Discord</a></sub><br>
-  <sub>Built by <a href="https://www.karlexai.com">KarLex AI</a></sub>
+  <sub>Built by <a href="https://www.karlex.ai"><img src="assets/karlex-ai-logo.png" width="16" height="16" align="absmiddle" alt="KarLex AI logo"></a> <a href="https://www.karlex.ai">KarLex AI, Inc.</a></sub>
 </p>

@@ -62,8 +62,28 @@ pub struct ExtractOptions {
 /// dumps the raw extraction as graph.json (`--no-cluster`) leaves them out:
 /// they put the checkout path and user name into the graph and differ between
 /// a first build and a rebuild of the same tree (Graphify 0.9.80).
-pub const RUN_ONLY_EXTRACTION_KEYS: [&str; 3] =
-    ["extracted_sources", "failed_sources", "skipped_sources"];
+pub const RUN_ONLY_EXTRACTION_KEYS: [&str; 4] = [
+    "extracted_sources",
+    "failed_sources",
+    "content_failed_sources",
+    "skipped_sources",
+];
+/// The key that marks a file's failed extraction as decided by the file's
+/// content: a parse failure, a file over a size limit, an encoding the
+/// extractor refuses, or a file the extractor reads and finds nothing in.
+/// The same bytes fail the same way on every run, so the early stop of
+/// `update` may record such a file (`watch_gate`). A failure without the mark
+/// (a read or permission error, a cancelled parse, a grammar that did not
+/// load, an extractor's error or panic) may pass on a retry.
+pub const CONTENT_FAILURE: &str = "content_failure";
+/// `result`, a file's failed extraction, marked as decided by the file's
+/// content ([`CONTENT_FAILURE`]).
+pub fn content_failure(mut result: Value) -> Value {
+    if let Some(object) = result.as_object_mut() {
+        object.insert(CONTENT_FAILURE.into(), Value::Bool(true));
+    }
+    result
+}
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes
 /// beyond the upstream port's, which change the graph and so are off by default.
 pub static PRECISE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -909,6 +929,15 @@ fn records_in(
         let profiled = crate::profile::enabled().then(std::time::Instant::now);
         let _corpus = extractors::resolution_js::enter_source_corpus(corpus.clone());
         let mut value = extract_file(path, Some(&root));
+        // The files the result names as resolved, for the early stop
+        // (`inputs`): a cache hit checks them again (`ExtractionCache`).
+        for edge in value["edges"].as_array().into_iter().flatten() {
+            if let Some(target) = edge.get("target_file").and_then(Value::as_str)
+                && !target.is_empty()
+            {
+                crate::inputs::resolved(&cache::target_file_path(target, &root));
+            }
+        }
         if !compact {
             tighten(&mut value);
         }
@@ -1229,14 +1258,24 @@ pub(crate) fn assemble_with_corpus(
     assemble_list(paths, PerList::Values(per), root, options, corpus_paths)
 }
 
+/// The sources of a run that failed, in input order.
+struct Failed {
+    /// Every source that failed: an error, or zero nodes from a wired
+    /// extractor.
+    all: Vec<String>,
+    /// Those whose failure their content decides ([`CONTENT_FAILURE`]), every
+    /// time they are listed.
+    content: Vec<String>,
+}
 /// The failed sources of a run (and a warning per file with syntax errors).
 /// The sources that failed (an error, or zero nodes from a wired extractor)
 /// and those the extractor declined by design (`skipped`, Graphify 0.9.94,
 /// #2879): stamped, yet with zero nodes, which the manifest marks `ast_empty`
 /// so an incremental build stops re-queuing them.
-fn failed_sources<P: PerFile>(per: &[P], paths: &[PathBuf]) -> (Vec<String>, Vec<String>) {
+fn failed_sources<P: PerFile>(per: &[P], paths: &[PathBuf]) -> (Failed, Vec<String>) {
     let mut failed = vec![];
     let mut failed_seen = BTreeSet::new();
+    let mut retryable = BTreeSet::new();
     let mut skipped = vec![];
     let mut skipped_seen = BTreeSet::new();
     for (r, p) in per.iter().zip(paths) {
@@ -1245,6 +1284,9 @@ fn failed_sources<P: PerFile>(per: &[P], paths: &[PathBuf]) -> (Vec<String>, Vec
             || (empty && !crate::build::truthy(r.at("skipped")) && get_extractor(p).is_some())
         {
             let sf = p.to_string_lossy().into_owned();
+            if !crate::build::truthy(r.at(CONTENT_FAILURE)) {
+                retryable.insert(sf.clone());
+            }
             if failed_seen.insert(sf.clone()) {
                 failed.push(sf);
             }
@@ -1263,7 +1305,18 @@ fn failed_sources<P: PerFile>(per: &[P], paths: &[PathBuf]) -> (Vec<String>, Vec
             );
         }
     }
-    (failed, skipped)
+    let content = failed
+        .iter()
+        .filter(|sf| !retryable.contains(*sf))
+        .cloned()
+        .collect();
+    (
+        Failed {
+            all: failed,
+            content,
+        },
+        skipped,
+    )
 }
 
 /// Copy every per-file node into `nodes` and move (with the intermediate
@@ -1718,7 +1771,15 @@ fn assemble_records(
     types::merge_go_package_types(&mut nodes, &edges);
     drop(profiled);
     let profiled = crate::profile::span("assemble.normalize_ids");
-    per_dispatch!(&mut per, p => norm::normalize_ids(paths, &mut nodes, &mut edges, &mut p[..], root));
+    // The Markdown sidecars of Office documents sit in the output folder:
+    // their ids must not depend on where that folder is.
+    let converted = Some(resolved(&norm::converted_dir(
+        root,
+        options.cache_root.as_deref(),
+    )))
+    .filter(|dir| dir.is_dir());
+    let converted = converted.as_deref();
+    per_dispatch!(&mut per, p => norm::normalize_ids(paths, &mut nodes, &mut edges, &mut p[..], root, converted));
     drop(profiled);
     let profiled = crate::profile::span("assemble.repoint_python_imports");
     merge::repoint_python_imports(paths, &nodes, &mut edges, root);
@@ -1939,8 +2000,8 @@ fn assemble_records(
     drop(profiled);
     let profiled = crate::profile::span("assemble.finish");
     match &mut edges {
-        EdgeList::Values(values) => norm::finish(&mut nodes, values, root),
-        EdgeList::Records(records) => norm::finish(&mut nodes, records, root),
+        EdgeList::Values(values) => norm::finish(&mut nodes, values, root, converted),
+        EdgeList::Records(records) => norm::finish(&mut nodes, records, root, converted),
     }
     drop(profiled);
     let mut result = serde_json::Map::new();
@@ -1950,7 +2011,8 @@ fn assemble_records(
     result.insert("edges".into(), Value::Array(Vec::new()));
     result.insert("input_tokens".into(), json!(0));
     result.insert("output_tokens".into(), json!(0));
-    result.insert("failed_sources".into(), json!(failed));
+    result.insert("failed_sources".into(), json!(failed.all));
+    result.insert("content_failed_sources".into(), json!(failed.content));
     result.insert("skipped_sources".into(), json!(skipped));
     result.insert("extracted_sources".into(), json!(paths));
     let mut result = Value::Object(result);
@@ -2935,5 +2997,118 @@ mod tests {
             };
             assert_eq!(extract(&paths, &options).unwrap(), clean);
         }
+    }
+
+    /// The Markdown sidecar of a converted Office document sits in the output
+    /// folder, outside the scan root when the output folder is: its nodes and
+    /// edges are the same wherever that folder is, one folder up from the
+    /// root or more than three, and no id or source names the folder.
+    #[test]
+    fn converted_sidecars_do_not_depend_on_the_output_folder() {
+        let _serial = extractors::parse_cache::test_serial();
+        let temp = tempfile::tempdir().unwrap();
+        let base = temp.path().canonicalize().unwrap();
+        let root = base.join("w/x/y/z/repo");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("app.py"), "def parse_all():\n    return 1\n").unwrap();
+        let run = |output: &Path| {
+            let converted = output
+                .join(crate::paths::OUT_DIR.as_str())
+                .join("converted");
+            std::fs::create_dir_all(&converted).unwrap();
+            let sidecar = converted.join("notes_0a1b2c3d.md");
+            std::fs::write(
+                &sidecar,
+                "<!-- converted from notes.docx -->\n\n# Release notes\n\nThe parser reads every file.\n\n\
+                 ## Usage\n\nCall `parse_all()` from the command line.\n\n## Sheet: Sheet1\n| a | b |\n| --- | --- |\n| 1 | 2 |\n",
+            )
+            .unwrap();
+            let out = extract(
+                &[root.join("app.py"), sidecar],
+                &ExtractOptions {
+                    root: Some(root.clone()),
+                    cache_root: Some(output.to_path_buf()),
+                    parallel: false,
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+            serde_json::to_string(&json!({"nodes": out["nodes"], "edges": out["edges"]})).unwrap()
+        };
+        // One folder up from the root, and five (the far spelling until now).
+        let near = run(&base.join("w/x/y/z/outnear"));
+        let far = run(&base.join("outfar"));
+        for (name, graph) in [("near", &near), ("far", &far)] {
+            assert!(graph.contains("ext_notes_0a1b2c3d_md"), "{name}: {graph}");
+            assert!(
+                !graph.contains("outnear") && !graph.contains("outfar"),
+                "{name}: {graph}"
+            );
+        }
+        assert_eq!(near, far);
+    }
+
+    /// The failed sources whose failure their content decides: a JSON file
+    /// over the 1 MiB limit, a YAML file the parser refuses, a pyproject.toml
+    /// without a package name. A file that cannot be read (here it is gone
+    /// when it is extracted) fails in a way a retry may pass, and a file that
+    /// extracts is in neither list.
+    #[test]
+    fn content_failures_are_told_from_failures_a_retry_may_pass() {
+        let _serial = extractors::parse_cache::test_serial();
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let write = |name: &str, text: &str| {
+            let path = root.join(name);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, text).unwrap();
+            path
+        };
+        let big = write(
+            "big.json",
+            &format!("{{\"data\": \"{}\"}}\n", "x".repeat(1_100_000)),
+        );
+        let tabbed = write("tabbed.yaml", "a:\n\tb: 1\n");
+        let nameless = write("tools/pyproject.toml", "[tool.black]\nline-length = 100\n");
+        let good = write("app.py", "def run():\n    return 1\n");
+        let gone = root.join("gone.py");
+        let paths = [
+            big.clone(),
+            tabbed.clone(),
+            nameless.clone(),
+            good,
+            gone.clone(),
+        ];
+        let spelled = |paths: &[&PathBuf]| {
+            let mut paths = paths
+                .iter()
+                .map(|p| p.to_string_lossy().into_owned())
+                .collect::<Vec<_>>();
+            paths.sort();
+            json!(paths)
+        };
+        let sorted = |value: &Value| {
+            let mut paths = value.as_array().unwrap().clone();
+            paths.sort_by(|a, b| a.as_str().cmp(&b.as_str()));
+            json!(paths)
+        };
+        let out = extract(
+            &paths,
+            &ExtractOptions {
+                root: Some(root.clone()),
+                parallel: false,
+                use_cache: false,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            sorted(&out["failed_sources"]),
+            spelled(&[&big, &tabbed, &nameless, &gone])
+        );
+        assert_eq!(
+            sorted(&out["content_failed_sources"]),
+            spelled(&[&big, &tabbed, &nameless])
+        );
     }
 }

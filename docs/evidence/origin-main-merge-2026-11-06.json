@@ -1,0 +1,75 @@
+{
+  "date": "2026-11-06",
+  "branch": "context-improvement-plan",
+  "pre_merge_head": "e20a95d1c1d027a16142b36f17f89390c2d78142",
+  "origin_main": "3bdbe313294a1559caf89b862770ca4ee4e4579a",
+  "incoming_commits": 39,
+  "compatibility_decisions": [
+    "Keep the branch version 0.2.0 and retain the incoming release history.",
+    "Preserve compiler-backed review --request; expose incoming model-assisted review through separate code_review internals and mutually exclusive CLI options.",
+    "Keep both MCP review_changes and pack tools, branch retrieval scoring, and memory scope checks.",
+    "Combine resolution cache changes under resolution-files-v14.",
+    "Keep unresolved call paths when rebasing graphs and incorporate Office-document sidecar fixes.",
+    "Disable update early stopping for Go source because toolchains, module caches, and local replacements are not fully tracked scan inputs.",
+    "Forward GRAPHICLE_PHASE_TIMINGS through the engine socket's explicit environment allowlist."
+  ],
+  "environment": {
+    "platform": "macOS aarch64",
+    "rust": "1.94.1",
+    "profile": "debug",
+    "parser_languages": 49,
+    "cross_platform_execution": false
+  },
+  "validation": {
+    "runtime_check": "cargo check --locked --all-targets passed",
+    "runtime_native": {
+      "command": "cargo test --locked --all-targets --no-fail-fast -- --test-threads=4",
+      "passed": 1332,
+      "failed": 5,
+      "ignored": 8,
+      "failure_comparison": "All five failures also reproduced on an independently built export of pre_merge_head."
+    },
+    "engine_native": {
+      "command": "cargo test --locked --all-targets --features postgres,bedrock,transcription --no-fail-fast -- --test-threads=4",
+      "initial_passed": 1130,
+      "initial_failed": 1,
+      "ignored": 3,
+      "fixed_and_retested": "serve_socket::tests::every_engine_variable_is_forwarded_or_deliberately_left_out passed after forwarding GRAPHICLE_PHASE_TIMINGS.",
+      "go_freshness_regression": "passed",
+      "unresolved_call_rebase_regression": "passed",
+      "office_document_updates": "passed"
+    },
+    "memory_native": {"passed": 189, "failed": 0, "ignored": 1},
+    "typescript_sdk": {"runtime_tests_passed": 18, "strict_types": "passed"},
+    "go_helpers": "go test -mod=vendor ./... passed with network access disabled for dependencies",
+    "python_unit_and_packaging": {"passed": 218, "skipped": 10},
+    "python_services_and_sdks": {
+      "initial_passed": 31,
+      "initial_failed": 3,
+      "skipped": 1,
+      "subtests_passed": 70,
+      "sdk_failure_comparison": "test_python_client_runs_the_product_workflow_and_budget_recovery also fails on pre_merge_head at the same unsupported_source_language_or_contract assertion.",
+      "soak_rerun": "Both tests passed in 272.21 seconds without competing builds. The initial run exceeded each harness's 300-second timeout under concurrent compilation; assertions and timeouts were unchanged on rerun.",
+      "deadline_recovery": "passed, including five subtests"
+    },
+    "retrieval_quality": {"queries": 195, "cases": 536, "baseline_gate": "passed", "regressions": 0},
+    "dependency_audits": "cargo deny advisories, bans, licenses and sources passed for all three crates",
+    "licenses": "Regenerated engine and runtime license pages; release mirrors match byte for byte.",
+    "adapted_headers": "199 checked, 0 stale",
+    "merge_index": "No unmerged entries or conflict markers"
+  },
+  "preexisting_native_failures": [
+    "pinned_review::business_context_adds_historical_constraints_and_revision_safe_deltas",
+    "pinned_review::historical_coupling_adds_exact_context_and_explains_review_priority",
+    "pinned_review::hunk_packing_keeps_current_head_and_delta_matches_canonical_selection",
+    "pinned_review::pinned_chain_delta_and_identical_tree_commit_binding",
+    "pinned_review::provided_diff::provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs_conservative"
+  ],
+  "pre_merge_comparison": {"native_passed": 80, "native_failed": 5, "native_ignored": 1, "sdk_failed": 1},
+  "remaining_limitations": [
+    "The five native review failures and one SDK assertion failure predate this merge and remain unchanged.",
+    "Formatting fails in 37 runtime, 15 engine and 4 memory files; each affected file also fails formatting before the merge.",
+    "Strict Clippy reports 10 runtime, 7 engine and 5 memory errors. Every flagged source line predates the merge; this is source comparison, not a full pre-merge Clippy run.",
+    "Execution checks were local macOS checks, not Linux or Windows validation."
+  ]
+}

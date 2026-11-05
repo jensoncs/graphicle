@@ -390,6 +390,10 @@ pub fn resolve(
     if paths.is_empty() {
         return vec![];
     }
+    // The compiler also reads the toolchain, module cache and local replace
+    // targets outside the scan. Until those inputs are recorded, every update
+    // must retry resolution, including recovery from an unavailable helper.
+    crate::inputs::uncovered("Go compiler inputs outside the scan");
     let files: BTreeSet<_> = paths
         .iter()
         .map(|p| source_key(&p.to_string_lossy(), root))

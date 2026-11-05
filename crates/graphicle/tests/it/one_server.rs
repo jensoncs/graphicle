@@ -288,16 +288,17 @@ fn every_flag_combination_lists_each_tool_once() {
     // `graph_stats` is the engine's (Graphify's), once.
     assert_eq!(listed.iter().filter(|n| *n == "graph_stats").count(), 1);
     // A project connection's core tools: `list_projects` is a workspace
-    // connection's, the other 27 as the one server lists them.
+    // connection's, the other 29 as the one server lists them, `pack` last.
     let core: Vec<String> = api::core_mcp_tools(false, false)
         .into_iter()
         .filter_map(McpTool::confined)
         .map(|tool| tool.name().to_string())
         .collect();
-    assert_eq!(core.len(), 28, "{core:?}");
+    assert_eq!(core.len(), 29, "{core:?}");
     let navigation_end = 15 + graph_tools::NAVIGATION.len();
     assert_eq!(core[15..navigation_end], graph_tools::NAVIGATION.map(String::from));
     assert_eq!(core[navigation_end], "review_changes");
+    assert_eq!(core[navigation_end + 1], "pack");
     assert_eq!(listed[..core.len()], core[..], "the core tools lead the list");
     assert!(!listed.contains(&"list_projects".to_string()));
     let pull = api::mcp_tools_for(

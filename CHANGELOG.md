@@ -127,6 +127,938 @@ examples.
 `npm test` now runs strict TypeScript contract checks as well as runtime tests;
 run `npm ci` first. The Python cross-SDK integration skips when Node is absent.
 
+## 0.1.13 - 2026-11-05
+
+Every crate is at 0.1.13, and `graphicle --version` prints
+`graphicle 0.1.13 (core)`. The Python and TypeScript SDKs are at 0.1.13 too.
+
+### After upgrading
+
+- Run `graphicle sync` once in each project, as after 0.1.12: the saved
+  graph and the query file are keyed to the program's build, so the first
+  sync writes both again.
+- The first `graphicle-graph update` after upgrading is a full one: the
+  extraction cache's schema moved on, and the early stop below needs a
+  record that only a full update writes.
+
+### Faster updates
+
+- `graphicle-graph update` stops early when nothing has changed since a full
+  update that itself changed nothing. That update records, in
+  `.graphicle_build_state.json` in the output folder, the size, modification
+  time and (on Unix) status-change time and inode of every file it scanned,
+  of the configuration files around the project, and of every file the
+  extractors read outside the scan, such as a C header in an ignored folder
+  or a Sphinx `conf.py` above the project. The next `update` scans the
+  project, compares, and if nothing differs prints "No relevant changes" and
+  keeps the graph. Anything it cannot prove the same takes the full update:
+  a file edited while an update runs, a JavaScript workspace above the
+  project, `--precise`, or an extractor that walks the tree without the
+  ignore rules (Pascal and C# project files). See `docs/configuration.md`.
+- Measured on one cloud machine with 8 CPUs and 8 workers, an update with
+  nothing to change took, as the median of 5 runs, 15.7 s on kubernetes
+  v1.37.1, 1.02 s on react v19.3.0 and 0.25 s on redis 8.10.2, against
+  164.8 s, 22.6 s and 3.40 s for 0.1.12's full update (median of 3), with
+  the same outputs.
+- A file whose content always fails to extract (a JSON or YAML file over the
+  size limit, a YAML file the parser refuses, a binary Delphi form) no
+  longer keeps the early stop away; a read error, a timeout or an extractor
+  that stopped still does.
+
+### Project wiki
+
+- `graphicle wiki build` has a model write one article per area of the code,
+  with an index of one-line summaries, in `.graphicle/wiki/written/`. Each
+  paragraph cites files and lines, and a citation must fall on lines the
+  model was shown, or the paragraph is dropped and counted.
+  `graphicle wiki update` rewrites only the articles whose code, docs or
+  reviewed memories changed. Calls are capped by `--max-cost` (1 USD by
+  default) and the profile's caps, logged in `graphicle usage`, and priced
+  first with `--dry-run`. Captured sessions are never sent.
+  `graphicle wiki hook on` adds an optional post-commit update with its own
+  cap. See `docs/wiki.md`.
+- `graphicle wiki check` lists, with no model, doc passages whose named code
+  changed since they were written, stale memories, wiki citations that no
+  longer hold and areas of the code with no doc or article. With a model it
+  proposes corrections: a doc's as a patch file, a memory's in the approval
+  queue. It never edits your files.
+- The wiki was tested against local stand-in models; no live model run is
+  part of this release.
+
+### Fixes
+
+- Doc links flag a passage whose named function changed after the passage
+  was written, in `graph.doc_links` and as a note on recall excerpts.
+- An output folder given by a relative path that leads outside the project
+  (`GRAPHICLE_OUT=../out`) now gives one graph, as an absolute one has since
+  0.1.12.
+- A deleted Office document takes its nodes with it, wherever the output
+  folder is.
+- `extract` after `update` no longer warns that it kept nodes "fail-closed"
+  for a converted Office document the scan lists.
+
+### Docs
+
+- The README's benchmarks gain a chart of an update with nothing to change,
+  0.1.13 against 0.1.12, with the numbers above.
+
+### Packaging
+
+- `server.json` at the repository's root is the MCP Registry entry of
+  0.1.12, the latest listed release (it named 0.1.11).
+- `deny.toml` in graphicle-graph and graphicle-memory ignores
+  RUSTSEC-2026-0441: pin-utils, which the AWS SDK of the bedrock feature
+  brings in, is unmaintained, with no known vulnerability.
+
+## 0.1.12 - 2026-11-03
+
+Every crate is at 0.1.12, and `graphicle --version` prints
+`graphicle 0.1.12 (core)`. The Python and TypeScript SDKs are at 0.1.12 too.
+
+Everything new in 0.1.12 was written during Meta's Global AI Developer
+Hackathon.
+[HACKATHON.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.12/HACKATHON.md)
+lists it with when it was written.
+
+### After upgrading
+
+- Run `graphicle sync` once in each project, as after 0.1.11: the saved
+  graph and the query file are keyed to the program's build, so the first
+  sync writes both again.
+- On Windows, if you set `GRAPHICLE_MAX_WORKERS=1` to get past the crash
+  below, remove it: extract and update use all their workers again.
+
+### Fixes
+
+- On Windows, `graphicle-graph extract` and `update` no longer exit with
+  0xC0000005 (an access violation) once they split their work across worker
+  threads, which a file with a few tens of symbols was enough to start. The
+  crash came from mimalloc 3.3.2, most likely microsoft/mimalloc#1306, so
+  the Windows programs now use the system allocator, as the macOS programs
+  have since 0.1.1. Linux keeps mimalloc. Reported by Michael George in #18,
+  with the cases that reproduced it.
+- `graphicle fix`: a second run on the same issue that starts within the
+  same second as the first takes the next free worktree folder (`-2`, `-3`
+  and so on), as the branch name already did. Before, it stopped with git's
+  "already exists".
+- `graphicle fix` applies the model's edits to files whose lines end in
+  CRLF, as Git for Windows checks them out, and those files keep CRLF.
+  Before, every edit whose search text spans a line break was refused there
+  with "the search text is not in the file as it is now". An edit takes the
+  file's line breaks when all of them are CRLF or all are LF; a file with
+  both, or with none, takes an edit as it is written (`docs/fix.md`, step
+  4).
+- With the output folder outside the project, given by an absolute path in
+  `GRAPHICLE_OUT`, the nodes of Office documents no longer depend on where
+  that folder is. Each `.docx` and `.xlsx` file is converted to a Markdown
+  file in the output folder, and the ids of its nodes were taken from that
+  file's path, so two output folders gave two graphs with the same counts;
+  the 0.1.11 benchmarks found three graphs of pandas this way. The ids now
+  come from the converted file's name, which is hashed from the document's
+  path in the project, so they change once, at the first
+  `graphicle-graph update`, or `watch` or hook rebuild, after upgrading.
+  Graphs without Office documents or Google Workspace shortcuts, and graphs
+  in the default output folder (`.graphicle` in the project), are unchanged.
+  An output folder given by a relative path that leads outside the project
+  (`../out`) still names them by that path.
+- `graphicle-graph watch` of a subfolder (`watch src`) keeps the nodes of
+  Office documents in its incremental rebuilds. Before, with an output
+  folder more than three folders up, it dropped them until the next full
+  update.
+
+### Dependencies
+
+- zip 9.2.2 and calamine 0.38.0, for RUSTSEC-2026-0367, -0368, -0369 and
+  -0429 and GitHub's zip advisories of 28 and 29 October, one of them
+  critical (GHSA-m665-v7pm-7grj, fixed in zip 9.0.5, the lowest zip the
+  crates now accept). `deny.toml` no longer makes exceptions for them, and
+  the third-party licence pages list the new versions.
+- calamine 0.38 reads two kinds of legacy `.xls` file more correctly: the
+  rows of an embedded chart no longer appear in its sheet, and BIFF5
+  rich-text strings keep symbols such as `•` and `’`.
+
+### Hosted demo
+
+- `demo/modal_app.py` runs the hosted demo on Modal: an image with the
+  v0.1.10 release's binary and the checkouts, a Volume with the data folder,
+  and `server.py` scaling to zero, live with the Meta key's secret or,
+  without it, showing the recorded answers (`demo/README.md`, "Modal").
+
+### Docs
+
+- The README opens with "Graphify, ported to Rust. Plus memory." and the
+  live flow from a bug on the screen to a tested fix, and gives the
+  13-codebase results as bar charts of time and peak memory.
+- `docs/benchmarks.md` gives Graphicle 0.1.11 against Graphify 0.9.100 on
+  one Linux machine: updates after 30 recent commits in three repositories,
+  and the time and peak memory of three operations on 13 codebases. Its note
+  on pandas' three graphs now gives their cause, fixed above.
+- HACKATHON.md calls the pack, `ask --pack` and `plan` written before the
+  kickoff first drafts, and says that every change to them after it is event
+  work.
+- `docs/fix.md` and `graphicle fix --help` say that the test command runs
+  with `cmd /C` on Windows, not `sh -c`, so a test command written for sh
+  does not run there as it is written; `docs/flow.md` and
+  `graphicle see --help` say the same of its driver.
+
+### Packaging
+
+- `server.json` at the repository's root is the MCP Registry entry of
+  0.1.11, the latest listed release (it named 0.1.10).
+- `graphicle-graph`'s NOTICE says that the program uses mimalloc as its Rust
+  allocator on Linux only.
+
+## 0.1.11 - 2026-11-02
+
+Every crate is at 0.1.11, and `graphicle --version` prints
+`graphicle 0.1.11 (core)`. The Python and TypeScript SDKs are at 0.1.11
+too.
+
+Everything new in 0.1.11 was written during Meta's Global AI Developer
+Hackathon.
+[HACKATHON.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.11/HACKATHON.md)
+lists it with when it was written.
+
+### After upgrading
+
+- Run `graphicle sync` once in each project, as after 0.1.10: the saved
+  graph and the query file are keyed to the program's build, so the first
+  sync writes both again.
+
+### `graphicle fix`
+
+- A long test output keeps the lines that report failures. When a round's
+  test output is longer than the 6,000 bytes that go back to the model, the
+  round keeps the lines that report failures from the part that is cut
+  (lines with `FAIL`, `×`, `AssertionError`, `Error:`, `panicked`,
+  `Traceback`, `error[E0425]:`, `expected` or `received`, and the like),
+  each once and at most 2,400 bytes of them, then a `[...]` line and the
+  output's end. Before, only the end was kept, so a runner that prints its
+  failures before a long dump, as vitest does before the DOM it compared,
+  sent the model the dump without the assertion. While the test runs, each
+  output stream holds up to 128 KiB, then drops whole lines from its start
+  down to about its last 64 KiB; the lines that report failures are read in
+  all that it holds and in what it drops, so an output of 64 to 128 KiB
+  keeps an assertion it printed first. Terminal colour codes are removed
+  from the output; the values of the model keys are still hidden in it.
+- The next round reads the files that the failure and the model name. After
+  a failed round, the next round's request adds, after the diff, the files
+  that the test output (or the reasons the edits were refused) names, that
+  the model's explanation and edits name by path, and that define a code
+  name the explanation gives (found in the project's code graph), when the
+  pack does not hold them whole: at most 6 files and 24,000 tokens a round,
+  counted as the pack counts, read from the worktree, and only files the
+  project's last sync holds, inside the project. Without `--budget`, the
+  files take only the room the round's request has left after the pack, so
+  the round is sent with the same pack and its start can stay in the
+  provider's prompt cache. The instructions tell the model that a file it
+  names this way is added to the next round. Each round's JSON report
+  lists what its request added and why under `context`, with what was left
+  out; the readable report lists the added files under each round. A round
+  whose request does not fit the model's input limit with its files goes
+  without them: the readable report lists them as not added, and the next
+  round adds them only when the failure or the model names them again.
+  Before, a file the pack did not hold stayed out of every round. See
+  `docs/fix.md`.
+
+### Fixes
+
+- `graphicle ask` answers when the model cites more passages than an answer
+  keeps. An answer keeps at most 12 citations and 20 unanswered parts (and,
+  with the `grounded-v3` contract, its limit of reading notes). A reply
+  with more, which a broad question can draw, failed the job with "Model
+  output does not match the workflow contract". The reply now keeps its
+  first 12 citations and first 20 unanswered parts, and the job's result
+  gives, under `trimmed_to_cap`, how many the model returned and how many
+  were kept. An answer's text never refers to a citation by its number, so
+  nothing in it points at a citation that was cut. `--workflow reflect`
+  keeps its final reply the same way. (reported in #17)
+- `graphicle ask --workflow reflect` goes on when the model asks to read a
+  source the answer does not have, such as a path it guessed from the code
+  or a file that `sync` leaves out. The read is skipped, the job's trace
+  records it with `"unavailable": true`, the next step reads that note, and
+  the answer comes from the sources that could be read. Before, the job
+  failed with "Reflection requested an unavailable source". (reported in
+  #17)
+- `graphicle ask --pack`, `plan`, `fix` and `review` use a model key saved
+  in the app (`graphicle open`, then Connections), as `ask` and `doctor`
+  do, for the call and for the provider's token count. Before, they read
+  the key only from an environment variable and failed with "Provider
+  credential unavailable; workspace credentials require the service
+  worker". A key in an environment variable is read as before. `fix` hides
+  a key saved in the app in the test output that goes back to the model
+  and into its report, as it hides the keys in variables. (reported in #17)
+
+### The flow and its docs
+
+- `demo/flow/flow.py` uses Muse Spark for computer use by default
+  (`--see-model spark`). On 30 October 2026 Muse Wonder answered the
+  computer tool with HTTP 400 "Unsupported tool type" on the key we tested,
+  and Muse Spark 1.3 ran it. `docs/flow.md` and `demo/README.md` describe
+  the live runs. The Muse Code docs describe the plugin's first live
+  session (Muse Code 1.4.14, 30 October 2026, with 0.1.10's plugin): Muse
+  Code ran four of its six hooks and called its `pack` tool, but stopped its
+  session-start hook, whose output passed the 16,384 bytes Muse Code takes
+  from a hook, so the session started without Graphicle's session-start
+  context (fixed below, under Muse Code plugin).
+- The flow's check keeps its budget when the fix runs on another profile.
+  With computer use on Muse Spark and the fix on Muse Wonder, the check took
+  the computer-use profile's cap less everything the run had spent, so a fix
+  that cost more than that cap left the check a cent and the binary refused
+  its call. The check's budget is now its profile's cap less that profile's
+  own calls.
+
+### Muse Code plugin
+
+- The session start stays within Muse Code's limit on a hook's output. Muse
+  Code takes at most 16,384 bytes of what a hook prints and reads none of a
+  longer output: in the plugin's first live session (Muse Code 1.4.14, 30
+  October 2026), the session start printed more than that, Muse Code
+  stopped it, and the session started without Graphicle's session-start
+  context. The session start now prints at most 14,000 bytes for Muse Code.
+  When the map and the memories do not fit together, it leaves out parts of
+  the map first, in the order a pack over its budget drops them (its least
+  connected files first, then its documentation, folder map and
+  architecture summary), then the whole map, then the memory's last lines
+  (recent turns before memories), never the line on when to use Graphicle,
+  and ends with a line that says what was left out and which tool returns
+  it. Claude Code and Codex get the same output as before. This is tested
+  against the stand-in `muse` program, not yet in a live session.
+- Muse Code's session map is 2,500 tokens by default and at most 3,500
+  tokens (8,000 and 100,000 before), and it lists the most connected files
+  first.
+  Measured on 31 October 2026, a map of 2,500 tokens took 8,464 bytes for
+  Graphicle's own Rust code and 10,580 bytes for its Python tools, which
+  leaves room for the memories; at 8,000 tokens the same maps took 27,551
+  and 33,570 bytes, more than Muse Code's limit on their own.
+
+### Benchmark kits
+
+- The whole-repository benchmark's model runs, which 0.1.10's kit was
+  written for, were made on 30 October 2026. Their results are not in
+  this release.
+- `bench/whole-repo/run.py` gains a `fireworks` profile for Muse Spark Open
+  on Fireworks' serverless API (chat completions, key from
+  `FIREWORKS_API_KEY` or `--key-file`). The run's session id goes in the
+  `x-session-affinity` header and the `user` field, the two hints Fireworks
+  documents for its prompt cache, and the cached tokens come from the usage
+  or, when it has none, from the `fireworks-cached-prompt-tokens` header.
+  `prices.json` has the model's Fireworks prices.
+- `bench/muse-code/` reads the events of Muse Code 1.4.14: an event's name
+  is in `payload_type`, the model calls and tokens come from the one
+  `run.usage` event at the end of a run, and the answer from
+  `run.terminal.completed`. Before, the kit counted no calls and no cost
+  for a 1.4.14 session. With 1.4.14 the kit's cost caps (`--run-cap`,
+  `--day-cap`) can act only after a run, since the usage arrives at its
+  end.
+
+### Packaging
+
+- libz-sys 1.1.31 (from 1.1.29, through flate2). RUSTSEC-2026-0418, a build
+  script that prints the whole build environment when built with cc 1.6.0
+  or later, no longer applies, and `cargo deny` checks every crate without
+  an exception for it. The locks keep cc 1.4.7.
+
+## 0.1.10 - 2026-10-30
+
+Every crate is at 0.1.10, and `graphicle --version` prints
+`graphicle 0.1.10 (core)`. The Python and TypeScript SDKs are at 0.1.10
+too.
+
+Everything new in 0.1.10 was written during Meta's Global AI Developer
+Hackathon.
+[HACKATHON.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.10/HACKATHON.md)
+lists it with when it was written.
+
+### After upgrading
+
+- Run `graphicle sync` once in each project, as after 0.1.9. The saved
+  graph and the query file are keyed to the program's build, so the first
+  sync writes both again. Until then a question reads the code graph from
+  the store, and on a project of 2,000 files or more the prompt hook gives
+  only the files that define the code names a prompt gives.
+- The first check of a folder that an earlier version synced finds its
+  HTML files changed, though nothing on disk changed, so the next command
+  that reads the project (such as `graphicle pack`, `ask`, `context` or
+  `status`, or an MCP tool call) syncs them again as they are (see the
+  first bullet of Fixes). A folder with more than 200 such files, or one
+  whose sync is slow, gets a note to run `graphicle sync` instead; with
+  `freshness` set to `off`, run `graphicle sync` yourself.
+- A reviewed project memory that cites a folder's HTML file goes stale
+  after that sync, because the page's stored text changes from its words
+  to its markup. Review those memories in the app (`graphicle open`,
+  under **Memory**).
+- In the GitHub Action of `graphicle review`, set `graphicle-version` to
+  0.1.10, and `graphicle-sha256` to the SHA-256 of 0.1.10's archive for
+  the runner (in the release's `SHA256SUMS`): the escaping under Fixes
+  comes from the program the Action installs.
+
+### Whole-repository packs
+
+- Packs in the standard layout hold their top-ranked files whole more
+  often. In a pack of 32,768 tokens or less, the first ranked file goes in
+  whole when its estimated size fits in half the budget; in a pack of
+  131,072 tokens or more, the first two go in whole when each one's
+  estimated size fits in a quarter of it. The estimate comes from a file's
+  size in bytes, not from the tokenizer. This changes `graphicle pack`, the
+  MCP server's `pack` tool (32,000 tokens by default), and the packs of
+  `ask --pack`, `plan` and `fix`, which use the standard layout by default.
+  The default budget of `graphicle pack`, 128,000 tokens, stays below the
+  second tier, and so do the packs for a model with a 128K window, unless
+  a calibration from earlier calls raises their budget past 131,071
+  tokens. A pack with pinned passages (`fix --focus`, `review`) keeps the
+  per-file caps for every file, so each pinned passage keeps its room.
+  This rule leaves packs of 32,769 to 131,071 tokens, and the cache
+  layout, as they were.
+- Measured without a model, as the share of questions (tasks, on
+  SWE-bench Pro) whose pack holds every line that the reference fix
+  changes, with tokens counted by the Muse Spark Open tokenizer: 0.1.9
+  against a candidate build of 0.1.10 with both changes (whole top files,
+  and a folder's HTML files kept as they are, under Fixes), made before
+  this release's last fixes, at budgets of 16K to 1M tokens (16,384 to
+  1,015,808; the 128K budget is 131,072 tokens, in the second tier). A
+  build with those fixes, run again on the development questions, matched
+  the candidate except for one question at 256K, whose pack left out one
+  file the fix changed.
+  - On the 90 held-out questions of the whole-repository benchmark
+    (pytorch, vscode and elasticsearch, never tuned on): 26.7% to 34.4% at
+    32K, 41.1% to 48.9% at 128K, 47.8% to 52.2% at 256K, 53.3% to 58.9% at
+    512K and 58.9% to 64.4% at 1M; unchanged at 16K (21.1%) and 64K
+    (33.3%). The mean share of the fix's files inside the pack (whole, or
+    as excerpts or outlines) moved by +1.7 points at 16K, -0.3 at 128K and
+    -1.1 at 512K, and not at the other budgets.
+  - On 633 tasks of SWE-bench Pro's public set (at 1M, the 505 whose files
+    hold more than 1M tokens): 10.3% to 15.0% at 16K, 16.7% to 20.4% at
+    32K, 29.1% to 29.2% at 64K, 40.8% to 42.3% at 128K, 51.5% to 52.8% at
+    256K and 66.5% to 68.3% at 1M, where file-level BM25 holds every
+    changed line in 14.2%, 19.0%, 25.9%, 32.7%, 41.5% and 58.0% of tasks.
+    The share of tasks with every file the fix changes inside the pack (any
+    of its text) moved by -0.8 points at 16K and at 128K, -0.3 at 32K and
+    -0.2 at 1M, and not at 64K and 256K. Counting only the files the pack
+    holds as text, not as an outline, it fell by 2.1 points at 16K (95%
+    interval -3.5 to -0.6) and by 0.3 points or less at the other budgets.
+    A diagnosis of 0.1.9 on these tasks chose the directions of this
+    change, though not its settings, so they are not an untouched test.
+  - On the 200 development questions it was tuned on (kubernetes,
+    home-assistant, angular, keycloak and godot): 32.0% to 36.0% at 16K,
+    48.0% to 51.0% at 32K, 70.0% to 72.0% at 128K, 76.0% to 77.5% at 256K,
+    79.5% to 81.0% at 512K and 81.0% to 82.5% at 1M; unchanged at 64K
+    (57.5%). The mean share of the fix's files inside moved by -1.0 point
+    at 32K and -0.5 at 1M, and by 0.2 points or less at the other budgets.
+
+  The tables are in
+  [bench/whole-repo/results-lines.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.10/bench/whole-repo/results-lines.md)
+  and
+  [bench/swe-bench-pro/results-e1l.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.10/bench/swe-bench-pro/results-e1l.md).
+
+### Fixes
+
+- A project folder's `.html` and `.htm` files are kept as they are on
+  disk. Earlier versions stored the text that html2text extracted from
+  them, so `graphicle pack` quoted that text under its own line numbers,
+  not the file's, and a `graphicle fix` edit copied from that text could
+  fail to match the file. Search and project memory read the same stored
+  text, so they now see a page's markup as well as its words, and a hit or
+  a quote points at the file's own line.
+  - Office files, spreadsheets, PDF, EPUB and images are converted as
+    before, and so is HTML that is uploaded or that the Confluence
+    connector brings in. The GitHub and Google Drive connectors already
+    kept `.html` files as they are.
+  - A folder's HTML file that is not UTF-8, such as a Latin-1 or Shift-JIS
+    page, or that is larger than `limits.file_bytes` (8 MiB by default), is
+    still read as its extracted text, as before, up to
+    `limits.document_bytes` (128 MiB by default).
+  - An HTML file read as it is counts its whole markup, not just its words,
+    toward `limits.project_bytes` (1 GiB by default), so a folder with many
+    large pages comes closer to that limit; raise the limit if a sync is
+    refused.
+  - The notes-first ranking, which is off by default, no longer counts
+    `.html` and `.htm` files as notes.
+- `graphicle review --format github` and the GitHub Action escape `&`, `<`
+  and `>` in the review's text outside code spans and code blocks, so
+  markup in a model's comment (an `<img>` tag, or a `<!--` that would hide
+  the rest of the review) shows as text in the posted review and in the job
+  summary.
+- `graphicle pack --format xml`: a file whose lines hold `</file` or
+  `</section` (an HTML page's own `</section>`, for example) goes inside a
+  CDATA section, so it no longer closes the pack's `<file>` or `<section>`
+  element. Other files are unchanged, and the element names stay the same.
+
+### Graph commands
+
+- A `graphicle graph` command that reads the graph file, such as `query` or
+  `affected`, now says how to build the file when it does not exist yet
+  (reported by Thomas Thomsen,
+  [#15](https://github.com/Graphicle-AI/graphicle/issues/15)). Before, it
+  stopped with `graph file not found: <folder>/.graphicle/graph.json` and
+  nothing more. Now, for the default graph file, the next line gives the
+  command to run in that folder, `graphicle-graph extract . --code-only`
+  (the same as `graphicle graph extract . --code-only`). The code graph
+  that `graphicle setup` builds is in Graphicle's data folder, for the MCP
+  server and `graphicle context`; `graphicle graph` reads its own file.
+
+### Model profiles
+
+- A model profile with an API key (`key_env`) can now use plain HTTP to a
+  model server on your own network, such as a vLLM host without TLS, when
+  you list that server's exact host in the new environment variable
+  `GRAPHICLE_PROVIDER_HTTP_KEY_HOSTS` (the same format as
+  `GRAPHICLE_PROVIDER_HTTP_HOSTS`; a host listed there also counts as
+  listed in the older variable). The key then crosses the network in clear
+  text. The variable is unset by default, so such a profile is still
+  refused until you list its host; Graphicle prints a one-line warning
+  that names such a host when it accepts one, and connectors and sign-in
+  still need HTTPS or loopback (asked in discussion #16).
+
+### Benchmark kits
+
+- `bench/swe-bench-pro/` measures, without a model, how often a context
+  holds every file and every line that a fix changes, on 633 tasks of
+  SWE-bench Pro's public set: the pack, file-level BM25 and the repository
+  cut to the same budget (`e1.py`, `e1l.py`, their reports and
+  comparisons). It also holds the scripts of the model runs (`e2.py`,
+  answers on a sample of the tasks; `c4c.py`, a billed prompt-cache meter;
+  `live.sh`), whose results are not in this release. Results:
+  [results-e1.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.10/bench/swe-bench-pro/results-e1.md)
+  (files, 0.1.9) and
+  [results-e1l.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.10/bench/swe-bench-pro/results-e1l.md)
+  (lines, 0.1.9 and the 0.1.10 candidate build).
+- `bench/whole-repo/lines.py` counts the changed lines that each context
+  holds for the whole-repository questions, from each question's pull
+  request diff placed on its snapshot, and compares two builds question by
+  question:
+  [results-lines.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.10/bench/whole-repo/results-lines.md).
+- `bench/whole-repo/` gains two arms for its model runs (file-level BM25,
+  and the agent with a pack in its first message) and two settings for
+  the agent (a cap on the input tokens of all its turns, and Meta's
+  hosted tool search), and `score.py` reports the cost per correct answer
+  and McNemar's test on hit@1. The model runs have not been made yet.
+
+### Packaging
+
+- `server.json` at the repository's root is the MCP Registry entry of
+  0.1.9, the latest listed release (it named 0.1.8). A release's entry is
+  committed after its listing, as
+  [packaging/mcpb/README.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.10/packaging/mcpb/README.md#steps-at-release-time)
+  describes.
+
+## 0.1.9 - 2026-10-28
+
+Every crate is at 0.1.9, and `graphicle --version` prints
+`graphicle 0.1.9 (core)`. The Python and TypeScript SDKs are at 0.1.9 too.
+
+Most of what is new was written for Meta's Global AI Developer Hackathon.
+[HACKATHON.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/HACKATHON.md)
+says what was written before the event and what during it.
+
+### How the new model features were tested
+
+- The new commands that call a model (`ask --pack`, `plan`, `fix`,
+  `review`, `pixel` and `see`) were tested only against stand-ins: local
+  test servers that answer as the Meta Model API and OpenAI-compatible
+  servers do, and `demo/mock_meta.py`. That covers the prompt cache
+  requests, the exact counts of `POST /responses/input_tokens`, SAM 3.1 and
+  computer use. None of them has called the live Meta Model API yet.
+- The Muse Code plugin was tested with a stand-in for the `muse` program,
+  not with Muse Code itself.
+- The GitHub Action of `graphicle review` was tested with stand-ins for
+  `curl`, `graphicle` and `gh`, not on GitHub's runners.
+- The hosted demo in `demo/` was tested against `demo/mock_meta.py`. It is
+  not deployed.
+
+### After upgrading
+
+- Run `graphicle sync` once in each project, as after 0.1.8. The saved
+  graph and the query file are keyed to the program's build, so the first
+  sync writes both again. Until then a question reads the code graph from
+  the store, and on a project of 2,000 files or more the prompt hook gives
+  only the files that define the code names a prompt gives.
+
+### Whole-repository packs
+
+- `graphicle pack [QUESTION]` gathers a project's code for one question into
+  one block of text within a token budget (`--budget`, default 128,000, up
+  to 2,000,000): a header, a manifest of what is in and the top files left
+  out, an architecture summary, the ranked files (small ones whole, large
+  ones as symbol excerpts with merged line ranges), callers and callees two
+  steps along call edges, tests, docs and more of the repository. It reads
+  `graphicle context`'s own ranking and the saved code graph. Formats:
+  Markdown, XML, or JSON (`graphicle.pack.v1`, whose chunks' text joined in
+  order is the pack). Without a question, an overview. See
+  [docs/pack.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/pack.md).
+- A pack's ranking is `context`'s, read deeper (3,000 fused passages), with
+  two additions: the files of a small folder the question names (by a word,
+  a path or module segment, or words joined by `_`) right after the top
+  files, and the files that define what the top files use (Go identifiers
+  through their imports, Python modules of the same folder). Up to 256,000
+  tokens, the ranks past 15 go in as compact excerpts (their passages and
+  the first lines of the symbols around them) instead of more of the
+  repository by centrality, and no file takes more than a tenth of the
+  budget. The manifest lists up to 100 top-ranked files left out.
+- A pack's ranking reads an issue without its environment sections (a
+  heading below the title that labels the system information, tested
+  versions, a `<name> version`, the environment or the operating system, or
+  an issue form's question for them) and its `<name> version: <value>`
+  lines; a title or a heading that merely names a version stays.
+- The first pack after an upgrade writes the project's query file for the
+  new build once, and says so; later packs read it.
+- The budget is never exceeded: tokens are counted exactly with
+  `--tokenizer tokenizer.json` (any Hugging Face tokenizer; the released
+  program includes the pure-Rust `tokenizers` library for it), else
+  estimated from bytes per token by language, calibrated on Muse Spark
+  Open's counts (7% above them in 22 packs of 128,000 tokens), with a
+  margin. The same inputs give the same bytes.
+- `graphicle pack --layout cache` splits a pack for a provider's prompt
+  cache. Its repository part comes first and is the same bytes for every
+  question about a commit at the same budget and settings: a header without
+  the question, the architecture summary, a map of the folders (files,
+  tokens and most connected symbols of each), the files with the most
+  connections in the code graph (whole, or the first line of each symbol) and
+  the top documentation. The question part follows (a manifest, focus, call
+  paths and tests) and never repeats lines the repository part holds: it
+  lists the ranked files already there as `in the prefix: path lines a-b`,
+  and gives full excerpts to one ranked file per 8,000 tokens of its room
+  (each up to two fifths of the room divided among them, or 2,000 tokens
+  when that is more) and compact excerpts to the ranks after them.
+  `--prefix-share F` (default 0.9) is the repository part's share of the
+  budget at most; 1.0 makes a stable pack, where only the question after it
+  changes. See
+  [docs/pack.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/pack.md#layouts-and-the-prompt-cache).
+- The pack JSON records the `layout`, `prefix_share` (cache layout only),
+  `prefix_tokens`, `prefix_sha256` and a `part` (`prefix` or `suffix`) on
+  every section; the prefix sections' text is the start of the pack's text.
+- The MCP server publishes a `pack` tool (default 32,000 tokens, at most
+  200,000) after the tools of 0.1.0's server. Claude Code's essential set
+  stays five tools; `graphicle connect claude-code --tools all` adds `pack`.
+
+### Ranking for TypeScript, Java and C++
+
+- The pack's ranking was tuned on TypeScript, Java and C++ repositories
+  (angular, keycloak and godot) as well as on Go and Python ones
+  (kubernetes and home-assistant):
+  - it reads an issue without its environment sections, as above, whose
+    words (graphics drivers, display servers, package versions) pulled
+    unrelated files up;
+  - files the question names by a code name (`TextEdit` names
+    `text_edit.cpp` and `text_edit.h`, `FormControl` names
+    `form_control.ts`, `UserModel` names `UserModel.java`), or by two or
+    three of its words in the languages that name files after their classes
+    (Java, TypeScript and JavaScript, C and C++), come right after the top
+    five files: at most 4 files per name, 4 names and 8 files;
+  - TypeScript and JavaScript imports lead to the files that define what the
+    top files use: relative paths (an ES module's `./x.js` is `x.ts`), index
+    files and `tsconfig` path aliases.
+- Measured without a model, as the mean share of the files a fix changed
+  that are inside the pack, whole or as excerpts or outlines of their
+  symbols (standard layout, tokens counted with the Muse Spark Open
+  tokenizer), over the 90 questions of three repositories held
+  out from tuning (pytorch, vscode and elasticsearch, 30 each): 58.1%,
+  64.3%, 64.6%, 70.9% and 77.9% at budgets of 64K, 128K, 256K, 512K and 1M
+  tokens, against 55.8%, 63.6%, 61.4%, 68.0% and 76.8% for the pack as it
+  stood before the hackathon. pytorch gained 2.3 to 10.6 points; vscode
+  lost 6.6 points at 64K, 0.9 at 256K and 3.3 at 512K. These numbers were
+  measured before a later change to how a pack reads an issue's
+  environment sections (the rule above). That change leaves the results of
+  all 200 development questions unchanged; the held-out questions were not
+  measured again. The method is that of
+  [docs/benchmarks/whole-repo.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/benchmarks/whole-repo.md#context-recall-without-a-model),
+  whose table is of the earlier pack.
+
+### Answers, plans and fixes with Meta's models
+
+- `graphicle config set model meta` writes a Muse Spark profile for the
+  Meta Model API (`https://api.meta.ai/v1`, its Responses API, key in
+  `MODEL_API_KEY`, model `muse-spark-1.3`, `reasoning_effort` medium, sent
+  as `reasoning.effort`) and makes it the answer model;
+  `meta:muse-wonder-1.0` chooses Muse Wonder. It refuses the `-contributor`
+  models, which let Meta train on the data, and a `reasoning_effort` of
+  `none`, which the Meta Model API refuses. `graphicle config set model
+  compatible:MODEL --url URL` does the same for any OpenAI-compatible
+  server, such as Muse Spark Open on vLLM or SGLang. The docs give Meta's
+  list prices for Muse Spark 1.3 and Muse Wonder (26 October 2026) as
+  configuration examples; prices stay out of the program.
+- Model profiles take input limits up to 1,048,576 tokens and output limits
+  up to 131,072, and an optional `price` (US dollars per million input,
+  output and cached input tokens). `ask --pack` and `plan` show the tokens
+  in and out from the provider's usage, and a cost only from that price.
+- `graphicle ask --pack` answers in one model call from a pack that fills
+  the model's input limit, streams the answer from chat models, checks every
+  cited `path:line` against the working tree and lists the ones that do not
+  hold. After each call it keeps the provider's prompt tokens over its own
+  estimate per model profile, and sizes the next pack to fill the input
+  limit by the provider's count. The `basic` and `reflect` workflows are
+  unchanged.
+- `graphicle plan "change request"` asks for a plan as JSON (steps, files to
+  edit with line ranges, new files, tests, risks), checks it against the
+  working tree and prints it as Markdown or JSON. It changes no files.
+- `graphicle ask --pack`, `graphicle plan` and `graphicle fix` use the
+  standard layout by default; `--layout cache` and `--prefix-share` choose
+  the cache layout, which pays off when you ask several questions about
+  the same commit. A cache-layout request sends the same instructions
+  first, then the pack, then the question. Without `--budget`, the
+  repository part is sized from the model's input limit, not the
+  calibrated budget, so it stays the same bytes from one question to the
+  next; when the provider counts more than the estimate, it steps down to
+  0.8, 0.64, ... of that size, the first whose share fits, and holds within
+  each step. For the Meta Model API the request carries a
+  `prompt_cache_key` built from the project, its commit and the pack's
+  prefix hash (never from the question) and, on the Responses API, a
+  24-hour `prompt_cache_retention`; other profiles opt in with
+  `"prompt_cache": true`.
+- Every request is fitted to the input limit: its estimate, times the
+  profile's calibration, must fit, and a request near the limit is counted
+  exactly with `POST /responses/input_tokens` for the Meta Model API; the
+  pack is made again smaller while it would not fit. A profile's `tokenizer`
+  (a `tokenizer.json`, such as Muse Spark Open's) makes these packs count
+  exactly without the API.
+- `graphicle fix "issue"` (or `--issue-file`) makes a pack and a plan. The
+  pack is in the standard layout by default, since one run asks about one
+  issue and a shared repository part would only take room from the files
+  the issue needs; `--layout cache` or `--prefix-share` keeps the cache
+  layout. It asks for the edits as search-and-replace blocks and new files,
+  checks each round's edits as a whole (paths, search texts, and new files
+  against each other and the folders on disk) and applies them all or none,
+  putting back every file of the round if a write fails, on a new branch in
+  a new git worktree from HEAD, made once the plan has come back. It runs
+  `--test CMD` (or the configuration's `fix.test`) there with a timeout
+  (`--timeout`, 1 to 86,400 seconds), and sends a failure's output and the
+  diff back for at most `--rounds` rounds (default 3), each request fitted to
+  the input limit. It reports the branch, worktree, files changed, each
+  round's result, tokens and cost, and the cited lines; `--commit` commits
+  on the new branch. `--focus PATH[:LINE|:START-END]` (up to 50) puts
+  passages first in the pack's ranking, whatever the issue's words rank:
+  PATH alone is the whole file, PATH:LINE the 40 lines on each side. Edits
+  outside the repository (absolute paths, `..`, any spelling of `.git`,
+  symlinks leading out or into `.git`) are refused; git runs with hooks off
+  and without variables that point it elsewhere or add configuration (your
+  configuration files, and so your commit identity, are kept); the test
+  command never comes from the model and runs without the model key
+  variables of every profile, those stored in the workspace too, whose
+  values are hidden in its output; on Linux, Graphicle makes itself not
+  dumpable before the test starts, so the test cannot read Graphicle's
+  environment through `/proc`. The test still runs as you and can read what
+  you can: use a container or virtual machine for repositories you do not
+  trust. Nothing is pushed. See
+  [docs/fix.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/fix.md).
+- The spend log: every model call of `ask --pack`, `plan`, `fix`, `review`,
+  `pixel` and `see` adds one line to `usage.jsonl` in the data folder
+  (tokens in, cached, out and reasoning, seconds, the cost at the profile's
+  configured price, status; never the prompt or the answer). `graphicle
+  usage` adds it up by day and model, with the cached share; `--since` and
+  `--json`. After each answer, one line gives the tokens in (cached, with
+  their share), out, and the cost.
+- Cost caps in a profile, in US dollars at its configured price:
+  `max_cost_per_call` refuses a call whose worst case (the whole input
+  uncached, by the provider's count or the calibrated estimate plus 10%, and
+  the output limit) costs more, and `max_cost_per_day` refuses a call whose
+  worst case would take the day's cost of the profile past it. Calls not
+  logged yet count at their worst case (held in `usage-pending.json`), so
+  calls at the same time count against each other; calls without reported
+  usage count at their worst case; a spend log that cannot be read refuses
+  capped calls. Each refusal names the setting. A held worst case counts
+  whatever its day (a call running past midnight UTC counts in the new
+  day) and ends when its call is logged, its process ends, or after 40
+  minutes. `graphicle usage` lists the calls not logged yet and the log
+  lines it skipped; `--clear-pending` removes the held worst cases.
+
+### Review a change: `graphicle review` and its GitHub Action
+
+- `graphicle review` asks a long-context model (Muse Spark by default, with
+  the `meta` profile) to review what a branch adds since its merge base with
+  the base branch, as a pull request shows it. One model call gets a
+  cache-layout pack whose ranking puts the changed hunks first, so it holds
+  the changed code, the callers and callees of the changed symbols and
+  their tests, then the architecture lines of the modules the change
+  touches, the changed hunks and the diff. The model returns comments with
+  a severity and `path:line` evidence. A comment is kept only on a changed
+  line of the head with at least one citation that holds in the working
+  tree; it is flagged when no citation holds, and dropped when it is on
+  another file, outside the changed hunks, empty, a repeat or past
+  `--max-comments` (20 by default). Formats: `markdown`, `json`, and
+  `github`, the body of GitHub's create-a-review call, always a `COMMENT`
+  that never approves or requests changes. It changes no files and posts
+  nothing. See
+  [docs/review.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/review.md).
+- A composite GitHub Action in `packaging/github-action/` runs `graphicle
+  review --format github` on a pull request and posts one review. It
+  installs a Graphicle release pinned by version and SHA-256, runs on the
+  `pull_request` event only (it skips pull requests from forks, which get no
+  secrets, and refuses `pull_request_target`), gives the model key only to
+  the review step and the GitHub token only to the posting step, and refuses
+  a call whose worst case costs more than `max-cost-usd` (0.50 US dollars by
+  default, at Muse Spark 1.3's list price of 26 October 2026). 0.1.9 is the
+  first release it can install. See
+  [the GitHub Action](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/review.md#the-github-action).
+
+### From the screen to the code: `see`, `pixel` and the flow
+
+- `graphicle pixel SCREENSHOT --at X,Y` finds the code that draws the
+  element at a point of a screenshot. SAM 3.1 (`sam-3.1` on the Meta Model
+  API) finds the element's box, a vision model (Muse Spark by default) reads
+  its strings, and Graphicle searches the project for them as string
+  literals (exact, then with mnemonics, ellipses and case set aside, then
+  with placeholders), follows the keys of `package.nls.json` and of English
+  JSON locale files to where they are used, adds the code graph's
+  symbols named like the element, and ranks the candidates as `path:line`.
+  `--text` gives the strings and makes no model call; `--explain` asks the
+  model to rank the top candidates again from a small pack and explain
+  them. SAM's calls are priced per image (`price.per_image`).
+- `graphicle see` lets a model drive a web app in a browser you run, with
+  computer use on the Meta Model API (Muse Wonder or Muse Spark 1.3), until
+  the bug an issue describes shows (or, with `--look-for expected`, the
+  expected behaviour). A driver command of yours runs the model's clicks and
+  keys and returns screenshots; `demo/browser_driver.py` is one, headless
+  Chromium that loads only the app's origin, blocks service workers and
+  closes WebSockets to other origins. Each request replays the run so far,
+  the model's encrypted reasoning included. It keeps every screenshot and a
+  step log, and ends with a point on the last screenshot for `graphicle
+  pixel`. A run takes at most 29 model calls (`--steps`, 25 by default). A
+  pending safety check stops the run unless `--acknowledge-safety-checks`
+  is given, and each acknowledgement is logged; the driver gets no model
+  key; each call is checked against the profile's caps and the run's
+  `--max-cost` (3 US dollars by default), and a profile without a price is
+  refused. See
+  [docs/flow.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/flow.md).
+- `demo/flow/flow.py` takes one bug from the screen to a tested fix as one
+  command: `see` reproduces it, `pixel` finds the code, `fix --focus`
+  patches it on a new branch and runs the app's tests, and `see --look-for
+  expected` checks the patched app. It writes a receipt with the steps,
+  citations, diff, the end of the test log, the screenshots before and
+  after, and each call's tokens and cost. One budget holds for the whole
+  run (`--max-run-cost`, 3 US dollars by default). It has run end to end
+  only against `demo/mock_meta.py`, on a small app of ours and on
+  excalidraw issue 12053, not yet against Meta's live API.
+- `demo/` also holds a small web app for trying Graphicle with Meta's models
+  on kubernetes, pytorch and vscode: a question answered from a cache-aware
+  pack, and a click on a VS Code screenshot answered by `graphicle pixel`.
+  It runs the `graphicle` program with fixed arguments and never exposes
+  Graphicle's own local server. See
+  [demo/README.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/demo/README.md).
+
+### Muse Code
+
+- `graphicle setup` connects Muse Code: it finds it by its settings folder,
+  `~/.config/muse`, or the `muse` program, and adds Graphicle's MCP server
+  to the `mcp_servers` of `~/.config/muse/settings.json`, with
+  `"mode": "optional"`. `graphicle disconnect muse` removes it. See
+  [docs/muse-code.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/muse-code.md).
+- A Muse Code plugin, as a preview: the MCP server, a skill and hooks in one
+  package. With the `muse` program on your `PATH` (or in `~/.local/bin`),
+  `graphicle connect muse --hooks` writes it into Graphicle's data folder,
+  installs it with `muse plugins install --scope user` (or updates it) and
+  removes the settings entry it replaces; approve it once with `muse
+  plugins approve graphicle`. Setup does not install it: the plugin was
+  tested against a stand-in `muse` program only, and stays opt-in until a
+  check with Muse Code itself has passed. Run `graphicle disconnect muse`
+  before you uninstall Graphicle or delete its data folder: it is not
+  confirmed that Muse Code skips a plugin's server that fails to start.
+- The plugin's hooks are built to add context without a tool call: at the
+  start of a session, the project's map (the repository part of a
+  cache-layout pack) and its reviewed memories; for a code question, the
+  cited excerpts `graphicle context` finds (at most 8,400 characters);
+  after a batch of tool calls that searched the files, one sentence on
+  Graphicle's graph tools (at most five times a session). They keep the
+  start of each request the same bytes through a session, so that the
+  prompt cache can keep serving it; which hook events reach the model in
+  Muse Code itself is not yet observed. The hooks never block Muse Code:
+  each exits 0, and the session start waits at most 2.5 seconds for its
+  context.
+- Session memory with the plugin: the `Stop`, `PreCompact` and `SessionEnd`
+  hooks hand Muse Code's session log to `graphicle sessions import`, so
+  finished turns become sources of the project, and a decision one session
+  records with `propose_memory` reaches the next session's start once a
+  person approves it.
+- `graphicle mcp --or-workspace`, the plugin's server, starts in any folder:
+  it serves the project of that folder, else every project of the
+  workspace.
+
+### Fixes
+
+- `graphicle setup` no longer stops when it cannot write a Git hook, as in
+  Claude Code's sandbox, which does not let it write `.git/hooks`,
+  `.mcp.json` or `.claude/settings.local.json` (reported by Thomas Thomsen,
+  [#15](https://github.com/Graphicle-AI/graphicle/issues/15)). Before, it
+  stopped with "Local I/O failed: Operation not permitted (os error 1)"
+  without naming the file, and printed no summary, so the line to add to
+  `.mcp.json` by hand was lost too. Now each hook it cannot write is listed
+  with the reason, the summary gives the line to add to the hooks by hand,
+  and setup goes on with its other steps. `AGENTS.md`, `CLAUDE.md` and the
+  Graphify entries that setup removes are handled the same way, and an
+  agent's settings file that cannot be backed up still gets the entry to
+  paste into it. A hooks file that setup cannot write, Claude Code's
+  `.claude/settings.local.json` or Codex's `~/.codex/hooks.json`, no longer
+  fails the agent's connection. The agent stays connected, `.mcp.json` is
+  listed with the files setup changed, and the hooks are listed as skipped
+  with the file and the reason. The summary gives the `graphicle connect`
+  command that adds them later from a normal terminal. Run by hand,
+  `graphicle connect --hooks` still stops on such a file, and now names it.
+  In a repository whose whole `.git` folder is read-only, as in Codex's
+  default sandbox, setup also finishes: it leaves `.git/info/exclude` as it
+  is, and the summary gives the lines to add to it to keep setup's backups
+  and the settings file it created out of `git status`. When Codex's
+  `config.toml` or Graphicle's data folder cannot be written, the error
+  names it.
+- An issue whose title names a version (a level-1 heading such as "...
+  Version Check Preferences") lost every section under its title to the
+  environment-section rule, so the question came out empty and `graphicle
+  pack` refused it. A title or a heading that merely names a version now
+  stays, and a question that still comes out empty is ranked as written.
+  This was found before the release, in 18 of 633 issues of a public
+  software engineering benchmark.
+- Dependencies: zstd 0.14.3, zstd-safe 8.2.0 and zstd-sys 2.1.2, for
+  RUSTSEC-2026-0391, -0398, -0403 and -0410. zstd 0.13.3 and zstd-safe 7.3.0
+  stay: only jieba-rs 0.11.0 brings them in, through include-flate 0.3.4, to
+  unpack its built-in dictionaries, a path that does not reach the affected
+  functions, and each `deny.toml` says so for those three advisories.
+- `graphicle config set model ollama` reads `OLLAMA_HOST` when its scheme
+  is not lowercase (`HTTP://gpu.lan:11434`); it saved
+  `http://127.0.0.1:11434` instead (#12, by @rudycelekli).
+- `graphicle serve --port 80` accepts the `Host` header that browsers and
+  curl send without the default port (`127.0.0.1` or `localhost`); it
+  refused every such request as an unexpected host (#13, by @rudycelekli).
+- A memory library test failed now and then on macOS when tests ran in
+  parallel: two tests could make scratch folders of the same name, since
+  macOS clocks tick in microseconds. A per-process counter keeps them apart.
+
+### Docs
+
+- New pages:
+  [Packs](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/pack.md),
+  [Fix](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/fix.md),
+  [Review](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/review.md),
+  [See it, find it, fix it, check it](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/flow.md),
+  [Muse Code](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/muse-code.md),
+  and
+  [the whole-repository benchmark](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/docs/benchmarks/whole-repo.md):
+  its questions, arms and scorer, fixed before any model run; the context
+  recall of the pack without a model (a file counts when the pack holds any
+  of its text); and the cost of a question with the
+  prompt cache, computed at list prices and not billed. Its model runs have
+  not been made yet.
+- `docs/configuration.md` covers Muse Spark, prices, the spend log and the
+  caps; `docs/agents.md` covers Muse Code, and Claude Code and Codex on
+  Meta's models; `docs/mcp.md` covers the `pack` tool.
+- The README gives "Agent memory, compared" near the top, a still of
+  0.1.8's `graphicle setup` as its hero, the 0.1.8 chart of time per
+  question on kubernetes, and the new commands, and `docs/benchmarks.md`
+  gives the early pre-release memory runs on GPT models.
+- The benchmark kits are in the repository: `bench/whole-repo` (the
+  whole-repository benchmark), `bench/pixel` (pixel to code) and
+  `bench/muse-code` (Muse Code with and without the plugin, and the
+  two-session memory demo).
+
+### Packaging
+
+- `server.json` at the repository's root is the MCP Registry entry of
+  0.1.8, the latest listed release (it named 0.1.7). A release's entry is
+  committed after its listing, as
+  [packaging/mcpb/README.md](https://github.com/Graphicle-AI/graphicle/blob/v0.1.9/packaging/mcpb/README.md#steps-at-release-time)
+  describes.
+- `packaging/muse-code-plugin/` holds the Muse Code plugin as `graphicle
+  connect muse --hooks` writes it, and `packaging/github-action/` the
+  GitHub Action of `graphicle review`, whose scripts CI tests with
+  stand-ins.
+
 ## 0.1.8 - 2026-10-26
 
 Every crate is at 0.1.8, and `graphicle --version` prints

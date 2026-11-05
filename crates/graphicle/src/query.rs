@@ -71,6 +71,13 @@ pub const MORE_FILES_DEFAULT: usize = 10;
 /// after its excerpts.
 pub const MORE_FILES_FUSED: usize = 200;
 
+/// The internal `context` argument with which `graphicle pack` asks for the
+/// whole fused order of project-file passages (crate::pack); the packet then
+/// carries it under the same name.
+pub const PACK_RANKING: &str = "pack_ranking";
+/// Passages of the fused order `graphicle pack` reads.
+pub const PACK_FUSED: usize = 3000;
+
 /// Retrieval options that are on unless a call turns them off. An absent or
 /// `null` option takes its value here and is listed in the packet's
 /// `retrieval_defaults`; `false` turns it off. Porter-stemmed BM25 (Lucene's
@@ -1437,6 +1444,13 @@ fn context_impl(
     } else {
         fused_depth
     };
+    // `graphicle pack` reads a long fused order (crate::code_pack).
+    let fused_depth = if args[PACK_RANKING] == true {
+        rank_request["fused_cap"] = json!(PACK_FUSED);
+        PACK_FUSED
+    } else {
+        fused_depth
+    };
     if fused_depth > 0 {
         rank_request["debug_fused"] = json!(fused_depth);
     }
@@ -2188,6 +2202,17 @@ fn context_impl(
         Some(_) => json!({"status":"disabled"}),
         None => json!({"status":"not_requested"}),
     };
+    // Document excerpts whose passage names code that changed after it was
+    // written ([`crate::doc_stale`]): one note each. A failed read leaves the
+    // packet as it was and says so.
+    let stale_mentions = match doc_links {
+        Some(lookup) => crate::doc_stale::annotate(lookup, &mut hits)
+            .unwrap_or_else(|error| json!({"status":"error","error":error.message})),
+        None => json!({"status":"not_requested"}),
+    };
+    // Excerpts of a model-written wiki article ([`crate::project_wiki`])
+    // say so, and go after the code and docs they cite.
+    let wiki_articles = crate::project_wiki::annotate(documents, &mut hits);
     // Memories lifted through links follow the selected ones.
     let pack_memories: Vec<&Value> = selected_memories.iter().chain(&linked_memories).collect();
     if let Some(trace) = memory_trace.as_mut() {
@@ -2247,6 +2272,26 @@ fn context_impl(
     }
     let mut packet = crate::phase::phase("assemble_pack", || native("pack", pack_request))?;
     packet["question"] = json!(question);
+    // The fused order's project-file passages, as `graphicle pack` ranks
+    // them: [path, first line, last line] each, best first.
+    if args[PACK_RANKING] == true {
+        let order: Vec<Value> = ranked["fused"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(|id| by_id.get(id.as_str()?))
+            .filter(|row| s(&row["source"], "id").starts_with("file:"))
+            .filter(|row| !s(&row["source"], "path").is_empty())
+            .map(|row| {
+                json!([
+                    s(&row["source"], "path"),
+                    row["source"]["line"],
+                    row["source"]["end_line"]
+                ])
+            })
+            .collect();
+        packet[PACK_RANKING] = json!(order);
+    }
     if let Some(listed) = packet.as_object_mut().and_then(|p| p.remove("next_files")) {
         packet["more_files"] = listed;
     }
@@ -2409,6 +2454,10 @@ fn context_impl(
     packet["code_first"] = code_first_report;
     packet["query_focus"] = focus.report;
     packet["source_age"] = source_age;
+    packet["stale_mentions"] = stale_mentions;
+    if wiki_articles > 0 {
+        packet["wiki_articles"] = json!(wiki_articles);
+    }
     notes_report["defaulted"] = json!(notes_first_defaulted);
     packet[crate::notes_first::FIELD] = notes_report;
     if let Some(stemmer) = ranked.get("stemmer") {

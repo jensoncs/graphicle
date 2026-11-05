@@ -224,7 +224,7 @@ def test_cli_freeze_is_explicit_and_comparison_returns_failure(tmp_path):
 def test_manifest_is_portable_and_has_both_quality_dimensions():
     entries = quality.load_suite(quality.DEFAULT_SUITE)
     assert {e["kind"] for e in entries} == {"source", "memory"}
-    assert sum(len(p["queries"]) for e in entries for p in e["data"]["projects"]) == 169
+    assert sum(len(p["queries"]) for e in entries for p in e["data"]["projects"]) == 195
     assert {quality.project_language(p) for e in entries for p in e["data"]["projects"]} == {
         "python", "javascript", "typescript", "go", "java", "kotlin", "rust",
         "hcl", "yaml", "mixed:gotemplate+yaml", "bash"}
