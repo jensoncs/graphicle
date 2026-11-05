@@ -205,20 +205,25 @@ struct Facts {
 // Deterministic type-check failures can be reused for the exact admitted tree.
 // They remain failures. Never retain incomplete discovery, parse/read failures,
 // missing input inventories, or helper failures as compiler facts.
-fn cacheable_facts(facts: &Facts) -> bool {
-    !facts.worlds.is_empty() && facts.worlds.iter().all(|world| {
-        if world.issues.is_empty() { return true; }
+fn fact_cache_status(facts: &Facts) -> &'static str {
+    if facts.worlds.is_empty() { return "empty_worlds"; }
+    for world in &facts.worlds {
+        if world.issues.is_empty() { continue; }
         let packages: BTreeMap<_, _> = world.packages.iter().map(|p| (s(p,"path"), p)).collect();
-        !packages.is_empty() && world.inputs.iter().any(|i| i["role"] == "selected") && world.issues.iter().all(|reason| {
+        if packages.is_empty() { return "missing_packages"; }
+        if !world.inputs.iter().any(|i| i["role"] == "selected") { return "missing_selected_inputs"; }
+        if !world.issues.iter().all(|reason| {
             if let Some(package) = reason.strip_prefix("incomplete_package:") {
                 packages.contains_key(package)
             } else if let Some(package) = reason.strip_prefix("type_check_failed:") {
                 world.issues.iter().any(|r| r == &format!("incomplete_package:{package}"))
             } else { false }
-        }) && world.inputs.iter().filter(|i| i["role"] == "selected").all(|i| {
+        }) { return "non_cacheable_world_issue"; }
+        if !world.inputs.iter().filter(|i| i["role"] == "selected").all(|i| {
             packages.get(s(i,"package")).is_some_and(|p| p["files"].as_array().is_some_and(|files| files.iter().any(|file| file == &i["file"])))
-        })
-    })
+        }) { return "selected_input_not_in_package"; }
+    }
+    "cacheable"
 }
 
 struct Analysis {
@@ -371,8 +376,8 @@ pub(crate) fn validate_profile(profile: &Profile) -> Result<()> {
     }
     Ok(())
 }
-fn analyze(input: &Input, profile: &Profile, cached: Option<Value>, packages: &mut crate::review_cache::PackagePool) -> Result<Analysis> {
-    let mut out = analyze_go(input, profile, cached, packages)?;
+fn analyze(input: &Input, profile: &Profile, cached: Option<Value>, packages: &mut crate::review_cache::PackagePool, cache_key: &str) -> Result<Analysis> {
+    let mut out = analyze_go(input, profile, cached, packages, cache_key)?;
     basic::extend(input, &mut out)?;
     if out.symbols.len() > 200_000 {
         return Err(Error::bad("Review graph bound exceeded (200000 symbols)"));
@@ -380,7 +385,7 @@ fn analyze(input: &Input, profile: &Profile, cached: Option<Value>, packages: &m
     Ok(out)
 }
 
-fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages: &mut crate::review_cache::PackagePool) -> Result<Analysis> {
+fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages: &mut crate::review_cache::PackagePool, cache_key: &str) -> Result<Analysis> {
     let scope = go::scope(input)?;
     let roots = scope.roots;
     let mut out = Analysis {
@@ -400,6 +405,7 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     };
     out.issues.extend(scope.issues);
     if roots.is_empty() {
+        crate::phase::note("review_cache_eligibility", &format!("key={cache_key} status=no_go_roots"));
         out.analyzer = "source-only".into();
         out.toolchain = "none".into();
         return Ok(out);
@@ -422,6 +428,7 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     let mut raw = match raw {
         Ok(v) => v,
         Err(error) => {
+            crate::phase::note("review_cache_eligibility", &format!("key={cache_key} status=native_failure"));
             out.issues
                 .push(issue("compiler_analysis_unavailable", error.detail));
             return Ok(out);
@@ -436,9 +443,23 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
         graphicle::extractors::go_types::decode_review_facts(&raw)
     })
     .map_err(|_| Error::bad("Invalid bounded compiler facts"))?;
-    if cacheable_facts(&facts) {
-        out.raw = Some(raw);
+    let cache_status = fact_cache_status(&facts);
+    if crate::phase::enabled() {
+        // Fixed-size categories only: never log package names or source paths.
+        let mut causes: BTreeMap<&str, usize> = BTreeMap::new();
+        for reason in facts.worlds.iter().flat_map(|w| &w.issues) {
+            let category = reason.split(':').next().unwrap_or("");
+            let category = match category {
+                "incomplete_package" | "type_check_failed" | "incomplete_discovery"
+                | "external_package_unavailable" | "unreadable_source" | "unsupported_cgo"
+                | "invalid_package_metadata" | "source_outside_snapshot" => category,
+                _ => "other",
+            };
+            *causes.entry(category).or_default() += 1;
+        }
+        crate::phase::note("review_cache_eligibility", &format!("key={cache_key} status={cache_status} native_issues={}", json!(causes)));
     }
+    if cache_status == "cacheable" { out.raw = Some(raw); }
     out.analyzer = facts.analyzer;
     out.toolchain = facts.toolchain;
     for world in facts.worlds {
@@ -2152,19 +2173,22 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
             })
         })?;
     }
-    let identity = (!go::scope(&base)?.roots.is_empty() || !go::scope(&head)?.roots.is_empty()).then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
+    let has_go_roots = !go::scope(&base)?.roots.is_empty() || !go::scope(&head)?.roots.is_empty();
+    let identity = has_go_roots.then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
         .map(|v| crate::digest(&v));
     checkpoint()?;
+    crate::phase::note("review_cache_identity", if identity.is_some() { "status=available" } else if has_go_roots { "status=unavailable" } else { "status=no_go_roots" });
     let fact_key = |input: &Input| identity.as_ref().map(|identity| go::fact_key(input, &r.profile, identity));
     let key_a = fact_key(&base);
     let key_b = fact_key(&head);
-    let read_cache = |key: &Option<String>| -> Result<Option<(Value, String)>> {
+    let read_cache = |side: &str, key: &Option<String>| -> Result<Option<(Value, String)>> {
+        crate::phase::note("review_cache_side", &format!("side={side} key={}", key.as_deref().unwrap_or("unavailable")));
         match key {
             Some(key) => crate::review_cache::load(store, workspace, token, anchor, key),
             None => Ok(None),
         }
     };
-    let (cached_a, checksum_a) = read_cache(&key_a)?.unzip();
+    let (cached_a, checksum_a) = read_cache("base", &key_a)?.unzip();
     let hit_a = cached_a.is_some();
     let load_packages = || review_phase("review_load_package_cache", || {
         crate::review_cache::load_packages(store,workspace,token,anchor)
@@ -2175,12 +2199,13 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     let mut package_pool = if loaded_packages { load_packages()? } else { crate::review_cache::PackagePool::default() };
     package_pool.identity = identity.clone().unwrap_or_default();
     let mut a = review_phase("review_analyze_base", || {
-        analyze(&base, &r.profile, cached_a, &mut package_pool)
+        analyze(&base, &r.profile, cached_a, &mut package_pool, key_a.as_deref().unwrap_or("unavailable"))
     })?;
     let (cached_b, checksum_b) = if key_a.is_some() && key_a == key_b {
+        crate::phase::note("review_cache_side", &format!("side=head key={} shared_base={}", key_b.as_deref().unwrap_or("unavailable"), a.raw.is_some()));
         (a.raw.clone(), checksum_a.clone())
     } else {
-        read_cache(&key_b)?.unzip()
+        read_cache("head", &key_b)?.unzip()
     };
     let hit_b = cached_b.is_some();
     if identity.is_some() && !hit_b && !loaded_packages {
@@ -2188,7 +2213,7 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
         package_pool.identity = identity.clone().unwrap_or_default();
     }
     let mut b = review_phase("review_analyze_head", || {
-        analyze(&head, &r.profile, cached_b, &mut package_pool)
+        analyze(&head, &r.profile, cached_b, &mut package_pool, key_b.as_deref().unwrap_or("unavailable"))
     })?;
     review_phase("review_service_links_base", || services::attach(&base, &mut a))?;
     review_phase("review_service_links_head", || services::attach(&head, &mut b))?;
@@ -2294,7 +2319,7 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
         return Err(Error::bad("Review diagnostics exceed token budget"));
     }
     checkpoint()?;
-    store.authorized(workspace,token,"read",|db,p|{
+    let result = store.authorized(workspace,token,"read",|db,p|{
         checkpoint()?;
         store::repo(db,p,anchor)?;
         if let Some(previous)=&previous {check_receipt_access(db,p,previous)?;}
@@ -2324,6 +2349,9 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
             if input.bindings.len()==input.pins.len() {
                 crate::review_cache::save_packages(db,anchor,&mut package_pool,&analysis.package_cache.used,&input.pins)?;
             }
+            if input.bindings.len()!=input.pins.len() {
+                crate::phase::note("review_cache_write", &format!("key={} result=unbound_inputs", key.as_deref().unwrap_or("unavailable")));
+            }
             if input.bindings.len()==input.pins.len() && let (Some(key),Some(facts))=(key,&analysis.raw) {
                 crate::review_cache::save(db,anchor,key,facts,&input.pins,checksum.as_deref())?;
             }
@@ -2332,7 +2360,11 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
         db.execute("DELETE FROM repo_review_packets WHERE repository_id=? AND principal_hash=? AND id NOT IN (SELECT id FROM repo_review_packets WHERE repository_id=? AND principal_hash=? ORDER BY rowid DESC LIMIT 20)",params![anchor,p.hash,anchor,p.hash])?;
         checkpoint()?;
         Ok(report)
-    })
+    });
+    if result.is_ok() {
+        crate::phase::note("review_cache_commit", &format!("anchor={anchor} base_key={} head_key={} status=committed", key_a.as_deref().unwrap_or("unavailable"), key_b.as_deref().unwrap_or("unavailable")));
+    }
+    result
 }
 
 pub fn read_request(path: &Path) -> Result<Value> {
@@ -2587,7 +2619,7 @@ mod tests {
     #[test]
     fn only_inventory_backed_type_failures_are_cacheable() {
         let sample = json!({"analyzer":"fixture","toolchain":"go","worlds":[{"root":"app","symbols":[],"calls":[],"packages":[{"path":"app","files":["app/main.go"]}],"inputs":[{"file":"app/main.go","package":"app","role":"selected"}],"issues":["incomplete_package:app","type_check_failed:app"]}]});
-        let check = |value| cacheable_facts(&serde_json::from_value(value).unwrap());
+        let check = |value| fact_cache_status(&serde_json::from_value(value).unwrap()) == "cacheable";
         assert!(check(sample.clone()));
         for reason in ["incomplete_discovery:app","invalid_package_metadata","type_check_failed:other","unreadable_source"] {
             let mut bad = sample.clone(); bad["worlds"][0]["issues"][0] = json!(reason);
@@ -2595,6 +2627,28 @@ mod tests {
         }
         let mut absent = sample.clone(); absent["worlds"][0]["inputs"] = json!([]); assert!(!check(absent));
         let mut missing = sample; missing["worlds"][0]["packages"][0]["files"] = json!([]); assert!(!check(missing));
+    }
+
+    #[test]
+    fn fact_cache_status_distinguishes_native_gaps_without_using_impact() {
+        let sample = json!({"analyzer":"fixture","toolchain":"go","worlds":[{"root":"app","symbols":[],"calls":[],"packages":[{"path":"app","files":["app/main.go"]}],"inputs":[{"file":"app/main.go","package":"app","role":"selected"}],"issues":["incomplete_package:app","type_check_failed:app"]}]});
+        let status = |v| fact_cache_status(&serde_json::from_value(v).unwrap());
+        assert_eq!(status(sample.clone()), "cacheable");
+        let mut empty = sample.clone(); empty["worlds"] = json!([]);
+        assert_eq!(status(empty), "empty_worlds");
+        for (field, value, expected) in [
+            ("packages", json!([]), "missing_packages"),
+            ("inputs", json!([]), "missing_selected_inputs"),
+            ("issues", json!(["incomplete_discovery:app"]), "non_cacheable_world_issue"),
+            ("inputs", json!([{"file":"app/missing.go","package":"app","role":"selected"}]), "selected_input_not_in_package"),
+        ] {
+            let mut input = sample.clone(); input["worlds"][0][field] = value;
+            assert_eq!(status(input), expected);
+        }
+        let mut unresolved = sample;
+        unresolved["worlds"][0]["issues"] = json!([]);
+        unresolved["worlds"][0]["calls"] = json!([{"caller":"Use","spelling":"v.Get","file":"app/main.go","start":0,"end":1,"line":1,"relation":"calls","target_offset":0,"reason":"interface_dispatch"}]);
+        assert_eq!(status(unresolved), "cacheable");
     }
 
     #[test]

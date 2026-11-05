@@ -1469,3 +1469,60 @@ These are synthetic precision measurements, not production completion rates or
 latency results. No deployment or production PR re-probe occurred. Sentinel can
 use the updated binary without a protocol change; the same-PR production probe
 is still needed to measure how often these receiver shapes occur in practice.
+
+## Whole-side cache and soak diagnostics — 2026-11-05
+
+The reported metadata-service and Nexus priming misses do not establish that an
+`incomplete` impact verdict prevents caching. The eligibility policy on
+`48e98163` and `9289e1d` is the same: unresolved interface calls and
+inventory-backed deterministic type-check failures can be cached; failed
+discovery and missing input inventories cannot. This change preserves that
+policy and adds opt-in cache decision traces to `GRAPHICLE_PHASE_TIMINGS=1`.
+
+The confirmed benchmark bug was that the second priming response was validated
+before being saved. A failed cache assertion therefore discarded the most useful
+response and stopped later repositories from running. The benchmark now saves
+both responses and logs before validation, records the failure, runs the next
+case, and exits nonzero with `complete: false`. Warm-cache, pin, packet-equality
+and budget assertions remain enforced.
+
+For a failed case, retain its `server/prime-request.json`, `prime.json`,
+`prime-verify.json`, `prime.log`, `prime-verify.log`, `prime-failure.json` and
+`server.log`, when available, together with `summary.json` and the captured
+store. Match the base/head fact keys to lookup, eligibility and write events.
+Pending writes only count as committed after `review_cache_commit`; that marker
+does not imply every side was cacheable. See the cache diagnostics in
+[pinned-review.md](../pinned-review.md#reuse-compiler-facts).
+
+Validation uses `9289e1d` plus this working-tree change. The tested release
+binary SHA-256 is
+`cd83ea42fbd81cc9693bc6ee2fb1a8947fa4fc0a352f6523be7e87f0e9185eb4`.
+The targeted Rust cache eligibility/persistence tests passed (3), as did the
+service tests (2): same-store snapshot context and native-child deadline
+cancellation followed by recovery and a warm hit.
+
+All five soak regression tests passed (179.3 seconds locally):
+
+- A 5,001-file capture uses multipart admission, primes a cold base, and
+  completes ten CLI/server packet comparisons, including concurrent requests.
+- A missing-dependency case deliberately fails priming, retains both responses
+  and refusal diagnostics, and allows the next case to run. The following
+  unresolved-interface case completes ten CLI/server comparisons with equal
+  packets and `incomplete` impact throughout; its identical priming replay hits
+  both whole-side caches. The overall benchmark correctly remains failed.
+- Protocol checks preserve evidence on cache assertions, phase-log failures and
+  transport errors, while retaining manifest, pin, cache-state and budget checks.
+
+Reproduce the runtime checks with the candidate binary:
+
+```sh
+GRAPHICLE_BIN=/path/to/new/graphicle \
+  python3 -m unittest discover -s crates/graphicle/tests -p test_review_soak.py -v
+GRAPHICLE_BIN=/path/to/new/graphicle \
+  python3 -m unittest discover -s crates/graphicle/tests -p test_review_service.py -v
+```
+
+The reported four-repository soak artifacts were unavailable locally. These
+checks do not diagnose the actual metadata-service/Nexus misses or establish
+their production memory and latency limits. Sentinel still needs to rerun those
+cases and retain the diagnostics above; no production deployment was performed.

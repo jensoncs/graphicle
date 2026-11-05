@@ -111,7 +111,12 @@ def batch_log(work, offset, count):
         with (work / 'server.log').open() as stream:
             stream.seek(offset)
             log = stream.read()
-        if len(re.findall(r'^phase=review_pack ', log, re.MULTILINE)) == count:
+        packed = len(re.findall(r'^phase=review_pack ', log, re.MULTILINE)) == count
+        # New builds emit a final cache marker after the transaction commits.
+        # Older binaries still use the packing marker for compatibility.
+        committed = ('phase=review_cache_identity ' not in log or
+                     len(re.findall(r'^phase=review_cache_commit ', log, re.MULTILINE)) == count)
+        if packed and committed:
             assert 'phase=graph_' not in log, 'Unexpected background graph work'
             return log
         if time.monotonic() >= until:
@@ -130,24 +135,37 @@ def check(packet, request, *, base_hit=True, head_hit=False):
 
 def prime_cache(client, work, request):
     """Untimed warmup works with cold captures; verify both sides before cloning."""
-    offset = (work / 'server.log').stat().st_size
-    packet, elapsed = call(client, request)
-    check(packet, request, base_hit=None, head_hit=None)
-    log = batch_log(work, offset, 1)
-    save(work / 'prime.json', packet)
-    (work / 'prime.log').write_text(log)
-    stats = {'seconds': elapsed, 'analysis_cache': packet['analysis_cache'], **log_stats(log)}
-
-    offset = (work / 'server.log').stat().st_size
-    verified, elapsed = call(client, request)
-    check(verified, request, base_hit=True, head_hit=True)
-    assert canonical(verified) == canonical(packet), 'Warmup replay changed the packet'
-    log = batch_log(work, offset, 1)
-    save(work / 'prime-verify.json', verified)
-    (work / 'prime-verify.log').write_text(log)
-    stats['verification'] = {'seconds': elapsed, 'analysis_cache': verified['analysis_cache'],
-                             'packet_equal': True, **log_stats(log)}
-    return stats
+    save(work / 'prime-request.json', request)
+    stage = 'prime'
+    offset = 0
+    try:
+        stats = {}
+        for stage in ['prime', 'prime-verify']:
+            offset = (work / 'server.log').stat().st_size
+            packet, elapsed = call(client, request)
+            # Persist before every assertion, including missing phase logs and
+            # unsuccessful cache priming. A failed probe is useful evidence.
+            save(work / f'{stage}.json', packet)
+            log = batch_log(work, offset, 1)
+            (work / f'{stage}.log').write_text(log)
+            check(packet, request, base_hit=None if stage == 'prime' else True,
+                  head_hit=None if stage == 'prime' else True)
+            measured = {'seconds': elapsed, 'analysis_cache': packet['analysis_cache'], **log_stats(log)}
+            if stage == 'prime':
+                stats, initial = measured, canonical(packet)
+            else:
+                assert canonical(packet) == initial, 'Warmup replay changed the packet'
+                stats['verification'] = {**measured, 'packet_equal': True}
+        return stats
+    except Exception as error:
+        # Preserve the raw available log even if batch_log itself failed.
+        with (work / 'server.log').open() as stream:
+            stream.seek(offset)
+            (work / f'{stage}.log').write_text(stream.read())
+        save(work / 'prime-failure.json', {'stage': stage, 'error_type': type(error).__name__,
+                                         'error': str(error)[:2048], 'code': getattr(error, 'code', None),
+                                         'status': getattr(error, 'status', None)})
+        raise
 
 
 def main():
@@ -166,6 +184,7 @@ def main():
     config = root / 'models.json'
     save(config, {'models': {}})
     result = {'binary_sha256': sha(binary), 'cases': {}, 'rows': [], 'batches': [], 'complete': False}
+    save(root / 'summary.json', result)
     for case_index, case in enumerate(cases):
         name = case['name']
         folder = root / name
@@ -179,13 +198,21 @@ def main():
             requests = prepare_heads(client, work, case)
             jobs = job_state(work / 'store')
             assert len(jobs) > len(prior_jobs)
-            priming = prime_cache(client, work, requests[0])
+            try:
+                priming = prime_cache(client, work, requests[0])
+            except Exception as error:
+                result['cases'][name] = {'status': 'priming_failed', 'error_type': type(error).__name__,
+                                         'error': str(error)[:2048], 'code': getattr(error, 'code', None),
+                                         'status_code': getattr(error, 'status', None), 'artifacts': str(work)}
+                save(root / 'summary.json', result)
+                print(name, 'priming failed; preserved responses and logs', flush=True)
+                continue
             assert job_state(work / 'store') == jobs
             digest = cache_digest(work / 'store')
             for index in range(1, 11):
                 clone_store(work / 'store', folder / f'cli-{index}' / 'store')
                 assert cache_digest(folder / f'cli-{index}' / 'store') == digest
-            result['cases'][name] = {'base': requests[0]['base'], 'profile': requests[0]['profile'],
+            result['cases'][name] = {'status': 'running', 'base': requests[0]['base'], 'profile': requests[0]['profile'],
                 'heads': [r['head'] for r in requests], 'edit_path': case['edit_path'],
                 'max_tokens': requests[0]['max_tokens'], 'synthetic_heads': True,
                 'initial_cache_digest': digest, 'queued_jobs_preserved': len(jobs),
@@ -239,8 +266,11 @@ def main():
                         assert job_state(work / 'store') == jobs
             assert client.usage()['model_usage']['calls'] == 0
             assert job_state(work / 'store') == jobs
-    result['complete'] = True
+            result['cases'][name]['status'] = 'passed'
+    result['complete'] = all(case['status'] == 'passed' for case in result['cases'].values())
     save(root / 'summary.json', result)
+    if not result['complete']:
+        raise RuntimeError('Some cases failed priming; see summary.json and per-case artifacts')
 
 
 if __name__ == '__main__':

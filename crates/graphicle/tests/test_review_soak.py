@@ -8,18 +8,53 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[3]
 TOOLS = ROOT / 'crates/graphicle/tools'
 sys.path.insert(0, str(TOOLS))
 from benchmark_pinned_review import LocalServer
 from benchmark_review_cache_reuse import cache_counts, environment
-from benchmark_review_soak import check, job_state, prepare_manifest
+from benchmark_review_soak import check, job_state, prepare_manifest, prime_cache
 
 BINARY = Path(os.environ.get('GRAPHICLE_BIN', ROOT / 'crates/graphicle/target/debug/graphicle')).resolve()
 
 
 class ProtocolChecks(unittest.TestCase):
+    def test_failed_priming_preserves_responses_request_logs_and_error(self):
+        for failure in ['cache_miss', 'phase_log', 'transport']:
+            with self.subTest(failure=failure), tempfile.TemporaryDirectory() as tmp:
+                work = Path(tmp)
+                log_path = work / 'server.log'
+                log_path.write_text('')
+                request = {'base': ['base'], 'head': ['head'], 'max_tokens': 8000}
+                packet = {**request, 'tokens': 100, 'analysis_cache': {'base_hit': False, 'head_hit': False}}
+                calls = 0
+
+                class Client:
+                    def command(self, operation, **args):
+                        nonlocal calls
+                        calls += 1
+                        with log_path.open('a') as log:
+                            log.write(f'phase=review_pack ms=1 round={calls}\n')
+                        if calls == 2 and failure == 'transport':
+                            raise RuntimeError('transport failed')
+                        return copy.deepcopy(packet)
+
+                def logs(*args):
+                    if calls == 2 and failure == 'phase_log':
+                        raise RuntimeError('Missing review phases')
+                    return 'phase=review_pack ms=1\n'
+
+                with patch('benchmark_review_soak.batch_log', side_effect=logs), self.assertRaises((AssertionError, RuntimeError)):
+                    prime_cache(Client(), work, request)
+                self.assertEqual(json.loads((work / 'prime-request.json').read_text()), request)
+                self.assertEqual(json.loads((work / 'prime.json').read_text()), packet)
+                if failure != 'transport':
+                    self.assertEqual(json.loads((work / 'prime-verify.json').read_text()), packet)
+                self.assertIn('round=2', (work / 'prime-verify.log').read_text())
+                self.assertEqual(json.loads((work / 'prime-failure.json').read_text())['stage'], 'prime-verify')
+
     def test_manifest_boundaries_preserve_first_part_metadata_and_continuation(self):
         class Client:
             def __init__(self):
@@ -64,6 +99,53 @@ class ProtocolChecks(unittest.TestCase):
 
 @unittest.skipUnless(BINARY.is_file(), 'build graphicle or set GRAPHICLE_BIN')
 class LargeColdCapture(unittest.TestCase):
+    def test_uncacheable_case_is_preserved_and_next_incomplete_case_still_runs(self):
+        from investigate_review_coverage import admit, MOD, PROFILE
+        with tempfile.TemporaryDirectory(prefix='graphicle-mixed-soak-') as tmp:
+            root = Path(tmp)
+            store = root / 'captured-store'
+            config = root / 'models.json'
+            config.write_text('{"models":{}}')
+            cases = []
+            with LocalServer(BINARY, store, config, env=environment(root), serve_args=['--no-worker'], timeout=150) as client:
+                for name, code in [
+                    ('missing-dependency', 'package app\nimport "example.invalid/missing"\nfunc Changed() int { return missing.Value(NUMBER) }\n'),
+                    ('interface-gap', 'package app\ntype Value interface { Get() int }\nfunc Changed(v Value) int { return v.Get()+NUMBER }\n'),
+                ]:
+                    project = client.project(name)
+                    pins = [admit(project, {'go.mod': MOD, 'main.go': code.replace('NUMBER', str(n))}, str(n) * 40)
+                            | {'modules': ['.']} for n in [1, 2]]
+                    request_path = root / f'{name}.json'
+                    request_path.write_text(json.dumps({'repository_id': project.id, 'base': [pins[0]], 'head': [pins[1]],
+                                                       'profile': {**PROFILE, 'tags': []}, 'max_tokens': 8000}))
+                    cases.append({'name': name, 'seed_store': str(store), 'next_request': str(request_path), 'edit_path': 'main.go'})
+            case_path = root / 'cases.json'
+            case_path.write_text(json.dumps(cases))
+            output = root / 'soak'
+            run = subprocess.run([sys.executable, str(TOOLS / 'benchmark_review_soak.py'), '--binary', str(BINARY),
+                                  '--cases', str(case_path), '--output', str(output)], capture_output=True, text=True, timeout=300)
+            self.assertNotEqual(run.returncode, 0, run.stdout)
+            result = json.loads((output / 'summary.json').read_text())
+            self.assertFalse(result['complete'])
+            self.assertEqual(result['cases']['missing-dependency']['status'], 'priming_failed', run.stdout + run.stderr)
+            self.assertEqual(result['cases']['interface-gap']['status'], 'passed', run.stdout + run.stderr)
+            self.assertEqual(len(result['rows']), 20)
+            self.assertTrue(all(r['packet_equal'] and r['impact'] == 'incomplete' for r in result['rows']))
+            failed = output / 'missing-dependency/server'
+            for name in ['prime.json', 'prime-verify.json', 'prime-failure.json', 'prime.log', 'prime-verify.log']:
+                self.assertTrue((failed / name).is_file(), name)
+            cold = json.loads((failed / 'prime.json').read_text())
+            repeated = json.loads((failed / 'prime-verify.json').read_text())
+            self.assertFalse(cold['analysis_cache']['base_hit'])
+            self.assertFalse(repeated['analysis_cache']['base_hit'])
+            trace = (failed / 'prime-verify.log').read_text()
+            self.assertIn('status=non_cacheable_world_issue', trace)
+            self.assertIn('result=not_found', trace)
+            self.assertIn('phase=review_cache_commit ', trace)
+            warm = (output / 'interface-gap/server/prime-verify.log').read_text()
+            self.assertIn('result=hit', warm)
+            self.assertIn('status=cacheable', warm)
+
     def test_full_soak_accepts_multipart_manifest_and_warms_cold_base(self):
         with tempfile.TemporaryDirectory(prefix='graphicle-large-cold-soak-') as tmp:
             root = Path(tmp)

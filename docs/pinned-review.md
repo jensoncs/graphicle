@@ -784,6 +784,39 @@ requests requires a retained store.
 Discovery/parser/helper failures remain uncached. This cache does not admit
 missing dependency source.
 
+With `GRAPHICLE_PHASE_TIMINGS=1`, stderr also explains whole-side cache decisions:
+
+- `review_cache_identity` reports whether the native identity is available.
+- `review_cache_side` associates base/head with a fact key; `shared_base` marks
+  head facts reused directly from the base analysis within this request.
+- `review_cache_lookup` reports `hit`, `not_found`, `input_unavailable`,
+  `checksum_mismatch`, or `invalid_encoding` (which fails the request).
+- `review_cache_eligibility` reports `cacheable`, `empty_worlds`,
+  `missing_packages`, `missing_selected_inputs`, `non_cacheable_world_issue`,
+  `selected_input_not_in_package`, `native_failure`, or `no_go_roots`.
+  `native_issues` counts bounded native issue categories without package names
+  or source paths. Unresolved interface calls and the packet's `incomplete`
+  verdict do not themselves prevent caching.
+- `review_cache_write` distinguishes `oversized` and `unbound_inputs` from
+  `write_pending_commit` / `refresh_pending_commit`; successful writes also
+  report the number of evicted fact sets. `review_cache_commit` is emitted only
+  after the final authorized transaction succeeds. A commit marker alone does
+  not mean facts were eligible or written.
+
+Compare keys across identical requests. Repeated `not_found` with a refused
+eligibility status identifies a deliberate cache refusal. Different keys mean
+the compiler identity or keyed inputs changed. If a write committed and a later
+lookup of the same key misses, inspect eviction, snapshot retention and store
+identity; the miss alone does not distinguish them. These opt-in diagnostics
+change neither the packet schema nor cache eligibility.
+
+The soak benchmark preserves `prime-request.json`, `prime.json`,
+`prime-verify.json`, `prime.log`, `prime-verify.log`, and `prime-failure.json`
+when available, plus the full `server.log`. It saves responses before validating
+priming. A priming failure is recorded in `summary.json` and the next case runs;
+the overall run remains incomplete and exits nonzero. Keep these artifacts with
+the captured store to diagnose misses without relaxing the warm-cache checks.
+
 Successful dependency packages, including standard-library packages, additionally
 retain serialized Go types in the same store. This package pool is scoped to the
 anchor repository: at most 4,096 compressed exports / 64 MiB, with at most 4 MiB

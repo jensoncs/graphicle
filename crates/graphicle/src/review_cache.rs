@@ -14,6 +14,10 @@ const PACKAGE_BYTES: usize = 64 * 1024 * 1024;
 const PACKAGE_ENTRY_BYTES: usize = 4 * 1024 * 1024;
 const PACKAGE_COUNT: usize = 4096;
 
+fn cache_note(action: &str, anchor: &str, key: &str, result: &str) {
+    crate::phase::note(action, &format!("anchor={anchor} key={key} result={result}"));
+}
+
 /// The bounded package pool is scoped to an authorized anchor repository.
 /// Package keys are independently recomputed from the current native build.
 #[derive(Default)]
@@ -138,13 +142,21 @@ pub(crate) fn load(
 ) -> Result<Option<(Value, String)>> {
     store.authorized_read(workspace, token, "read", |db, principal| {
         store::repo(db, principal, anchor)?;
-        let Some(row) = store::one(db, "SELECT facts,sha256 FROM repo_review_analysis WHERE repository_id=? AND id=?", params![anchor,key])? else {return Ok(None)};
+        let Some(row) = store::one(db, "SELECT facts,sha256 FROM repo_review_analysis WHERE repository_id=? AND id=?", params![anchor,key])? else {
+            cache_note("review_cache_lookup",anchor,key,"not_found");
+            return Ok(None)
+        };
         for input in store::rows(db,"SELECT input_repository FROM repo_review_analysis_inputs WHERE repository_id=? AND id=?",params![anchor,key])? {
-            if store::repo(db,principal,s(&input,"input_repository")).is_err() {return Ok(None)}
+            if store::repo(db,principal,s(&input,"input_repository")).is_err() {
+                cache_note("review_cache_lookup",anchor,key,"input_unavailable");
+                return Ok(None)
+            }
         }
-        let facts:Value=serde_json::from_str(s(&row,"facts"))?;
+        let facts:Value=serde_json::from_str(s(&row,"facts")).inspect_err(|_| cache_note("review_cache_lookup",anchor,key,"invalid_encoding"))?;
         let sha = s(&row,"sha256");
-        Ok((crate::digest(&facts)==sha).then(|| (facts,sha.to_owned())))
+        let valid = crate::digest(&facts)==sha;
+        cache_note("review_cache_lookup",anchor,key,if valid {"hit"} else {"checksum_mismatch"});
+        Ok(valid.then(|| (facts,sha.to_owned())))
     })
 }
 
@@ -166,13 +178,17 @@ pub(crate) fn save(
     if !refreshed {
         let encoded = facts.to_string();
         // Match the native transport bound; facts use gzip/base64 here.
-        if encoded.len() > 64 * 1024 * 1024 { return Ok(()); }
+        if encoded.len() > 64 * 1024 * 1024 {
+            cache_note("review_cache_write",anchor,key,"oversized");
+            return Ok(());
+        }
         db.execute("INSERT INTO repo_review_analysis(repository_id,id,facts,sha256,used_at) VALUES(?,?,?,?,?) ON CONFLICT(repository_id,id) DO UPDATE SET facts=excluded.facts,sha256=excluded.sha256,used_at=excluded.used_at",params![anchor,key,encoded,crate::digest(facts),crate::now()])?;
     }
     for pin in pins {
         db.execute("INSERT OR IGNORE INTO repo_review_analysis_inputs(repository_id,id,input_repository,snapshot) VALUES(?,?,?,?)",params![anchor,key,pin.repository_id,pin.snapshot])?;
     }
-    db.execute("DELETE FROM repo_review_analysis WHERE repository_id=? AND id NOT IN (SELECT id FROM repo_review_analysis WHERE repository_id=? ORDER BY used_at DESC,rowid DESC LIMIT 4)",params![anchor,anchor])?;
+    let evicted = db.execute("DELETE FROM repo_review_analysis WHERE repository_id=? AND id NOT IN (SELECT id FROM repo_review_analysis WHERE repository_id=? ORDER BY used_at DESC,rowid DESC LIMIT 4)",params![anchor,anchor])?;
+    cache_note("review_cache_write",anchor,key,&format!("{} evicted={evicted}", if refreshed {"refresh_pending_commit"} else {"write_pending_commit"}));
     Ok(())
 }
 
