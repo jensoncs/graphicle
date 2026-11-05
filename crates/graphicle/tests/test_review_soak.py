@@ -140,6 +140,8 @@ class LargeColdCapture(unittest.TestCase):
             self.assertFalse(repeated['analysis_cache']['base_hit'])
             trace = (failed / 'prime-verify.log').read_text()
             self.assertIn('status=non_cacheable_world_issue', trace)
+            self.assertIn('"unavailable_external_package":', trace)
+            self.assertNotIn('"other":', trace)
             self.assertIn('result=not_found', trace)
             self.assertIn('phase=review_cache_commit ', trace)
             warm = (output / 'interface-gap/server/prime-verify.log').read_text()

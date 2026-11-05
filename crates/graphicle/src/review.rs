@@ -41,6 +41,8 @@ mod flows;
 mod environment;
 #[path = "review_basic.rs"]
 mod basic;
+#[path = "review_packing.rs"]
+mod packing;
 #[path = "review_provenance.rs"]
 mod provenance;
 #[path = "review_diff_context.rs"]
@@ -417,7 +419,7 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
             crate::digest(&go::with_exclusions(json!({"identity":packages.identity,"profile":profile,
                 "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.policy_sha256])).collect::<Vec<_>>()}),input))
         };
-        let request = json!({"roots":roots,"goos":profile.goos,"goarch":profile.goarch,"tags":profile.tags,"tests":profile.tests,"workspace":profile.workspace,
+        let request = json!({"trace_key":cache_key,"roots":roots,"goos":profile.goos,"goarch":profile.goarch,"tags":profile.tags,"tests":profile.tests,"workspace":profile.workspace,
             "cache_identity":cache_identity,"package_cache":packages.entries});
         let tree = review_phase("review_materialize", || go::materialize(input))?;
         crate::phase::phase("review_native_facts", || {
@@ -437,7 +439,10 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     if let Some(encoded) = raw.as_object_mut().and_then(|o| o.remove("dependency_cache")) {
         // Optional compiler-cache transport never substitutes for source facts.
         out.package_cache = serde_json::from_value(encoded).unwrap_or_default();
-        packages.absorb(&mut out.package_cache);
+        let stats = packages.absorb(&mut out.package_cache);
+        if crate::phase::enabled() {
+            crate::phase::note("review_package_cache_absorb", &format!("key={cache_key} stats={stats}"));
+        }
     }
     let facts: Facts = crate::phase::phase("review_decode_facts", || {
         graphicle::extractors::go_types::decode_review_facts(&raw)
@@ -451,8 +456,10 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
             let category = reason.split(':').next().unwrap_or("");
             let category = match category {
                 "incomplete_package" | "type_check_failed" | "incomplete_discovery"
-                | "external_package_unavailable" | "unreadable_source" | "unsupported_cgo"
-                | "invalid_package_metadata" | "source_outside_snapshot" => category,
+                | "unavailable_external_package" | "unreadable_source" | "unsupported_cgo"
+                | "invalid_package_metadata" | "source_outside_snapshot"
+                | "unsafe_or_invalid_module_configuration" | "package_discovery_failed"
+                | "unsupported_architecture" => category,
                 _ => "other",
             };
             *causes.entry(category).or_default() += 1;
@@ -1309,8 +1316,8 @@ fn unsupported_source_cause(path: &str, content: &str) -> Option<&'static str> {
     (graphicle::analyze::file_category(path) == "code").then_some("code_extension")
 }
 
-/// Optional candidates are costed only against the remaining allowance. A
-/// failed bounded count is a lower bound, never an estimated exact cost.
+/// Optional candidates are costed only against the remaining allowance. Exact
+/// here means the fixed-identifier selection charge, not the final wire count.
 #[derive(Default)]
 struct PackingCost {
     exact: Option<usize>,
@@ -1318,17 +1325,17 @@ struct PackingCost {
 }
 impl PackingCost {
     fn measured(entry: &Value) -> Self {
-        Self { exact: Some(text::count(&entry.to_string()) + text::count(&entry["id"].to_string()) + 24), exceeds: 0 }
+        Self { exact: Some(packing::count(&entry.to_string()) + packing::count(&entry["id"].to_string()) + 24), exceeds: 0 }
     }
     fn exact(&mut self, entry: &Value) -> usize {
-        *self.exact.get_or_insert_with(|| text::count(&entry.to_string()) + text::count(&entry["id"].to_string()) + 24)
+        *self.exact.get_or_insert_with(|| packing::count(&entry.to_string()) + packing::count(&entry["id"].to_string()) + 24)
     }
     fn within(&mut self, entry: &Value, limit: usize) -> Option<usize> {
         if let Some(cost) = self.exact { return (cost <= limit).then_some(cost); }
         if limit <= self.exceeds { return None; }
-        let overhead = text::count(&entry["id"].to_string()) + 24;
+        let overhead = packing::count(&entry["id"].to_string()) + 24;
         if let Some(remaining) = limit.checked_sub(overhead)
-            && let Some(cost) = text::count_within(&entry.to_string(), remaining)
+            && let Some(cost) = packing::count_within(&entry.to_string(), remaining)
         {
             self.exact = Some(cost + overhead);
             return self.exact;
@@ -1543,7 +1550,7 @@ fn pack_encoding(
     report["coverage"]["budget_omitted_entries"] = json!(0);
     report["coverage"]["budget_omitted_diffs"] = json!(0);
     report["coverage"]["packing"] = json!({"policy":if supplemental {"additional_context_then_overlap_v1"} else {"semantic_priority_then_graph_distance_v1"},
-        "metadata_tokens":0,"control_reserve_tokens":384,"first_entry_tokens":null,
+        "cost_model":"fixed_hex_identifiers_v1","metadata_tokens":0,"control_reserve_tokens":384,"first_entry_tokens":null,
         "first_omitted_rank":null,"last_selected_rank":null});
     report["coverage"]["current_head"] =
         json!({"required":required_head,"selected":0,"usable":required_head==0});
@@ -1560,7 +1567,9 @@ fn pack_encoding(
     let mut contracts = vec![];
     let mut callers = vec![];
     entries.sort_by_key(|e| (entry_distance(e), s(e, "file").to_owned(),
-        e["line"].as_u64().unwrap_or(0), s(e, "id").to_owned()));
+        e["line"].as_u64().unwrap_or(0), s(e, "side").to_owned(),
+        s(e, "name").to_owned(), e["byte_start"].as_u64().unwrap_or(0),
+        s(&e["package_binding"], "consumer_build").to_owned(), s(e, "symbol_id").to_owned()));
     for entry in entries {
         if is_call_contract(&entry) {
             contracts.push(entry);
@@ -1643,7 +1652,7 @@ fn pack_encoding(
         .filter(|(_, e, _)| is_required_code(e))
         .flat_map(|(_, e, _)| provenance.references(e, flow_annotations.get(s(e, "id"))))
         .collect::<BTreeSet<_>>();
-    let metadata_cost = text::count(&report.to_string()) + 384;
+    let metadata_cost = packing::count(&report.to_string()) + 384;
     // Reserve room for whole history blocks when requested, before spending
     // tokens on repeated change/path examples. This never removes source text.
     let history_reserve = if business.is_empty() || supplemental { 0 } else { max_tokens / 8 };
@@ -1659,13 +1668,13 @@ fn pack_encoding(
         .filter_map(|(_, _, cost)| cost.exact).min();
     if let Some(cost) = minimum_entry_cost
         && cost < max_tokens
-        && text::count(&report.to_string()) + 384 + cost > max_tokens
+        && packing::count(&report.to_string()) + 384 + cost > max_tokens
     {
         diagnostics::compact_examples(&mut report["coverage"]);
     }
-    let metadata_tokens = text::count(&report.to_string());
+    let metadata_tokens = packing::count(&report.to_string());
     report["coverage"]["packing"]["metadata_tokens"] = json!(metadata_tokens);
-    let mut used = text::count(&report.to_string()) + 384;
+    let mut used = packing::count(&report.to_string()) + 384;
     let requested_diff_reserve = if supplemental { 0 } else { candidates.iter().filter(|(c, _, _)| *c == "diffs").map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>().min(max_tokens / 4) };
     let head_cost = candidates.iter().filter(|(_, e, _)| is_head_change(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
     let contract_cost = candidates.iter().filter(|(_, e, _)| is_call_contract(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
@@ -1974,7 +1983,7 @@ fn fit_business_context(
     // Within the same evidence/side priority, prefer affordable complete
     // blocks. This covers more changed declarations without clipping patches
     // or dropping the history sample's continuity and omission metadata.
-    let costs: BTreeMap<_, _> = order.iter().map(|i| (*i, text::count(&contexts[s(&candidates[*i].1, "id")].to_string()))).collect();
+    let costs: BTreeMap<_, _> = order.iter().map(|i| (*i, packing::count(&contexts[s(&candidates[*i].1, "id")].to_string()))).collect();
     order.sort_by_key(|i| {
         let entry = &candidates[*i].1;
         let history = analyzed(&contexts[s(entry, "id")]);
@@ -1996,7 +2005,7 @@ fn fit_business_context(
         enriched.as_object_mut().unwrap().remove("revision");
         enriched["revision"] = json!(crate::digest(&enriched));
         let enriched_cost =
-            text::count(&enriched.to_string()) + text::count(&enriched["id"].to_string()) + 24;
+            packing::count(&enriched.to_string()) + packing::count(&enriched["id"].to_string()) + 24;
         let extra = enriched_cost.saturating_sub(base_cost);
         if used + extra <= allowance {
             used += extra;
@@ -2190,13 +2199,13 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     };
     let (cached_a, checksum_a) = read_cache("base", &key_a)?.unzip();
     let hit_a = cached_a.is_some();
-    let load_packages = || review_phase("review_load_package_cache", || {
-        crate::review_cache::load_packages(store,workspace,token,anchor)
+    let load_packages = |key: &Option<String>| review_phase("review_load_package_cache", || {
+        crate::review_cache::load_packages(store,workspace,token,anchor,key.as_deref().unwrap_or("unavailable"))
     });
     // Full cached facts need no dependency exports. Keep one shared pool for
     // native misses so base-created exports still accelerate head analysis.
     let loaded_packages = identity.is_some() && !hit_a;
-    let mut package_pool = if loaded_packages { load_packages()? } else { crate::review_cache::PackagePool::default() };
+    let mut package_pool = if loaded_packages { load_packages(&key_a)? } else { crate::review_cache::PackagePool::default() };
     package_pool.identity = identity.clone().unwrap_or_default();
     let mut a = review_phase("review_analyze_base", || {
         analyze(&base, &r.profile, cached_a, &mut package_pool, key_a.as_deref().unwrap_or("unavailable"))
@@ -2209,7 +2218,7 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     };
     let hit_b = cached_b.is_some();
     if identity.is_some() && !hit_b && !loaded_packages {
-        package_pool = load_packages()?;
+        package_pool = load_packages(&key_b)?;
         package_pool.identity = identity.clone().unwrap_or_default();
     }
     let mut b = review_phase("review_analyze_head", || {
@@ -2347,7 +2356,10 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
         }
         for (input,analysis,key,checksum) in [(&base,&a,&key_a,&checksum_a),(&head,&b,&key_b,&checksum_b)] {
             if input.bindings.len()==input.pins.len() {
-                crate::review_cache::save_packages(db,anchor,&mut package_pool,&analysis.package_cache.used,&input.pins)?;
+                let stats = crate::review_cache::save_packages(db,anchor,&mut package_pool,&analysis.package_cache.used,&input.pins)?;
+                if crate::phase::enabled() {
+                    crate::phase::note("review_package_cache_save", &format!("anchor={anchor} key={} stats={stats}", key.as_deref().unwrap_or("unavailable")));
+                }
             }
             if input.bindings.len()!=input.pins.len() {
                 crate::phase::note("review_cache_write", &format!("key={} result=unbound_inputs", key.as_deref().unwrap_or("unavailable")));
@@ -2415,6 +2427,48 @@ pub fn properties() -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn packing_is_independent_of_store_ids_at_budget_boundaries() {
+        let report = |hex: &str| {
+            let entries: Vec<_> = (0..12).map(|i| json!({
+                "id":format!("{}{i:02x}", &hex[..62]),"revision":hex,
+                "repository_id":&hex[..32],"symbol_id":format!("symbol-{i}"),
+                "file":"same.go","line":1,"name":format!("Function{i:02}"),"side":"head",
+                "package_binding":{"instance":hex,"content_instance":hex,"consumer_build":"app"},
+                "review_basis":{"scope":hex,"complete":false},
+                "text":format!("func Function{i:02}() {{ /* {} */ }}", "fixed source ".repeat(12)),
+                "reasons":[{"reason":if i==0 {"change_seed"} else {"potential_consumer"},"path":["seed",format!("symbol-{i}")]}]
+            })).collect();
+            json!({"base":[{"repository_id":&hex[..32]}],"head":[{"repository_id":&hex[..32]}],
+                "entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+                "coverage":{"complete":false,"issues":[]},"impact":"incomplete"})
+        };
+        let a = report(&"a".repeat(64));
+        let b = report(&"0a".repeat(32));
+        let mut omitted = false;
+        for budget in [2500, 3500, 5000, 8000] {
+            let (left, lr) = pack(a.clone(), budget, None, None).unwrap();
+            let (right, rr) = pack(b.clone(), budget, None, None).unwrap();
+            let selected = |v: &Value| v["entries"].as_array().unwrap().iter()
+                .map(|e| json!([e["name"],e["text"]])).collect::<Vec<_>>();
+            assert!(!selected(&left).is_empty());
+            assert_eq!(selected(&left), selected(&right));
+            assert_eq!(left["coverage"]["packing"], right["coverage"]["packing"]);
+            assert_eq!(left["coverage"]["current_head"], right["coverage"]["current_head"]);
+            omitted |= selected(&left).len() < 12;
+            for (input, packet, receipt) in [(&a,&left,&lr),(&b,&right,&rr)] {
+                assert!(text::count(&packet.to_string()) <= budget);
+                assert_eq!(packet["entries"][0]["repository_id"], input["entries"][0]["repository_id"]);
+                assert_eq!(packet["entries"][0]["package_binding"], input["entries"][0]["package_binding"]);
+                let (delta, next) = pack(input.clone(), budget, Some(receipt), None).unwrap();
+                assert_eq!(receipt["entries"], next["entries"]);
+                assert_eq!(packet["context_order"], delta["context_order"]);
+                assert!(text::count(&delta.to_string()) <= budget);
+            }
+        }
+        assert!(omitted, "Must exercise budget-limited selections");
+    }
+
     #[test]
     fn small_budget_compacts_issue_examples_before_omitting_changed_code() {
         let entry = json!({"id":"changed","revision":"r","side":"head","text":"func F() int { return 2 }","reasons":[{"reason":"change_seed"}]});

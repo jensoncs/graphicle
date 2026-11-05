@@ -40,11 +40,26 @@ type reviewPackageCache struct {
 	keys                   map[string]string
 	busy                   map[string]bool
 	hits, misses, rejected int
+	traceKey, configDigest string
+	stats                  map[string]int
+}
+
+func (c *reviewPackageCache) count(name string, amount int) {
+	if c.stats == nil {
+		c.stats = map[string]int{}
+	}
+	c.stats[name] += amount
 }
 
 func newReviewPackageCache(req reviewRequest, root string) *reviewPackageCache {
 	c := &reviewPackageCache{entries: map[string]string{}, created: map[string]string{}, used: map[string]bool{}}
+	c.traceKey = req.TraceKey
+	c.count("supplied_entries", len(req.PackageCache))
+	for _, value := range req.PackageCache {
+		c.count("supplied_bytes", len(value))
+	}
 	if req.CacheIdentity == "" {
+		c.count("disabled_identity", 1)
 		return c
 	}
 	// Changes to discovery configuration, including a custom GOWORK filename,
@@ -74,11 +89,16 @@ func newReviewPackageCache(req reviewRequest, root string) *reviewPackageCache {
 			return nil
 		})
 		if err != nil {
+			c.count("configuration_unreadable", 1)
 			return c
 		}
 	}
 	identity, _ := json.Marshal([]any{req.CacheIdentity, req.GOOS, req.GOARCH, req.Tags, req.Tests, req.Workspace, config})
 	c.identity = digestBytes(identity)
+	if nativeReviewTimings != nil {
+		encoded, _ := json.Marshal(config)
+		c.configDigest = digestBytes(encoded)
+	}
 	keys := make([]string, 0, len(req.PackageCache))
 	for key := range req.PackageCache {
 		keys = append(keys, key)
@@ -86,12 +106,27 @@ func newReviewPackageCache(req reviewRequest, root string) *reviewPackageCache {
 	sort.Strings(keys)
 	for _, key := range keys {
 		value := req.PackageCache[key]
-		if !validPackageCacheKey(key) || len(value) > packageCacheEntryBytes || len(c.entries) >= 4096 || c.bytes+len(value) > packageCacheBytes {
+		if !validPackageCacheKey(key) {
+			c.count("input_invalid_key", 1)
+			continue
+		}
+		if len(value) > packageCacheEntryBytes {
+			c.count("input_entry_limit", 1)
+			continue
+		}
+		if len(c.entries) >= 4096 {
+			c.count("input_count_limit", 1)
+			continue
+		}
+		if c.bytes+len(value) > packageCacheBytes {
+			c.count("input_byte_limit", 1)
 			continue
 		}
 		c.entries[key] = value
 		c.bytes += len(value)
 	}
+	c.count("loaded_entries", len(c.entries))
+	c.count("loaded_bytes", c.bytes)
 	return c
 }
 
@@ -205,6 +240,7 @@ func (c *reviewPackageCache) load(l *loader, path string) *types.Package {
 	encoded, ok := c.entries[key]
 	if !ok {
 		c.misses++
+		c.count("miss_not_present", 1)
 		return nil
 	}
 	for _, original := range l.meta[path].Imports {
@@ -214,6 +250,7 @@ func (c *reviewPackageCache) load(l *loader, path string) *types.Package {
 		}
 		if _, err := l.Import(name); err != nil {
 			c.misses++
+			c.count("miss_import_failed", 1)
 			return nil
 		}
 	}
@@ -224,12 +261,18 @@ func (c *reviewPackageCache) load(l *loader, path string) *types.Package {
 	if err == nil {
 		if pkg := readPackage(data, l, path); pkg != nil {
 			c.hits++
+			if l.meta[path].Standard {
+				c.count("hit_standard_library", 1)
+			} else {
+				c.count("hit_dependency", 1)
+			}
 			c.used[key] = true
 			return pkg
 		}
 	}
 	c.rejected++
 	c.misses++
+	c.count("miss_invalid_export", 1)
 	delete(c.entries, key)
 	delete(c.created, key)
 	c.bytes -= len(encoded)
@@ -270,8 +313,14 @@ func (c *reviewPackageCache) save(l *loader, path string, pkg *types.Package) {
 	if key == "" || !pkg.Complete() {
 		return
 	}
+	c.count("save_attempted", 1)
 	data := exportPackage(pkg)
-	if data == nil || len(data) > packageCacheRawBytes {
+	if data == nil {
+		c.count("save_export_failed", 1)
+		return
+	}
+	if len(data) > packageCacheRawBytes {
+		c.count("save_raw_limit", 1)
 		return
 	}
 	// Exports repeat dependency type descriptions. Compress each artifact, so
@@ -283,14 +332,25 @@ func (c *reviewPackageCache) save(l *loader, path string, pkg *types.Package) {
 		c.compressor.Reset(&packed)
 	}
 	if _, err := c.compressor.Write(data); err != nil {
+		c.count("save_compression_failed", 1)
 		return
 	}
 	if err := c.compressor.Close(); err != nil {
+		c.count("save_compression_failed", 1)
 		return
 	}
 	encoded := base64.StdEncoding.EncodeToString(packed.Bytes())
 	previous, exists := c.entries[key]
-	if len(encoded) > packageCacheEntryBytes || (!exists && len(c.entries) >= 4096) || c.bytes-len(previous)+len(encoded) > packageCacheBytes {
+	if len(encoded) > packageCacheEntryBytes {
+		c.count("save_entry_limit", 1)
+		return
+	}
+	if !exists && len(c.entries) >= 4096 {
+		c.count("save_count_limit", 1)
+		return
+	}
+	if c.bytes-len(previous)+len(encoded) > packageCacheBytes {
+		c.count("save_byte_limit", 1)
 		return
 	}
 	if previous, ok := c.entries[key]; ok {
@@ -300,6 +360,7 @@ func (c *reviewPackageCache) save(l *loader, path string, pkg *types.Package) {
 	c.created[key] = encoded
 	c.used[key] = true
 	c.bytes += len(encoded)
+	c.count("saved_entries", 1)
 }
 
 func (c *reviewPackageCache) result() reviewCacheResult {
@@ -330,6 +391,7 @@ func validPackageCacheKey(key string) bool {
 // the remaining native transport; a full optional cache must not discard all
 // artifacts or conceal the hit/miss counters. No dependency source is emitted.
 func (c *reviewPackageCache) writeResult(out *countingWriter, limit int64) {
+	defer c.logDiagnostics()
 	result := c.result()
 	entries := result.Entries
 	result.Entries = map[string]string{}
@@ -337,6 +399,11 @@ func (c *reviewPackageCache) writeResult(out *countingWriter, limit int64) {
 	const prefix = `,"dependency_cache":`
 	remaining := limit - out.bytes - int64(len(prefix)+len(metadata)+3)
 	if remaining < 0 {
+		c.count("transport_metadata_omitted", 1)
+		for _, value := range entries {
+			c.count("transport_omitted_entries", 1)
+			c.count("transport_omitted_bytes", len(value))
+		}
 		return
 	}
 	keys := make([]string, 0, len(entries))
@@ -355,10 +422,35 @@ func (c *reviewPackageCache) writeResult(out *countingWriter, limit int64) {
 		if cost <= remaining {
 			result.Entries[key] = entries[key]
 			remaining -= cost
+			c.count("transport_entries", 1)
+			c.count("transport_bytes", len(entries[key]))
+		} else {
+			c.count("transport_omitted_entries", 1)
+			c.count("transport_omitted_bytes", len(entries[key]))
 		}
 	}
 	fmt.Fprint(out, prefix)
 	if err := json.NewEncoder(out).Encode(result); err != nil {
 		panic(err)
 	}
+}
+
+// Opt-in operational diagnostics travel on stderr, independently of the facts
+// and optional export transport budgets. Only hashes and fixed counters appear.
+func (c *reviewPackageCache) logDiagnostics() {
+	if nativeReviewTimings == nil {
+		return
+	}
+	createdBytes := 0
+	for _, value := range c.created {
+		createdBytes += len(value)
+	}
+	data, _ := json.Marshal(map[string]any{
+		"key": c.traceKey, "identity": c.identity, "configuration_sha256": c.configDigest,
+		"counts": c.stats, "hits": c.hits, "misses": c.misses, "rejected": c.rejected,
+		"pool_entries": len(c.entries), "pool_bytes": c.bytes,
+		"created_entries": len(c.created), "created_bytes": createdBytes,
+		"used_entries": len(c.used),
+	})
+	fmt.Fprintf(os.Stderr, "go_cache=%s\n", data)
 }

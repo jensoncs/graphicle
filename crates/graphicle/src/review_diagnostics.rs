@@ -1,6 +1,6 @@
 //! Explain analysis failures without confusing reference counts with packages.
 use super::{Analysis, s};
-use graphicle_memory::text;
+use super::packing;
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -112,7 +112,7 @@ pub(super) fn histogram(issues: &[Value], example_tokens: usize) -> Value {
         let mut examples = vec![];
         let mut used = 0;
         for (_, example) in candidates {
-            let cost = text::count(&example.to_string()) + 1;
+            let cost = packing::count(&example.to_string()) + 1;
             if examples.len() == 8 || used + cost > example_tokens {
                 continue;
             }
@@ -157,7 +157,7 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
     let mut failure_examples = vec![];
     let mut failure_tokens = 0;
     for failure in &failures {
-        let cost = text::count(&failure.to_string()) + 1;
+        let cost = packing::count(&failure.to_string()) + 1;
         if failure_tokens + cost <= example_tokens / 2 {
             failure_examples.push(failure);
             failure_tokens += cost;
@@ -243,7 +243,7 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
                 let Some(value) = values.get(index) else {
                     continue;
                 };
-                let cost = text::count(&value.to_string()) + 1;
+                let cost = packing::count(&value.to_string()) + 1;
                 if examples.len() == 8 || used + cost > budget {
                     continue;
                 }
@@ -398,7 +398,7 @@ mod tests {
         assert!(
             examples
                 .iter()
-                .map(|e| text::count(&e.to_string()) + 1)
+                .map(|e| packing::count(&e.to_string()) + 1)
                 .sum::<usize>()
                 <= 1000
         );

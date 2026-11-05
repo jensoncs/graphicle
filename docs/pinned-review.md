@@ -452,6 +452,31 @@ Sources remain admitted and available if an included package imports them.
 impact; it does not turn an intentionally partial analysis into a complete one.
 Exclusions are part of the compiler-cache and review identity.
 
+For an admitted repository containing unrendered code templates, collectors can
+use the existing `modules` field to select the actual production package
+subtrees. For example, a service contained in `service/` can use
+`"modules":["service"]` on both pins. Go still uses the admitted ancestor
+`go.mod`, vendor tree and imported owned packages outside that subtree. This
+does not require a second upload or deleting templates from the snapshot.
+
+Choose the full intended build scope, including consumers whose context is
+required, rather than just the directories changed by the PR. Multiple
+subdirectories can be selected. A directory selection is recursive: `"."`
+still includes templates beneath the repository root. This is not an arbitrary
+package-directory exclusion API; `excluded_modules` requires admitted module
+roots as described above. A repository with root-level Go code may therefore
+need a different explicit build layout before this approach applies.
+
+This can eliminate template discovery failures and allow compiler-fact reuse,
+but does not certify excluded source. `go_source_outside_module_scope` remains
+visible, and impact/scoped coverage may remain incomplete. An edited template
+remains in `file_changes` and eligible diffs with `uncertain_scope`; packing
+limits still apply. Changing the selected roots changes cache identity, and
+changed Go template bytes still invalidate the corresponding facts. Imported
+packages retain their unresolved-call diagnostics. The regression in
+`tests/test_review_build_scope.py` checks all of these boundaries, unchanged
+caller context, and dependency-export reuse on a subsequent owned-code edit.
+
 For a non-vendored repository, prepare each pinned revision separately with Go's
 native vendoring in a disposable source copy before admission. An offline
 preparation can use an explicit module cache with `GOPROXY=off`, `GOVCS=*:off`,
@@ -656,8 +681,27 @@ package-failure, dependency-boundary, unsupported-file and Python diagnostic
 samples also yield to source. Their full counts, causes and explicit omission
 counts remain. This does not guarantee an entry at every budget: required
 identities, controls and an exact declaration must still fit together.
-`coverage.packing.metadata_tokens` measures the preselection envelope with empty
+`coverage.packing.metadata_tokens` charges the preselection envelope with empty
 entries/diffs (and a zero placeholder for the count itself).
+
+`coverage.packing.cost_model: "fixed_hex_identifiers_v1"` makes selection costs
+independent of random store-local identifiers. Opaque 32-, 40- and 64-character
+hex JSON strings, including identifier references and fingerprint keys, receive
+fixed conservative charges by width. Direct pinned content/symbol hashes,
+commits, snapshots and policies keep their ordinary token cost; source `text`
+and diff `hunk` strings are never normalized. The same accounting applies to
+metadata, optional diagnostic samples, history, flows and shared provenance.
+Entry ties use source/symbol coordinates instead of the store-local entry ID.
+
+These are selection charges, including `first_entry_tokens` and
+`minimum_tokens_with_hunk_reserve`, not claims about the exact wire token count.
+The real identifiers, repository bindings, revisions and citations remain in
+the packet. Its `tokens` and final budget validation still use the exact cl100k
+count of the serialized output. Raw packets and actual token counts can therefore
+differ across stores while the chosen source context stays the same. Fixed
+charges reserve room for expensive identifier spellings, so some tight budgets
+can contain less context than a store that happened to receive cheap IDs. No
+analysis gap or omission is promoted to complete to recover that space.
 `control_reserve_tokens` is the additional packing allowance for later selection
 and delta controls. `first_entry_tokens` reports the first candidate's packing
 cost before optional history. These explain allocation; they are not an additive
@@ -836,6 +880,34 @@ packages are exported; cgo packages, incomplete packages and dependencies reachi
 owned code remain on the source path. Missing or refused files cannot be restored
 from this cache. Owned code always receives full source analysis. Invalid exports
 fall back to source checking without hiding diagnostics.
+
+With `GRAPHICLE_PHASE_TIMINGS=1`, package-cache stages also emit bounded JSON
+`stats` on stderr, correlated by `key` with `review_cache_side`:
+
+- `review_package_cache_load`: stored and loaded entries/bytes, plus entries
+  skipped for size/count limits, unavailable inputs, invalid keys or checksums.
+  The load limit is 32 MiB, even though the pool/store can retain 64 MiB.
+- `review_package_cache_native`: supplied/loaded exports, dependency versus
+  standard-library hits, absent/import-failed/invalid-export misses, export
+  creation limits, and optional transport omissions. `identity` hashes the
+  complete native cache configuration; `configuration_sha256` separately hashes
+  discovered module/workspace metadata. Equal configuration hashes with different
+  identities point to other inputs such as profile, helper or repository policy;
+  neither hash alone proves that individual package fingerprints match.
+- `review_package_cache_absorb`: offered and accepted entries, refusals and
+  entries marked used but unavailable in the shared runtime pool.
+- `review_package_cache_save`: written/refreshed entries, skips, evictions and
+  retained size. `pending_commit` is provisional until `review_cache_commit`;
+  `unused` means there were no used exports to persist.
+
+Byte counters measure encoded export payloads, excluding JSON/SQLite overhead.
+Refusal counters count the first applicable reason at each stage. Native hit/miss
+and save counters count operations across build worlds, not unique packages.
+Native diagnostics survive optional-cache transport omissions and contain only
+validated hashes and fixed numeric counters, without package paths or source.
+They do not consume review packet space or relax analysis/cache eligibility.
+Changing the helper implementation invalidates its cache identity, so upgrading
+to this diagnostic build requires fresh priming before comparing warm runs.
 
 The helper vendors `golang.org/x/tools v0.36.0` (`gcexportdata`, Go 1.23 minimum)
 for Go type serialization and remains offline. It executes no dependency code.

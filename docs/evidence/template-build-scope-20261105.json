@@ -1,0 +1,133 @@
+{
+  "binary_sha256": "98fd55587e9ccfb798219d75e9eb9df5aba2875f5c8fe33564dfc6e4a4c3c816",
+  "fixture_sha256": "9003f15e5b575ceed3d5400287fb19da46c23ab1d1af5dbd9f2959efdbf27400",
+  "synthetic": true,
+  "cases": {
+    "broad-first": {
+      "seconds": 4.932,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 1,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "impact": "incomplete",
+      "analysis_coverage": "incomplete",
+      "tokens": 7990,
+      "caller_context_present": true,
+      "discovery_errors": {
+        "base": 1,
+        "head": 1
+      },
+      "packet_sha256": "9b0dffa9f950b9c6144a4501372d3bd1e727d487ee2476deaa3aaf072c436019"
+    },
+    "broad-replay": {
+      "seconds": 0.738,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 1,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "impact": "incomplete",
+      "analysis_coverage": "incomplete",
+      "tokens": 7990,
+      "caller_context_present": true,
+      "discovery_errors": {
+        "base": 1,
+        "head": 1
+      },
+      "semantic_replay_equal": true,
+      "packet_sha256": "954f9fec72c8b88bf7259c33740684b6cf36d1710d3975b4816c79dab4f141c7"
+    },
+    "scoped-first": {
+      "seconds": 0.898,
+      "analysis_cache": {
+        "base_hit": false,
+        "head_hit": false,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 1,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 1,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "impact": "incomplete",
+      "analysis_coverage": "incomplete",
+      "tokens": 7871,
+      "caller_context_present": true,
+      "discovery_errors": {
+        "base": 0,
+        "head": 0
+      },
+      "packet_sha256": "b5dcdc5ddb74986e7d3f0b32a5ac7d7b25cc607a923fe74382ccb97aaf3bfb8c"
+    },
+    "scoped-replay": {
+      "seconds": 0.044,
+      "analysis_cache": {
+        "base_hit": true,
+        "head_hit": true,
+        "granularity": "go_inputs_with_file_inventory",
+        "packages": {
+          "scope": "repository",
+          "includes_standard_library": true,
+          "base": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          },
+          "head": {
+            "hits": 0,
+            "misses": 0,
+            "rejected": 0
+          }
+        }
+      },
+      "impact": "incomplete",
+      "analysis_coverage": "incomplete",
+      "tokens": 7871,
+      "caller_context_present": true,
+      "discovery_errors": {
+        "base": 0,
+        "head": 0
+      },
+      "semantic_replay_equal": true,
+      "packet_sha256": "116f94f1fb66e325c8eaf0887bae95b81d4c8dab3b41ef9ad643079b2ad4307b"
+    }
+  }
+}

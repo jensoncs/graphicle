@@ -1526,3 +1526,235 @@ The reported four-repository soak artifacts were unavailable locally. These
 checks do not diagnose the actual metadata-service/Nexus misses or establish
 their production memory and latency limits. Sentinel still needs to rerun those
 cases and retain the diagnostics above; no production deployment was performed.
+
+### Follow-up: four-repository soak on `16f44a2`
+
+Sentinel supplied `cra/harness/runs/issue-fixes-20261025/indep-16f4.txt` after
+the run completed. The summary was inspected locally: all four repositories
+completed ten CLI/server packet comparisons each, with equal semantic packets,
+pins and token caps preserved, no model calls, and unchanged queued jobs.
+All four timeout checks stopped helpers, recovered on the same server and
+returned equal recovered/warm packets. The one-second cooperative deadline
+returned in 3.2–4.0 seconds; this is not a strict one-second response bound.
+
+| Repository | Priming / replay seconds | Whole-side replay hits | Approx. sequential CLI / server seconds |
+| --- | ---: | --- | ---: |
+| argus | 32.0 / 5.0 | both | 17.4 / 10.3 |
+| metadata-service | 37.9 / 22.8 | neither | 30.2 / 23.5 |
+| nexus | 25.3 / 16.9 | neither | 23.0 / 16.5 |
+| odin | 43.6 / 6.3 | both | 25.7 / 19.8 |
+
+Sentinel reports stable fact keys and explicit cache refusal: eight
+`incomplete_discovery` issues for metadata-service; 221 type-check failures
+plus 470 `other` issues for Nexus. The local summary does not contain those raw
+diagnostic lines or the affected package details. Inventory-backed type-check
+failures alone are allowed by the cache policy, so the Nexus count is not enough
+to establish its refusal cause. A missing `vtprotobuf` tag remains unconfirmed.
+
+Nexus's priming replay hits all 3,092 dependency package exports on both sides;
+the whole-side miss does not mean all dependency type-checking is repeated.
+Metadata-service reuses 1,473 of 1,474 base packages but only 182 of 1,474 head
+packages. Discovery and owned-code analysis still run on whole-side misses.
+
+Inspection found a Graphicle diagnostics error: the histogram recognized
+`external_package_unavailable`, but the native helper emits
+`unavailable_external_package`. The latter was incorrectly grouped under
+`other`. The follow-up corrects this spelling and also recognizes native
+`package_discovery_failed`, `unsafe_or_invalid_module_configuration` and
+`unsupported_architecture` issues. Unknown categories remain grouped as `other`;
+package names and paths are not logged. This is an observability correction,
+not a cache-policy, build-profile or analysis fix. Raw priming artifacts are
+still needed before attributing Nexus's 470 issues or changing its profile.
+The existing packet already exposes
+`coverage.analysis_diagnostics.{base,head}.go.unavailable_external_package_instances`
+and `package_failures` / diagnostic `examples`, independently of this stderr
+histogram bug. Inspect those saved priming packets first; a full soak rerun is
+not required merely to recover those counts.
+
+The corrected release build passed the real-server missing-dependency regression
+(74.2 seconds). Its refusal log names `unavailable_external_package` with no
+`other` bucket; both repeated requests remain cache misses. The next,
+cacheable-but-incomplete interface case still completes all ten equal CLI/server
+packet comparisons. `git diff --check` also passed. Candidate binary SHA-256:
+`98fd55587e9ccfb798219d75e9eb9df5aba2875f5c8fe33564dfc6e4a4c3c816`.
+
+### Explicit template/build scope: first acceptance step
+
+After reading the raw `graphicle-indep-16f4-20261105` packets, the
+metadata-service refusal is confirmed as eight discovery errors per side, with
+zero unavailable external packages or type-check failures. All five retained
+package examples belong to the unrendered Cookiecutter tree; the two retained
+messages report invalid `{` characters in import paths. Nexus's 470 `other`
+issues per side are confirmed as `unavailable_external_package` instances. Its
+saved packets omit all detailed diagnostic messages, so the missing imports
+cannot be named from this capture. The `vtprotobuf` hypothesis remains unproven.
+
+The template case can use existing explicit `modules` subdirectory selection;
+no new runtime exclusion API or cache-eligibility exception is needed. A native
+fixture admits a service, unchanged caller, imported owned helper, vendored
+dependency, and unrendered template. Selecting the production subtree instead
+of `.` removes its discovery error and permits whole-side replay reuse while
+retaining all four modeled packages and unchanged caller context. The template
+remains admitted, and outside-scope warnings keep the verdict incomplete.
+
+[Captured fixture results](template-build-scope-20261105.json):
+
+| Measurement | Whole-tree discovery | Explicit production subtree |
+| --- | ---: | ---: |
+| Discovery errors, base + head | 2 | 0 |
+| Whole-side hits on identical replay | 0 / 2 | 2 / 2 |
+| Unchanged caller context present | yes | yes |
+| Semantic first/replay equality within that scope | yes | yes |
+| Global impact / scoped coverage | incomplete / incomplete | incomplete / incomplete |
+| Single local replay time | 0.738 s | 0.044 s |
+
+These are single observations on a small synthetic fixture, not production
+speedups. The scope itself changes graph identities, so packets from different
+scopes are not expected to be byte-identical. The meaningful checks are retained
+caller/dependency evidence, complete reporting of exclusions, and semantic
+equality between cold/warm executions of the same scope.
+
+The three real-server regressions in `test_review_build_scope.py` verify cache
+reuse, a new owned-code edit reusing the base and dependency export, broadening
+scope invalidating scoped facts, imported unresolved interfaces remaining
+blocking, and edited templates remaining visible in the diff and file-change
+summary with `uncertain_scope`. Template changes invalidate head facts rather
+than reusing a stale analysis. They are not fabricated into compiler symbols.
+
+Sentinel must choose all intended production roots from each pinned build
+layout, including required consumers, and send them on both pins. Do not choose
+only changed directories or automatically discard every directory named
+`templates`. Recursive `.` still includes nested templates; root-level Go code
+requires separate consideration. The existing `excluded_modules` field only
+excludes real admitted module roots. This scoped path is an integration option
+to validate on metadata-service, not a claim that its production run is fixed
+or its excluded source is fully analyzed.
+
+```sh
+GRAPHICLE_BIN=/path/to/graphicle \
+  python3 -m unittest discover -s crates/graphicle/tests -p test_review_build_scope.py -v
+```
+
+All three build-scope regression cases passed. The existing memory reliability
+baseline also passed: 43 tests across `memory_handoffs`, `memory_symbols`,
+`structured_memory`, and `retention`. These exercise exact original citations,
+revision-checked transitive links, stale or denied source withholding,
+symbol-level invalidation, repository and PR-scratch isolation, atomic dated
+supersession, and incomplete evidence reporting when the context budget omits a
+quote. Run from `crates/graphicle` with the repository build environment:
+
+```sh
+cargo test --release --test it --locked -- \
+  memory_handoffs:: memory_symbols:: structured_memory:: retention::
+```
+
+This establishes existing local memory-graph invariants. It does not enable
+reviewed memories in pinned `secondary_context`, certify production retrieval
+recall, or implement a historical snapshot join. The remaining work is the
+metadata-service integration probe, complete Nexus dependency admission,
+package-cache miss/size attribution on a retained capture, and a revision-safe
+reviewed-memory integration with fixed-budget context-value measurements.
+
+
+### Package-cache attribution follow-up — 2026-11-05
+
+The diagnostic build now connects `review_package_cache_load`, `_native`,
+`_absorb` and `_save` to the base/head fact key. It reports stored/loaded export
+counts and bytes, capacity and integrity refusals, native configuration hashes,
+standard-library versus dependency hits, transport omissions, and committed-store
+eviction counts. Save statistics remain provisional until `review_cache_commit`.
+See [the cache contract](../pinned-review.md) for interpretation and bounds.
+
+This closes the attribution gap; it does **not** establish which limit or
+fingerprint caused metadata-service's production head misses. The original
+stores were deleted. Whole-side eligibility, source admission, cache limits and
+packet schema are unchanged. The helper identity changes on upgrade, so prime
+the new build before evaluating warm reuse.
+
+Local release binary SHA-256:
+`c603d412513bdb97356d31896a211464be63e61127733f43d9300fd5e5a08747`.
+This identifies the tested working-tree binary, not a published release.
+
+Validation:
+
+- Runtime package-cache unit tests: all four passed; the manual persistence
+  benchmark remained intentionally ignored. Covers load/pool capacity counters,
+  checksum/access refusals, repaired or evicted rows, retention and eviction.
+- Full native Go suite: passed, including export equivalence, corrupt-export
+  recovery, capacity and transport diagnostics.
+- `test_review_cache_diagnostics.py`: passed. Verifies cold/warm/fresh semantic
+  equality, base/head key correlation, persistent dependency reuse on a new head,
+  build-profile and module-metadata invalidation, real missing-source refusal
+  under `unavailable_external_package`, token limits and zero model calls.
+- `test_review_build_scope.py`: all three passed on the diagnostic binary.
+- `test_review_service.py`: both passed, including timeout cleanup/recovery and
+  context retrieval bound to the admitted snapshot.
+- Soak protocol unit checks: all three passed.
+- Both stderr-filter tests passed in an isolated harness compiled directly from
+  the current source with the release's serde dependency. The graph crate's
+  standalone Cargo test command could not fetch its additional dev dependencies
+  into the restricted Cargo cache; its full test suite was not run here.
+
+To reproduce the server diagnostics check:
+
+```sh
+GRAPHICLE_BIN=/path/to/graphicle \
+  python3 -m unittest discover -s crates/graphicle/tests -p test_review_cache_diagnostics.py -v
+```
+
+The production follow-up is a retained-store cold/replay/new-head probe with
+`GRAPHICLE_PHASE_TIMINGS=1`. Preserve requests, packets and full stderr together
+with the store. Compare load/refusal/eviction counts and native identities before
+changing cache policy. Separately validate explicit production roots on
+metadata-service and the complete pinned dependency closure on Nexus; neither
+production completeness nor a speedup is established by these synthetic tests.
+
+
+### Store-identity-dependent packing — 2026-11-05
+
+The supplied `graphicle-prodprobe2-16f4-20261105` capture contains 19 packets,
+but no saved `graph.impact` requests. In the five completed pass-2 pairs,
+base/head pins match after mapping the repository IDs, and build profiles are
+identical. All 25 common selected entries match after removing only entry ID,
+revision, repository ID, the two package-binding fingerprints, and review-basis
+scope. Source text, content hashes, symbols and reasons still compare exactly.
+
+The differences are packing effects: Argus's CLI packet includes `startup.sh`
+while its server packet does not. In the copied Odin packets both sides have
+eight entries, with seven in common: CLI chooses `PodResolver`, while server
+chooses `NullAdminAuditAction`. The recorded first-entry costs on Argus are
+797 versus 820. Store-local repository identity enters package bindings and
+entry/review revisions; cl100k assigns different costs to their hex spellings.
+The entry ID's second charge reserves its occurrence in `context_order`, so it
+must not simply be removed as accidental double counting.
+
+The fix uses `fixed_hex_identifiers_v1` selection accounting throughout code,
+metadata, diagnostic samples, history, flows and shared provenance. It keeps
+real IDs, receipts and exact wire-budget checks. Entry/flow ties now use stable
+source/symbol coordinates rather than store-bound identifiers. Direct pinned
+content hashes retain their usual cost; conservative opaque-identifier reserves
+can reduce what fits in a tight budget. Actual wire token totals and binding
+hashes may still differ across stores.
+
+[Machine-readable comparison and validation](store-identity-packing-20261105.json)
+records the packet hashes and tested candidate binary. Re-costing the final
+first selected entry (without its post-selection `update` field) gives equal
+fixed costs in all five pairs. These re-costed values are not reconstructed
+historical `first_entry_tokens`: the full preselection candidate inventory and
+requests were not saved.
+
+Validation: the new separate-store regression fails on the prior binary (a hunk
+fits in only one store), then passes on the candidate at four budgets. Both
+stores also produce canonically equal CLI/server packets when compared within
+the same store. All 85 review unit tests pass; two manual benchmarks remain
+ignored. The three build-scope server regressions and cache-diagnostics server
+regression also pass. No deployment or live setting was changed.
+
+For the next Sentinel probe, run the same candidate binary on both paths and
+save the exact request arguments before dispatch, along with packets and store
+identities. Compare selected source coordinates, content, verdicts and coverage
+under verified logical pin mappings; do not erase source/content hashes to make
+packets compare equal. Expect namespaced IDs and actual token totals to differ.
+Recheck context yield at the production budgets, and handle Sentinel's timeout
+allowance (#692) separately. The existing capture supports this diagnosis but
+cannot substitute for that end-to-end candidate probe.

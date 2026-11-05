@@ -1,0 +1,136 @@
+{
+  "source": "prodprobe2-16f4-20261105",
+  "packet_count": 19,
+  "requests_available": false,
+  "comparison": "Same pinned snapshots/profile; compare common entry content after removing only six store-dependent identity fields.",
+  "heads": {
+    "argus-pr141-hcebe7d96": {
+      "cli_packet_sha256": "aef30ea07dade1df45749c08366a509100a4eb1aa37f669f9bf1ed8ec2dd0025",
+      "server_packet_sha256": "14a9ccbd53d974b244b029eca7aff536f5d4acada600ad5a45b8ceb5d1a63241",
+      "pins_equal_except_repository_id": true,
+      "profile_equal": true,
+      "common_entries": 4,
+      "common_entries_equal_except_identity": true,
+      "cli_only": [
+        [
+          "head",
+          "startup.sh",
+          "startup.sh",
+          0,
+          370
+        ]
+      ],
+      "server_only": [],
+      "recorded_first_entry_tokens": [
+        797,
+        820
+      ],
+      "fixed_cost_of_final_first_selected_entry_without_update": [
+        1028,
+        1028
+      ]
+    },
+    "metadata-service-pr316-h270ed995": {
+      "cli_packet_sha256": "902f0f8a90c7d1e7e5451edfd9e77ee986d6372012281af0736268f6bee89ece",
+      "server_packet_sha256": "765e0672558a2553c9d3220102cbffeee7661f80c96007f739ed449b8619670b",
+      "pins_equal_except_repository_id": true,
+      "profile_equal": true,
+      "common_entries": 8,
+      "common_entries_equal_except_identity": true,
+      "cli_only": [],
+      "server_only": [],
+      "recorded_first_entry_tokens": [
+        1821,
+        1810
+      ],
+      "fixed_cost_of_final_first_selected_entry_without_update": [
+        2044,
+        2044
+      ]
+    },
+    "nexus-pr1028-h9950d5b5": {
+      "cli_packet_sha256": "65e7ac3c80430292c5e9d00980fd1caf8e66cd357847fe08ed668777b8c0cab9",
+      "server_packet_sha256": "3db2142094b7846fd6ecf176fa288580590980b5ff9ebbd379f74f886b8416b8",
+      "pins_equal_except_repository_id": true,
+      "profile_equal": true,
+      "common_entries": 2,
+      "common_entries_equal_except_identity": true,
+      "cli_only": [],
+      "server_only": [],
+      "recorded_first_entry_tokens": [
+        1259,
+        1256
+      ],
+      "fixed_cost_of_final_first_selected_entry_without_update": [
+        1456,
+        1456
+      ]
+    },
+    "odin-pr199-h476b6bbd": {
+      "cli_packet_sha256": "a7a6d22eba6a58c36581feb200597ae4e6aa866517ae6b99da811748a9b94bcc",
+      "server_packet_sha256": "e8b792cc54a3030586cea4d0a3531f4164bae4bc9ee5bdf0367ca3a201634b3f",
+      "pins_equal_except_repository_id": true,
+      "profile_equal": true,
+      "common_entries": 7,
+      "common_entries_equal_except_identity": true,
+      "cli_only": [
+        [
+          "head",
+          "pkg/application/httpserver/handlers.go",
+          "PodResolver",
+          4767,
+          4817
+        ]
+      ],
+      "server_only": [
+        [
+          "head",
+          "pkg/db/sqlcgen/models.go",
+          "NullAdminAuditAction",
+          700,
+          893
+        ]
+      ],
+      "recorded_first_entry_tokens": [
+        746,
+        760
+      ],
+      "fixed_cost_of_final_first_selected_entry_without_update": [
+        982,
+        982
+      ]
+    },
+    "siren-pr174-h5bf56134": {
+      "cli_packet_sha256": "bd5a208434788ac1752a4a44e4de2153dfe0f23020323028a9ffd76bf535acab",
+      "server_packet_sha256": "9655b90b312ac5db718d75e5ce24be4b7aaff4d60a3e293c79093d2143d419bb",
+      "pins_equal_except_repository_id": true,
+      "profile_equal": true,
+      "common_entries": 4,
+      "common_entries_equal_except_identity": true,
+      "cli_only": [],
+      "server_only": [],
+      "recorded_first_entry_tokens": [
+        22524,
+        22512
+      ],
+      "fixed_cost_of_final_first_selected_entry_without_update": [
+        3165,
+        3165
+      ]
+    }
+  },
+  "validation": {
+    "old_binary_separate_store_regression": "failed: one store selected a diff hunk that the other omitted",
+    "candidate_separate_store_regression": "passed: identical context and packing counters at 4500, 6000, 8000, 12000 tokens; same-store CLI/server packets matched canonically",
+    "candidate_build_scope_tests": 3,
+    "candidate_cache_diagnostics_tests": 1,
+    "unit_tests": "85 passed; 2 manual benchmarks ignored"
+  },
+  "candidate_binary_sha256": "9525dd1b3dd8372db45142141d60b792d90ef4518091047a7b59596820c5bdfe",
+  "limits": [
+    "Fixed conservative identifier charges can reduce context at a tight budget.",
+    "Returned repository bindings, revisions and package-binding hashes remain store-specific.",
+    "The actual wire token count remains exact and may differ across stores.",
+    "Raw impact requests were not saved; this is artifact analysis plus local regression validation, not a reproduction of the complete production probe."
+  ]
+}

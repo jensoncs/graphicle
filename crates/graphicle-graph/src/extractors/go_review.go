@@ -59,6 +59,7 @@ type reviewRoot struct {
 	Module    string `json:"module"`
 }
 type reviewRequest struct {
+	TraceKey      string            `json:"trace_key"`
 	Roots         []reviewRoot      `json:"roots"`
 	GOOS          string            `json:"goos"`
 	GOARCH        string            `json:"goarch"`

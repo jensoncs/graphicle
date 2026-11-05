@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"go/types"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -53,7 +54,7 @@ func TestDependencyExportsPreserveFactsAndInvalidate(t *testing.T) {
 	write("vendor/example/dep/right/right.go", "package right\nimport \"example/dep\"\nfunc F(v dep.T) dep.T{return v}\n")
 	owned := "package app\nimport (\"example/dep\";\"example/dep/left\";\"example/dep/right\")\ntype Local struct{dep.T}\nfunc Entry(i interface{Run() int}) int {v:=right.F(left.F()); _=dep.Box[dep.Alias]{Value:v}; f:=dep.F[int]; _=f(1); g:=v.Run; return g()+i.Run()}\n"
 	write("main.go", owned)
-	request := reviewRequest{Roots: []reviewRoot{{Directory: "app", Module: "."}}, GOOS: "linux", GOARCH: "amd64", CacheIdentity: "test-v1"}
+	request := reviewRequest{Roots: []reviewRoot{{Directory: "app", Module: "."}}, GOOS: "linux", GOARCH: "amd64", CacheIdentity: "test-v1", TraceKey: strings.Repeat("a", 64)}
 	timings := false
 	run := func(entries map[string]string) (json.RawMessage, reviewCacheResult) {
 		t.Helper()
@@ -87,6 +88,33 @@ func TestDependencyExportsPreserveFactsAndInvalidate(t *testing.T) {
 		}
 		if err := json.Unmarshal(out, &envelope); err != nil {
 			t.Fatal(err)
+		}
+		traces := 0
+		for _, line := range strings.Split(stderr.String(), "\n") {
+			if !strings.HasPrefix(line, "go_cache=") {
+				continue
+			}
+			traces++
+			var trace struct {
+				Key, Identity string
+				Configuration string `json:"configuration_sha256"`
+				Counts        map[string]int
+			}
+			if err := json.Unmarshal([]byte(strings.TrimPrefix(line, "go_cache=")), &trace); err != nil {
+				t.Fatal(err)
+			}
+			if trace.Key != request.TraceKey || !validPackageCacheKey(trace.Identity) || !validPackageCacheKey(trace.Configuration) {
+				t.Fatalf("uncorrelated cache trace: %s", line)
+			}
+			counts := trace.Counts
+			if counts["hit_standard_library"]+counts["hit_dependency"] != envelope.Cache.Hits ||
+				counts["miss_not_present"]+counts["miss_import_failed"]+counts["miss_invalid_export"] != envelope.Cache.Misses ||
+				counts["transport_entries"] != len(envelope.Cache.Entries) {
+				t.Fatalf("cache counters disagree with result: %s", line)
+			}
+		}
+		if (timings && traces != 1) || (!timings && traces != 0) {
+			t.Fatalf("cache diagnostics opt-in mismatch: %s", stderr.String())
 		}
 		decode := func(encoded string, target any) {
 			t.Helper()
@@ -209,6 +237,7 @@ func TestFullOptionalCacheKeepsArtifactsAndCountersWithinTransport(t *testing.T)
 		c.used[key] = true
 	}
 	for _, limit := range []int64{64, 1200, 1800, 10000} {
+		c.stats = nil
 		var buffer bytes.Buffer
 		out := &countingWriter{writer: &buffer}
 		fmt.Fprint(out, `{"facts":"existing"`)
@@ -227,14 +256,54 @@ func TestFullOptionalCacheKeepsArtifactsAndCountersWithinTransport(t *testing.T)
 			if envelope.Cache != nil {
 				t.Fatal("metadata cannot fit")
 			}
+			if c.stats["transport_metadata_omitted"] != 1 || c.stats["transport_omitted_entries"] != len(c.created) {
+				t.Fatalf("missing transport refusal: %+v", c.stats)
+			}
 			continue
 		}
 		if envelope.Cache == nil || envelope.Cache.Hits != 7 || envelope.Cache.Misses != 3 || len(envelope.Cache.Entries) == 0 {
 			t.Fatalf("lost bounded cache: %s", buffer.Bytes())
 		}
+		if c.stats["transport_entries"] != len(envelope.Cache.Entries) || c.stats["transport_entries"]+c.stats["transport_omitted_entries"] != len(c.created) {
+			t.Fatalf("transport counters disagree: %+v", c.stats)
+		}
 		if limit == 10000 && len(envelope.Cache.Entries) != 10 {
 			t.Fatal("discarded artifacts that fit")
 		}
+	}
+}
+
+func TestPackageCacheCapacityDiagnostics(t *testing.T) {
+	root := t.TempDir()
+	entries := map[string]string{"invalid": "data", strings.Repeat("f", 64): strings.Repeat("x", packageCacheEntryBytes+1)}
+	for n := 0; n < 4097; n++ {
+		entries[fmt.Sprintf("%064x", n)] = "data"
+	}
+	c := newReviewPackageCache(reviewRequest{CacheIdentity: "test", PackageCache: entries}, root)
+	if len(c.entries) != 4096 || c.stats["input_invalid_key"] != 1 || c.stats["input_entry_limit"] != 1 || c.stats["input_count_limit"] != 1 {
+		t.Fatalf("count/entry refusals: %+v", c.stats)
+	}
+	pkg := types.NewPackage("example/dep", "dep")
+	pkg.MarkComplete()
+	c.world()
+	c.keys[pkg.Path()] = strings.Repeat("b", 64)
+	c.save(&loader{}, pkg.Path(), pkg)
+	if c.stats["save_count_limit"] != 1 || len(c.created) != 0 {
+		t.Fatalf("save count refusal: %+v", c.stats)
+	}
+	entries = map[string]string{}
+	for n := 0; n < 17; n++ {
+		entries[fmt.Sprintf("%064x", n)] = strings.Repeat("x", packageCacheEntryBytes)
+	}
+	c = newReviewPackageCache(reviewRequest{CacheIdentity: "test", PackageCache: entries}, root)
+	if c.bytes != packageCacheBytes || c.stats["input_byte_limit"] != 1 {
+		t.Fatalf("load byte refusal: %+v", c.stats)
+	}
+	c.world()
+	c.keys[pkg.Path()] = strings.Repeat("b", 64)
+	c.save(&loader{}, pkg.Path(), pkg)
+	if c.stats["save_byte_limit"] != 1 || len(c.created) != 0 {
+		t.Fatalf("save byte refusal: %+v", c.stats)
 	}
 }
 

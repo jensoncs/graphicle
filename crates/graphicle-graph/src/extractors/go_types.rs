@@ -184,10 +184,12 @@ pub fn review_encoded(root: &Path, request: &Value) -> Result<Value, ReviewFailu
     ).map_err(ReviewFailure::process)?;
     if timings {
         // Never relay arbitrary helper/toolchain stderr, which may contain
-        // source text or paths. Only fixed phase names and numeric durations.
+        // source text or paths. Only fixed phases, counters and identity hashes.
         for line in String::from_utf8_lossy(&output.stderr).lines() {
             if let Some((name, ns)) = native_review_timing(line) {
                 eprintln!("go_phase={name} ns={ns}");
+            } else if let Some(stats) = native_review_cache(line) {
+                eprintln!("phase=review_package_cache_native ms=0 stats={stats}");
             }
         }
     }
@@ -209,8 +211,54 @@ fn native_review_timing(line: &str) -> Option<(&str, u64)> {
     Some((name, ns.parse().ok()?))
 }
 
+fn native_review_cache(line: &str) -> Option<Value> {
+    if line.len() > 8192 { return None; }
+    let value: Value = serde_json::from_str(line.strip_prefix("go_cache=")?).ok()?;
+    let object = value.as_object()?;
+    if object.len() != 12 { return None; }
+    for field in ["key", "identity", "configuration_sha256"] {
+        let text = object.get(field)?.as_str()?;
+        if !text.is_empty() && !(field == "key" && text == "unavailable")
+            && !(text.len() == 64 && text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))) {
+            return None;
+        }
+    }
+    for field in ["hits", "misses", "rejected", "pool_entries", "pool_bytes", "created_entries", "created_bytes", "used_entries"] {
+        object.get(field)?.as_u64()?;
+    }
+    for (name, count) in object.get("counts")?.as_object()? {
+        if !matches!(name.as_str(), "supplied_entries" | "supplied_bytes" | "disabled_identity" | "configuration_unreadable"
+            | "input_invalid_key" | "input_entry_limit" | "input_count_limit" | "input_byte_limit" | "loaded_entries" | "loaded_bytes"
+            | "miss_not_present" | "miss_import_failed" | "miss_invalid_export" | "hit_standard_library" | "hit_dependency"
+            | "save_attempted" | "save_export_failed" | "save_raw_limit" | "save_compression_failed" | "save_entry_limit"
+            | "save_count_limit" | "save_byte_limit" | "saved_entries" | "transport_metadata_omitted"
+            | "transport_omitted_entries" | "transport_omitted_bytes" | "transport_entries" | "transport_bytes") {
+            return None;
+        }
+        count.as_u64()?;
+    }
+    Some(value)
+}
+
 #[cfg(test)]
 mod timing_tests {
+    #[test]
+    fn cache_diagnostics_never_forward_paths_text_or_unknown_fields() {
+        let good = serde_json::json!({"key":"a".repeat(64),"identity":"b".repeat(64),"configuration_sha256":"c".repeat(64),
+            "counts":{"miss_not_present":2},"hits":0,"misses":2,"rejected":0,"pool_entries":2,"pool_bytes":20,
+            "created_entries":2,"created_bytes":20,"used_entries":2});
+        let parse = |v: &serde_json::Value| super::native_review_cache(&format!("go_cache={v}"));
+        assert_eq!(parse(&good),Some(good.clone()));
+        for (field, value) in [("key",serde_json::json!("/private/source.go")), ("identity",serde_json::json!("bad\nmessage")),
+            ("hits",serde_json::json!(-1)), ("pool_bytes",serde_json::json!("123")),
+            ("counts",serde_json::json!({"/private/source.go":1})), ("counts",serde_json::json!({"miss_not_present":"source"})),
+            ("extra",serde_json::json!("must not leak"))] {
+            let mut bad = good.clone(); bad[field] = value;
+            assert!(parse(&bad).is_none(),"{bad}");
+        }
+        assert!(super::native_review_cache(&format!("go_cache={} "," ".repeat(8192))).is_none());
+    }
+
     #[test]
     fn forwards_only_known_numeric_native_timings() {
         assert_eq!(super::native_review_timing("go_phase=type_check ns=123"), Some(("type_check", 123)));

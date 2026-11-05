@@ -102,8 +102,8 @@ pub(super) fn pack(
             let extra = if reason == &entry["reasons"][ri] {
                 0
             } else {
-                text::count(&reason.to_string())
-                    .saturating_sub(text::count(&entry["reasons"][ri].to_string()))
+                packing::count(&reason.to_string())
+                    .saturating_sub(packing::count(&entry["reasons"][ri].to_string()))
                     + 16
             };
             upgrades.insert((s(entry, "id").to_owned(), ri), (ei, reason.clone(), extra));
@@ -166,7 +166,7 @@ pub(super) fn pack(
         (
             v["side"] != "head",
             std::cmp::Reverse(v["node_ids"].as_array().unwrap().len()),
-            v.to_string(),
+            v["node_ids"].to_string(),
         )
     });
     let mut kept = Vec::<Value>::new();
@@ -190,7 +190,7 @@ pub(super) fn pack(
                 )
             })
             .collect();
-        let cost = text::count(&v.to_string())
+        let cost = packing::count(&v.to_string())
             + 8
             + references
                 .iter()

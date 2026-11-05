@@ -19,7 +19,7 @@ impl Catalog {
         let id = crate::digest(&value);
         self.costs
             .entry(id.clone())
-            .or_insert_with(|| text::count(&json!({&id: &value}).to_string()) + 4);
+            .or_insert_with(|| packing::count(&json!({&id: &value}).to_string()) + 4);
         self.definitions.insert(id.clone(), value);
         id
     }
@@ -31,7 +31,7 @@ impl Catalog {
         let mut after = 0;
         for entry in &mut compact {
             if let Some(boundary) = entry.get_mut("service_boundary") {
-                before += text::count(&boundary.to_string());
+                before += packing::count(&boundary.to_string());
                 let mut assertion = boundary.clone();
                 assertion.as_object_mut().unwrap().remove("resolution");
                 let id = catalog.intern(assertion);
@@ -40,7 +40,7 @@ impl Catalog {
                 boundary.as_object_mut().unwrap().remove("citations");
                 boundary.as_object_mut().unwrap().remove("manifest");
                 boundary["provenance_ref"] = json!(id);
-                after += text::count(&boundary.to_string());
+                after += packing::count(&boundary.to_string());
             }
             for field in ["reasons", "_execution_flow_reasons"] {
                 for reason in entry
@@ -61,12 +61,12 @@ impl Catalog {
                         if let Some(value) = step.as_object_mut().unwrap().remove("provenance") {
                             // Flow annotations are alternative versions, not extra uses.
                             if field == "reasons" {
-                                before += text::count(&value.to_string());
+                                before += packing::count(&value.to_string());
                             }
                             let id = catalog.intern(value);
                             step["provenance_ref"] = json!(id);
                             if field == "reasons" {
-                                after += text::count(&step["provenance_ref"].to_string()) + 4;
+                                after += packing::count(&step["provenance_ref"].to_string()) + 4;
                             }
                         }
                     }
