@@ -494,6 +494,7 @@ END;
 CREATE TABLE IF NOT EXISTS repo_review_package_facts (
     repository_id TEXT NOT NULL REFERENCES repo_projects(id) ON DELETE CASCADE,
     id TEXT NOT NULL, data TEXT NOT NULL, sha256 TEXT NOT NULL, used_at TEXT NOT NULL,
+    pool_key TEXT NOT NULL DEFAULT '',
     PRIMARY KEY(repository_id,id));
 CREATE TABLE IF NOT EXISTS repo_review_package_inputs (
     repository_id TEXT NOT NULL, id TEXT NOT NULL,

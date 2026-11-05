@@ -1,0 +1,420 @@
+{
+  "date": "2026-11-05",
+  "case": "metadata-service-pr316-h270ed995",
+  "control_commit": "249873b",
+  "scope": "Dependency export capacity; whole-side cache eligibility and compiler facts are unchanged.",
+  "artifacts": "/private/tmp/graphicle-cache-capacity-20261105",
+  "original_capture": "/private/tmp/graphicle-cache-inputs/metadata-service-pr316-h270ed995",
+  "stores_retained": true,
+  "original_store_modified": false,
+  "limits": {
+    "per_configuration_encoded_bytes": 67108864,
+    "per_configuration_exports": 4096,
+    "retained_configurations_per_repository": 2,
+    "maximum_retained_encoded_bytes_per_repository": 134217728,
+    "per_export_encoded_bytes": 4194304,
+    "per_export_expanded_bytes": 3145728
+  },
+  "candidate_capacity_proof": {
+    "pools": [
+      {
+        "namespace": "98c7da791708a2b18afc16b59438825aa72ffaa67a00b62bed20a0fdfcf83e19",
+        "entries": 1493,
+        "bytes": 37009264
+      },
+      {
+        "namespace": "b9f3bf6c0c3f7d92d637ab0adaa4336af49c046b2b3db3a75da926cc94304634",
+        "entries": 1493,
+        "bytes": 37009264
+      }
+    ],
+    "all_load_and_native_capacity_refusals_zero": true,
+    "whole_analysis_cache_remains_refused": true,
+    "within_candidate_replays_equal": true,
+    "store_integrity": "ok",
+    "jobs_unchanged": true,
+    "model_calls": 0
+  },
+  "comparisons": {
+    "prime": {
+      "requests_equal": true,
+      "semantic_packets_equal": true,
+      "exact_tokens_equal": true,
+      "different_fields": []
+    },
+    "prime-verify": {
+      "requests_equal": true,
+      "semantic_packets_equal": true,
+      "exact_tokens_equal": true,
+      "different_fields": []
+    },
+    "new-head": {
+      "requests_equal": true,
+      "semantic_packets_equal": true,
+      "exact_tokens_equal": true,
+      "different_fields": []
+    },
+    "new-head-verify": {
+      "requests_equal": true,
+      "semantic_packets_equal": true,
+      "exact_tokens_equal": true,
+      "different_fields": []
+    }
+  },
+  "canonical_comparison_omits": [
+    "analysis_cache",
+    "tokens"
+  ],
+  "arms": {
+    "control": {
+      "binary_sha256": "584dcbf676aa43b97379b6b69ad4d548991cae7ad019bbb4662ad3bdfd04d3cf",
+      "store_integrity": "ok",
+      "model_calls": 0,
+      "jobs_unchanged": true,
+      "warm_median_seconds": 110.88316604192369,
+      "rounds": {
+        "prime": {
+          "seconds": 161.14632204105146,
+          "cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 0,
+                "misses": 1493,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 0,
+                "misses": 1493,
+                "rejected": 0
+              }
+            }
+          },
+          "impact": "incomplete",
+          "tokens": 13029,
+          "store_cache": {
+            "full_analyses": 0,
+            "package_entries": 2748,
+            "package_payload_bytes": 67108832
+          },
+          "memory_sampled_peak": {
+            "server_rss_bytes": 836370432,
+            "tree_rss_bytes": 1151254528,
+            "server_footprint_bytes": 721307136,
+            "tree_footprint_bytes": 1141606728
+          },
+          "load_capacity_skips": 0,
+          "native_save_byte_refusals": 238,
+          "packet_sha256": "a784b596a3bd7bd899c9bbd737d932183501c282f52881e03a26713d7d5af167"
+        },
+        "prime-verify": {
+          "seconds": 113.2563532909844,
+          "cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 189,
+                "misses": 1304,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 1255,
+                "misses": 238,
+                "rejected": 0
+              }
+            }
+          },
+          "impact": "incomplete",
+          "tokens": 13029,
+          "store_cache": {
+            "full_analyses": 0,
+            "package_entries": 2752,
+            "package_payload_bytes": 67108776
+          },
+          "memory_sampled_peak": {
+            "server_rss_bytes": 946339840,
+            "tree_rss_bytes": 1730084864,
+            "server_footprint_bytes": 529974784,
+            "tree_footprint_bytes": 1203030680
+          },
+          "load_capacity_skips": 1304,
+          "native_save_byte_refusals": 234,
+          "packet_sha256": "f6e1664c8565c056b4a167e1cb3bb131e5afb7b37c1b63e98805310270cfd6a7"
+        },
+        "new-head": {
+          "seconds": 110.88316604192369,
+          "cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 200,
+                "misses": 1293,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 1259,
+                "misses": 234,
+                "rejected": 0
+              }
+            }
+          },
+          "impact": "incomplete",
+          "tokens": 13083,
+          "store_cache": {
+            "full_analyses": 0,
+            "package_entries": 2752,
+            "package_payload_bytes": 67108776
+          },
+          "memory_sampled_peak": {
+            "server_rss_bytes": 1072676864,
+            "tree_rss_bytes": 1660502016,
+            "server_footprint_bytes": 504039152,
+            "tree_footprint_bytes": 1087261360
+          },
+          "load_capacity_skips": 1293,
+          "native_save_byte_refusals": 234,
+          "packet_sha256": "2852f269210b8d4628ac48b8b4b0ca18d57c9b117fa9a1f61f7005826b7de2f8"
+        },
+        "new-head-verify": {
+          "seconds": 108.99064645799808,
+          "cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 200,
+                "misses": 1293,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 1259,
+                "misses": 234,
+                "rejected": 0
+              }
+            }
+          },
+          "impact": "incomplete",
+          "tokens": 13083,
+          "store_cache": {
+            "full_analyses": 0,
+            "package_entries": 2752,
+            "package_payload_bytes": 67108776
+          },
+          "memory_sampled_peak": {
+            "server_rss_bytes": 1117274112,
+            "tree_rss_bytes": 1796161536,
+            "server_footprint_bytes": 343803632,
+            "tree_footprint_bytes": 1023838968
+          },
+          "load_capacity_skips": 1293,
+          "native_save_byte_refusals": 234,
+          "packet_sha256": "2852f269210b8d4628ac48b8b4b0ca18d57c9b117fa9a1f61f7005826b7de2f8"
+        }
+      }
+    },
+    "candidate": {
+      "binary_sha256": "9632cbea7158e3d1060e3672006cdcc5f69235f92fac443fe2db7383172c9ca6",
+      "store_integrity": "ok",
+      "model_calls": 0,
+      "jobs_unchanged": true,
+      "warm_median_seconds": 29.992295834003016,
+      "rounds": {
+        "prime": {
+          "seconds": 46.09747912490275,
+          "cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 0,
+                "misses": 1493,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 0,
+                "misses": 1493,
+                "rejected": 0
+              }
+            }
+          },
+          "impact": "incomplete",
+          "tokens": 13029,
+          "store_cache": {
+            "full_analyses": 0,
+            "package_entries": 2986,
+            "package_payload_bytes": 74018528
+          },
+          "memory_sampled_peak": {
+            "server_rss_bytes": 830472192,
+            "tree_rss_bytes": 1122910208,
+            "server_footprint_bytes": 585008496,
+            "tree_footprint_bytes": 941656200
+          },
+          "load_capacity_skips": 0,
+          "native_save_byte_refusals": 0,
+          "packet_sha256": "a784b596a3bd7bd899c9bbd737d932183501c282f52881e03a26713d7d5af167"
+        },
+        "prime-verify": {
+          "seconds": 29.992295834003016,
+          "cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 1493,
+                "misses": 0,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 1492,
+                "misses": 1,
+                "rejected": 1
+              }
+            }
+          },
+          "impact": "incomplete",
+          "tokens": 13029,
+          "store_cache": {
+            "full_analyses": 0,
+            "package_entries": 2986,
+            "package_payload_bytes": 74018528
+          },
+          "memory_sampled_peak": {
+            "server_rss_bytes": 858112000,
+            "tree_rss_bytes": 1020166144,
+            "server_footprint_bytes": 602408352,
+            "tree_footprint_bytes": 734267576
+          },
+          "load_capacity_skips": 0,
+          "native_save_byte_refusals": 0,
+          "packet_sha256": "84ca35a2e25c1aeea6c1547eb6b89ace6228881bab801222d22c7c7bd7ba172d"
+        },
+        "new-head": {
+          "seconds": 28.559115584008396,
+          "cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 1493,
+                "misses": 0,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 1492,
+                "misses": 1,
+                "rejected": 1
+              }
+            }
+          },
+          "impact": "incomplete",
+          "tokens": 13083,
+          "store_cache": {
+            "full_analyses": 0,
+            "package_entries": 2986,
+            "package_payload_bytes": 74018528
+          },
+          "memory_sampled_peak": {
+            "server_rss_bytes": 845643776,
+            "tree_rss_bytes": 1203322880,
+            "server_footprint_bytes": 371688912,
+            "tree_footprint_bytes": 590842088
+          },
+          "load_capacity_skips": 0,
+          "native_save_byte_refusals": 0,
+          "packet_sha256": "4989f59b21f5009c7bc91533a1538ef9b451d45ce5d629eeba41c7d75ec7a332"
+        },
+        "new-head-verify": {
+          "seconds": 30.82221437501721,
+          "cache": {
+            "base_hit": false,
+            "head_hit": false,
+            "granularity": "go_inputs_with_file_inventory",
+            "packages": {
+              "scope": "repository",
+              "includes_standard_library": true,
+              "base": {
+                "hits": 1493,
+                "misses": 0,
+                "rejected": 0
+              },
+              "head": {
+                "hits": 1493,
+                "misses": 0,
+                "rejected": 0
+              }
+            }
+          },
+          "impact": "incomplete",
+          "tokens": 13083,
+          "store_cache": {
+            "full_analyses": 0,
+            "package_entries": 2986,
+            "package_payload_bytes": 74018528
+          },
+          "memory_sampled_peak": {
+            "server_rss_bytes": 855687168,
+            "tree_rss_bytes": 1125580800,
+            "server_footprint_bytes": 289605096,
+            "tree_footprint_bytes": 553617592
+          },
+          "load_capacity_skips": 0,
+          "native_save_byte_refusals": 0,
+          "packet_sha256": "578888f5989619f23bda472cc0bbef5bf15f109d53d6924e7d0987a3e57787d7"
+        }
+      }
+    }
+  },
+  "latency_comparison_valid": false,
+  "latency_note": "Later exact-commit control was substantially slower in unchanged materialization and native work than the initial saved-binary run. Do not infer a percentage speedup or memory reduction across these runs.",
+  "saved_binary_control_rejected": {
+    "sha256": "9525dd1b3dd8372db45142141d60b792d90ef4518091047a7b59596820c5bdfe",
+    "reason": "Its cold packet charged 999 tokens for the same first entry versus 870 on both the exact-commit control and candidate. It is retained as diagnostic evidence, not used as the correctness control."
+  },
+  "remaining_limits": [
+    "Eight incomplete-discovery packages on each side still refuse whole-side caching; impact remains incomplete.",
+    "One existing invalid-export rejection fell back to source on two candidate warm calls; the final replay had zero rejections and misses.",
+    "Configurations with a working set above 64 MiB or 4096 exports may still miss. Only the current base/head configurations survive a successful commit; concurrent reviews can replace other configurations."
+  ],
+  "validation": {
+    "review_filtered_rust_unit_tests": {
+      "passed": 96,
+      "ignored_manual_benchmarks": 3
+    },
+    "rust_compiler_cache_integration_tests": {
+      "passed": 9,
+      "ignored_manual_benchmarks": 1
+    },
+    "python_cache_diagnostics_and_service_tests": {
+      "passed": 3
+    },
+    "native_go_suite": "passed",
+    "native_count_and_byte_replacement_regression": "passed",
+    "diff_check": "passed"
+  },
+  "memory_method": "macOS libproc samples server plus discoverable descendants every 250 ms; summed RSS can double-count shared pages and miss short-lived peaks. These are observations, not production limits."
+}

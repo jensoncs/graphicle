@@ -288,8 +288,16 @@ func TestPackageCacheCapacityDiagnostics(t *testing.T) {
 	c.world()
 	c.keys[pkg.Path()] = strings.Repeat("b", 64)
 	c.save(&loader{}, pkg.Path(), pkg)
-	if c.stats["save_count_limit"] != 1 || len(c.created) != 0 {
-		t.Fatalf("save count refusal: %+v", c.stats)
+	if c.stats["evicted_unused_entries"] != 1 || len(c.created) != 1 || len(c.entries) != 4096 {
+		t.Fatalf("unused count replacement: %+v", c.stats)
+	}
+	for key := range c.entries {
+		c.used[key] = true
+	}
+	c.keys[pkg.Path()] = strings.Repeat("c", 64)
+	c.save(&loader{}, pkg.Path(), pkg)
+	if c.stats["save_count_limit"] != 1 || len(c.created) != 1 || len(c.evicted) != 1 {
+		t.Fatalf("used exports not protected at count limit: %+v", c.stats)
 	}
 	entries = map[string]string{}
 	for n := 0; n < 17; n++ {
@@ -302,8 +310,19 @@ func TestPackageCacheCapacityDiagnostics(t *testing.T) {
 	c.world()
 	c.keys[pkg.Path()] = strings.Repeat("b", 64)
 	c.save(&loader{}, pkg.Path(), pkg)
-	if c.stats["save_byte_limit"] != 1 || len(c.created) != 0 {
-		t.Fatalf("save byte refusal: %+v", c.stats)
+	if c.stats["evicted_unused_entries"] != 1 || len(c.created) != 1 || c.bytes > packageCacheBytes {
+		t.Fatalf("unused byte replacement: %+v", c.stats)
+	}
+	// Exports already used by this analysis are protected, even at capacity.
+	c = newReviewPackageCache(reviewRequest{CacheIdentity: "test", PackageCache: entries}, root)
+	for key := range c.entries {
+		c.used[key] = true
+	}
+	c.world()
+	c.keys[pkg.Path()] = strings.Repeat("b", 64)
+	c.save(&loader{}, pkg.Path(), pkg)
+	if c.stats["save_byte_limit"] != 1 || len(c.created) != 0 || len(c.evicted) != 0 || c.bytes != packageCacheBytes {
+		t.Fatalf("used exports not protected: %+v", c.stats)
 	}
 }
 

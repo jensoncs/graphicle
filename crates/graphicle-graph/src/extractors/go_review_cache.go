@@ -25,6 +25,7 @@ const packageCacheRawBytes = packageCacheEntryBytes * 3 / 4
 type reviewCacheResult struct {
 	Entries  map[string]string `json:"entries"`
 	Used     []string          `json:"used"`
+	Evicted  []string          `json:"evicted,omitempty"`
 	Hits     int               `json:"hits"`
 	Misses   int               `json:"misses"`
 	Rejected int               `json:"rejected"`
@@ -36,6 +37,7 @@ type reviewPackageCache struct {
 	entries                map[string]string
 	created                map[string]string
 	used                   map[string]bool
+	unused, evicted        []string
 	bytes                  int
 	keys                   map[string]string
 	busy                   map[string]bool
@@ -123,6 +125,7 @@ func newReviewPackageCache(req reviewRequest, root string) *reviewPackageCache {
 			continue
 		}
 		c.entries[key] = value
+		c.unused = append(c.unused, key)
 		c.bytes += len(value)
 	}
 	c.count("loaded_entries", len(c.entries))
@@ -345,6 +348,21 @@ func (c *reviewPackageCache) save(l *loader, path string, pkg *types.Package) {
 		c.count("save_entry_limit", 1)
 		return
 	}
+	// Prefer this analysis's working set over supplied exports it has not used.
+	// The sorted queue is consumed once; eviction cannot exceed the input bound.
+	for len(c.unused) > 0 && ((!exists && len(c.entries) >= 4096) || c.bytes-len(previous)+len(encoded) > packageCacheBytes) {
+		victim := c.unused[0]
+		c.unused = c.unused[1:]
+		if victim == key || c.used[victim] {
+			continue
+		}
+		if value, ok := c.entries[victim]; ok {
+			c.bytes -= len(value)
+			delete(c.entries, victim)
+			c.evicted = append(c.evicted, victim)
+			c.count("evicted_unused_entries", 1)
+		}
+	}
 	if !exists && len(c.entries) >= 4096 {
 		c.count("save_count_limit", 1)
 		return
@@ -369,7 +387,7 @@ func (c *reviewPackageCache) result() reviewCacheResult {
 		used = append(used, key)
 	}
 	sort.Strings(used)
-	return reviewCacheResult{Entries: c.created, Used: used, Hits: c.hits, Misses: c.misses, Rejected: c.rejected}
+	return reviewCacheResult{Entries: c.created, Used: used, Evicted: c.evicted, Hits: c.hits, Misses: c.misses, Rejected: c.rejected}
 }
 
 // Positionless imported APIs are still resolved dependency objects.

@@ -167,7 +167,7 @@ fn warm_review_cache_benchmark() {
             let data = "x".repeat(4 * 1024 * 1024);
             let sha = text::sha256(data.as_bytes());
             for n in 0..mib / 4 {
-                db.execute("INSERT INTO repo_review_package_facts VALUES(?,?,?,?,?)",
+                db.execute("INSERT INTO repo_review_package_facts(repository_id,id,data,sha256,used_at) VALUES(?,?,?,?,?)",
                     rusqlite::params![repo, format!("{n:064x}"), data, sha, "old"])?;
             }
             Ok(())

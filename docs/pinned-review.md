@@ -863,14 +863,33 @@ the captured store to diagnose misses without relaxing the warm-cache checks.
 
 Successful dependency packages, including standard-library packages, additionally
 retain serialized Go types in the same store. This package pool is scoped to the
-anchor repository: at most 4,096 compressed exports / 64 MiB, with at most 4 MiB
-per encoded entry and 3 MiB of expanded export data per entry.
-Each review loads at most 32 MiB and can share newly checked exports between base
-and head. Least-recently-used exports are evicted; deleting any contributing
+anchor repository and partitioned by build configuration: at most 4,096 compressed
+exports / 64 MiB per configuration, with at most 4 MiB per encoded entry and 3 MiB
+of expanded export data per entry. Base and head share a pool when their discovery
+configuration matches; otherwise each loads its own pool, up to the full 64 MiB.
+The final authorized transaction retains only the current base/head configurations
+(at most two pools: 8,192 exports / 128 MiB per repository). Configuration includes
+the helper/toolchain, profile, repository/policy/scope and module/workspace metadata;
+ordinary source edits reuse the same pool, subject to native package fingerprints.
+A full native pool replaces supplied exports not yet used by that analysis before
+refusing new exports. Already-used exports are protected. Persisted pools evict
+least-recently-used exports at their individual bounds. Deleting any contributing
 snapshot invalidates its exports. Reads recheck access to contributing repositories.
+The additive `pool_key` migration preserves sources and existing artifacts; legacy
+unpartitioned exports are not loaded and are removed on the next successful review.
+An upgrade therefore needs fresh priming. Concurrent reviews commit serially; the
+last successful review selects the retained configurations, without mixing facts.
 This requires the caller to preserve `--data-dir` and repository identities across
 reviews; deleting a scratch store discards reuse. It is not a global module
 download service.
+
+The [metadata-service capacity replay](evidence/package-cache-capacity-20261105.json)
+retained two 1,493-export working sets (35.3 MiB each) with zero capacity refusals.
+Cold, replay and new-head packets matched an exact-commit control; the final
+replay hit all 1,493 exports on each side. The eight incomplete-discovery
+packages still refused whole-side caching. Timing varied substantially between
+control runs, so this establishes bounded reuse and packet equality, not a
+production latency or memory-reduction guarantee.
 
 Package fingerprints cover selected and ignored/test Go inputs, native and embedded
 files, transitive imports, module/replacement and workspace metadata, build profile,
@@ -886,16 +905,18 @@ With `GRAPHICLE_PHASE_TIMINGS=1`, package-cache stages also emit bounded JSON
 
 - `review_package_cache_load`: stored and loaded entries/bytes, plus entries
   skipped for size/count limits, unavailable inputs, invalid keys or checksums.
-  The load limit is 32 MiB, even though the pool/store can retain 64 MiB.
+  `namespace` identifies the configuration; its load and retention limits are 64 MiB.
 - `review_package_cache_native`: supplied/loaded exports, dependency versus
   standard-library hits, absent/import-failed/invalid-export misses, export
-  creation limits, and optional transport omissions. `identity` hashes the
+  creation limits, unused-export evictions, and optional transport omissions. `identity` hashes the
   complete native cache configuration; `configuration_sha256` separately hashes
   discovered module/workspace metadata. Equal configuration hashes with different
   identities point to other inputs such as profile, helper or repository policy;
   neither hash alone proves that individual package fingerprints match.
 - `review_package_cache_absorb`: offered and accepted entries, refusals and
-  entries marked used but unavailable in the shared runtime pool.
+  entries marked used but unavailable in the configuration’s runtime pool.
+- `review_package_cache_partitions`: retained base/head configuration hashes and
+  the count of exports removed from other configurations.
 - `review_package_cache_save`: written/refreshed entries, skips, evictions and
   retained size. `pending_commit` is provisional until `review_cache_commit`;
   `unused` means there were no used exports to persist.

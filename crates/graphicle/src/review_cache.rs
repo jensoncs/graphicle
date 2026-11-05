@@ -23,6 +23,7 @@ fn cache_note(action: &str, anchor: &str, key: &str, result: &str) {
 #[derive(Default)]
 pub(crate) struct PackagePool {
     pub identity: String,
+    pub namespace: String,
     pub entries: BTreeMap<String, String>,
     // Checksums verified on load or written in the final transaction. Native
     // replacements invalidate these, including repaired export data.
@@ -34,6 +35,7 @@ pub(crate) struct PackagePool {
 pub(crate) struct PackageResult {
     pub entries: BTreeMap<String, String>,
     pub used: Vec<String>,
+    pub evicted: Vec<String>,
     pub hits: usize,
     pub misses: usize,
     pub rejected: usize,
@@ -41,6 +43,13 @@ pub(crate) struct PackageResult {
 
 impl PackagePool {
     pub fn absorb(&mut self, result: &mut PackageResult) -> Value {
+        // Native replacement may remove unused supplied exports at capacity.
+        // Mirror those removals before absorbing replacements; keep other exports
+        // available to the other side when it shares this configuration.
+        for key in std::mem::take(&mut result.evicted) {
+            self.entries.remove(&key);
+            self.persisted.remove(&key);
+        }
         let mut bytes: usize = self.entries.values().map(String::len).sum();
         let before = json!({"entries":self.entries.len(),"bytes":bytes});
         let offered = json!({"entries":result.entries.len(),"bytes":result.entries.values().map(String::len).sum::<usize>()});
@@ -75,6 +84,7 @@ pub(crate) fn load_packages(
     token: &str,
     anchor: &str,
     trace_key: &str,
+    namespace: &str,
 ) -> Result<PackagePool> {
     store.authorized_read(workspace, token, "read", |db, principal| {
         store::repo(db, principal, anchor)?;
@@ -86,7 +96,7 @@ pub(crate) fn load_packages(
                 denied.insert(s(&input,"id").to_owned());
             }
         }
-        let (pool, stats) = load_package_rows(db, anchor, &denied, crate::phase::enabled())?;
+        let (pool, stats) = load_package_rows(db, anchor, namespace, &denied, crate::phase::enabled())?;
         if crate::phase::enabled() {
             crate::phase::note("review_package_cache_load", &format!("anchor={anchor} key={trace_key} stats={stats}"));
         }
@@ -96,20 +106,20 @@ pub(crate) fn load_packages(
 
 // Runs within the authorized read transaction, using the caller's denied-input
 // set. Keeping counters beside each refusal avoids inferring causes from totals.
-fn load_package_rows(db: &Connection, anchor: &str, denied: &BTreeSet<String>, trace: bool) -> Result<(PackagePool, Value)> {
-    let mut pool = PackagePool::default();
+fn load_package_rows(db: &Connection, anchor: &str, namespace: &str, denied: &BTreeSet<String>, trace: bool) -> Result<(PackagePool, Value)> {
+    let mut pool = PackagePool { namespace: namespace.to_owned(), ..Default::default() };
     let mut bytes = 0;
     let (mut considered, mut unavailable, mut invalid_key, mut byte_limit, mut checksum) = (0, 0, 0, 0, 0);
-    let mut query = db.prepare("SELECT id,data,sha256 FROM repo_review_package_facts WHERE repository_id=? AND length(data)<=? ORDER BY used_at DESC,rowid DESC LIMIT ?")?;
-    let mut rows = query.query(params![anchor,PACKAGE_ENTRY_BYTES,PACKAGE_COUNT])?;
+    let mut query = db.prepare("SELECT id,data,sha256 FROM repo_review_package_facts WHERE repository_id=? AND pool_key=? AND length(data)<=? ORDER BY used_at DESC,rowid DESC LIMIT ?")?;
+    let mut rows = query.query(params![anchor,namespace,PACKAGE_ENTRY_BYTES,PACKAGE_COUNT])?;
     while let Some(row) = rows.next()? {
         considered += 1;
         let key: String = row.get(0)?;
         if denied.contains(&key) { unavailable += 1; continue; }
         if store::hash(&key).is_err() { invalid_key += 1; continue; }
         let data: String = row.get(1)?;
-        // Leave room for newly checked packages in the bounded native pool.
-        if bytes + data.len() > PACKAGE_BYTES / 2 { byte_limit += 1; continue; }
+        // Native replacement makes room for new exports without halving preload.
+        if bytes + data.len() > PACKAGE_BYTES { byte_limit += 1; continue; }
         let sha: String = row.get(2)?;
         if graphicle_memory::text::sha256(data.as_bytes()) != sha { checksum += 1; continue; }
         bytes += data.len();
@@ -117,18 +127,27 @@ fn load_package_rows(db: &Connection, anchor: &str, denied: &BTreeSet<String>, t
         pool.entries.insert(key, data);
     }
     let mut stats = json!({"considered_entries":considered,"loaded_entries":pool.entries.len(),"loaded_bytes":bytes,
-        "load_byte_limit":PACKAGE_BYTES/2,"entry_byte_limit":PACKAGE_ENTRY_BYTES,"entry_count_limit":PACKAGE_COUNT,
+        "namespace":namespace,"load_byte_limit":PACKAGE_BYTES,"entry_byte_limit":PACKAGE_ENTRY_BYTES,"entry_count_limit":PACKAGE_COUNT,
         "skipped":{"input_unavailable":unavailable,"invalid_key":invalid_key,"byte_limit":byte_limit,"checksum_mismatch":checksum}});
     if trace {
         let (count, stored_bytes, eligible): (usize, usize, usize) = db.query_row(
-            "SELECT count(*),coalesce(sum(length(data)),0),coalesce(sum(length(data)<=?),0) FROM repo_review_package_facts WHERE repository_id=?",
-            params![PACKAGE_ENTRY_BYTES,anchor], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
+            "SELECT count(*),coalesce(sum(length(data)),0),coalesce(sum(length(data)<=?),0) FROM repo_review_package_facts WHERE repository_id=? AND pool_key=?",
+            params![PACKAGE_ENTRY_BYTES,anchor,namespace], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?)))?;
         stats["stored_entries"] = json!(count);
         stats["stored_bytes"] = json!(stored_bytes);
         stats["skipped"]["entry_limit"] = json!(count - eligible);
         stats["skipped"]["count_limit"] = json!(eligible.saturating_sub(PACKAGE_COUNT));
     }
     Ok((pool, stats))
+}
+
+/// Keep only the current review's configurations, at most two bounded pools.
+/// Run in the final authorized transaction, before either side is saved. This
+/// also discards legacy unpartitioned exports after upgrade; sources are intact.
+pub(crate) fn retain_package_pools(db: &Connection, anchor: &str, base: &str, head: &str) -> Result<()> {
+    let removed = db.execute("DELETE FROM repo_review_package_facts WHERE repository_id=? AND pool_key NOT IN (?,?)", params![anchor,base,head])?;
+    crate::phase::note("review_package_cache_partitions", &format!("anchor={anchor} base={base} head={head} evicted_entries={removed}"));
+    Ok(())
 }
 
 /// Save only after the final authorization, retention and binding checks.
@@ -150,11 +169,11 @@ pub(crate) fn save_packages(
         if store::hash(key).is_err() { invalid_key += 1; continue; }
         if data.len() > PACKAGE_ENTRY_BYTES { entry_limit += 1; continue; }
         let refreshed = if let Some(sha) = pool.persisted.get(key) {
-            db.execute("UPDATE repo_review_package_facts SET used_at=? WHERE repository_id=? AND id=? AND sha256=?",params![crate::now(),anchor,key,sha])? > 0
+            db.execute("UPDATE repo_review_package_facts SET used_at=?,pool_key=? WHERE repository_id=? AND id=? AND sha256=?",params![crate::now(),pool.namespace,anchor,key,sha])? > 0
         } else { false };
         if !refreshed {
             let sha = graphicle_memory::text::sha256(data.as_bytes());
-            db.execute("INSERT INTO repo_review_package_facts(repository_id,id,data,sha256,used_at) VALUES(?,?,?,?,?) ON CONFLICT(repository_id,id) DO UPDATE SET data=excluded.data,sha256=excluded.sha256,used_at=excluded.used_at", params![anchor,key,data,sha,crate::now()])?;
+            db.execute("INSERT INTO repo_review_package_facts(repository_id,id,data,sha256,used_at,pool_key) VALUES(?,?,?,?,?,?) ON CONFLICT(repository_id,id) DO UPDATE SET data=excluded.data,sha256=excluded.sha256,used_at=excluded.used_at,pool_key=excluded.pool_key", params![anchor,key,data,sha,crate::now(),pool.namespace])?;
             pool.persisted.insert(key.clone(), sha);
             written += 1;
         } else {
@@ -165,12 +184,12 @@ pub(crate) fn save_packages(
         }
     }
     // Enforce both byte and entry limits, evicting least-recently-used facts.
-    let evicted = db.execute("DELETE FROM repo_review_package_facts WHERE repository_id=? AND id NOT IN (SELECT id FROM (SELECT id,row_number() OVER (ORDER BY used_at DESC,rowid DESC) AS n,sum(length(data)) OVER (ORDER BY used_at DESC,rowid DESC) AS bytes FROM repo_review_package_facts WHERE repository_id=?) WHERE n<=? AND bytes<=?)",params![anchor,anchor,PACKAGE_COUNT,PACKAGE_BYTES])?;
+    let evicted = db.execute("DELETE FROM repo_review_package_facts WHERE repository_id=? AND pool_key=? AND id NOT IN (SELECT id FROM (SELECT id,row_number() OVER (ORDER BY used_at DESC,rowid DESC) AS n,sum(length(data)) OVER (ORDER BY used_at DESC,rowid DESC) AS bytes FROM repo_review_package_facts WHERE repository_id=? AND pool_key=?) WHERE n<=? AND bytes<=?)",params![anchor,pool.namespace,anchor,pool.namespace,PACKAGE_COUNT,PACKAGE_BYTES])?;
     let mut stats = json!({"status":"pending_commit","requested_entries":used.len(),"written_entries":written,"refreshed_entries":refreshed_count,
         "skipped":{"unavailable":unavailable,"invalid_key":invalid_key,"entry_limit":entry_limit,"count_limit":used.len().saturating_sub(PACKAGE_COUNT)},
-        "evicted_entries":evicted,"store_byte_limit":PACKAGE_BYTES,"store_entry_limit":PACKAGE_COUNT});
+        "evicted_entries":evicted,"namespace":pool.namespace,"store_byte_limit":PACKAGE_BYTES,"store_entry_limit":PACKAGE_COUNT});
     if crate::phase::enabled() {
-        let (count, bytes): (usize, usize) = db.query_row("SELECT count(*),coalesce(sum(length(data)),0) FROM repo_review_package_facts WHERE repository_id=?", [anchor], |r| Ok((r.get(0)?,r.get(1)?)))?;
+        let (count, bytes): (usize, usize) = db.query_row("SELECT count(*),coalesce(sum(length(data)),0) FROM repo_review_package_facts WHERE repository_id=? AND pool_key=?", params![anchor,pool.namespace], |r| Ok((r.get(0)?,r.get(1)?)))?;
         stats["retained_entries"] = json!(count);
         stats["retained_bytes"] = json!(bytes);
     }
@@ -291,7 +310,7 @@ mod tests {
             save(db,anchor,&key,&facts,&[],None)
         }).unwrap();
         let (_, verified) = load(&store,s(&ws,"id"),s(&ws,"capability"),anchor,&key).unwrap().unwrap();
-        pool = load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor, "").unwrap();
+        pool = load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor, "", "").unwrap();
         for eviction in [false, true] {
             store.transaction(|db| {
                 if eviction {
@@ -306,13 +325,13 @@ mod tests {
                 Ok(())
             }).unwrap();
             assert_eq!(load(&store,s(&ws,"id"),s(&ws,"capability"),anchor,&key).unwrap().unwrap().0, facts);
-            assert_eq!(load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor, "").unwrap().entries[&key], "original");
+            assert_eq!(load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor, "", "").unwrap().entries[&key], "original");
         }
         let mut repaired = PackageResult::default();
         repaired.entries.insert(key.clone(), "repaired by native compiler".into());
         pool.absorb(&mut repaired);
         store.transaction(|db| save_packages(db,anchor,&mut pool,std::slice::from_ref(&key),&[])).unwrap();
-        assert_eq!(load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor, "").unwrap().entries[&key], "repaired by native compiler");
+        assert_eq!(load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor, "", "").unwrap().entries[&key], "repaired by native compiler");
     }
 
     #[test]
@@ -353,6 +372,75 @@ mod tests {
     }
 
     #[test]
+    fn configuration_pools_reuse_full_working_sets_without_crowding() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let ws = store.create_workspace("two-package-pools").unwrap();
+        let repo = store.register(s(&ws,"id"),s(&ws,"capability"),&json!({"project_key":"pools","name":"pools"})).unwrap();
+        let anchor = s(&repo,"id");
+        // Each side exceeds the old 32 MiB preload; together they exceed 64 MiB.
+        let make_pool = |namespace: &str, offset: usize| {
+            let mut pool = PackagePool { namespace: namespace.into(), ..Default::default() };
+            for n in 0..9 {
+                pool.entries.insert(format!("{:064x}",offset+n), "x".repeat(PACKAGE_ENTRY_BYTES));
+            }
+            pool
+        };
+        let mut base = make_pool("base-config", 0);
+        let mut head = make_pool("head-config", 100);
+        store.transaction(|db| {
+            retain_package_pools(db,anchor,&base.namespace,&head.namespace)?;
+            for pool in [&mut base,&mut head] {
+                let used = pool.entries.keys().cloned().collect::<Vec<_>>();
+                save_packages(db,anchor,pool,&used,&[])?;
+            }
+            Ok(())
+        }).unwrap();
+        for _ in 0..2 {
+            for expected in [&base,&head] {
+                let loaded = load_packages(&store,s(&ws,"id"),s(&ws,"capability"),anchor,"",&expected.namespace).unwrap();
+                assert_eq!(loaded.entries,expected.entries);
+                assert_eq!(loaded.persisted.len(),9);
+            }
+        }
+        store.transaction(|db| {
+            let (count,bytes): (usize,usize) = db.query_row("SELECT count(*),sum(length(data)) FROM repo_review_package_facts",[],|r|Ok((r.get(0)?,r.get(1)?)))?;
+            assert_eq!((count,bytes),(18,72*1024*1024));
+            // A later review replaces one configuration; the surviving side
+            // remains intact and there can never be a third retained pool.
+            retain_package_pools(db,anchor,"head-config","new-config")?;
+            let mut next = make_pool("new-config",200);
+            let used = next.entries.keys().cloned().collect::<Vec<_>>();
+            save_packages(db,anchor,&mut next,&used,&[])?;
+            let (_, stats) = load_package_rows(db,anchor,"head-config",&BTreeSet::new(),true)?;
+            assert_eq!(stats["loaded_entries"],9);
+            let namespaces: usize = db.query_row("SELECT count(DISTINCT pool_key) FROM repo_review_package_facts",[],|r|r.get(0))?;
+            assert_eq!(namespaces,2);
+            retain_package_pools(db,anchor,"head-config","head-config")?;
+            let bytes: usize = db.query_row("SELECT sum(length(data)) FROM repo_review_package_facts",[],|r|r.get(0))?;
+            assert_eq!(bytes,36*1024*1024);
+            Ok(())
+        }).unwrap();
+    }
+
+    #[test]
+    fn native_replacement_frees_capacity_before_absorbing() {
+        let mut pool = PackagePool::default();
+        for n in 0..PACKAGE_COUNT { pool.entries.insert(format!("{n:064x}"),"old".into()); }
+        let victim = format!("{:064x}",0);
+        let new = "f".repeat(64);
+        pool.persisted.insert(victim.clone(), "old-checksum".into());
+        let mut result = PackageResult { entries: BTreeMap::from([(new.clone(),"new".into())]),
+            evicted:vec![victim.clone()],used:vec![new.clone()],..Default::default() };
+        let stats = pool.absorb(&mut result);
+        assert_eq!(stats["accepted_entries"],1);
+        assert_eq!(pool.entries.len(),PACKAGE_COUNT);
+        assert!(!pool.entries.contains_key(&victim));
+        assert!(!pool.persisted.contains_key(&victim));
+        assert_eq!(pool.entries[&new],"new");
+    }
+
+    #[test]
     fn package_load_diagnostics_distinguish_capacity_access_and_corruption() {
         let dir = tempfile::tempdir().unwrap();
         let store = Store::open(dir.path()).unwrap();
@@ -362,18 +450,18 @@ mod tests {
         let denied = BTreeSet::from(["d".repeat(64)]);
         store.transaction(|db| {
             let insert = |key: &str, data: &str, sha: &str, time: &str| db.execute(
-                "INSERT INTO repo_review_package_facts VALUES(?,?,?,?,?)", params![anchor,key,data,sha,time]);
+                "INSERT INTO repo_review_package_facts(repository_id,id,data,sha256,used_at) VALUES(?,?,?,?,?)", params![anchor,key,data,sha,time]);
             let payload = "x".repeat(PACKAGE_ENTRY_BYTES);
             let sha = graphicle_memory::text::sha256(payload.as_bytes());
-            for n in 0..9 { insert(&format!("{n:064x}"),&payload,&sha,"a")?; }
+            for n in 0..17 { insert(&format!("{n:064x}"),&payload,&sha,"a")?; }
             insert("invalid-key","x","irrelevant","z")?;
             insert(&"c".repeat(64),"x","corrupt","z")?;
             insert(&"d".repeat(64),"x","irrelevant","z")?;
             insert(&"e".repeat(64),&"x".repeat(PACKAGE_ENTRY_BYTES+1),"irrelevant","z")?;
-            let (pool, stats) = load_package_rows(db,anchor,&denied,true)?;
-            assert_eq!(pool.entries.len(),8);
-            assert_eq!(stats["stored_entries"],13);
-            assert_eq!(stats["loaded_bytes"],PACKAGE_BYTES/2);
+            let (pool, stats) = load_package_rows(db,anchor,"",&denied,true)?;
+            assert_eq!(pool.entries.len(),16);
+            assert_eq!(stats["stored_entries"],21);
+            assert_eq!(stats["loaded_bytes"],PACKAGE_BYTES);
             for reason in ["input_unavailable","invalid_key","checksum_mismatch","byte_limit","entry_limit"] {
                 assert_eq!(stats["skipped"][reason],1,"{stats}");
             }
@@ -381,7 +469,7 @@ mod tests {
             db.execute("DELETE FROM repo_review_package_facts WHERE repository_id=?",[anchor])?;
             let sha = graphicle_memory::text::sha256(b"x");
             for n in 0..PACKAGE_COUNT+1 { insert(&format!("{n:064x}"),"x",&sha,"a")?; }
-            let (pool, stats) = load_package_rows(db,anchor,&BTreeSet::new(),true)?;
+            let (pool, stats) = load_package_rows(db,anchor,"",&BTreeSet::new(),true)?;
             assert_eq!(pool.entries.len(),PACKAGE_COUNT);
             assert_eq!(stats["stored_entries"],PACKAGE_COUNT+1);
             assert_eq!(stats["skipped"]["count_limit"],1);
@@ -425,7 +513,7 @@ mod tests {
             Ok(())
         }).unwrap();
         assert_eq!(
-            load_packages(&store, workspace, s(&reader, "capability"), anchor, "")
+            load_packages(&store, workspace, s(&reader, "capability"), anchor, "", "")
                 .unwrap()
                 .entries
                 .len(),
@@ -443,13 +531,13 @@ mod tests {
             })
             .unwrap();
         assert!(
-            load_packages(&store, workspace, s(&reader, "capability"), anchor, "")
+            load_packages(&store, workspace, s(&reader, "capability"), anchor, "", "")
                 .unwrap()
                 .entries
                 .is_empty()
         );
         assert_eq!(
-            load_packages(&store, workspace, owner, anchor, "")
+            load_packages(&store, workspace, owner, anchor, "", "")
                 .unwrap()
                 .entries
                 .len(),
@@ -461,7 +549,7 @@ mod tests {
             assert_eq!(count,0);
             // The store applies its own quota, independent of transport bounds.
             for n in 0..PACKAGE_COUNT + 2 {
-                db.execute("INSERT INTO repo_review_package_facts VALUES(?,?,?,?,?)",params![anchor,format!("{n:064x}"),"x",graphicle_memory::text::sha256(b"x"),"old"])?;
+                db.execute("INSERT INTO repo_review_package_facts(repository_id,id,data,sha256,used_at) VALUES(?,?,?,?,?)",params![anchor,format!("{n:064x}"),"x",graphicle_memory::text::sha256(b"x"),"old"])?;
             }
             let stats = save_packages(db,anchor,&mut pool,std::slice::from_ref(&key),&[])?;
             assert_eq!(stats["evicted_entries"],3);

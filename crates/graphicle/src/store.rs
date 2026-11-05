@@ -364,6 +364,8 @@ impl Store {
         db.execute_batch(include_str!("expansion_schema.sql"))?;
         db.execute_batch(include_str!("projection_schema.sql"))?;
         crate::review::admission::migrate(&db)?;
+        ensure_column(&db, "repo_review_package_facts", "pool_key", "TEXT NOT NULL DEFAULT ''")?;
+        db.execute_batch("CREATE INDEX IF NOT EXISTS review_package_pool ON repo_review_package_facts(repository_id,pool_key,used_at)")?;
         ensure_column(&db, "gf_episodes", "parent_episode", "TEXT")?;
         db.execute_batch(include_str!("temporal_schema.sql"))?;
         crate::temporal_graph::migrate(&db)?;

@@ -67,6 +67,24 @@ pub(super) fn with_exclusions(mut identity: Value, input: &Input) -> Value {
     identity
 }
 
+/// Shared native identity: build profile and admitted trust/scope boundaries.
+pub(super) fn package_identity(input: &Input, profile: &Profile, identity: &str) -> String {
+    crate::digest(&with_exclusions(json!({"identity":identity,"profile":profile,
+        "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.policy_sha256])).collect::<Vec<_>>()}),input))
+}
+
+/// Select a bounded working set, not a correctness key. The native helper still
+/// fingerprints every package and transitive import before using any export.
+/// Keep discovery configurations apart, but reuse across ordinary source edits.
+pub(super) fn package_pool_key(input: &Input, profile: &Profile, identity: &str) -> String {
+    let configuration: Vec<_> = input.sources.iter().filter(|(path, _)| {
+        matches!(Path::new(path).file_name().and_then(|name| name.to_str()),
+            Some("go.mod" | "go.sum" | "go.work" | "go.work.sum" | "modules.txt"))
+            || *path == &profile.workspace
+    }).map(|(path, source)| (path, &source.sha)).collect();
+    crate::digest(&json!([package_identity(input, profile, identity), configuration]))
+}
+
 /// Reuse only native Go facts, never the report or its snapshot bindings.
 /// Keep every path: additions/deletions can affect discovery and embed matches.
 /// Only known documentation/configuration content is omitted, and never below
@@ -401,6 +419,40 @@ mod tests {
         let new = graphicle::extractors::go_types::review(after.path(),&request).unwrap();
         assert_eq!(old,new);
         assert!(new["worlds"][0]["symbols"].as_array().is_some_and(|symbols| !symbols.is_empty()),"{new}");
+    }
+
+    #[test]
+    fn package_pools_follow_configuration_not_source_or_snapshot_changes() {
+        let profile: Profile = serde_json::from_value(json!({"goos":"linux","goarch":"amd64"})).unwrap();
+        let original = input(&[("code.go","before"),("go.mod","module app")]);
+        let key = package_pool_key(&original,&profile,"helper");
+        let mut changed = input(&[("code.go","after"),("go.mod","module app")]);
+        changed.pins[0].snapshot.push('x');
+        changed.pins[0].commit.push('x');
+        assert_eq!(key,package_pool_key(&changed,&profile,"helper"));
+        for path in ["go.mod","go.sum","go.work","go.work.sum","vendor/modules.txt"] {
+            assert_ne!(package_pool_key(&input(&[(path,"before")]),&profile,"helper"),
+                package_pool_key(&input(&[(path,"after")]),&profile,"helper"),"{path}");
+        }
+        for mutation in ["policy","repository","directory","modules","exclusions"] {
+            let mut changed = input(&[("code.go","before"),("go.mod","module app")]);
+            let pin = &mut changed.pins[0];
+            match mutation {
+                "policy" => pin.policy_sha256.push('x'),
+                "repository" => pin.repository_id.push('x'),
+                "directory" => pin.directory.push('x'),
+                "modules" => pin.modules.push("sub".into()),
+                _ => pin.excluded_modules.push("sub".into()),
+            }
+            assert_ne!(key,package_pool_key(&changed,&profile,"helper"),"{mutation}");
+        }
+        assert_ne!(key,package_pool_key(&original,&profile,"new-helper"));
+        let mut changed_profile = profile.clone();
+        changed_profile.tests = true;
+        assert_ne!(key,package_pool_key(&original,&changed_profile,"helper"));
+        changed_profile.workspace = "app/custom.json".into();
+        assert_ne!(package_pool_key(&input(&[("custom.json","before")]),&changed_profile,"helper"),
+            package_pool_key(&input(&[("custom.json","after")]),&changed_profile,"helper"));
     }
 
     #[test]

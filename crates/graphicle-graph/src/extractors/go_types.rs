@@ -231,7 +231,7 @@ fn native_review_cache(line: &str) -> Option<Value> {
             | "input_invalid_key" | "input_entry_limit" | "input_count_limit" | "input_byte_limit" | "loaded_entries" | "loaded_bytes"
             | "miss_not_present" | "miss_import_failed" | "miss_invalid_export" | "hit_standard_library" | "hit_dependency"
             | "save_attempted" | "save_export_failed" | "save_raw_limit" | "save_compression_failed" | "save_entry_limit"
-            | "save_count_limit" | "save_byte_limit" | "saved_entries" | "transport_metadata_omitted"
+            | "evicted_unused_entries" | "save_count_limit" | "save_byte_limit" | "saved_entries" | "transport_metadata_omitted"
             | "transport_omitted_entries" | "transport_omitted_bytes" | "transport_entries" | "transport_bytes") {
             return None;
         }

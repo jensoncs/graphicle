@@ -416,8 +416,7 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
         Ok(facts)
     } else {
         let cache_identity = if packages.identity.is_empty() { String::new() } else {
-            crate::digest(&go::with_exclusions(json!({"identity":packages.identity,"profile":profile,
-                "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.policy_sha256])).collect::<Vec<_>>()}),input))
+            go::package_identity(input, profile, &packages.identity)
         };
         let request = json!({"trace_key":cache_key,"roots":roots,"goos":profile.goos,"goarch":profile.goarch,"tags":profile.tags,"tests":profile.tests,"workspace":profile.workspace,
             "cache_identity":cache_identity,"package_cache":packages.entries});
@@ -2199,14 +2198,21 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     };
     let (cached_a, checksum_a) = read_cache("base", &key_a)?.unzip();
     let hit_a = cached_a.is_some();
-    let load_packages = |key: &Option<String>| review_phase("review_load_package_cache", || {
-        crate::review_cache::load_packages(store,workspace,token,anchor,key.as_deref().unwrap_or("unavailable"))
-    });
-    // Full cached facts need no dependency exports. Keep one shared pool for
-    // native misses so base-created exports still accelerate head analysis.
-    let loaded_packages = identity.is_some() && !hit_a;
-    let mut package_pool = if loaded_packages { load_packages(&key_a)? } else { crate::review_cache::PackagePool::default() };
-    package_pool.identity = identity.clone().unwrap_or_default();
+    let namespace_a = go::package_pool_key(&base, &r.profile, identity.as_deref().unwrap_or(""));
+    let namespace_b = go::package_pool_key(&head, &r.profile, identity.as_deref().unwrap_or(""));
+    let load_packages = |key: &Option<String>, namespace: &str, needed: bool| -> Result<crate::review_cache::PackagePool> {
+        let mut pool = if identity.is_some() && needed {
+            review_phase("review_load_package_cache", || {
+                crate::review_cache::load_packages(store,workspace,token,anchor,key.as_deref().unwrap_or("unavailable"),namespace)
+            })?
+        } else { crate::review_cache::PackagePool::default() };
+        pool.namespace = namespace.to_owned();
+        pool.identity = identity.clone().unwrap_or_default();
+        Ok(pool)
+    };
+    // Same-configuration sides share exports. Distinct configurations each
+    // retain their bounded working set instead of competing for one pool.
+    let mut package_pool = load_packages(&key_a, &namespace_a, !hit_a)?;
     let mut a = review_phase("review_analyze_base", || {
         analyze(&base, &r.profile, cached_a, &mut package_pool, key_a.as_deref().unwrap_or("unavailable"))
     })?;
@@ -2217,12 +2223,14 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
         read_cache("head", &key_b)?.unzip()
     };
     let hit_b = cached_b.is_some();
-    if identity.is_some() && !hit_b && !loaded_packages {
-        package_pool = load_packages(&key_b)?;
-        package_pool.identity = identity.clone().unwrap_or_default();
+    let mut head_pool = if namespace_a != namespace_b {
+        Some(load_packages(&key_b, &namespace_b, !hit_b)?)
+    } else { None };
+    if head_pool.is_none() && hit_a && !hit_b {
+        package_pool = load_packages(&key_b, &namespace_b, true)?;
     }
     let mut b = review_phase("review_analyze_head", || {
-        analyze(&head, &r.profile, cached_b, &mut package_pool, key_b.as_deref().unwrap_or("unavailable"))
+        analyze(&head, &r.profile, cached_b, head_pool.as_mut().unwrap_or(&mut package_pool), key_b.as_deref().unwrap_or("unavailable"))
     })?;
     review_phase("review_service_links_base", || services::attach(&base, &mut a))?;
     review_phase("review_service_links_head", || services::attach(&head, &mut b))?;
@@ -2354,9 +2362,11 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
             let row=store::one(db,"SELECT repository_id FROM repo_review_coverage WHERE id=?",[id])?.ok_or_else(||Error::conflict("Coverage removed during review; retry"))?;
             store::repo(db,p,s(&row,"repository_id"))?;
         }
-        for (input,analysis,key,checksum) in [(&base,&a,&key_a,&checksum_a),(&head,&b,&key_b,&checksum_b)] {
+        crate::review_cache::retain_package_pools(db,anchor,&namespace_a,&namespace_b)?;
+        for (side,(input,analysis,key,checksum)) in [(&base,&a,&key_a,&checksum_a),(&head,&b,&key_b,&checksum_b)].into_iter().enumerate() {
+            let pool = if side == 1 { head_pool.as_mut().unwrap_or(&mut package_pool) } else { &mut package_pool };
             if input.bindings.len()==input.pins.len() {
-                let stats = crate::review_cache::save_packages(db,anchor,&mut package_pool,&analysis.package_cache.used,&input.pins)?;
+                let stats = crate::review_cache::save_packages(db,anchor,pool,&analysis.package_cache.used,&input.pins)?;
                 if crate::phase::enabled() {
                     crate::phase::note("review_package_cache_save", &format!("anchor={anchor} key={} stats={stats}", key.as_deref().unwrap_or("unavailable")));
                 }
