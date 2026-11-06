@@ -1,7 +1,7 @@
 use crate::store::{self, Principal, Store, decode, one, repo, rows, s};
 use crate::{Error, Result, digest, id, integer, native, now, string};
 use rusqlite::{Connection, OptionalExtension, params};
-use serde_json::{Value, json};
+use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
 pub fn documents(db: &Connection, repository: &Value, p: &Principal) -> Result<Vec<Value>> {
@@ -24,20 +24,50 @@ pub fn repository_documents(
     content: bool,
 ) -> Result<Vec<Value>> {
     let identifier = s(repository, "id");
-    let mut output = Vec::new();
     let sql = if content {
         "SELECT h.path,h.sha256,o.content,b.original_sha,b.parser FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 LEFT JOIN am_binary_heads b ON b.repository_id=h.repository_id AND b.path=h.path AND b.source_sha=h.sha256 WHERE h.repository_id=? AND typeof(o.content)='text' ORDER BY h.path"
     } else {
         "SELECT h.path,h.sha256,'' AS content,b.original_sha,b.parser FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 LEFT JOIN am_binary_heads b ON b.repository_id=h.repository_id AND b.path=h.path AND b.source_sha=h.sha256 WHERE h.repository_id=? AND typeof(o.content)='text' ORDER BY h.path"
     };
-    for row in rows(db, sql, [identifier])? {
-        let path = s(&row, "path");
-        output.push(json!({"id":format!("file:{path}"),"path":path,"title":path,"source_kind":"repository_file",
-            "sha256":row["sha256"],"snapshot":repository["snapshot"],"version":row["sha256"],
-            "content":row["content"],"recorded_at":null,"observed_at":repository["updated_at"],
-            "authority":"original_repository_source","url":null,"metadata":{"original_sha256":row["original_sha"],"parser":row["parser"]}}));
-    }
-    Ok(output)
+    crate::phase::phase("repository_document_stream", || {
+        let mut statement = db.prepare(sql)?;
+        let mut records = statement.query([identifier])?;
+        let mut output = Vec::new();
+        // Only the final catalogue is retained; each SQLite row is consumed here.
+        while let Some(row) = records.next()? {
+            let path = match store::json_value(row.get_ref(0)?) {
+                Value::String(path) => path,
+                _ => String::new(),
+            };
+            let sha = store::json_value(row.get_ref(1)?);
+            // Move decoded values into their final fields. json! would clone them.
+            output.push(Value::Object(Map::from_iter([
+                ("id".into(), Value::String(format!("file:{path}"))),
+                ("path".into(), Value::String(path.clone())),
+                ("title".into(), Value::String(path)),
+                ("source_kind".into(), Value::from("repository_file")),
+                ("sha256".into(), sha.clone()),
+                ("snapshot".into(), repository["snapshot"].clone()),
+                ("version".into(), sha),
+                ("content".into(), store::json_value(row.get_ref(2)?)),
+                ("recorded_at".into(), Value::Null),
+                ("observed_at".into(), repository["updated_at"].clone()),
+                (
+                    "authority".into(),
+                    Value::from("original_repository_source"),
+                ),
+                ("url".into(), Value::Null),
+                (
+                    "metadata".into(),
+                    Value::Object(Map::from_iter([
+                        ("original_sha256".into(), store::json_value(row.get_ref(3)?)),
+                        ("parser".into(), store::json_value(row.get_ref(4)?)),
+                    ])),
+                ),
+            ])));
+        }
+        Ok(output)
+    })
 }
 
 /// The text of the project files among `documents` whose ids `wanted`
@@ -420,7 +450,9 @@ pub fn list_of(
     // release its borrows before applying them. Keep only those small results
     // alongside the records instead of cloning every body and dependency map.
     let annotations = {
-        let lookup = Lookup::new(db, s(repository, "id"), documents, &values, None)?;
+        let lookup = crate::phase::phase("memory_visibility_lookup", || {
+            Lookup::new(db, s(repository, "id"), documents, &values, None)
+        })?;
         // Every record's reasons in one pass; each equals `reasons` for that record.
         let nodes: Vec<Value> = values.iter().map(|item| lookup.node(item)).collect();
         let batched = native("lifecycle.dependencies_all", json!({"nodes":nodes}))?;
@@ -931,4 +963,128 @@ pub fn propose_refresh(
         &data,
     )?;
     Ok(json!({"drafts":[draft],"approval_required":true}))
+}
+
+#[cfg(test)]
+mod repository_document_tests {
+    use super::*;
+
+    fn database() -> Connection {
+        let db = Connection::open_in_memory().unwrap();
+        // Match source-column affinities; omit foreign keys to exercise missing objects.
+        db.execute_batch(
+            "CREATE TABLE repo_heads (repository_id TEXT, path TEXT, sha256 TEXT);
+             CREATE TABLE repo_objects (repository_id TEXT, sha256 TEXT, content BLOB);
+             CREATE TABLE am_binary_heads (repository_id TEXT, path TEXT, source_sha TEXT,
+                                           original_sha TEXT, parser TEXT);",
+        )
+        .unwrap();
+        db
+    }
+
+    #[test]
+    fn repository_documents_preserve_order_scope_metadata_and_content_modes() {
+        let db = database();
+        let repository = json!({"id":"repo","snapshot":"snapshot","updated_at":"observed"});
+        let alpha_sha = graphicle_memory::text::sha256(b"alpha\n");
+        let zulu_sha = graphicle_memory::text::sha256(b"zulu\n");
+        for (path, sha, content) in [
+            ("z.txt", &zulu_sha, "zulu\n"),
+            ("a.txt", &alpha_sha, "alpha\n"),
+        ] {
+            db.execute(
+                "INSERT INTO repo_heads VALUES ('repo',?,?)",
+                params![path, sha],
+            )
+            .unwrap();
+            db.execute(
+                "INSERT INTO repo_objects VALUES ('repo',?,?)",
+                params![sha, content],
+            )
+            .unwrap();
+        }
+        db.execute(
+            "INSERT INTO am_binary_heads VALUES ('repo','a.txt',?,'original','pdf')",
+            [&alpha_sha],
+        )
+        .unwrap();
+        db.execute_batch(
+            "INSERT INTO am_binary_heads VALUES ('repo','z.txt','stale','old','stale-parser');
+             INSERT INTO repo_heads VALUES ('repo','missing.txt','missing'),
+                 ('repo','blob.txt','blob'),('repo','integer.txt','integer'),('other','a.txt','other');
+             INSERT INTO repo_objects VALUES ('repo','blob',x'6162'),('repo','integer',42),
+                 ('other','missing','belongs to another repo'),('other','other','other');
+             INSERT INTO am_binary_heads VALUES ('other','z.txt','other','other-original','other-parser');",
+        ).unwrap();
+        let expected = vec![
+            json!({"id":"file:a.txt","path":"a.txt","title":"a.txt","source_kind":"repository_file",
+                "sha256":alpha_sha,"snapshot":"snapshot","version":alpha_sha,"content":"alpha\n",
+                "recorded_at":null,"observed_at":"observed","authority":"original_repository_source",
+                "url":null,"metadata":{"original_sha256":"original","parser":"pdf"}}),
+            json!({"id":"file:z.txt","path":"z.txt","title":"z.txt","source_kind":"repository_file",
+                "sha256":zulu_sha,"snapshot":"snapshot","version":zulu_sha,"content":"zulu\n",
+                "recorded_at":null,"observed_at":"observed","authority":"original_repository_source",
+                "url":null,"metadata":{"original_sha256":null,"parser":null}}),
+        ];
+        let full = repository_documents(&db, &repository, true).unwrap();
+        assert_eq!(full, expected);
+        let mut metadata = repository_documents(&db, &repository, false).unwrap();
+        let mut expected_metadata = expected.clone();
+        for doc in &mut expected_metadata {
+            doc["content"] = json!("");
+        }
+        assert_eq!(metadata, expected_metadata);
+        assert_eq!(state(&metadata), state(&full));
+        let wanted = BTreeSet::from(["file:a.txt".to_string(), "file:z.txt".to_string()]);
+        load_contents(&db, &repository, &mut metadata, &wanted).unwrap();
+        assert_eq!(metadata, expected);
+        assert!(
+            repository_documents(&db, &json!({"id":"empty"}), false)
+                .unwrap()
+                .is_empty()
+        );
+        db.execute(
+            "UPDATE repo_objects SET content='tampered' WHERE repository_id='repo' AND sha256=?",
+            [&alpha_sha],
+        )
+        .unwrap();
+        assert!(load_contents(&db, &repository, &mut metadata, &wanted).is_err());
+        db.execute(
+            "DELETE FROM repo_objects WHERE repository_id='repo' AND sha256=?",
+            [&alpha_sha],
+        )
+        .unwrap();
+        assert!(load_contents(&db, &repository, &mut metadata, &wanted).is_err());
+    }
+
+    #[test]
+    fn repository_documents_preserve_lossy_text_null_blobs_and_sql_errors() {
+        let db = database();
+        db.execute_batch(
+            "INSERT INTO repo_heads VALUES ('repo',CAST(x'61ff' AS TEXT),'sha'),
+                 ('repo',x'6262',x'736861');
+             INSERT INTO repo_objects VALUES ('repo','sha',CAST(x'63ff' AS TEXT)),
+                 ('repo',x'736861','blob path and sha');
+             INSERT INTO am_binary_heads VALUES ('repo',CAST(x'61ff' AS TEXT),'sha',x'6262',CAST(x'70ff' AS TEXT));",
+        ).unwrap();
+        for content in [false, true] {
+            let docs = repository_documents(&db, &json!({"id":"repo"}), content).unwrap();
+            assert_eq!(
+                docs,
+                vec![
+                    json!({"id":"file:a\u{fffd}","path":"a\u{fffd}","title":"a\u{fffd}",
+                    "source_kind":"repository_file","sha256":"sha","snapshot":null,"version":"sha",
+                    "content":if content { "c\u{fffd}" } else { "" },"recorded_at":null,"observed_at":null,
+                    "authority":"original_repository_source","url":null,
+                    "metadata":{"original_sha256":null,"parser":"p\u{fffd}"}}),
+                    json!({"id":"file:","path":"","title":"","source_kind":"repository_file",
+                    "sha256":null,"snapshot":null,"version":null,
+                    "content":if content { "blob path and sha" } else { "" },"recorded_at":null,"observed_at":null,
+                    "authority":"original_repository_source","url":null,"metadata":{"original_sha256":null,"parser":null}}),
+                ]
+            );
+        }
+        db.execute_batch("DROP TABLE repo_objects").unwrap();
+        assert!(repository_documents(&db, &json!({"id":"repo"}), false).is_err());
+    }
 }

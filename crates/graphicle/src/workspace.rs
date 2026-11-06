@@ -48,7 +48,6 @@ use crate::{
     integer, memory, native, query,
     store::{Principal, Store, repo, rows, s},
 };
-use graphicle::graph::Graph;
 use rusqlite::Connection;
 use serde_json::{Map, Value, json};
 use std::collections::{BTreeMap, BTreeSet, HashMap};
@@ -201,6 +200,7 @@ pub fn context(
     embedding: Option<&crate::model::Profile>,
     reranker: Option<&crate::model::Profile>,
 ) -> Result<Value> {
+    let work_started = std::time::Instant::now();
     let question = crate::string(args, "question", 16000)?;
     let cap = integer(args, "max_projects", FANOUT, MAX_FANOUT)?.max(1);
     let max_tokens = integer(args, "max_tokens", 3000, 16000)?.max(256);
@@ -216,6 +216,7 @@ pub fn context(
     // as a direct read of it would.
     let mut failed: Vec<(usize, Value, Error)> = Vec::new();
     for (position, repository) in repositories.into_iter().enumerate() {
+        let project_started = std::time::Instant::now();
         let id = s(&repository, "id").to_string();
         match query::project_packet(
             db,
@@ -236,6 +237,20 @@ pub fn context(
             }
             Err(error) => return Err(error),
         }
+        crate::phase::since("workspace_project", project_started);
+        if crate::phase::enabled() {
+            crate::phase::note(
+                "workspace_retained",
+                &format!(
+                    "projects={} documents={}",
+                    reads.len(),
+                    reads
+                        .iter()
+                        .map(|read| read.snapshot.documents.len())
+                        .sum::<usize>()
+                ),
+            );
+        }
     }
     // No project could be read: the request is at fault, or the store.
     if reads.is_empty() && !failed.is_empty() {
@@ -254,13 +269,16 @@ pub fn context(
     }
     // The cross-repository step's own switch, else `graph_retrieval`'s.
     let switches = query::switches(args, "workspace")?;
-    let step = if switches["cross_repo"] == true {
-        // A graph mechanism: like the code arm, it degrades (and says why)
-        // rather than failing the query.
-        cross_step(db, p, &mut reads, &order).unwrap_or_else(|error| Step::failed(&error))
-    } else {
-        Step::off()
-    };
+    let step = crate::phase::phase("workspace_cross_step", || {
+        if switches["cross_repo"] == true {
+            // A graph mechanism: like the code arm, it degrades (and says why)
+            // rather than failing the query.
+            cross_step(db, p, &mut reads, &order).unwrap_or_else(|error| Step::failed(&error))
+        } else {
+            Step::off()
+        }
+    });
+    let fusion_started = std::time::Instant::now();
     let mut hits = Vec::new();
     let mut reasons = Map::new();
     let mut identities = BTreeSet::new();
@@ -493,6 +511,10 @@ pub fn context(
             .map(|r| r.packet["model_calls"].as_u64().unwrap_or(0))
             .sum::<u64>()
     );
+    crate::phase::since("workspace_fusion", fusion_started);
+    // context's caller measures workspace_total, including release of all
+    // retained project snapshots after this final in-function checkpoint.
+    crate::phase::since("workspace_ready", work_started);
     Ok(packet)
 }
 
@@ -877,9 +899,9 @@ impl Step {
     }
 }
 
-/// Episode graphs the step reads, loaded once per call; `None` for one that
-/// cannot be read (the step then passes over its edges, as the code arm
-/// degrades instead of failing the query).
+/// Episode endpoint lookups, opened once per call from the saved query
+/// file, falling back to the resident graph. `None` means neither can be
+/// read: the step passes over its edges instead of failing the query.
 struct Graphs<'a> {
     db: &'a Connection,
     loaded: HashMap<(String, String), Option<Loaded>>,
@@ -888,9 +910,59 @@ struct Graphs<'a> {
 /// A project's fused windows by document: (rank, byte start, byte end).
 type Placed<'a> = HashMap<&'a str, Vec<(usize, usize, usize)>>;
 
-struct Loaded {
-    handle: graphicle::session::GraphHandle,
-    starts: HashMap<String, Vec<usize>>,
+enum Loaded {
+    Saved(std::sync::Arc<crate::query_file::QueryFile>),
+    Resident {
+        handle: graphicle::session::GraphHandle,
+        starts: HashMap<String, Vec<usize>>,
+    },
+}
+
+impl Loaded {
+    fn resident(db: &Connection, repository: &str, episode: &str) -> Option<Self> {
+        let handle = graph_projection::resident(db, repository, episode).ok()?;
+        let starts = code_graph_arm::symbol_starts(&handle);
+        Some(Self::Resident { handle, starts })
+    }
+
+    fn relpath(&self, node: &str) -> Option<String> {
+        match self {
+            Self::Saved(file) => {
+                let index = file.node_index(node).ok()??;
+                code_graph_arm::relpath(&file.attributes(index).ok()?)
+            }
+            Self::Resident { handle, .. } => code_graph_arm::relpath_of(handle, node),
+        }
+    }
+
+    fn locate(
+        &self,
+        node: &str,
+        documents: &HashMap<&str, &Value>,
+    ) -> Option<code_graph_arm::Located> {
+        match self {
+            Self::Saved(file) => file
+                .locate(file.node_index(node).ok()??, documents)
+                .ok()
+                .flatten(),
+            Self::Resident { handle, starts } => {
+                code_graph_arm::locate(handle, starts, node, documents)
+            }
+        }
+    }
+
+    fn symbols_in(
+        &self,
+        path: &str,
+        documents: &HashMap<&str, &Value>,
+    ) -> Option<Vec<code_graph_arm::Located>> {
+        match self {
+            Self::Saved(file) => file.symbols_in(path, documents).ok(),
+            Self::Resident { handle, starts } => {
+                Some(code_graph_arm::symbols_in(handle, starts, path, documents))
+            }
+        }
+    }
 }
 
 impl<'a> Graphs<'a> {
@@ -900,15 +972,32 @@ impl<'a> Graphs<'a> {
             loaded: HashMap::new(),
         }
     }
-    fn get(&mut self, repository: &str, episode: &str) -> Option<&Loaded> {
-        self.loaded
+
+    /// Retry the entire endpoint operation on the resident graph if any
+    /// saved read fails, including a failure after a node was located.
+    fn read<T>(
+        &mut self,
+        repository: &str,
+        episode: &str,
+        read: impl Fn(&Loaded) -> T,
+    ) -> Option<T> {
+        let loaded = self
+            .loaded
             .entry((repository.to_string(), episode.to_string()))
             .or_insert_with(|| {
-                let handle = graph_projection::resident(self.db, repository, episode).ok()?;
-                let starts = code_graph_arm::symbol_starts(&handle);
-                Some(Loaded { handle, starts })
-            })
-            .as_ref()
+                crate::query_file::open(self.db, repository, episode)
+                    .map(Loaded::Saved)
+                    .or_else(|| Loaded::resident(self.db, repository, episode))
+            });
+        let value = read(loaded.as_ref()?);
+        if let Some(Loaded::Saved(file)) = loaded {
+            file.note("cross_endpoint_query_file_read");
+            if file.corrupt() {
+                *loaded = Loaded::resident(self.db, repository, episode);
+                return loaded.as_ref().map(read);
+            }
+        }
+        Some(value)
     }
 }
 
@@ -932,19 +1021,19 @@ fn mentions(text: &str, word: &str) -> bool {
 /// text uses the imported name (the importer's use of it), else the
 /// module's header. `None` when the node cannot be located in the view.
 fn other_end(
-    graph: &Graph,
-    starts: &HashMap<String, Vec<usize>>,
+    graph: &Loaded,
     node: &str,
     symbol: Option<&str>,
     documents: &HashMap<&str, &Value>,
 ) -> Option<code_graph_arm::Located> {
-    let located = code_graph_arm::locate(graph, starts, node, documents)?;
+    let located = graph.locate(node, documents)?;
     if !located.file {
         return Some(located);
     }
     if let Some(symbol) = symbol {
         let content = s(documents.get(located.document.as_str())?, "content");
-        if let Some(user) = code_graph_arm::symbols_in(graph, starts, &located.relpath, documents)
+        if let Some(user) = graph
+            .symbols_in(&located.relpath, documents)?
             .into_iter()
             .find(|candidate| {
                 content
@@ -985,13 +1074,10 @@ fn step_texts(
             for edge in &edges[i][slot] {
                 let mut file = |repository: &str, side: &str| {
                     graphs
-                        .get(repository, s(edge, &format!("{side}_episode")))
-                        .and_then(|g| {
-                            code_graph_arm::relpath_of(
-                                &g.handle,
-                                s(edge, &format!("{side}_node_id")),
-                            )
+                        .read(repository, s(edge, &format!("{side}_episode")), |g| {
+                            g.relpath(s(edge, &format!("{side}_node_id")))
                         })
+                        .flatten()
                         .map(|path| format!("file:{path}"))
                 };
                 let Some(own_file) = file(&ids[i], own).filter(|f| windows.contains(f.as_str()))
@@ -1146,8 +1232,8 @@ fn cross_step(
                 // Does this window show this project's end of the edge?
                 let file = own_files.entry(key.clone()).or_insert_with(|| {
                     graphs
-                        .get(reads[i].id(), own_episode)
-                        .and_then(|g| code_graph_arm::relpath_of(&g.handle, own_node))
+                        .read(reads[i].id(), own_episode, |g| g.relpath(own_node))
+                        .flatten()
                 });
                 if file.as_deref() != Some(window_path) {
                     continue;
@@ -1155,9 +1241,11 @@ fn cross_step(
                 let Some(own_end) = own_ends
                     .entry(key.clone())
                     .or_insert_with(|| {
-                        graphs.get(reads[i].id(), own_episode).and_then(|g| {
-                            code_graph_arm::locate(&g.handle, &g.starts, own_node, &documents[i])
-                        })
+                        graphs
+                            .read(reads[i].id(), own_episode, |g| {
+                                g.locate(own_node, &documents[i])
+                            })
+                            .flatten()
                     })
                     .clone()
                 else {
@@ -1178,15 +1266,17 @@ fn cross_step(
                 }
                 let j = index[s(edge, &format!("{other}_repository_id"))];
                 let other_episode = s(edge, &format!("{other}_episode")).to_string();
-                let Some(target) = graphs.get(reads[j].id(), &other_episode).and_then(|g| {
-                    other_end(
-                        &g.handle,
-                        &g.starts,
-                        s(edge, &format!("{other}_node_id")),
-                        symbol,
-                        &documents[j],
-                    )
-                }) else {
+                let Some(target) = graphs
+                    .read(reads[j].id(), &other_episode, |g| {
+                        other_end(
+                            g,
+                            s(edge, &format!("{other}_node_id")),
+                            symbol,
+                            &documents[j],
+                        )
+                    })
+                    .flatten()
+                else {
                     continue;
                 };
                 // The other end is cited only from bytes its episode recorded;
@@ -1326,6 +1416,183 @@ fn lifted_hit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use graphicle::graph::Graph;
+
+    fn endpoint_graph() -> Graph {
+        Graph::from_node_link(
+            &json!({"directed":true,"multigraph":false,"nodes":[
+            {"id":"module","kind":"file","relpath":"a.py","source_location":"L1"},
+            {"id":"later","kind":"function","relpath":"a.py","source_location":"L4"},
+            {"id":"unnamed","source_file":"a.py","source_location":"L2"},
+            {"id":"tied","kind":"function","relpath":"a.py","source_location":"L2"},
+            {"id":"no_line","kind":"function","relpath":"a.py"},
+            {"id":"outside","kind":"function","relpath":"a.py","source_location":"L99"},
+            {"id":"other","kind":"document","relpath":"b.md","source_location":"L1"}
+        ],"links":[]}),
+            "links",
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn saved_endpoints_keep_ranges_authorization_and_first_user_order() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let graph = endpoint_graph();
+        let saved = Loaded::Saved(std::sync::Arc::new(crate::query_file::tests::written(
+            &graph,
+            dir.path(),
+        )));
+        let resident = Loaded::Resident {
+            starts: code_graph_arm::symbol_starts(&graph),
+            handle: graphicle::session::GraphHandle::new(graph),
+        };
+        let document = json!({"content":"import target\nfirst(target)\n# π\nlater(target)\n"});
+        for view in [HashMap::new(), HashMap::from([("file:a.py", &document)])] {
+            for node in [
+                "module", "later", "unnamed", "tied", "no_line", "outside", "other", "missing",
+            ] {
+                assert_eq!(saved.relpath(node), resident.relpath(node), "{node}");
+                for symbol in [None, Some("target"), Some("absent")] {
+                    let facts =
+                        |loaded: &Loaded| other_end(loaded, node, symbol, &view).map(|l| l.facts);
+                    assert_eq!(facts(&saved), facts(&resident), "{node} {symbol:?}");
+                }
+            }
+            let facts = |loaded: &Loaded| {
+                loaded
+                    .symbols_in("a.py", &view)
+                    .unwrap()
+                    .into_iter()
+                    .map(|l| l.facts)
+                    .collect::<Vec<_>>()
+            };
+            assert_eq!(facts(&saved), facts(&resident));
+        }
+        let view = HashMap::from([("file:a.py", &document)]);
+        let user = other_end(&saved, "module", Some("target"), &view).unwrap();
+        assert_eq!(user.facts["node_id"], "unnamed");
+        assert_eq!((user.line, user.end_line), (2, 3));
+        assert_eq!(
+            &s(&document, "content")[user.byte_start..user.byte_end],
+            "first(target)\n# π\n"
+        );
+        assert!(
+            other_end(&saved, "module", Some("absent"), &view)
+                .unwrap()
+                .file
+        );
+    }
+
+    #[test]
+    fn endpoint_cache_falls_back_even_after_successful_node_lookup() {
+        use crate::{query_file, store::Store};
+        use graphicle::session::registry;
+        let dir = tempfile::TempDir::new().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let workspace = store.create_workspace("endpoint test").unwrap();
+        let repository = store
+            .register(
+                s(&workspace, "id"),
+                s(&workspace, "capability"),
+                &json!({"project_key":"endpoints","name":"Endpoints"}),
+            )
+            .unwrap();
+        let repository = s(&repository, "id");
+        let episode = "endpoint-episode";
+        let graph = endpoint_graph();
+        let db = store.connect().unwrap();
+        graph_projection::persist(&db, repository, episode, &graph).unwrap();
+        let reference = graph_projection::graph_ref(repository, episode);
+        let path = query_file::path(&db, repository, episode).unwrap();
+        let key = query_file::key(repository, episode);
+        let bytes = query_file::encode(
+            &key,
+            &graph,
+            &graphicle::serve_search::SearchIndex::new(&graph),
+        )
+        .unwrap();
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        let file = query_file::QueryFile::open(&path, &key).unwrap();
+        let at = query_file::tests::first_file_node(&file, "a.py");
+        drop(file);
+        let document = json!({"content":"import target\nfirst(target)\n# π\nlater(target)\n"});
+        let view = HashMap::from([("file:a.py", &document)]);
+        let expected = {
+            let resident = Loaded::resident(&db, repository, episode).unwrap();
+            other_end(&resident, "module", Some("target"), &view)
+                .unwrap()
+                .facts
+        };
+        for damage in [
+            "healthy",
+            "missing",
+            "truncated",
+            "incompatible",
+            "page",
+            "late_index",
+        ] {
+            registry().close(&reference);
+            // Replace atomically: a previous request may still map the old inode.
+            let mut written = bytes.clone();
+            match damage {
+                "truncated" => written.truncate(bytes.len() / 2),
+                "incompatible" => written[7] = 3,
+                "page" => written[at] ^= 0x80,
+                "late_index" => {
+                    written[at] = 127;
+                    assert!(query_file::reseal(&mut written));
+                }
+                _ => {}
+            }
+            let replacement = path.with_extension("replacement");
+            std::fs::write(&replacement, written).unwrap();
+            std::fs::rename(replacement, &path).unwrap();
+            if damage == "missing" {
+                std::fs::remove_file(&path).unwrap();
+            }
+            let mut graphs = Graphs::new(&db);
+            assert_eq!(
+                graphs
+                    .read(repository, episode, |g| g.relpath("module"))
+                    .flatten()
+                    .as_deref(),
+                Some("a.py")
+            );
+            if damage == "healthy" || damage == "late_index" {
+                assert!(
+                    registry().get(&reference).is_err(),
+                    "{damage}: premature resident load"
+                );
+                assert!(
+                    graphs
+                        .read(repository, episode, |g| g.locate("module", &view))
+                        .flatten()
+                        .is_some()
+                );
+                assert!(registry().get(&reference).is_err());
+            }
+            for _ in 0..2 {
+                let actual = graphs
+                    .read(repository, episode, |g| {
+                        other_end(g, "module", Some("target"), &view)
+                    })
+                    .flatten()
+                    .unwrap()
+                    .facts;
+                assert_eq!(actual, expected, "{damage}");
+            }
+            assert_eq!(
+                registry().get(&reference).is_ok(),
+                damage != "healthy",
+                "{damage}"
+            );
+            if damage == "late_index" || damage == "page" {
+                assert!(!path.exists(), "{damage}: damaged cache was not removed");
+            }
+        }
+        registry().close(&reference);
+    }
 
     #[test]
     fn scope_is_project_unless_it_says_workspace() {

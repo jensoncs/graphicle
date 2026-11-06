@@ -539,21 +539,7 @@ impl Saved {
         index: usize,
         view: &HashMap<&str, &Value>,
     ) -> std::result::Result<Option<Located>, crate::query_file::Corrupt> {
-        let file = &self.0;
-        let attributes = file.attributes(index)?;
-        let Some(path) = code_graph_arm::relpath(&attributes) else {
-            return Ok(None);
-        };
-        let starts: HashMap<String, Vec<usize>> = file
-            .starts(&path)?
-            .map(|lines| HashMap::from([(path, lines)]))
-            .unwrap_or_default();
-        Ok(code_graph_arm::locate_record(
-            file.id(index)?.to_string(),
-            &attributes,
-            &starts,
-            view,
-        ))
+        self.0.locate(index, view)
     }
 
     fn references_of(

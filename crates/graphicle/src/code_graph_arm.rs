@@ -173,13 +173,7 @@ pub fn relpath(attributes: &impl graphicle::record::Properties) -> Option<String
 pub fn symbol_starts(graph: &Graph) -> HashMap<String, Vec<usize>> {
     let mut starts: HashMap<String, Vec<usize>> = HashMap::new();
     for node in graph.nodes() {
-        if attr(&node.attributes, "kind").as_deref() == Some("file") {
-            continue;
-        }
-        if let (Some(path), Some(line)) = (
-            relpath(&node.attributes),
-            span::start_line(&node.attributes),
-        ) {
+        if let Some((path, line)) = symbol_location(&node.attributes) {
             starts.entry(path).or_default().push(line);
         }
     }
@@ -188,6 +182,17 @@ pub fn symbol_starts(graph: &Graph) -> HashMap<String, Vec<usize>> {
         list.dedup();
     }
     starts
+}
+
+/// The non-file nodes with a start line used by both citation ranges and
+/// per-file symbol lookup. This includes unnamed and document nodes.
+pub(crate) fn symbol_location(
+    attributes: &impl graphicle::record::Properties,
+) -> Option<(String, usize)> {
+    if attr(attributes, "kind").as_deref() == Some("file") {
+        return None;
+    }
+    Some((relpath(attributes)?, span::start_line(attributes)?))
 }
 
 /// `(line, end_line, byte_start, byte_end)` of a node in the current text of
@@ -461,9 +466,7 @@ pub fn symbols_in(
         .iter()
         .enumerate()
         .filter(|(_, node)| {
-            attr(&node.attributes, "kind").as_deref() != Some("file")
-                && span::start_line(&node.attributes).is_some()
-                && self::relpath(&node.attributes).as_deref() == Some(relpath)
+            symbol_location(&node.attributes).is_some_and(|(path, _)| path == relpath)
         })
         .filter_map(|(index, _)| locate_index(graph, starts, index, documents))
         .collect();

@@ -13,6 +13,12 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 pub const MAX_NODES: usize = 50_000;
 /// Most edges of one property graph projection.
 pub const MAX_EDGES: usize = 200_000;
+/// Every authorized document becomes a property-graph node. Outside this
+/// bound, building the graph stops before reading any source relationships.
+pub(crate) fn within_document_budget(documents: usize) -> bool {
+    documents <= MAX_NODES
+}
+
 /// Key beside a query's rankings that carries `graph_local`'s status when it
 /// did not rank (`degraded` past its budget) into the packet's `mechanisms`;
 /// `context` takes it out before fusion, as it does the observer's note keys.
@@ -62,7 +68,7 @@ fn build(
     };
     // Every readable document is a node: past the node budget, say so before
     // reading claims, entities and memories.
-    if snap.documents.len() > MAX_NODES {
+    if !within_document_budget(snap.documents.len()) {
         return Ok(budget(snap.documents.len(), None));
     }
     let mut nodes = BTreeMap::<String, Value>::new();

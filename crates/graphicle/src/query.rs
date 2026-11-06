@@ -2789,7 +2789,9 @@ impl Store {
             // one project's questions only.
             crate::workspace::Scope::Workspace => {
                 let (on, defaulted) = crate::identifier_route::switch(args)?;
-                let mut packet = crate::workspace::context(db, p, args, embedding, reranker)?;
+                let mut packet = crate::phase::phase("workspace_total", || {
+                    crate::workspace::context(db, p, args, embedding, reranker)
+                })?;
                 let mut route =
                     json!({"path":"retrieval","reason":"workspace","defaulted":defaulted});
                 route[crate::identifier_route::FIELD] = json!(on);

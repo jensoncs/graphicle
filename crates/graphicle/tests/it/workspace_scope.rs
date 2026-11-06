@@ -96,6 +96,9 @@ impl Fixture {
         .to_string();
         self.sync(&id, files);
         jobs::drain_projection(&self.store, &id).unwrap();
+        // Exercise workspace authorization, freshness and placement with the
+        // saved endpoint index available, as after a normal prepared sync.
+        graphicle_runtime::query_graph::ensure(&self.db(), &id, true).unwrap();
         id
     }
     /// Sync `files` into a project without building its graph (as `sync
@@ -525,6 +528,63 @@ fn the_cross_repository_step_cites_the_library_function_the_app_calls() {
         with["arms"]
     );
     assert!(s(&with, "markdown").contains(&format!("Project: Money ({money})")));
+}
+
+/// Whole packets, in both directions and when both endpoints already rank,
+/// survive missing, incompatible and damaged caches unchanged.
+#[test]
+fn saved_cross_repository_packets_match_resident_fallbacks() {
+    use graphicle_runtime::{graph_projection, query_file};
+    let (f, shop, money) = Fixture::shop_and_money();
+    let queries = [ABOUT_THE_SHOP, ABOUT_THE_LIBRARY, ABOUT_BOTH];
+    let ask = |question| {
+        f.context(
+            &f.key,
+            json!({
+                "question":question,"scope":"workspace","repository_id":shop
+            }),
+        )
+    };
+    let expected: Vec<Value> = queries.iter().map(|q| ask(*q)).collect();
+    assert!(expected.iter().all(|p| {
+        p["mechanisms"]["workspace"]["cross_edges_used"]
+            .as_u64()
+            .unwrap()
+            > 0
+    }));
+    let db = f.db();
+    let files: Vec<_> = [&shop, &money]
+        .into_iter()
+        .map(|repo| {
+            let episode = graph_projection::current_episode(&db, repo).unwrap();
+            let path = query_file::path(&db, repo, &episode).unwrap();
+            let bytes = std::fs::read(&path).unwrap();
+            (path, bytes)
+        })
+        .collect();
+    for damage in ["missing", "truncated", "incompatible", "corrupt"] {
+        for (path, bytes) in &files {
+            let mut written = bytes.clone();
+            match damage {
+                "truncated" => written.truncate(bytes.len() / 2),
+                "incompatible" => written[7] = 3,
+                "corrupt" => {
+                    let at = written.len() - 1;
+                    written[at] ^= 0x80;
+                }
+                _ => {}
+            }
+            let replacement = path.with_extension("replacement");
+            std::fs::write(&replacement, written).unwrap();
+            std::fs::rename(replacement, path).unwrap();
+            if damage == "missing" {
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+        for (question, expected) in queries.iter().zip(&expected) {
+            assert_eq!(ask(*question), *expected, "{damage}: {question}");
+        }
+    }
 }
 
 /// The other direction: a question that only the library's window

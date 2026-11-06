@@ -1,6 +1,6 @@
 //! Saved query files: what `context`'s code-graph arm, identifier arm and
-//! identifier route read of a code graph episode, stored so that a question
-//! reads only what it needs (GitHub issue #8).
+//! identifier route and workspace endpoints read of a code graph episode,
+//! stored so that a question reads only what it needs (GitHub issue #8).
 //!
 //! Every question used to read the episode's whole saved graph
 //! ([`crate::query_graph`]) before its arms ran: on a kubernetes checkout
@@ -14,8 +14,8 @@
 //! - per edge, what the arms read of it and where a reference was read
 //!   ([`EdgeRecord`]);
 //! - the trigram postings of the engine's search index;
-//! - the symbol start lines of every file and the code symbols with their
-//!   start lines, by the last segment of their names;
+//! - the symbol start lines and non-file nodes of every file, and code
+//!   symbols with their start lines, by the last segment of their names;
 //! - the node ids in order.
 //!
 //! A question scans the scoring strings its words need (every node's
@@ -68,8 +68,8 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
 /// Changes when what this module writes, or how it reads it, changes.
-pub const FORMAT: &str = "graphicle.query_file.v3";
-const MAGIC: &[u8; 8] = b"GQFILE\0\x03";
+pub const FORMAT: &str = "graphicle.query_file.v4";
+const MAGIC: &[u8; 8] = b"GQFILE\0\x04";
 /// Bytes of the body each checksum covers.
 pub const PAGE: usize = 4096;
 /// Section indices; their offsets and lengths follow the key.
@@ -454,6 +454,12 @@ pub fn encode(key: &[u8], graph: &Graph, index: &SearchIndex) -> std::io::Result
     }
     // Symbol start lines by file, sorted by path.
     let starts = crate::code_graph_arm::symbol_starts(graph);
+    let mut by_file: HashMap<String, Vec<usize>> = HashMap::new();
+    for (index, node) in graph.nodes().iter().enumerate() {
+        if let Some((path, _)) = crate::code_graph_arm::symbol_location(&node.attributes) {
+            by_file.entry(path).or_default().push(index);
+        }
+    }
     let mut paths: Vec<(&String, &Vec<usize>)> = starts.iter().collect();
     paths.sort_by(|a, b| a.0.cmp(b.0));
     for (path, lines) in &paths {
@@ -463,6 +469,12 @@ pub fn encode(key: &[u8], graph: &Graph, index: &SearchIndex) -> std::io::Result
         put_var(&mut sections[STARTS], lines.len() as u64);
         for &line in lines.iter() {
             put_var(&mut sections[STARTS], line as u64);
+        }
+        // Graph order breaks ties when located symbols have the same range.
+        let nodes = &by_file[*path];
+        put_var(&mut sections[STARTS], nodes.len() as u64);
+        for &index in nodes {
+            put_var(&mut sections[STARTS], index as u64);
         }
     }
     // The code symbols, and their positions by last segment.
@@ -1359,9 +1371,8 @@ impl QueryFile {
         ids.iter().map(|&id| self.edge(id)).collect()
     }
 
-    /// The symbol start lines of `path`
-    /// ([`crate::code_graph_arm::symbol_starts`]).
-    pub fn starts(&self, path: &str) -> Result<Option<Vec<usize>>, Corrupt> {
+    /// The record of start lines followed by node indices, in graph order.
+    fn file_symbols(&self, path: &str) -> Result<Option<Cursor<'_>>, Corrupt> {
         let (mut low, mut high) = (0usize, self.paths);
         while low < high {
             let middle = (low + high) / 2;
@@ -1371,17 +1382,95 @@ impl QueryFile {
                 std::cmp::Ordering::Greater => high = middle,
                 std::cmp::Ordering::Equal => {
                     let at = self.u32_in(STARTS_TAB, middle * 2 + 1)? as usize;
-                    let mut cursor = self.cursor(STARTS, at);
-                    let count = cursor.count()?;
-                    let mut lines = Vec::with_capacity(count.min(RESERVE));
-                    for _ in 0..count {
-                        lines.push(usize::try_from(cursor.var()?).map_err(|_| self.mark())?);
-                    }
-                    return Ok(Some(lines));
+                    return Ok(Some(self.cursor(STARTS, at)));
                 }
             }
         }
         Ok(None)
+    }
+
+    /// The symbol start lines of `path`
+    /// ([`crate::code_graph_arm::symbol_starts`]).
+    pub fn starts(&self, path: &str) -> Result<Option<Vec<usize>>, Corrupt> {
+        let Some(mut cursor) = self.file_symbols(path)? else {
+            return Ok(None);
+        };
+        Ok(Some(self.read_starts(&mut cursor)?))
+    }
+
+    fn read_starts(&self, cursor: &mut Cursor<'_>) -> Result<Vec<usize>, Corrupt> {
+        let count = cursor.count()?;
+        let mut lines = Vec::with_capacity(count.min(RESERVE));
+        for _ in 0..count {
+            lines.push(usize::try_from(cursor.var()?).map_err(|_| self.mark())?);
+        }
+        Ok(lines)
+    }
+
+    /// Locate a node in the caller's authorized current source view, using
+    /// the same citation construction as the resident graph.
+    pub(crate) fn locate(
+        &self,
+        index: usize,
+        documents: &HashMap<&str, &Value>,
+    ) -> Result<Option<crate::code_graph_arm::Located>, Corrupt> {
+        let attributes = self.attributes(index)?;
+        let Some(path) = crate::code_graph_arm::relpath(&attributes) else {
+            return Ok(None);
+        };
+        let starts = self
+            .starts(&path)?
+            .map(|lines| HashMap::from([(path, lines)]))
+            .unwrap_or_default();
+        Ok(crate::code_graph_arm::locate_record(
+            self.id(index)?.to_string(),
+            &attributes,
+            &starts,
+            documents,
+        ))
+    }
+
+    /// All non-file nodes with a start line in `path`, located in line
+    /// order, exactly as [`crate::code_graph_arm::symbols_in`]. Only this
+    /// file's records are decoded; a failed read discards the whole result.
+    pub(crate) fn symbols_in(
+        &self,
+        path: &str,
+        documents: &HashMap<&str, &Value>,
+    ) -> Result<Vec<crate::code_graph_arm::Located>, Corrupt> {
+        let Some(mut cursor) = self.file_symbols(path)? else {
+            return Ok(Vec::new());
+        };
+        let starts = HashMap::from([(path.to_string(), self.read_starts(&mut cursor)?)]);
+        let count = cursor.count()?;
+        if count > self.n {
+            return Err(self.mark());
+        }
+        let mut found = Vec::new();
+        let mut previous = None;
+        for _ in 0..count {
+            let index = cursor.below(self.n)?;
+            if previous.is_some_and(|last| index <= last) {
+                return Err(self.mark());
+            }
+            previous = Some(index);
+            let attributes = self.attributes(index)?;
+            if !crate::code_graph_arm::symbol_location(&attributes)
+                .is_some_and(|(file, _)| file == path)
+            {
+                return Err(self.mark());
+            }
+            if let Some(located) = crate::code_graph_arm::locate_record(
+                self.id(index)?.to_string(),
+                &attributes,
+                &starts,
+                documents,
+            ) {
+                found.push(located);
+            }
+        }
+        found.sort_by_key(|located| (located.line, located.byte_start));
+        Ok(found)
     }
 
     /// The number of code symbols ([`QueryFile::symbol`] takes positions
@@ -1824,6 +1913,15 @@ pub(crate) mod tests {
         QueryFile::open(&path, &key("p", "e")).unwrap()
     }
 
+    /// Offset of the first per-file node, for a damaged-index fixture whose
+    /// node lookup and start-line prefix still read successfully.
+    pub(crate) fn first_file_node(file: &QueryFile, path: &str) -> usize {
+        let mut cursor = file.file_symbols(path).unwrap().unwrap();
+        file.read_starts(&mut cursor).unwrap();
+        assert!(cursor.count().unwrap() > 0);
+        file.sections[STARTS].0 + cursor.at
+    }
+
     #[test]
     fn scoring_and_seeds_match_the_resident_graph() {
         use graphicle::serve_search::{pick_seeds_in_order, pick_seeds_on, score_on, score_query};
@@ -2262,6 +2360,22 @@ pub(crate) mod tests {
             .unwrap()
             .to_string();
         corrupt(&file, file.symbols_ending(&name).is_err(), "symbol bucket");
+        // Per-file node indices: bounds, graph order and file membership.
+        let pristine_file = hostile(STARTS, 0, &pristine[start(STARTS)..start(STARTS) + 1]);
+        let at = first_file_node(&pristine_file, "src/store.rs") - start(STARTS);
+        drop(pristine_file);
+        for (bytes, what) in [
+            (vec![127], "file node bounds"),
+            (vec![3, 3], "file node order"),
+            (vec![6], "file node path"),
+        ] {
+            let file = hostile(STARTS, at, &bytes);
+            corrupt(
+                &file,
+                file.symbols_in("src/store.rs", &HashMap::new()).is_err(),
+                what,
+            );
+        }
         // A symbol whose node is out of range.
         let file = hostile(SYMBOLS, 0, &(n as u32).to_le_bytes());
         corrupt(&file, file.symbol(0).is_err(), "symbol node");

@@ -131,6 +131,38 @@ impl Principal {
         }
     }
 }
+/// Preserve the store's JSON representation, including lossy text and null blobs.
+pub(crate) fn json_value(value: ValueRef<'_>) -> Value {
+    match value {
+        ValueRef::Null => Value::Null,
+        ValueRef::Integer(n) => json!(n),
+        ValueRef::Real(n) => json!(n),
+        ValueRef::Text(s) => json!(String::from_utf8_lossy(s)),
+        ValueRef::Blob(_) => Value::Null,
+    }
+}
+
+#[cfg(test)]
+mod json_value_tests {
+    #[test]
+    fn sqlite_values_keep_the_store_json_representation() {
+        let db = rusqlite::Connection::open_in_memory().unwrap();
+        let result = super::rows(
+            &db,
+            "SELECT NULL AS absent, -42 AS integer_value, 1.25 AS real_value,
+                    'hello' AS text_value, x'6869' AS blob_value,
+                    CAST(x'66ff' AS TEXT) AS lossy_text, 1e999 AS nonfinite",
+            [],
+        )
+        .unwrap();
+        assert_eq!(
+            result,
+            vec![serde_json::json!({"absent":null,"integer_value":-42,"real_value":1.25,
+                "text_value":"hello","blob_value":null,"lossy_text":"f\u{fffd}","nonfinite":null})]
+        );
+    }
+}
+
 pub fn rows(db: &Connection, sql: &str, arguments: impl Params) -> Result<Vec<Value>> {
     let mut statement = db.prepare(sql)?;
     let names: Vec<String> = statement
@@ -141,14 +173,7 @@ pub fn rows(db: &Connection, sql: &str, arguments: impl Params) -> Result<Vec<Va
     let mapped = statement.query_map(arguments, |row| {
         let mut value = Map::new();
         for (i, name) in names.iter().enumerate() {
-            let field = match row.get_ref(i)? {
-                ValueRef::Null => Value::Null,
-                ValueRef::Integer(n) => json!(n),
-                ValueRef::Real(n) => json!(n),
-                ValueRef::Text(s) => json!(String::from_utf8_lossy(s)),
-                ValueRef::Blob(_) => Value::Null,
-            };
-            value.insert(name.clone(), field);
+            value.insert(name.clone(), json_value(row.get_ref(i)?));
         }
         Ok(Value::Object(value))
     })?;

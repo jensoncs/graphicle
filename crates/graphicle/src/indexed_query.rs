@@ -7,12 +7,13 @@
 //! selection and packing are unchanged.
 //!
 //! The index serves `context`'s defaults; a call that asks for something
-//! else (other lexical options, followed links, local models) and
-//! a reviewed-memory graph beyond the full path's passage/document bounds
-//! take the full path, as does a project whose index is
+//! else (other lexical options, followed links, local models) or whose
+//! unindexed connectors push the catalogue past the chunking bounds takes the full
+//! path, as does a project whose index is
 //! missing or lacks more than [`MAX_MISSING`] of its current files.
-//! Within those bounds, reviewed memory uses the same indexed seed and loads
-//! only the sources reached by its property-graph walk.
+//! Source filters and reviewed-memory seeds search the whole retained index;
+//! the property-graph walk keeps its own node, edge and traversal bounds and
+//! loads only reached sources. A degraded graph does not truncate lexical recall.
 use crate::code_graph_arm;
 use crate::passage_index::{self, Index};
 use crate::query::{self, Indexed, Lift, LiftScoring, Passages, Snapshot};
@@ -280,7 +281,9 @@ impl Documents {
         if missing.is_empty() {
             return Ok(());
         }
-        memory::load_contents(db, repository, &mut self.list, &missing)?;
+        crate::phase::phase("indexed_load_contents", || {
+            memory::load_contents(db, repository, &mut self.list, &missing)
+        })?;
         self.loaded.extend(missing);
         Ok(())
     }
@@ -316,6 +319,10 @@ pub fn packet(
     if ineligible(args)?.is_some() {
         return Ok(None);
     }
+    // The prepare/search/finalize spans partition successful indexed reads;
+    // context_indexed also includes the locals released on return. Nested
+    // phases explain those spans and must not be added to their parents.
+    let prepare_started = std::time::Instant::now();
     let filter = query::Filter::parse(args)?;
     let id = s(repository, "id");
     // Reviewed memory adds a property-graph walk after its indexed seed.
@@ -330,6 +337,7 @@ pub fn packet(
     // candidates. Open the existing index against exactly the retained files.
     // Keep the full authorized metadata catalogue for memory freshness and the
     // original snapshot binding; excluded source bodies need not be loaded.
+    let heads_started = std::time::Instant::now();
     let (heads, prefetched_documents) = if let Some(filter) = &filter {
         let list = memory::repository_documents(db, repository, false)?;
         let heads = list
@@ -341,6 +349,7 @@ pub fn packet(
     } else {
         (crate::store::heads(db, id)?, None)
     };
+    crate::phase::since("indexed_heads", heads_started);
     let Some((mut index, coverage)) =
         crate::phase::phase("context_index", || Index::open(db, id, &heads))?
     else {
@@ -352,9 +361,13 @@ pub fn packet(
     // Every document's metadata, the text of those read here.
     let mut list = match prefetched_documents {
         Some(list) => list,
-        None => memory::repository_documents(db, repository, false)?,
+        None => crate::phase::phase("indexed_documents", || {
+            memory::repository_documents(db, repository, false)
+        })?,
     };
-    let connectors = memory::connector_documents(db, repository, p)?;
+    let connectors = crate::phase::phase("indexed_connectors", || {
+        memory::connector_documents(db, repository, p)
+    })?;
     for document in &connectors {
         if graphicle_memory::text::sha256(s(document, "content").as_bytes())
             != s(document, "sha256")
@@ -364,11 +377,12 @@ pub fn packet(
     }
     let first_connector = list.len();
     list.extend(connectors);
-    let by_id: HashMap<String, usize> = list
-        .iter()
-        .enumerate()
-        .map(|(i, d)| (s(d, "id").to_string(), i))
-        .collect();
+    let by_id: HashMap<String, usize> = crate::phase::phase("indexed_document_lookup", || {
+        list.iter()
+            .enumerate()
+            .map(|(i, d)| (s(d, "id").to_string(), i))
+            .collect()
+    });
     let mut docs = Documents {
         loaded: list[first_connector..]
             .iter()
@@ -401,27 +415,19 @@ pub fn packet(
         return Ok(None);
     }
     crate::phase::phase("context_index_missing", || index.add_files(added))?;
-    docs.load(db, repository, &memory_sources(db, id)?)?;
-    let mut memories = memory::list_of(db, repository, &docs.list, true)?;
-    // The file relationships: the saved ones of the current episode
-    // (crate::query_graph), else the snapshot's graph as `context` reads it.
-    let current = crate::graph_projection::current_episode(db, id)?;
-    let saved_edges = if crate::graph_projection::is_recorded(db, id, &current)? {
-        crate::phase::phase("snapshot_file_edges", || {
-            crate::query_graph::FileEdges::read(db, id, &current)
-        })
-    } else {
-        None
-    };
-    let graph = match &saved_edges {
-        Some(_) if !property_search => {
-            json!({"edges":[],"graph_source":"episode","episode":current})
-        }
-        _ => crate::phase::phase("snapshot_graph", || query::source_graph(db, repository, p))?,
-    };
-    let mut state = digest(
-        &json!({"sources":memory::state(&docs.list),"memories":memories.iter().map(|m|json!([m["id"],m["revision"],m["state"],m["stale"]])).collect::<Vec<_>>(),"reviewed_state":memory::reviewed_state_for(db,repository,&memories)?}),
-    );
+    docs.load(
+        db,
+        repository,
+        &crate::phase::phase("indexed_memory_sources", || memory_sources(db, id))?,
+    )?;
+    let mut memories = crate::phase::phase("indexed_memories", || {
+        memory::list_of(db, repository, &docs.list, true)
+    })?;
+    let mut state = crate::phase::phase("indexed_state", || -> Result<String> {
+        Ok(digest(
+            &json!({"sources":memory::state(&docs.list),"memories":memories.iter().map(|m|json!([m["id"],m["revision"],m["state"],m["stale"]])).collect::<Vec<_>>(),"reviewed_state":memory::reviewed_state_for(db,repository,&memories)?}),
+        ))
+    })?;
     // Claim visibility is based on the authorized, unfiltered catalogue, just
     // as graph::for_query is on the full path. query::restrict owns the source
     // and derived-memory filter semantics and the filtered state fingerprint.
@@ -471,18 +477,40 @@ pub fn packet(
     } else {
         query::passages(&connector_snapshot)?.rows
     };
-    // The full memory seed applies question-dependent selection above these
-    // bounds. At the passage bound a connector catalogue may already have
-    // been truncated, so conservatively keep the full path there as well.
-    // Filtered queries must preserve the full path's bounded corpus selection
-    // too. Above those bounds, keep its question-dependent selection unchanged.
-    if (property_search || filter.is_some())
-        && (docs.list.len() > graphicle_memory::ingest::MAX_DOCUMENTS
+    // Repository passages are already indexed, including those beyond the
+    // full path's per-question chunking bounds. Filters and graph seeds use
+    // that entire retained corpus. Connector rows are still all materialized
+    // for fusion: keep their combined corpus within the source-candidate bound
+    // and preserve question-dependent selection and accurate omission reports
+    // when their chunking may already have truncated it.
+    if !connector_snapshot.documents.is_empty()
+        && (connector_snapshot.documents.len() > graphicle_memory::ingest::MAX_DOCUMENTS
             || index.totals().passages as usize + connector_rows.len()
                 >= graphicle_memory::ingest::MAX_PASSAGES)
     {
         return Ok(None);
     }
+    // Apply source filters and fallback checks before loading the graph. A
+    // property graph over the retained document budget cannot read its edges;
+    // its normal build still emits the degradation report. Saved relationships
+    // suffice for the static lift, while the code-graph arm keeps its own plan.
+    // Without valid saved relationships, the full source graph remains needed.
+    let current = crate::phase::phase("indexed_episode", || {
+        crate::graph_projection::current_episode(db, id)
+    })?;
+    let saved_edges = if crate::graph_projection::is_recorded(db, id, &current)? {
+        crate::phase::phase("snapshot_file_edges", || {
+            crate::query_graph::FileEdges::read(db, id, &current)
+        })
+    } else {
+        None
+    };
+    let graph = match &saved_edges {
+        Some(_) if !property_search || !crate::graph::within_document_budget(docs.list.len()) => {
+            json!({"edges":[],"graph_source":"episode","episode":current})
+        }
+        _ => crate::phase::phase("snapshot_graph", || query::source_graph(db, repository, p))?,
+    };
     let prepared = Prepared {
         index,
         memories,
@@ -493,7 +521,23 @@ pub fn packet(
         connector_rows,
         property_search,
     };
-    let mut packet = packet_on(db, repository, args, &prepared, &mut docs, false)?;
+    crate::phase::since("indexed_prepare", prepare_started);
+    if crate::phase::enabled() {
+        crate::phase::note(
+            "indexed_catalogue",
+            &format!(
+                "documents={} memories={} indexed_files={} loaded_files={}",
+                docs.list.len(),
+                prepared.memories.len(),
+                prepared.index.files.len(),
+                docs.loaded.len()
+            ),
+        );
+    }
+    let mut packet = crate::phase::phase("indexed_search", || {
+        packet_on(db, repository, args, &prepared, &mut docs, false)
+    })?;
+    let finalize_started = std::time::Instant::now();
     if let Some(report) = filter_report {
         packet["filter"] = report;
     }
@@ -519,6 +563,7 @@ pub fn packet(
         graph: prepared.graph,
         state: prepared.state,
     };
+    crate::phase::since("indexed_finalize", finalize_started);
     Ok(Some((snap, packet)))
 }
 
@@ -563,6 +608,7 @@ fn packet_on(
     docs: &mut Documents,
     seed_only: bool,
 ) -> Result<Value> {
+    let search_started = std::time::Instant::now();
     let id = s(repository, "id");
     let index = &prepared.index;
     let connector_rows = &prepared.connector_rows;
@@ -604,6 +650,7 @@ fn packet_on(
             })
         }
     };
+    crate::phase::since("indexed_code_arm", search_started);
     // The identifier arm over the index; names with separators are matched
     // in the text of the passages that hold their words.
     let identifiers = if seed_only {
@@ -638,9 +685,12 @@ fn packet_on(
             crate::identifier_arm::arm_indexed(db, id, index, &mut text, args, question, query)
         })?
     };
+    let property_started = std::time::Instant::now();
     let mut rankings = json!({});
     if !seed_only && prepared.property_search {
-        let catalogue = prepared.snapshot(repository, docs.list.clone(), args);
+        let catalogue = crate::phase::phase("indexed_property_snapshot", || {
+            prepared.snapshot(repository, docs.list.clone(), args)
+        });
         if let Some(property_graph) = crate::phase::phase("context_memory_graph", || {
             crate::graph::for_indexed_query(
                 db,
@@ -701,6 +751,8 @@ fn packet_on(
             }
         }
     }
+    crate::phase::since("indexed_property", property_started);
+    let rank_prepare_started = std::time::Instant::now();
     let mut memory_rows = Vec::new();
     if args["memory_retrieval"] != false {
         let at = graphicle_memory::temporal::instant(&crate::now()).map_err(Error::bad)?;
@@ -754,6 +806,7 @@ fn packet_on(
         ),
         Key::Extra(i) => s(extra[i], "identity").to_string(),
     };
+    crate::phase::since("indexed_rank_prepare", rank_prepare_started);
     let lexical = crate::phase::phase("context_lexical", || {
         bm25(
             db,
@@ -802,6 +855,7 @@ fn packet_on(
         }
     };
     // The passages the arms rank: their rows, with the text of their files.
+    let rows_started = std::time::Instant::now();
     let mut wanted: BTreeMap<usize, BTreeSet<u32>> = BTreeMap::new();
     let mut add = |key: &Key| {
         if let Key::Indexed(file, passage) = key {
@@ -900,7 +954,11 @@ fn packet_on(
     let report =
         json!({"passage_limit_reached":false,"omitted_documents":0,"omitted_documents_are":"none"});
     let shared = Passages::from_parts(rows, report);
-    let snap = prepared.snapshot(repository, docs.list.clone(), args);
+    crate::phase::since("indexed_selected_rows", rows_started);
+    let snap = crate::phase::phase("indexed_assembly_snapshot", || {
+        prepared.snapshot(repository, docs.list.clone(), args)
+    });
+    let inputs_started = std::time::Instant::now();
     // The lift's edges: the snapshot's file relationships, as `context_on`
     // filters them.
     let graph_enabled = args["graph_retrieval"] != false;
@@ -1035,6 +1093,7 @@ fn packet_on(
                 .with_folder(crate::folders::current_folder(db, id)?),
         )
     };
+    crate::phase::since("indexed_assembly_inputs", inputs_started);
     let mut packet = crate::phase::phase("context_assemble", || {
         query::context_indexed(
             &snap,
@@ -1048,6 +1107,7 @@ fn packet_on(
     })?;
     packet["local_dense"] = json!({"status":"disabled"});
     packet["identifier_arm"] = identifiers.report;
+    crate::phase::since("indexed_search_ready", search_started);
     Ok(packet)
 }
 
