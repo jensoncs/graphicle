@@ -104,9 +104,24 @@ fn sync(
             fs::remove_dir(directory)?;
         }
     }
-    for (relative, expected) in heads {
+    // Hash independent cache files on the engine's bounded I/O workers.
+    // Keep database reads, repairs and their errors in source order. The
+    // source-tree lock remains held through verification and extraction.
+    let entries = heads
+        .iter()
+        .map(|(relative, expected)| (relative.as_str(), expected.as_str()))
+        .collect::<Vec<_>>();
+    let verified = graphicle::par::map(
+        &entries,
+        graphicle::par::io_workers(),
+        |&(relative, expected)| -> Result<bool> {
+            let target = tree.root.join(relative);
+            Ok(target.is_file() && file_hash(&target)? == expected)
+        },
+    );
+    for ((relative, expected), verified) in entries.into_iter().zip(verified) {
         let target = tree.root.join(relative);
-        if target.is_file() && file_hash(&target)? == *expected {
+        if verified? {
             tree.report.reused += 1;
             continue;
         }
@@ -312,6 +327,60 @@ mod tests {
             .unwrap();
         fs::remove_file(cache.path().join("sources/a.py")).unwrap();
         assert!(prepare(&db, "repo", &sources, Some(cache.path())).is_err());
+    }
+
+    #[test]
+    fn many_cached_sources_repair_same_stat_tampering_and_missing_files() {
+        let _flock = crate::fork_guard::flock_sensitive();
+        let db = database();
+        let cache = TempDir::new().unwrap();
+        let sources = (0..128)
+            .map(|i| {
+                (
+                    format!("group_{}/unit_{i:03}.py", i / 16),
+                    format!("value = {i}\n").repeat(if i == 127 { 12000 } else { 1 }),
+                )
+            })
+            .collect::<Vec<_>>();
+        let source_refs = sources
+            .iter()
+            .map(|(path, content)| (path.as_str(), content.as_str()))
+            .collect::<Vec<_>>();
+        let heads = heads(&db, &source_refs);
+        let tree = prepare(&db, "repo", &heads, Some(cache.path())).unwrap();
+        assert_eq!(tree.report.written, sources.len());
+        let root = tree.path().to_path_buf();
+        drop(tree);
+        let intact = prepare(&db, "repo", &heads, Some(cache.path())).unwrap();
+        assert_eq!((intact.report.reused, intact.report.written), (128, 0));
+        drop(intact);
+
+        fs::remove_file(root.join(&sources[0].0)).unwrap();
+        let target = root.join(&sources[83].0);
+        let modified = fs::metadata(&target).unwrap().modified().unwrap();
+        let damaged = sources[83].1.replace("83", "99");
+        assert_eq!(damaged.len(), sources[83].1.len());
+        fs::write(&target, damaged).unwrap();
+        File::open(&target)
+            .unwrap()
+            .set_times(fs::FileTimes::new().set_modified(modified))
+            .unwrap();
+        let repaired = prepare(&db, "repo", &heads, Some(cache.path())).unwrap();
+        assert_eq!((repaired.report.reused, repaired.report.written), (126, 2));
+        for (path, content) in &sources {
+            assert_eq!(fs::read(root.join(path)).unwrap(), content.as_bytes());
+        }
+        drop(repaired);
+
+        // A missing materialized file must still load and validate its
+        // authoritative object, even when every other file verifies.
+        fs::remove_file(root.join(&sources[0].0)).unwrap();
+        db.execute(
+            "UPDATE repo_objects SET content='corrupt' WHERE sha256=?",
+            [&heads[&sources[0].0]],
+        )
+        .unwrap();
+        assert!(prepare(&db, "repo", &heads, Some(cache.path())).is_err());
     }
 
     #[cfg(unix)]

@@ -1,0 +1,217 @@
+{
+  "authority": [
+    "docs/pinned-review.md: fixed_hex_identifiers_v1 selection costs and semantic priority",
+    "docs/business-context.md: required-code/hunk reservation before optional history",
+    "docs/evidence/pilot-protocol.md: Store-identity-dependent packing \u2014 2026-11-05"
+  ],
+  "binary_sha256": "e7f57a0cea3d4b9cea68babde9bb5d15c86a2ff06bf4b5fdcb6e4a2b63f5df8b",
+  "corrections": {
+    "SDK": "Python supports basic file-level analysis. Require basic_analysis_limitations, incomplete coverage, no compiler resolution, and no obsolete unsupported-language issue.",
+    "business_history": "At 16000 retain complete required source, exact historical constraints and revision/delta assertions; add 8000 required head/caller checks and preserve 3500 conservative omission checks.",
+    "historical_coupling": "At 8000 require changed helper, static caller, selected evolution history and explicit omissions; retain exact historical-peer declaration/provenance at 32000.",
+    "hunk_packing": "At 6000 require both current declarations and hunks, explicit omitted base context, and canonical delta equality; at 16000 also require both base declarations and complete coverage, with delta equality.",
+    "provided_diff": "At 3500 require the prioritized caller; at 5000 and 6500 require caller plus dependency and at least two outside entries. Preserve improvement, accounting, source exclusion, impact and reuse-proof checks.",
+    "three_repository_chain": "At 16000 require all current-head and immediate caller bindings plus explicit omissions; at 32000 retain full chain, complete coverage, exact call edges and delta application equality."
+  },
+  "date": "2026-11-06",
+  "limits": [
+    "Runtime tests and the combined quality gate pass; eight runtime tests remain ignored.",
+    "This continuation did not rerun the complete engine or Python suites; focused engine and SDK results remain separately recorded.",
+    "Formatting is not clean in the two review test files, limited to baseline formatting hunks after formatting the added test expectations.",
+    "Mixed-language scale, ten large repositories, expanded/memory-linked context at 100,000 files, large memory catalogues and independent retrieval quality remain unqualified."
+  ],
+  "logs_sha256": {
+    "/private/tmp/graphicle-scale-quality-final-20261106.log": "b0ea9131798ad7881ebef663b1c90bc18c3b637b9ffd21ae459f69cd26c47c62",
+    "/private/tmp/graphicle-scale-review-corrections-20261106.log": "7490e4735b897e23948ea54ad8055a351c32f07c79fa1cf8f8d8af0036bdd07c",
+    "/private/tmp/graphicle-scale-review-corrections-retry-20261106.log": "657bb7897d451497b8d55efea8ee68aa3404b4fde7bd029d42cee5b5da6a87f9",
+    "/private/tmp/graphicle-scale-runtime-regressions-20261106.log": "0f188d1171030963c7594191d693be34a76a5767cd035254bcc685792627ecd4",
+    "/private/tmp/graphicle-scale-sdk-correction-20261106.log": "17b503cda9b730e097a8a42687173c7eb6c151e7464fe0c4ff842c2def27901b"
+  },
+  "result": "runtime_and_quality_pass_scale_qualification_incomplete",
+  "runtime_changes": "None for these expectation corrections.",
+  "test_source_sha256": {
+    "crates/graphicle/tests/it/pinned_review.rs": "351c5b57662d324c191584286a8743c351b25158420d7ee1b142a276aed92686",
+    "crates/graphicle/tests/it/provided_diff.rs": "b1efea1ca9c5d393002f17c51b1d35da6111ce919f6e4d9a68425acc13f09ca3",
+    "crates/graphicle/tests/test_product_sdk.py": "d80d430dbe69b3102e2647912925a871d8ed2864872234c488a45525a698c5df"
+  },
+  "validation": {
+    "SDK": {
+      "failed": 0,
+      "passed": 1,
+      "seconds": 3.44
+    },
+    "combined_quality_gate": {
+      "artifacts": {
+        "CASES.json": {
+          "path": "/private/tmp/graphicle-scale-quality-final-20261106/CASES.json",
+          "sha256": "60a746cc6716036a2170d60fb21e0a5bfa7f3f5d78c415826df5b0be8e50d66a"
+        },
+        "PROTOCOL.json": {
+          "path": "/private/tmp/graphicle-scale-quality-final-20261106/PROTOCOL.json",
+          "sha256": "5a4caaaa463e39aa1c7baae0366dc25a07f27ee982aed9e9b697e6c1923ee2a6"
+        },
+        "SCORECARD.json": {
+          "path": "/private/tmp/graphicle-scale-quality-final-20261106/SCORECARD.json",
+          "sha256": "d2065b5d14ff87308b2635843c8429192c25ef62671b9be97950cb950654e730"
+        },
+        "SCORECARD.md": {
+          "path": "/private/tmp/graphicle-scale-quality-final-20261106/SCORECARD.md",
+          "sha256": "b120195ce874485f558b74f14b3cd7938b496f88fc3da77a7290cf103b0e9270"
+        }
+      },
+      "baseline_sha256": "bf534c7acbfdf33767942c581d46a5ff995707888821c6e35c479ee5a81c23b6",
+      "binary_sha256": "e7f57a0cea3d4b9cea68babde9bb5d15c86a2ff06bf4b5fdcb6e4a2b63f5df8b",
+      "cases": 536,
+      "gate": {
+        "findings": [],
+        "status": "passed"
+      },
+      "integrity_errors": [],
+      "limitations": "Authored regression fixtures, not independent user quality. Ran alongside runtime correctness tests; latency is not an isolated performance result.",
+      "metrics": {
+        "memory/counted": {
+          "completed": 146,
+          "empty_memory_accuracy": 1.0,
+          "errors": 0,
+          "macro_recall": 0.6076051779935275,
+          "planned": 146,
+          "precision_completed": 0.7570093457943925,
+          "recall": 0.5
+        },
+        "memory/off": {
+          "completed": 146,
+          "empty_memory_accuracy": 1.0,
+          "errors": 0,
+          "macro_recall": 0.6076051779935275,
+          "planned": 146,
+          "precision_completed": 0.7570093457943925,
+          "recall": 0.5
+        },
+        "memory/on": {
+          "completed": 146,
+          "empty_memory_accuracy": 1.0,
+          "errors": 0,
+          "macro_recall": 1.0,
+          "planned": 146,
+          "precision_completed": 0.9364161849710982,
+          "recall": 1.0
+        },
+        "source/baseline": {
+          "completed": 49,
+          "errors": 0,
+          "evidence_recall": 1.0,
+          "planned": 49
+        },
+        "source/routed": {
+          "completed": 49,
+          "errors": 0,
+          "evidence_recall": 1.0,
+          "planned": 49
+        }
+      }
+    },
+    "format_check": {
+      "added_expectation_lines_formatted": true,
+      "baseline_hunks": {
+        "crates/graphicle/tests/it/pinned_review.rs": 4,
+        "crates/graphicle/tests/it/provided_diff.rs": 2
+      },
+      "changes": "Line wrapping and whitespace in previously added assertions only; no runtime, budgets or test conditions changed. Original tested source hashes remain above.",
+      "current_test_source_sha256": {
+        "crates/graphicle/tests/it/pinned_review.rs": "395cb84a90d6579ac0dbd431e3e9e8fd254ea254a4110189e608e683d0912f94",
+        "crates/graphicle/tests/it/provided_diff.rs": "26d8c3293262c557b9690f6da59957b7d377438f973e31820fafea99123e6e9b"
+      },
+      "git_diff_check": "passed",
+      "log": "/private/tmp/graphicle-scale-format-cleanup-20261106.log",
+      "log_sha256": "1221ac754e557aa282ceb10134a881763bccccb22f1e3301e6004a5680fed849",
+      "passed": false,
+      "remaining_hunks": {
+        "crates/graphicle/tests/it/pinned_review.rs": 4,
+        "crates/graphicle/tests/it/provided_diff.rs": 2
+      }
+    },
+    "format_check_before_cleanup": {
+      "baseline_also_has_format_diffs": true,
+      "changed_rust_files": 8,
+      "changes_made": "None; readiness assessment does not claim a clean release gate.",
+      "files_with_format_diffs": [
+        "crates/graphicle/tests/it/pinned_review.rs",
+        "crates/graphicle/tests/it/provided_diff.rs"
+      ],
+      "git_diff_check": "passed",
+      "log": "/private/tmp/graphicle-scale-format-changed-20261106.log",
+      "log_sha256": "edcb66fce06443f78c00ab5080feb88356f74fca539b9b2b1857794581778900",
+      "new_test_expectations_also_have_format_diffs": true,
+      "passed": false,
+      "runtime_and_engine_changed_sources_pass": true
+    },
+    "full_runtime": {
+      "failed": 0,
+      "groups": [
+        {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 4,
+          "passed": 643,
+          "seconds": 59.85
+        },
+        {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 0,
+          "passed": 0,
+          "seconds": 0.0
+        },
+        {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 0,
+          "passed": 1,
+          "seconds": 2.46
+        },
+        {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 0,
+          "passed": 27,
+          "seconds": 7.71
+        },
+        {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 4,
+          "passed": 667,
+          "seconds": 750.61
+        },
+        {
+          "failed": 0,
+          "filtered": 0,
+          "ignored": 0,
+          "passed": 0,
+          "seconds": 0.0
+        }
+      ],
+      "ignored": 8,
+      "log": "/private/tmp/graphicle-scale-runtime-regressions-20261106.log",
+      "log_sha256": "0f188d1171030963c7594191d693be34a76a5767cd035254bcc685792627ecd4",
+      "nested_filtered_subprocess_excluded_from_total": [
+        {
+          "failed": 0,
+          "filtered": 670,
+          "ignored": 0,
+          "passed": 1,
+          "seconds": 7.42
+        }
+      ],
+      "passed": 1338,
+      "scope": "Runtime crate test groups shown in the log; does not claim the full engine or Python test suite."
+    },
+    "native_targeted": {
+      "failed": 0,
+      "passed": 5,
+      "repeat_passed": 5,
+      "repeat_seconds": 15.02,
+      "seconds": 15.22
+    }
+  }
+}

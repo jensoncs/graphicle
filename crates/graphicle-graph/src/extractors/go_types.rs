@@ -439,7 +439,11 @@ pub fn resolve(
                 .env("GOWORK", workspace)
                 .env("GO111MODULE", "auto")
                 .env("GOCACHE", cache.path().join("build")),
-            Duration::from_secs(60),
+            // An admitted 100,000-file repository can need more than a minute
+            // just for package discovery. Background projection has a renewable
+            // lease; capture_bounded still enforces any shorter request deadline
+            // and the output bound below.
+            Duration::from_secs(300),
             Some(serde_json::to_vec(&json!({"Paths": paths})).map_err(|_| "go_request_invalid")?),
             64 * 1024 * 1024,
         )

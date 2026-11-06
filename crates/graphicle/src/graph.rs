@@ -242,7 +242,8 @@ pub fn for_query(
 }
 
 /// The unfiltered authorized catalogue already checked by the indexed query.
-/// Filtered queries retain `for_query`'s independent claim visibility rules.
+/// A source filter narrows `snap`, while claim visibility still uses that full
+/// catalogue, matching `for_query`'s independent claim visibility rules.
 pub(crate) fn for_indexed_query(
     db: &Connection,
     repository: &Value,

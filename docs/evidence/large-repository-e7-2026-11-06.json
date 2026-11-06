@@ -1,0 +1,290 @@
+{
+  "as_tested_test_source_sha256": "6012e10712fc5beeea7f94bf4d8ded0993ab34ef8187d03f03a33263d95fa55d",
+  "candidate_binary_sha256": "1de0456ac6e79538fbb97ccd5c0a42c5502b201c4dd63d72d81db53b82a5e82b",
+  "candidate_sources": {
+    "crates/graphicle-graph/src/serve.rs": "83ae6a45e5211b72dc1b395b7df2f2b26b228e40df9736e7908dceeff32a7efc"
+  },
+  "control_binary_sha256": "253671c6137ce047d3a9c5afd653d1a84f65a112e159cecaf570894601e62a1e",
+  "correctness": {
+    "community_grouping_tests": {
+      "failed": 0,
+      "passed": 3,
+      "seconds": 0.13
+    },
+    "engine_log_path": "/private/tmp/graphicle-scale-e7-engine-tests-20261106.log",
+    "engine_log_sha256": "5486f49ac1e74a6c8380cbadbc1d921f0baf63e118605848ea857fd41f8d9a6c",
+    "engine_serving_compatibility": {
+      "failed": 0,
+      "passed": 8,
+      "seconds": 0.03
+    },
+    "runtime_navigation": {
+      "failed": 0,
+      "filtered_out": 648,
+      "log_path": "/private/tmp/graphicle-scale-e7-runtime-tests-20261106.log",
+      "log_sha256": "1f5b8098c3536f3472d3c6a1dff812d1354fd0cd62c1037d45c10a0dbfebaebb",
+      "passed": 23,
+      "scope": "one_server integration module; not a rerun of the full runtime suite",
+      "seconds": 21.18
+    }
+  },
+  "current_test_source_sha256": "6242f08053a6b64f4864751e38cd49c85f91d51d839f7c1bb66572203c540228",
+  "date": "2026-11-06",
+  "decision": "retain: median fresh-process navigation improves 29.8%, all five candidate samples are faster, all complete packets match, and maximum peak RSS rises 0.7%",
+  "experiment": "E7: preserve community encounter order using indexed group positions",
+  "format_check": {
+    "log": "/private/tmp/graphicle-scale-e7-format-final-20261106.log",
+    "passed": true,
+    "scope": [
+      "crates/graphicle-graph/src/serve.rs",
+      "crates/graphicle-graph/tests/serve_communities.rs"
+    ],
+    "test_cleanup": "Only line wrapping of the invalid-ID array after the focused test passed; no values or assertions changed."
+  },
+  "harness_checks": {
+    "candidate_smoke": {
+      "complete_packet_checks": 8,
+      "harness_sha256": {
+        "compare_navigation.py": "9f6ce2d80290d0f71b2efa80e245af70e9d3b976f3c22acd88d83781a16fbe56",
+        "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+      },
+      "raw_result_path": "/private/tmp/graphicle-scale-e7-navigation-smoke-20261106/results.json",
+      "raw_result_sha256": "623097067802ea05295bde8f87d07ccfa760d0893e40844ae493a5b515ef200c",
+      "status": "passed",
+      "timing_claim": "None; small correctness check."
+    },
+    "self_check": {
+      "complete_packet_checks": 8,
+      "harness_sha256": {
+        "compare_navigation.py": "9f6ce2d80290d0f71b2efa80e245af70e9d3b976f3c22acd88d83781a16fbe56",
+        "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+      },
+      "raw_result_path": "/private/tmp/graphicle-scale-navigation-selfcheck-20261106/results.json",
+      "raw_result_sha256": "f20ed9a6c20b058b3cf9534103029d77df6700501c9b137eecd27a34a4653b9b",
+      "status": "passed",
+      "timing_claim": "None; small correctness check."
+    }
+  },
+  "invariants": [
+    "First-encounter community order and per-community node order remain exact.",
+    "Integer, floating-point and string community ID coercion is unchanged.",
+    "Missing/null IDs are skipped; malformed IDs remain errors.",
+    "Clustering, graph source data, authorization and citation logic are untouched."
+  ],
+  "limitations": [
+    "One synthetic Python caller/callee request on the 98999-file retained graph. Includes resident graph startup, not an already warm server.",
+    "No graph-build or source-update speedup is claimed for this navigation change.",
+    "Peak RSS remains approximately 3.2 GiB; the change removes repeated community scans, not whole-graph loading."
+  ],
+  "pending": [],
+  "release_build": {
+    "build_config_sha256": {
+      "crates/graphicle-memory/.cargo/config.toml": "fa91759077f9c6997c8f923ea082564bd5b885be4040815fa379ba2901201f4c",
+      "crates/graphicle/.cargo/config.toml": "72c7e7ea24e3fcc23d32b48a0b99753f5fe78e64901e7b6f6d068a5da3bed051"
+    },
+    "changed_from_e6": [
+      "crates/graphicle-graph/src/serve.rs"
+    ],
+    "command": [
+      "/private/tmp/graphicle-merge-cargo",
+      "build",
+      "--release",
+      "--bin",
+      "graphicle",
+      "--locked",
+      "--offline"
+    ],
+    "cwd": "/Users/jensoncs/sharechat/graphicle/crates/graphicle",
+    "metadata_path": "/private/tmp/graphicle-scale-binaries/e7.json",
+    "metadata_sha256": "7a0769bfff73666b1d6636b0bd201d5e1fbdf5eb0431883c26e3c9c51696f76c",
+    "seconds": 465.48571233300027,
+    "wrapper_sha256": "648fa7d9e27e82e225ec9041f138c487f79ebd29edec10192837c0439c486fa5"
+  },
+  "scale_comparison": {
+    "max_peak_rss_increase_percent": 0.693180293942941,
+    "median_wall_reduction_percent": 29.81127583128751,
+    "raw_result_path": "/private/tmp/graphicle-scale-e7-navigation-100k-20261106/results.json",
+    "raw_result_sha256": "10788a914fc0c66729eda2176364adec7e7ed025ce2a563a6bb1b51909555e9d",
+    "result_data": {
+      "binary_sha256": {
+        "baseline": "253671c6137ce047d3a9c5afd653d1a84f65a112e159cecaf570894601e62a1e",
+        "candidate": "1de0456ac6e79538fbb97ccd5c0a42c5502b201c4dd63d72d81db53b82a5e82b"
+      },
+      "cpu_count": 18,
+      "engine_max_workers_env": 4,
+      "fixture": "/private/tmp/graphicle-scale-qualify-100k-20261106",
+      "fixture_sha256": {
+        "admit.json": "ecc5536860151c87c489c1ecc07d5dc9279d2f73ea5c8d4962803893d01d8b80",
+        "final-heads.json": "148c6f7b81c89a4ee4a8dffc54212d6fc42fd9c9b7368f91a307d3e3f51307d6",
+        "results.json": "c1d86b557f0506f9e82bc94fa57a83f081415e3378bfe2aec0610c84b33c41c3"
+      },
+      "harness_sha256": {
+        "compare_navigation.py": "9f6ce2d80290d0f71b2efa80e245af70e9d3b976f3c22acd88d83781a16fbe56",
+        "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+      },
+      "limitations": "One synthetic Python caller/callee query. Measures resident graph startup as well as navigation; does not qualify warm-server latency, arbitrary navigation tools, or other languages. No source or graph build is measured.",
+      "method": "Same retained store, fresh CLI and measurement processes, warm OS cache, alternating arm order, one excluded warmup per arm. Every complete packet is identical; caller/callee spans independently checked against Python AST.",
+      "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+      "probe": "unit_00000.py",
+      "rows": [
+        {
+          "arm": "baseline",
+          "exit_code": 0,
+          "label": "0-baseline",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3418947584,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 0,
+          "seconds": 13.262577416026033,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": true
+        },
+        {
+          "arm": "candidate",
+          "exit_code": 0,
+          "label": "0-candidate",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3451518976,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 0,
+          "seconds": 8.715688124997541,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": true
+        },
+        {
+          "arm": "candidate",
+          "exit_code": 0,
+          "label": "1-candidate",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3434414080,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 1,
+          "seconds": 8.68442908290308,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        },
+        {
+          "arm": "baseline",
+          "exit_code": 0,
+          "label": "1-baseline",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3316531200,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 1,
+          "seconds": 12.50712691701483,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        },
+        {
+          "arm": "baseline",
+          "exit_code": 0,
+          "label": "2-baseline",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3326361600,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 2,
+          "seconds": 12.45728716708254,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        },
+        {
+          "arm": "candidate",
+          "exit_code": 0,
+          "label": "2-candidate",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3441246208,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 2,
+          "seconds": 8.669965917011723,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        },
+        {
+          "arm": "candidate",
+          "exit_code": 0,
+          "label": "3-candidate",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3443441664,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 3,
+          "seconds": 8.603921083034948,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        },
+        {
+          "arm": "baseline",
+          "exit_code": 0,
+          "label": "3-baseline",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3418816512,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 3,
+          "seconds": 12.306002416997217,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        },
+        {
+          "arm": "baseline",
+          "exit_code": 0,
+          "label": "4-baseline",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3319857152,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 4,
+          "seconds": 12.343425833969377,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        },
+        {
+          "arm": "candidate",
+          "exit_code": 0,
+          "label": "4-candidate",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3432857600,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 4,
+          "seconds": 8.698616416892037,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        },
+        {
+          "arm": "candidate",
+          "exit_code": 0,
+          "label": "5-candidate",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3443834880,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 5,
+          "seconds": 8.768996041966602,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        },
+        {
+          "arm": "baseline",
+          "exit_code": 0,
+          "label": "5-baseline",
+          "measurement_worker": "fresh Python process",
+          "peak_rss_bytes": 3420127232,
+          "resource_accounting": "wait4 of the CLI process",
+          "sample": 5,
+          "seconds": 12.372969000018202,
+          "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+          "warmup": false
+        }
+      ],
+      "samples": 5,
+      "source_files": 98999,
+      "summary": {
+        "baseline": {
+          "max_peak_rss_bytes": 3420127232,
+          "median_seconds": 12.372969000018202
+        },
+        "candidate": {
+          "max_peak_rss_bytes": 3443834880,
+          "median_seconds": 8.68442908290308
+        }
+      }
+    },
+    "status": "passed"
+  }
+}

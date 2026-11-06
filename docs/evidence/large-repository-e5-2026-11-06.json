@@ -1,0 +1,169 @@
+{
+  "artifacts": {
+    "build-after.log": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/build-after.log",
+      "sha256": "1a2a68925177c616903ca04f6c7b61d3e3e91198632b52d3d61953a0fc778c37"
+    },
+    "build-before.log": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/build-before.log",
+      "sha256": "65c986d012c3e37d264fcc5ea4723f768760eec3107b5d388694854165ce1f38"
+    },
+    "cold-after.json": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/cold-after.json",
+      "sha256": "5cb82041d728b2fd0a763c3cef18e842661cb5602570f983f442d188def4bf88"
+    },
+    "cold-after.log": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/cold-after.log",
+      "sha256": "b7663f485d7ce8acd360ae2cb3329d4574ac1e022dcf9224d113e9f92bae3ac9"
+    },
+    "default-after.jsonl": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/default-after.jsonl",
+      "sha256": "9774044b3b6b859cbd1340faa23da0aacd3bff0221f278942740507d40ef67f8"
+    },
+    "default-after.log": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/default-after.log",
+      "sha256": "9a086d5ba6a8b82655597bc17d3a187b09a517f1339a68f39e11dacc4d898fdd"
+    },
+    "default-before.jsonl": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/default-before.jsonl",
+      "sha256": "856f3d2f20e8ada36327549351ee17e85586a1830940d027ae8b4a579e283310"
+    },
+    "default-before.log": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/default-before.log",
+      "sha256": "0c9d5617de4e8de40d4cc7faf96593bc0f75838d1c7c629ed8da509ee12960b7"
+    },
+    "edit-after.json": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/edit-after.json",
+      "sha256": "32eb91f6262451dac5840c5ffc5e414c3ee89ed2bbd27a5b3dec779284d5800a"
+    },
+    "edit-after.log": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/edit-after.log",
+      "sha256": "4c7c7526f0187978e1acd3bc7c3eeed865ee2791b792b6de047dfb077d99c811"
+    },
+    "incremental-after": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/incremental-after",
+      "sha256": "82e31943cf5a8de0d4a3fb002e378cdc41b5185a9255030f1e9f8e116c6f8db8"
+    },
+    "large-stack-before.jsonl": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/large-stack-before.jsonl",
+      "sha256": "9774044b3b6b859cbd1340faa23da0aacd3bff0221f278942740507d40ef67f8"
+    },
+    "large-stack-before.log": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/large-stack-before.log",
+      "sha256": "9a086d5ba6a8b82655597bc17d3a187b09a517f1339a68f39e11dacc4d898fdd"
+    },
+    "mutation.json": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/mutation.json",
+      "sha256": "681b0e1ff69a5526b20668a607918b4b327f2534ac33df618940533008069da8"
+    },
+    "probe-after": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/probe-after",
+      "sha256": "fc38423fc96cc95d7c14cd918d918f762e7ba2fdf99119f81fc22707f8d8899e"
+    },
+    "probe-before": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/probe-before",
+      "sha256": "7cce818120de496d3323dcffccc63dccd5dc5c48023179dc0e12a53069ed7759"
+    },
+    "receiver_probe.rs": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/receiver_probe.rs",
+      "sha256": "0965ad173e8dc834124c7e57d03d187000778b3cc719c9dc13c63f8fdb3dc1a2"
+    },
+    "tests.log": {
+      "path": "/private/tmp/graphicle-scale-receiver-20261106/tests.log",
+      "sha256": "a0ef7668d5e9b133afc96ef97e27349f34d8137ad34545b5c6ab979e20402c80"
+    }
+  },
+  "before": {
+    "completed_files": 1779,
+    "default_thread_stack_exit": 134,
+    "diagnostic_32_mib_stack_completed_files": 2060,
+    "failed_file": "test/test_traceback.py"
+  },
+  "cold_full_incremental": {
+    "edges": 202063,
+    "equal": true,
+    "files": 2060,
+    "full_parsing": {
+      "changed": 2060,
+      "unchanged": 0,
+      "unsupported": 0
+    },
+    "full_seconds": 70.582642416,
+    "incremental": {
+      "changed": 2060,
+      "components": 123,
+      "context_files": 0,
+      "dirty_files": 2060,
+      "fallback": null,
+      "largest_component": 1938,
+      "resolved_files": 2060,
+      "reused_files": 0,
+      "skipped_parsing": 0,
+      "unchanged": 0,
+      "unsupported": 0
+    },
+    "incremental_seconds": 103.6024885,
+    "nodes": 96712,
+    "output_sha256": "3f83bff8dcfdf4f049959e0599d209e1012e5a7a30eeca143ec9234d01756277"
+  },
+  "date": "2026-11-06",
+  "decision": "retain: fixes the reproduced Python receiver-worker stack overflow; full receiver facts preserved for 2060 files; full and incremental graphs exactly match before and after an API rename",
+  "edited_full_incremental": {
+    "edges": 202061,
+    "equal": true,
+    "files": 2060,
+    "full_parsing": {
+      "changed": 1,
+      "unchanged": 2059,
+      "unsupported": 0
+    },
+    "full_seconds": 55.43198325,
+    "incremental": {
+      "changed": 1,
+      "components": 123,
+      "context_files": 38,
+      "dirty_files": 2022,
+      "fallback": null,
+      "largest_component": 1938,
+      "resolved_files": 2060,
+      "reused_files": 38,
+      "skipped_parsing": 0,
+      "unchanged": 2059,
+      "unsupported": 0
+    },
+    "incremental_seconds": 84.96415925,
+    "nodes": 96712,
+    "output_sha256": "2a48a58cbf5e5509df892e4645b586a48f10e00514fcf3fee84fea737fff42d5"
+  },
+  "experiment": "E5: iterative Python receiver traversal",
+  "fixture": "/private/tmp/graphicle-scale-cpython-20261106/fixture.json",
+  "fixture_restored_to_original_hashes": true,
+  "fixture_sha256": "bb4e17c1f53c0bbf6b3c7695b5924e8c636db74cc839b27f9006103a81ccdb26",
+  "limitations": "Debug correctness qualification, not a release performance comparison or proof of 100000-code-file / ten-repository readiness. Engine checker enables receiver_resolution and test_identities, includes three non-UTF-8 fixtures decoded by the engine, and excludes two venv files. Runtime admission and graph options differ; counts should not be compared with the 2057-file release probe. JavaScript traversal and recursive type helpers are unchanged.",
+  "mutation": {
+    "after_sha256": "f2900728786e0d3e3bfbde709d552e76988adaf5d286d4b07d7f0db2f271491f",
+    "before_sha256": "65e3dfbf7bad61d4d7d7731a69dd7e75a347fd350d91327a51010a94e6fd2f1d",
+    "change": "Rename rgb_to_yiq to rgb_to_yiq_probe in disposable fixture",
+    "path": "colorsys.py"
+  },
+  "receiver_facts_equivalence": {
+    "after_stack": "Rust default worker stack",
+    "before_stack_bytes": 33554432,
+    "equal": true,
+    "files": 2060,
+    "method": "SHA-256 of complete FileFacts Debug representation, including all bindings, scopes, call sites and class fields; vector order retained. Same Rust compiler, identical input bytes. Compare every row, source hash and parse diagnostic.",
+    "parse_errors": 63,
+    "parsed_files": 2060
+  },
+  "sources": {
+    "crates/graphicle-graph/examples/incremental_check.rs": "621c3c0cd023e51998cadbae558b6b457fd0fb0fb18e0d16b0654cc99dcd73a8",
+    "crates/graphicle-graph/src/extractors/receiver_bindings.rs": "61a7db16c2a82256676a48c4cb3940d244dce047f97e10533d16bdc46faf939e",
+    "crates/graphicle-graph/src/incremental.rs": "efeeb203e1ad4794bfac4d3788da79e67dc2fa05a6b1b3f168136f6e3091ed1d"
+  },
+  "targeted_tests": {
+    "failed": 0,
+    "includes": "12 incremental engine tests, 6 receiver resolution tests, Python 12000-term expression and existing Go depth regression",
+    "passed": 20,
+    "python_test_stack_bytes": 524288
+  }
+}

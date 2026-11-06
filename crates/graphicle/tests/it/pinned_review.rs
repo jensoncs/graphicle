@@ -254,18 +254,49 @@ fn hunk_packing_keeps_current_head_and_delta_matches_canonical_selection() {
         ],
     );
     let mut args = request(&repo, vec![a], vec![b]);
-    args["max_tokens"] = json!(6000);
-    let first = f.run(&args);
-    assert_eq!(first["coverage"]["current_head"]["usable"], true, "{first}");
-    assert!(has(&first, "head", ".F0") && has(&first, "base", ".F0"));
-    assert!(first["diffs"].as_array().unwrap().len() >= 2, "{first}");
-    assert!(first["diffs"].to_string().len() < code.len());
-    args["previous_packet_id"] = first["packet_id"].clone();
-    let delta = f.run(&args);
-    assert_eq!(delta["context_order"], first["context_order"]);
-    assert!(delta["entries"].as_array().unwrap().is_empty());
-    assert!(delta["diffs"].as_array().unwrap().is_empty());
-    assert!(text::count(&delta.to_string()) <= 6000);
+    for budget in [6000, 16000] {
+        args["max_tokens"] = json!(budget);
+        args.as_object_mut().unwrap().remove("previous_packet_id");
+        let first = f.run(&args);
+        assert_eq!(
+            first["coverage"]["packing"]["cost_model"],
+            "fixed_hex_identifiers_v1"
+        );
+        assert_eq!(
+            first["coverage"]["current_head"]["complete"], true,
+            "{first}"
+        );
+        assert!(
+            has(&first, "head", ".F0") && has(&first, "head", ".F19"),
+            "{first}"
+        );
+        // Current declarations and hunks precede base declarations. Fixed
+        // identifier charges can omit base context at the tight budget.
+        if budget == 16000 {
+            assert!(
+                has(&first, "base", ".F0") && has(&first, "base", ".F19"),
+                "{first}"
+            );
+            assert_eq!(first["coverage"]["complete"], true, "{first}");
+        } else {
+            assert!(
+                first["coverage"]["budget_omitted_entries"]
+                    .as_u64()
+                    .unwrap()
+                    > 0
+            );
+            assert_eq!(first["coverage"]["complete"], false);
+        }
+        assert!(first["diffs"].as_array().unwrap().len() >= 2, "{first}");
+        assert!(first["diffs"].to_string().len() < code.len());
+        assert!(text::count(&first.to_string()) <= budget);
+        args["previous_packet_id"] = first["packet_id"].clone();
+        let delta = f.run(&args);
+        assert_eq!(delta["context_order"], first["context_order"]);
+        assert!(delta["entries"].as_array().unwrap().is_empty());
+        assert!(delta["diffs"].as_array().unwrap().is_empty());
+        assert!(text::count(&delta.to_string()) <= budget);
+    }
 }
 
 #[test]
@@ -535,7 +566,8 @@ fn business_context_adds_historical_constraints_and_revision_safe_deltas() {
         &[("go.mod", MOD), ("access.go", &after)],
     );
     let mut args = request(&repo, vec![base.clone()], vec![head.clone()]);
-    args["max_tokens"] = json!(8000);
+    // The default budget exercises complete code plus optional base/history
+    // annotations. Tight-budget source priority is checked separately below.
     let baseline = f.run(&args);
     // The new edit overwrites the original guard. Base-side history is essential.
     let collected = graphicle_runtime::business_context::collect(
@@ -571,7 +603,8 @@ fn business_context_adds_historical_constraints_and_revision_safe_deltas() {
     let caller = find(&enhanced, ".Authorize");
     assert_eq!(
         check["business_context"]["historical_assertions"][0]["subject"],
-        "Fix tenant isolation: reject cross-account access"
+        "Fix tenant isolation: reject cross-account access",
+        "{enhanced}"
     );
     assert_eq!(
         check["business_context"]["historical_assertions"][0]["validity"],
@@ -600,10 +633,10 @@ fn business_context_adds_historical_constraints_and_revision_safe_deltas() {
     for packet in [&baseline, &enhanced] {
         assert!(has(packet, "head", ".Check") && has(packet, "head", ".Authorize"));
         assert_eq!(packet["coverage"]["complete"], true, "{packet}");
-        assert!(text::count(&packet.to_string()) <= 8000);
+        assert!(text::count(&packet.to_string()) <= 16000);
     }
     assert!(find(&baseline, ".Check").get("business_context").is_none());
-    let metrics = json!({"fixture":"tenant-isolation-guard-change","budget":8000,"baseline_tokens":baseline["tokens"],"enhanced_tokens":enhanced["tokens"],"required_code_recall_baseline":1.0,"required_code_recall_enhanced":1.0,"historical_constraint_recall_baseline":0.0,"historical_constraint_recall_enhanced":1.0,"unsupported_positive_assertions":0,"model_calls":0,"scope":"deterministic evidence retrieval, not model review quality"});
+    let metrics = json!({"fixture":"tenant-isolation-guard-change","budget":16000,"baseline_tokens":baseline["tokens"],"enhanced_tokens":enhanced["tokens"],"required_code_recall_baseline":1.0,"required_code_recall_enhanced":1.0,"historical_constraint_recall_baseline":0.0,"historical_constraint_recall_enhanced":1.0,"unsupported_positive_assertions":0,"model_calls":0,"scope":"deterministic evidence retrieval, not model review quality"});
     println!("business_context_fixture_metrics={metrics}");
     if let Some(path) = std::env::var_os("GRAPHICLE_BUSINESS_EVAL_DIR") {
         let path = std::path::PathBuf::from(path);
@@ -617,6 +650,16 @@ fn business_context_adds_historical_constraints_and_revision_safe_deltas() {
         }
     }
     let mut tight_args = args.clone();
+    tight_args["max_tokens"] = json!(8000);
+    let bounded = f.run(&tight_args);
+    assert!(
+        has(&bounded, "head", ".Check") && has(&bounded, "head", ".Authorize"),
+        "{bounded}"
+    );
+    assert_eq!(bounded["coverage"]["current_head"]["complete"], true);
+    assert_eq!(bounded["coverage"]["callers"]["complete"], true);
+    assert_eq!(bounded["impact"], enhanced["impact"]);
+    assert!(text::count(&bounded.to_string()) <= 8000);
     tight_args["max_tokens"] = json!(3500);
     let tight = f.run(&tight_args);
     assert!(text::count(&tight.to_string()) <= 3500);
@@ -787,7 +830,29 @@ fn pinned_chain_delta_and_identical_tree_commit_binding() {
         vec![c.clone(), p.clone(), tax_a],
         vec![c.clone(), p.clone(), tax_b.clone()],
     );
+    let bounded = f.run(&args);
+    // Each consumer build has its own package binding. Conservative fixed
+    // charges can omit a base entry while retaining every current-head view.
+    assert_eq!(
+        bounded["coverage"]["packing"]["cost_model"],
+        "fixed_hex_identifiers_v1"
+    );
+    assert_eq!(bounded["coverage"]["current_head"]["complete"], true);
+    assert_eq!(bounded["coverage"]["callers"]["complete"], true);
+    for name in ["Calculate", "Quote", "Submit"] {
+        assert!(has(&bounded, "head", name), "{name}: {bounded}");
+    }
+    assert!(
+        bounded["coverage"]["budget_omitted_entries"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+    assert_eq!(bounded["coverage"]["complete"], false);
+    assert!(text::count(&bounded.to_string()) <= 16000);
+    args["max_tokens"] = json!(32000);
     let first = f.run(&args);
+    assert_eq!(first["impact"], bounded["impact"]);
     assert_eq!(first["coverage"]["complete"], true, "{first}");
     for name in ["Calculate", "Quote", "Submit"] {
         assert!(has(&first, "head", name), "{name}: {first}");
@@ -824,7 +889,7 @@ fn pinned_chain_delta_and_identical_tree_commit_binding() {
         .count();
     println!(
         "review_fixture_metrics={}",
-        json!({"call_edge_precision":edges.intersection(&expected).count() as f64/edges.len() as f64,"call_edge_recall":edges.intersection(&expected).count() as f64/expected.len() as f64,"affected_symbol_recall":context_hits as f64/required.len() as f64,"required_context_recall":context_hits as f64/required.len() as f64,"budget":16000,"tokens":first["tokens"]})
+        json!({"call_edge_precision":edges.intersection(&expected).count() as f64/edges.len() as f64,"call_edge_recall":edges.intersection(&expected).count() as f64/expected.len() as f64,"affected_symbol_recall":context_hits as f64/required.len() as f64,"required_context_recall":context_hits as f64/required.len() as f64,"budget":32000,"tokens":first["tokens"]})
     );
     let submit = first["entries"]
         .as_array()
@@ -1956,9 +2021,21 @@ fn historical_coupling_adds_exact_context_and_explains_review_priority() {
     bounded_args["max_tokens"] = json!(8000);
     let bounded = f.run(&bounded_args);
     assert!(text::count(&bounded.to_string()) <= 8000);
-    for name in ["Check", "Caller", "Verify"] {
+    // Verify is a historical peer, not a required static caller. Its exact
+    // declaration and provenance are checked in the 32,000-token packet above.
+    // At 8,000, required code and its selected history take priority.
+    for name in ["Check", "Caller"] {
         assert!(has(&bounded, "head", name), "{name}: {bounded}");
     }
+    assert_eq!(bounded["coverage"]["current_head"]["complete"], true);
+    assert_eq!(bounded["coverage"]["callers"]["complete"], true);
+    assert!(
+        bounded["coverage"]["budget_omitted_entries"]
+            .as_u64()
+            .unwrap()
+            > 0
+    );
+    assert_eq!(bounded["coverage"]["complete"], false);
     assert!(
         bounded["entries"].as_array().unwrap().iter().any(|e| {
             e["side"] == "head"

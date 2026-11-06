@@ -154,6 +154,22 @@ impl Home {
         serde_json::from_slice(&self.run(args, &[], "").0).unwrap()
     }
 
+    fn navigate(&self, args: &Value, env: &[(&str, &str)]) -> Value {
+        let path = self.home.join("navigation.json");
+        std::fs::write(&path, serde_json::to_vec(args).unwrap()).unwrap();
+        let output = self.run(
+            &[
+                "call",
+                "graph.navigate",
+                "--arguments",
+                path.to_str().unwrap(),
+            ],
+            env,
+            "",
+        );
+        serde_json::from_slice(&output.0).unwrap()
+    }
+
     /// What the prompt hook prints for `question`, with `env` set and the
     /// longest budget; `session` names the session, so that a note for the
     /// person is never held back from one call because another gave it.
@@ -743,6 +759,151 @@ fn a_damaged_saved_graph_or_file_relationships_file_is_written_again() {
         );
         assert_eq!(std::fs::read(&edges).unwrap(), pristine_edges, "{what}");
     }
+}
+
+/// Navigation uses the same verified snapshot as other graph readers. Its
+/// cached search index predates community annotation, so compare every tool
+/// that reads the resident graph, including search, clustering and citations.
+#[test]
+fn navigation_snapshot_matches_tables_and_recovers_from_unusable_caches() {
+    use serde_json::json;
+    let h = fixture();
+    h.json(&["sync", "."]);
+    let graph = h.files("graph").remove(0);
+    let pristine = std::fs::read(&graph).unwrap();
+    let disabled = [("GRAPHICLE_SAVED_GRAPH", "0")];
+    let node = h.navigate(&json!({"tool":"get_node","label":"run_query"}), &disabled);
+    let function = node["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["label"] == "run_query()")
+        .unwrap();
+    let requests = [
+        json!({"tool":"query_graph","question":"run_query Store plan"}),
+        json!({"tool":"get_node","node_id":function["node_id"]}),
+        json!({"tool":"get_neighbors","node_id":function["node_id"],"relation_filter":"calls"}),
+        json!({"tool":"get_community","community_id":function["community"]}),
+        json!({"tool":"god_nodes","top_n":3}),
+        json!({"tool":"graph_stats"}),
+        json!({"tool":"shortest_path","source":"run_query","target":"plan","undirected":true}),
+        json!({"tool":"search_symbols","parameter_name":"text"}),
+        json!({"tool":"execution_flows","node_id":function["node_id"]}),
+        json!({"tool":"entry_points"}),
+        json!({"tool":"architecture_preview"}),
+    ];
+    for request in &requests {
+        let expected = h.navigate(request, &disabled);
+        let saved = h.navigate(request, &[]);
+        assert_eq!(saved, expected, "{request}");
+        assert_eq!(saved["episode_lag"], 0);
+        assert!(saved.get("nodes_unmatched").is_none(), "{saved:#}");
+        for node in saved["nodes"].as_array().unwrap() {
+            if node["checked"] != true {
+                continue;
+            }
+            let bytes = std::fs::read(h.app.join(node["relpath"].as_str().unwrap())).unwrap();
+            assert_eq!(node["sha256"], graphicle_memory::text::sha256(&bytes));
+            let start = node["byte_start"].as_u64().unwrap() as usize;
+            let end = node["byte_end"].as_u64().unwrap() as usize;
+            assert!(start < end && end <= bytes.len());
+        }
+    }
+    assert_eq!(std::fs::read(&graph).unwrap(), pristine);
+
+    let request = &requests[2];
+    let expected = h.navigate(request, &disabled);
+    assert!(expected["nodes"].as_array().unwrap().len() >= 2);
+    std::fs::remove_file(&graph).unwrap();
+    assert_eq!(h.navigate(request, &[]), expected, "missing snapshot");
+    assert!(
+        !graph.exists(),
+        "navigation must not rebuild a missing snapshot"
+    );
+
+    let mut corrupt = pristine.clone();
+    let middle = corrupt.len() / 2;
+    corrupt[middle] ^= 0x5a;
+    for (name, bytes) in [
+        ("checksum", corrupt),
+        ("truncated", pristine[..pristine.len() - 100].to_vec()),
+    ] {
+        std::fs::write(&graph, bytes).unwrap();
+        assert_eq!(h.navigate(request, &[]), expected, "{name}");
+        assert!(
+            !graph.exists(),
+            "{name}: navigation did not read and discard the damaged snapshot"
+        );
+    }
+
+    // An old build's key is a cache miss, not corruption: leave it alone.
+    let mut wrong_build = pristine.clone();
+    let build = graphicle_memory::build_code().as_bytes();
+    let at = wrong_build
+        .windows(build.len())
+        .position(|w| w == build)
+        .unwrap();
+    assert!(at < 4096);
+    wrong_build[at] = if wrong_build[at] == b'f' { b'e' } else { b'f' };
+    std::fs::write(&graph, &wrong_build).unwrap();
+    assert_eq!(h.navigate(request, &[]), expected, "wrong build");
+    assert_eq!(std::fs::read(&graph).unwrap(), wrong_build);
+    std::fs::write(&graph, &pristine).unwrap();
+    assert_eq!(h.navigate(request, &[]), expected, "restored snapshot");
+}
+
+/// A saved episode remains historical data when source heads move. Reading
+/// it must preserve lag, stale source and unchecked-relation diagnostics.
+#[test]
+fn navigation_snapshot_preserves_historical_and_stale_source_citations() {
+    use serde_json::json;
+    let h = fixture();
+    h.json(&["sync", "."]);
+    let old_graph = h.files("graph").remove(0);
+    let disabled = [("GRAPHICLE_SAVED_GRAPH", "0")];
+    let request = json!({"tool":"get_neighbors","label":"run_query","relation_filter":"calls"});
+    let before = h.navigate(&request, &[]);
+    let old_episode = before["episode"].clone();
+    h.write("query.py", &QUERY.replace("rows = plan(text)", "rows = []"));
+    h.json(&["sync", ".", "--no-graph"]);
+    let stale = h.navigate(&request, &[]);
+    assert_eq!(stale, h.navigate(&request, &disabled));
+    assert_eq!(stale["episode"], old_episode);
+    assert_ne!(stale["current_episode"], old_episode);
+    assert!(stale["episode_lag"].as_u64().unwrap() > 0);
+    assert!(stale["relations_unchecked"].as_u64().unwrap() > 0);
+    let source_nodes: Vec<_> = stale["nodes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|n| n["relpath"] == "query.py")
+        .collect();
+    assert!(!source_nodes.is_empty());
+    assert!(
+        source_nodes
+            .iter()
+            .all(|n| n["checked"] == false && n["reason"] == "changed_since_episode")
+    );
+    assert!(old_graph.exists());
+
+    h.json(&["sync", "."]);
+    let current = h.navigate(&request, &[]);
+    assert_eq!(current, h.navigate(&request, &disabled));
+    assert_eq!(current["episode_lag"], 0);
+    assert_ne!(current["episode"], old_episode);
+    let historical = json!({"as_of":old_episode,"tool":"get_neighbors","label":"run_query","relation_filter":"calls"});
+    let saved = h.navigate(&historical, &[]);
+    assert_eq!(saved, h.navigate(&historical, &disabled));
+    assert_eq!(saved["episode"], old_episode);
+    assert!(
+        saved["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|n| n["relpath"] == "query.py")
+            .all(|n| n["checked"] == false)
+    );
+    assert!(old_graph.exists());
 }
 
 /// An interrupted write's temporary file goes once it is stale; switching

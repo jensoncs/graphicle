@@ -20,9 +20,9 @@ use std::{
     path::{Path, PathBuf},
 };
 
-// v14: combine Python import rebinding guards with content_failed_sources.
+// v15: shared-provider vertices participate in dependency component hashes.
 // Go uses the compiler build each run.
-const SCHEMA: &str = "resolution-files-v14";
+const SCHEMA: &str = "resolution-files-v15";
 const OWNER: &str = "__graphicle_private_resolution_owner";
 const SHARED: &str = "__graphicle_private_shared_resolution_node";
 const ARRAYS: [&str; 7] = [
@@ -233,35 +233,55 @@ fn configuration(paths: &[PathBuf], root: &Path) -> Result<Vec<(String, String)>
         })
         .collect()
 }
-fn dependencies(files: &[File]) -> Vec<Vec<usize>> {
+/// Files occupy the first vertices. Each remaining vertex represents one
+/// shared name and points to all its providers. File-to-file reachability is
+/// unchanged, without expanding a common name into a quadratic set of edges.
+struct Dependencies<'a> {
+    edges: Vec<Vec<usize>>,
+    symbols: Vec<&'a str>,
+}
+
+fn dependencies(files: &[File]) -> Dependencies<'_> {
     let mut providers = hashbrown::HashMap::<&str, Vec<usize>>::new();
     for (i, f) in files.iter().enumerate() {
         for name in &f.provides {
             providers.entry(name).or_default().push(i);
         }
     }
-    // Many identifiers resolve to the same provider file. A generation mark
-    // replaces a tree insertion for each repeated candidate; sort only the
-    // distinct neighbors, retaining the resolver's original tie-break order.
-    let mut seen = vec![usize::MAX; files.len()];
-    let mut edges = Vec::with_capacity(files.len());
+    let mut symbols = providers
+        .iter()
+        .filter(|(_, candidates)| candidates.len() > 1)
+        .map(|(name, _)| *name)
+        .collect::<Vec<_>>();
+    symbols.sort_unstable();
+    let mut edges = vec![Vec::new(); files.len() + symbols.len()];
+    let mut targets = hashbrown::HashMap::with_capacity(providers.len());
+    for (name, candidates) in providers {
+        let target = if candidates.len() == 1 {
+            candidates[0]
+        } else {
+            let target = files.len() + symbols.binary_search(&name).expect("shared name");
+            edges[target] = candidates;
+            target
+        };
+        targets.insert(name, target);
+    }
+    // Several names can still refer to one provider. Keep distinct neighbors
+    // in deterministic order; resolver inputs later retain their file order.
+    let mut seen = vec![usize::MAX; edges.len()];
     for (i, file) in files.iter().enumerate() {
         seen[i] = i;
-        let mut adjacent = Vec::new();
         for name in &file.uses {
-            if let Some(candidates) = providers.get(name.as_str()) {
-                for &j in candidates {
-                    if seen[j] != i {
-                        seen[j] = i;
-                        adjacent.push(j);
-                    }
-                }
+            if let Some(&j) = targets.get(name.as_str())
+                && seen[j] != i
+            {
+                seen[j] = i;
+                edges[i].push(j);
             }
         }
-        adjacent.sort_unstable();
-        edges.push(adjacent);
+        edges[i].sort_unstable();
     }
-    edges
+    Dependencies { edges, symbols }
 }
 fn finish_order(edges: &[Vec<usize>]) -> Vec<usize> {
     let mut seen = vec![false; edges.len()];
@@ -321,7 +341,7 @@ fn components(edges: &[Vec<usize>]) -> (Vec<Vec<usize>>, Vec<usize>) {
 }
 fn keys(
     files: &[File],
-    deps: &[Vec<usize>],
+    deps: &Dependencies<'_>,
     groups: &[Vec<usize>],
     group_of: &[usize],
     salt: &Value,
@@ -331,7 +351,7 @@ fn keys(
         .enumerate()
         .map(|(c, g)| {
             g.iter()
-                .flat_map(|i| deps[*i].iter().map(|j| group_of[*j]))
+                .flat_map(|i| deps.edges[*i].iter().map(|j| group_of[*j]))
                 .filter(|d| *d != c)
                 .collect::<BTreeSet<_>>()
                 .into_iter()
@@ -346,7 +366,8 @@ fn keys(
         hashes[c] = format!(
             "{:x}",
             Sha256::digest(serde_json::to_vec(&json!({"salt":salt,
-                "files":groups[c].iter().map(|i|(&files[*i].relative,&files[*i].sha)).collect::<Vec<_>>(),
+                "files":groups[c].iter().filter_map(|i|files.get(*i)).map(|f|(&f.relative,&f.sha)).collect::<Vec<_>>(),
+                "symbols":groups[c].iter().filter_map(|i|i.checked_sub(files.len()).map(|j|deps.symbols[j])).collect::<Vec<_>>(),
                 "dependencies":dependency_groups.iter().map(|d|&hashes[*d]).collect::<Vec<_>>()
             }))?)
         );
@@ -674,7 +695,10 @@ pub fn extract(
     // A chart marker, helper or values edit can change references throughout
     // the chart, including formerly unsupported templates. Resolve the supplied
     // corpus together until Helm has a complete incremental dependency closure.
-    if paths.iter().any(|path| extractors::helm::chart_root(path).is_some()) {
+    if paths
+        .iter()
+        .any(|path| extractors::helm::chart_root(path).is_some())
+    {
         return full(input_paths, options, "helm_chart_requires_full_resolution");
     }
     let root = extractors::resolution::resolved(
@@ -798,7 +822,7 @@ pub fn extract(
         .map(|f| f.expect("cached or parsed file description"))
         .collect::<Vec<_>>();
     let deps = dependencies(&files);
-    let (groups, group_of) = components(&deps);
+    let (groups, group_of) = components(&deps.edges);
     let keys = keys(&files, &deps, &groups, &group_of, &salt)?;
     if let Some(dir) = cache_dir {
         std::fs::create_dir_all(dir)?;
@@ -830,23 +854,28 @@ pub fn extract(
         .collect::<Vec<_>>();
     let mut report = Report {
         parsing,
-        components: groups.len(),
+        components: groups.iter().filter(|g| g[0] < files.len()).count(),
         dirty_files: dirty.len(),
         reused_files: paths.len() - dirty.len(),
-        largest_component: groups.iter().map(Vec::len).max().unwrap_or(0),
+        largest_component: groups
+            .iter()
+            .map(|g| g.partition_point(|i| *i < files.len()))
+            .max()
+            .unwrap_or(0),
         ..Default::default()
     };
     if !dirty.is_empty() {
-        let mut include = vec![false; paths.len()];
+        let mut include = vec![false; deps.edges.len()];
         let mut stack = dirty.clone();
         while let Some(i) = stack.pop() {
             if !include[i] {
                 include[i] = true;
-                stack.extend(deps[i].iter().copied());
+                stack.extend(deps.edges[i].iter().copied());
             }
         }
         let context = include
             .iter()
+            .take(paths.len())
             .enumerate()
             .filter(|(_, yes)| **yes)
             .map(|(i, _)| i)
@@ -1019,6 +1048,40 @@ pub fn extract(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn dense_dependencies(files: &[File]) -> Dependencies<'_> {
+        // Independent all-pairs intersection: no lookup table or shared-name
+        // vertices. This is the file graph the cache contract specifies.
+        Dependencies {
+            edges: files
+                .iter()
+                .enumerate()
+                .map(|(i, file)| {
+                    files
+                        .iter()
+                        .enumerate()
+                        .filter(|(j, provider)| {
+                            i != *j && !file.uses.is_disjoint(&provider.provides)
+                        })
+                        .map(|(j, _)| j)
+                        .collect()
+                })
+                .collect(),
+            symbols: Vec::new(),
+        }
+    }
+
+    fn reachable(edges: &[Vec<usize>], start: usize, files: usize) -> Vec<usize> {
+        let mut seen = BTreeSet::new();
+        let mut pending = vec![start];
+        while let Some(i) = pending.pop() {
+            if seen.insert(i) {
+                pending.extend(&edges[i]);
+            }
+        }
+        seen.into_iter().filter(|i| *i < files).collect()
+    }
+
     #[test]
     fn dependency_candidates_preserve_all_providers_and_sorted_ties() {
         for count in [0, 1, 3, 64, 257] {
@@ -1037,23 +1100,174 @@ mod tests {
                         .collect(),
                 })
                 .collect();
-            // Independent all-pairs intersection: no lookup table, generation
-            // marks or duplicate insertion semantics shared with production.
-            let expected: Vec<Vec<usize>> = files
-                .iter()
-                .enumerate()
-                .map(|(i, file)| {
-                    files
-                        .iter()
-                        .enumerate()
-                        .filter(|(j, provider)| {
-                            i != *j && !file.uses.is_disjoint(&provider.provides)
-                        })
-                        .map(|(j, _)| j)
-                        .collect()
+            let actual = dependencies(&files);
+            let expected = dense_dependencies(&files);
+            let (_, actual_group) = components(&actual.edges);
+            let (_, expected_group) = components(&expected.edges);
+            for i in 0..count {
+                let neighbors = actual.edges[i]
+                    .iter()
+                    .flat_map(|j| {
+                        if *j < count {
+                            std::slice::from_ref(j)
+                        } else {
+                            actual.edges[*j].as_slice()
+                        }
+                    })
+                    .copied()
+                    .filter(|j| *j != i)
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect::<Vec<_>>();
+                assert_eq!(neighbors, expected.edges[i]);
+                assert_eq!(
+                    reachable(&actual.edges, i, count),
+                    reachable(&expected.edges, i, count)
+                );
+                for j in 0..count {
+                    assert_eq!(
+                        actual_group[i] == actual_group[j],
+                        expected_group[i] == expected_group[j]
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn compressed_dependencies_invalidate_every_affected_file() {
+        let cache_keys = |files: &[File], compressed| {
+            let deps = if compressed {
+                dependencies(files)
+            } else {
+                dense_dependencies(files)
+            };
+            let (groups, group_of) = components(&deps.edges);
+            keys(files, &deps, &groups, &group_of, &json!({})).unwrap()
+        };
+        let mut random = 17u64;
+        for _ in 0..64 {
+            let mut next = || {
+                random = random.wrapping_mul(6364136223846793005).wrapping_add(1);
+                random >> 32
+            };
+            let files = (0..8)
+                .map(|i| File {
+                    relative: format!("{i}.py"),
+                    origin_path: format!("/fixture/{i}.py").into(),
+                    sha: "before".into(),
+                    provides: (0..6)
+                        .filter(|_| next() % 4 == 0)
+                        .map(|n| format!("name{n}"))
+                        .collect(),
+                    uses: (0..8)
+                        .filter(|_| next() % 3 == 0)
+                        .map(|n| format!("name{n}"))
+                        .collect(),
                 })
-                .collect();
-            assert_eq!(dependencies(&files), expected);
+                .collect::<Vec<_>>();
+            let before = [cache_keys(&files, false), cache_keys(&files, true)];
+            for changed in 0..files.len() {
+                let mut edited = files.clone();
+                edited[changed].sha = "after".into();
+                let after = [cache_keys(&edited, false), cache_keys(&edited, true)];
+                for i in 0..files.len() {
+                    assert_eq!(before[0][i] != after[0][i], before[1][i] != after[1][i]);
+                }
+            }
+            // A previously unresolved name gains a provider, then loses it.
+            let mut added = files.clone();
+            added[0].provides.insert("name7".into());
+            added[0].sha = "added".into();
+            let after = [cache_keys(&added, false), cache_keys(&added, true)];
+            for i in 0..files.len() {
+                if before[0][i] != after[0][i] {
+                    assert_ne!(before[1][i], after[1][i]);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn shared_names_are_linear_and_bind_competing_provider_order() {
+        let files = (0..10_000)
+            .map(|i| File {
+                relative: format!("{i}.py"),
+                origin_path: format!("/fixture/{i}.py").into(),
+                sha: "same".into(),
+                uses: BTreeSet::from(["shared".into()]),
+                provides: BTreeSet::from(["shared".into()]),
+            })
+            .collect::<Vec<_>>();
+        let deps = dependencies(&files);
+        assert_eq!(deps.edges.len(), files.len() + 1);
+        assert_eq!(
+            deps.edges.iter().map(Vec::len).sum::<usize>(),
+            files.len() * 2
+        );
+        assert_eq!(reachable(&deps.edges, 0, files.len()).len(), files.len());
+        let mut competitors = files[..3].to_vec();
+        competitors[0].provides.clear();
+        competitors[1].uses.clear();
+        competitors[2].uses.clear();
+        let caller_key = |files: &[File]| {
+            let deps = dependencies(files);
+            let (groups, group_of) = components(&deps.edges);
+            keys(files, &deps, &groups, &group_of, &json!({})).unwrap()[0].clone()
+        };
+        let before = caller_key(&competitors);
+        competitors.swap(1, 2);
+        assert_ne!(before, caller_key(&competitors));
+    }
+
+    #[test]
+    fn common_name_updates_and_file_reports_match_full_extraction() {
+        let _serial = extractors::parse_cache::test_serial();
+        let root = tempfile::tempdir().unwrap();
+        let cache = tempfile::tempdir().unwrap();
+        let options = ExtractOptions {
+            root: Some(root.path().into()),
+            parallel: false,
+            use_cache: false,
+            receiver_resolution: true,
+            ..Default::default()
+        };
+        let mut paths = Vec::new();
+        for i in 0..5 {
+            let p = root.path().join(format!("unit_{i}.py"));
+            std::fs::write(&p, format!("def process(value):\n    return value + {i}\n\ndef run_{i}(value):\n    return process(value)\n")).unwrap();
+            paths.push(p);
+        }
+        let separate = root.path().join("separate.py");
+        std::fs::write(&separate, "def isolated():\n    return 17\n").unwrap();
+        paths.push(separate);
+        for step in 0..6 {
+            match step {
+                2 => std::fs::write(&paths[0], "def process(value):\n    return value + 99\n\ndef run_0(value):\n    return process(value)\n").unwrap(),
+                3 => {
+                    let renamed = root.path().join("renamed.py");
+                    std::fs::rename(&paths[1], &renamed).unwrap();
+                    paths[1] = renamed;
+                }
+                4 => { std::fs::remove_file(paths.remove(2)).unwrap(); }
+                _ => {}
+            }
+            let (actual, report) =
+                extract(&paths, &options, Some(cache.path()), "common-names").unwrap();
+            let mut expected = extract::extract(&paths, &options).unwrap();
+            order(&mut expected);
+            assert_eq!(actual, expected, "step {step}");
+            assert_eq!(report.fallback, None);
+            assert_eq!(report.components, 2);
+            assert_eq!(report.largest_component, paths.len() - 1);
+            assert_eq!(
+                report.resolved_files,
+                match step {
+                    0 => paths.len(),
+                    1 | 5 => 0,
+                    _ => paths.len() - 1,
+                }
+            );
         }
     }
 

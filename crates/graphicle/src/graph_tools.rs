@@ -319,8 +319,9 @@ fn held(repository: &str, episode: &str) -> Option<Arc<Resident>> {
     Some(found)
 }
 
-/// The resident graph of `episode` of `repository`: reconstructed from the
-/// recorded tables once, clustered, and kept for the next calls (at most
+/// The resident graph of `episode` of `repository`: read from its verified
+/// snapshot or reconstructed from the recorded tables, clustered, and kept
+/// for the next calls (at most
 /// [`RESIDENT_LIMIT`] episodes). A recorded episode never changes, so the
 /// entry stays valid; access is checked on every call before it is read.
 /// Builds are serialized ([`BUILDING`]).
@@ -332,7 +333,10 @@ pub fn resident(db: &Connection, repository: &str, episode: &str) -> Result<Arc<
     if let Some(found) = held(repository, episode) {
         return Ok(found);
     }
-    let mut graph = graph_projection::load(db, repository, episode)?;
+    let (mut graph, saved_index) = match crate::query_graph::read(db, repository, episode) {
+        Some((graph, index)) => (graph, Some(index)),
+        None => (graph_projection::load(db, repository, episode)?, None),
+    };
     let communities = graphicle::cluster::cluster(&graph, 1.0, None, "auto")?;
     let labels = graphicle::cluster::label_communities_by_hub(&graph, &communities);
     // The community numbers the engine's export writes (`community`), so the
@@ -373,7 +377,12 @@ pub fn resident(db: &Connection, repository: &str, episode: &str) -> Result<Arc<
     let built = Arc::new(Resident {
         repository: repository.to_string(),
         episode: episode.to_string(),
-        context: GraphContext::new(graph)?,
+        // Clustering only adds the top-level `community` attribute, which
+        // SearchIndex does not index; node and edge order are unchanged.
+        context: match saved_index {
+            Some(index) => GraphContext::with_index(graph, index)?,
+            None => GraphContext::new(graph)?,
+        },
         labels,
         starts,
         by_location,

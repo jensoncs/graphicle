@@ -7,7 +7,7 @@
 //! selection and packing are unchanged.
 //!
 //! The index serves `context`'s defaults; a call that asks for something
-//! else (a filter, other lexical options, followed links, local models) and
+//! else (other lexical options, followed links, local models) and
 //! a reviewed-memory graph beyond the full path's passage/document bounds
 //! take the full path, as does a project whose index is
 //! missing or lacks more than [`MAX_MISSING`] of its current files.
@@ -41,9 +41,6 @@ pub fn ineligible(args: &Value) -> Result<Option<&'static str>> {
     // GRAPHICLE_PASSAGE_INDEX=0: every question takes the full path.
     if !passage_index::enabled() {
         return Ok(Some("off"));
-    }
-    if query::Filter::parse(args)?.is_some() {
-        return Ok(Some("filter"));
     }
     let set = |key: &str| args.get(key).filter(|v| !v.is_null());
     if set("stem").is_some_and(|v| v != &json!(true)) {
@@ -319,6 +316,7 @@ pub fn packet(
     if ineligible(args)?.is_some() {
         return Ok(None);
     }
+    let filter = query::Filter::parse(args)?;
     let id = s(repository, "id");
     // Reviewed memory adds a property-graph walk after its indexed seed.
     let reviewed: bool = db.query_row(
@@ -328,7 +326,21 @@ pub fn packet(
     )?;
     let property_search = args["graph_retrieval"] != false
         && (args["graph_retrieval"] == true || (reviewed && args["memory_retrieval"] != false));
-    let heads = crate::store::heads(db, id)?;
+    // Source filters change the corpus's BM25 statistics, not just the final
+    // candidates. Open the existing index against exactly the retained files.
+    // Keep the full authorized metadata catalogue for memory freshness and the
+    // original snapshot binding; excluded source bodies need not be loaded.
+    let (heads, prefetched_documents) = if let Some(filter) = &filter {
+        let list = memory::repository_documents(db, repository, false)?;
+        let heads = list
+            .iter()
+            .filter(|d| filter.keeps(d))
+            .map(|d| (s(d, "path").to_string(), s(d, "sha256").to_string()))
+            .collect();
+        (heads, Some(list))
+    } else {
+        (crate::store::heads(db, id)?, None)
+    };
     let Some((mut index, coverage)) =
         crate::phase::phase("context_index", || Index::open(db, id, &heads))?
     else {
@@ -338,7 +350,10 @@ pub fn packet(
         return Ok(None);
     }
     // Every document's metadata, the text of those read here.
-    let mut list = memory::repository_documents(db, repository, false)?;
+    let mut list = match prefetched_documents {
+        Some(list) => list,
+        None => memory::repository_documents(db, repository, false)?,
+    };
     let connectors = memory::connector_documents(db, repository, p)?;
     for document in &connectors {
         if graphicle_memory::text::sha256(s(document, "content").as_bytes())
@@ -387,7 +402,7 @@ pub fn packet(
     }
     crate::phase::phase("context_index_missing", || index.add_files(added))?;
     docs.load(db, repository, &memory_sources(db, id)?)?;
-    let memories = memory::list_of(db, repository, &docs.list, true)?;
+    let mut memories = memory::list_of(db, repository, &docs.list, true)?;
     // The file relationships: the saved ones of the current episode
     // (crate::query_graph), else the snapshot's graph as `context` reads it.
     let current = crate::graph_projection::current_episode(db, id)?;
@@ -404,15 +419,49 @@ pub fn packet(
         }
         _ => crate::phase::phase("snapshot_graph", || query::source_graph(db, repository, p))?,
     };
-    let state = digest(
+    let mut state = digest(
         &json!({"sources":memory::state(&docs.list),"memories":memories.iter().map(|m|json!([m["id"],m["revision"],m["state"],m["stale"]])).collect::<Vec<_>>(),"reviewed_state":memory::reviewed_state_for(db,repository,&memories)?}),
     );
+    // Claim visibility is based on the authorized, unfiltered catalogue, just
+    // as graph::for_query is on the full path. query::restrict owns the source
+    // and derived-memory filter semantics and the filtered state fingerprint.
+    let claim_memories = (filter.is_some() && property_search).then(|| memories.clone());
+    let filter_report = filter.as_ref().map(|filter| {
+        let mut snapshot = Snapshot {
+            repository: repository.clone(),
+            documents: std::mem::take(&mut docs.list),
+            memories: if args["memory_retrieval"] == false {
+                Vec::new()
+            } else {
+                std::mem::take(&mut memories)
+            },
+            graph: Value::Null,
+            state: std::mem::take(&mut state),
+        };
+        let report = query::restrict(&mut snapshot, filter);
+        docs.list = snapshot.documents;
+        docs.by_id = docs
+            .list
+            .iter()
+            .enumerate()
+            .map(|(i, d)| (s(d, "id").to_string(), i))
+            .collect();
+        docs.loaded.retain(|id| docs.by_id.contains_key(id));
+        memories = snapshot.memories;
+        state = snapshot.state;
+        report
+    });
     // The rows `rank` scores besides the index's: the connector documents'
     // passages, and the reviewed memories `context` reads (as `context_on`
     // filters them).
     let connector_snapshot = Snapshot {
         repository: repository.clone(),
-        documents: docs.list[first_connector..].to_vec(),
+        documents: docs
+            .list
+            .iter()
+            .filter(|d| d["source_kind"] != "repository_file")
+            .cloned()
+            .collect(),
         memories: Vec::new(),
         graph: Value::Null,
         state: String::new(),
@@ -425,7 +474,9 @@ pub fn packet(
     // The full memory seed applies question-dependent selection above these
     // bounds. At the passage bound a connector catalogue may already have
     // been truncated, so conservatively keep the full path there as well.
-    if property_search
+    // Filtered queries must preserve the full path's bounded corpus selection
+    // too. Above those bounds, keep its question-dependent selection unchanged.
+    if (property_search || filter.is_some())
         && (docs.list.len() > graphicle_memory::ingest::MAX_DOCUMENTS
             || index.totals().passages as usize + connector_rows.len()
                 >= graphicle_memory::ingest::MAX_PASSAGES)
@@ -435,6 +486,7 @@ pub fn packet(
     let prepared = Prepared {
         index,
         memories,
+        claim_memories,
         graph,
         saved_edges,
         state,
@@ -442,6 +494,9 @@ pub fn packet(
         property_search,
     };
     let mut packet = packet_on(db, repository, args, &prepared, &mut docs, false)?;
+    if let Some(report) = filter_report {
+        packet["filter"] = report;
+    }
     packet["freshness"] = json!(crate::invalidation::repository_freshness(
         db,
         &p.workspace,
@@ -474,6 +529,7 @@ pub fn packet(
 struct Prepared {
     index: Index,
     memories: Vec<Value>,
+    claim_memories: Option<Vec<Value>>,
     graph: Value,
     saved_edges: Option<crate::query_graph::FileEdges>,
     state: String,
@@ -586,7 +642,16 @@ fn packet_on(
     if !seed_only && prepared.property_search {
         let catalogue = prepared.snapshot(repository, docs.list.clone(), args);
         if let Some(property_graph) = crate::phase::phase("context_memory_graph", || {
-            crate::graph::for_indexed_query(db, repository, &catalogue, args, &prepared.memories)
+            crate::graph::for_indexed_query(
+                db,
+                repository,
+                &catalogue,
+                args,
+                prepared
+                    .claim_memories
+                    .as_deref()
+                    .unwrap_or(&prepared.memories),
+            )
         })? {
             if let Some(report) = property_graph.get("degraded") {
                 let mut status = report.clone();

@@ -1,0 +1,1409 @@
+{
+  "admission_coverage": {
+    "admitted_bytes": 47619441,
+    "admitted_files": 29217,
+    "copied_files": 29280,
+    "metadata": {
+      "excluded": [
+        {
+          "path": "benchmark/fixtures/typescript-5.6.2.js.txt",
+          "reason": "file_size_or_type"
+        },
+        {
+          "path": "packages/babel-parser/test/fixtures/core/uncategorised/318/input.js",
+          "reason": "unsupported_binary"
+        }
+      ],
+      "excluded_count": 2,
+      "scan": "native_local_folder",
+      "scanned_at": "2026-11-06T05:15:03.787779Z",
+      "scope_complete": false
+    },
+    "missing_paths": [
+      "benchmark/fixtures/typescript-5.6.2.js.txt",
+      "packages/babel-cli/test/fixtures/babel/env - SHOW_CONFIG_FOR/in-files/node_modules/@foo/babel-plugin-1/index.js",
+      "packages/babel-cli/test/fixtures/babel/env - SHOW_CONFIG_FOR/in-files/node_modules/@foo/babel-plugin-2/index.js",
+      "packages/babel-cli/test/fixtures/babel/env - SHOW_CONFIG_FOR/in-files/node_modules/@foo/babel-plugin-3/index.js",
+      "packages/babel-cli/test/fixtures/babel/env - SHOW_CONFIG_FOR/in-files/node_modules/@foo/babel-plugin-4/index.js",
+      "packages/babel-cli/test/fixtures/babel/env - SHOW_CONFIG_FOR/in-files/node_modules/@foo/babel-preset-1/index.js",
+      "packages/babel-cli/test/fixtures/babel/env - SHOW_CONFIG_FOR/in-files/node_modules/@foo/babel-preset-2/index.js",
+      "packages/babel-cli/test/fixtures/babel/env - SHOW_CONFIG_FOR/in-files/node_modules/@foo/babel-preset-3/index.js",
+      "packages/babel-cli/test/fixtures/babel/env - SHOW_CONFIG_FOR/in-files/node_modules/@foo/babel-preset-4/index.js",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-node-modules-url-not-start-with-double-dot/node_modules/corp-lib/input.js",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-node-modules-url-not-start-with-double-dot/node_modules/corp-lib/package.json",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-node-modules-url-not-start-with-double-dot/node_modules/corp-lib/sub/mod.js",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-node-modules-within-root/root/sub/node_modules/corp-lib/input.js",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-node-modules-within-root/root/sub/node_modules/corp-lib/package.json",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-node-modules/node_modules/corp-lib/input.js",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-node-modules/node_modules/corp-lib/package.json",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-root-within-node-modules/node_modules/corp-app/input.js.map",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-root-within-node-modules/node_modules/corp-app/package.json",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/invalid-relative-up-across-root-within-node-modules/node_modules/corp-app/root/sub/input.js",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/relative-down-into-node-modules/node_modules/corp-source-maps/input.js.map",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/relative-down-into-node-modules/node_modules/corp-source-maps/package.json",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/relative-up-within-node-modules/node_modules/corp-lib/input.js.map",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/relative-up-within-node-modules/node_modules/corp-lib/package.json",
+      "packages/babel-core/test/fixtures/input-source-map-resolution/relative-up-within-node-modules/node_modules/corp-lib/sub/input.js",
+      "packages/babel-core/test/fixtures/resolution/babel-org-paths/node_modules/@babel/plugin-foo/index.js",
+      "packages/babel-core/test/fixtures/resolution/babel-org-paths/node_modules/@babel/preset-foo/index.js",
+      "packages/babel-core/test/fixtures/resolution/babel-scoped-nested-module-paths/node_modules/@babel/mod/plugin.js",
+      "packages/babel-core/test/fixtures/resolution/babel-scoped-nested-module-paths/node_modules/@babel/mod/preset.js",
+      "packages/babel-core/test/fixtures/resolution/foo-org-paths/node_modules/@foo/babel-plugin-mod/index.js",
+      "packages/babel-core/test/fixtures/resolution/foo-org-paths/node_modules/@foo/babel-plugin/index.js",
+      "packages/babel-core/test/fixtures/resolution/foo-org-paths/node_modules/@foo/babel-preset-mod/index.js",
+      "packages/babel-core/test/fixtures/resolution/foo-org-paths/node_modules/@foo/babel-preset/index.js",
+      "packages/babel-core/test/fixtures/resolution/foo-org-paths/node_modules/@foo/thing-babel-plugin/index.js",
+      "packages/babel-core/test/fixtures/resolution/foo-org-paths/node_modules/@foo/thing-babel-preset/index.js",
+      "packages/babel-core/test/fixtures/resolution/foo-org-paths/node_modules/@foo/thing.babel-plugin-convert/index.js",
+      "packages/babel-core/test/fixtures/resolution/foo-org-paths/node_modules/@foo/thing.babel-preset-convert/index.js",
+      "packages/babel-core/test/fixtures/resolution/module-paths/node_modules/plugin/index.js",
+      "packages/babel-core/test/fixtures/resolution/module-paths/node_modules/preset/index.js",
+      "packages/babel-core/test/fixtures/resolution/nested-module-paths/node_modules/mod/plugin.js",
+      "packages/babel-core/test/fixtures/resolution/nested-module-paths/node_modules/mod/preset.js",
+      "packages/babel-core/test/fixtures/resolution/pkg-exports/node_modules/babel-plugin-dual/import.mjs",
+      "packages/babel-core/test/fixtures/resolution/pkg-exports/node_modules/babel-plugin-dual/package.json",
+      "packages/babel-core/test/fixtures/resolution/pkg-exports/node_modules/babel-plugin-dual/require.cjs",
+      "packages/babel-core/test/fixtures/resolution/scoped-nested-module-paths/node_modules/@foo/mod/plugin.js",
+      "packages/babel-core/test/fixtures/resolution/scoped-nested-module-paths/node_modules/@foo/mod/preset.js",
+      "packages/babel-core/test/fixtures/resolution/standard-paths/node_modules/babel-plugin-mod/index.js",
+      "packages/babel-core/test/fixtures/resolution/standard-paths/node_modules/babel-preset-mod/index.js",
+      "packages/babel-core/test/fixtures/resolution/throw-babel-paths/node_modules/@babel/plugin-foo/index.js",
+      "packages/babel-core/test/fixtures/resolution/throw-babel-paths/node_modules/@babel/preset-foo/index.js",
+      "packages/babel-core/test/fixtures/resolution/throw-module-paths/node_modules/foo/index.js",
+      "packages/babel-core/test/fixtures/resolution/throw-opposite-paths/node_modules/babel-plugin-testplugin/index.js",
+      "packages/babel-core/test/fixtures/resolution/throw-opposite-paths/node_modules/babel-preset-testpreset/index.js",
+      "packages/babel-core/test/fixtures/resolution/throw-proposal-to-transform/node_modules/@babel/plugin-transform-halting-functions/index.js",
+      "packages/babel-core/test/fixtures/targets/node_modules/dep/.babelrc.json",
+      "packages/babel-core/test/fixtures/targets/node_modules/dep/.browserslistrc",
+      "packages/babel-node/test/fixtures/cli/--require_node_modules/in-files/node_modules/dep.js",
+      "packages/babel-parser/test/fixtures/core/uncategorised/318/input.js",
+      "packages/babel-plugin-transform-runtime/test/fixtures/absoluteRuntime/relative/subfolder/node_modules/@babel/runtime/helpers/classCallCheck.js",
+      "packages/babel-plugin-transform-runtime/test/fixtures/absoluteRuntime/relative/subfolder/node_modules/@babel/runtime/helpers/createClass.js",
+      "packages/babel-plugin-transform-runtime/test/fixtures/absoluteRuntime/relative/subfolder/node_modules/@babel/runtime/package.json",
+      "packages/babel-plugin-transform-runtime/test/fixtures/moduleName/with-absoluteRuntime/node_modules/lol/helpers/classCallCheck.js",
+      "packages/babel-plugin-transform-runtime/test/fixtures/moduleName/with-absoluteRuntime/node_modules/lol/helpers/createClass.js",
+      "packages/babel-plugin-transform-runtime/test/fixtures/moduleName/with-absoluteRuntime/node_modules/lol/package.json"
+    ]
+  },
+  "build_metadata": {
+    "build_configs_verified": 2,
+    "path": "/private/tmp/graphicle-scale-binaries/e9.json",
+    "runtime_sources_verified": 408,
+    "sha256": "c8fa6223e2a6522185cb7a5cf51c049a9b03ab29561f43eaa75eb19357f1a5b2",
+    "test_sources_verified": 1
+  },
+  "candidate_binary_sha256": "802b54cd69178e2a2acd18ad03e332797cc493287bc67eabb393ed9f49f2cb9c",
+  "checks": {
+    "git_diff_check": "passed",
+    "python_compile": "passed",
+    "runtime_changes": false
+  },
+  "cpu_count": 18,
+  "date": "2026-11-06",
+  "decision": "Retain qualification harness/evidence; no runtime change. Controlled-pilot readiness remains: costly full-resolution updates and bounded context coverage are demonstrated on a real corpus.",
+  "engine_max_workers_env": 4,
+  "experiment": "E10: fixed real Babel repository qualification",
+  "harness_sha256": {
+    "compare_graph_scaling.py": "c16246c7648ebc59843f3b63b8a9d6e9f67dbbd4a81f1ff133303f51d0bf79e3",
+    "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85",
+    "qualify_babel.py": "d63e3736c9c6e2c575730f594f6e11bb08adcd7a7a38238348c6c8b0cf936f10"
+  },
+  "limitations": [
+    "Real repository dominated by parser/test fixtures, including intentionally invalid syntax. Reviewed call probes are not a complete language oracle. No model, large memory catalogue, cross-repository or warm-server qualification. Fresh-cache equality uses the same extractor.",
+    "All updated Babel graphs take language_or_external_context_requires_full_resolution; the cache/full equality check does not qualify selective incremental resolution in this corpus.",
+    "Unfiltered context reaches 40000 passages and reports 5096 or 4778 omitted documents. Reviewed answer fragments are present; complete corpus recall is not established.",
+    "Default folder discovery excludes 61 tracked node_modules fixture files outside the excluded counter; an oversized text and NUL-containing fixture are separately reported. 22 YAML files remain searchable text but are not code-projected; extraction reports 506 unsupported inputs and 11179 unresolved calls.",
+    "Three samples each for unchanged and single-file edits. Other operations have one sample per distinct request, without excluded warmups. These are observed costs, not paired speedups or SLOs.",
+    "No performance measurement overlapped a build, test, other fixture preparation or benchmark. Small progress-log reads and code inspection occurred during measurements."
+  ],
+  "method": "Sequential fresh CLI processes; warm OS cache; preparation and verification excluded; source admission separated from graph build; same-path fresh rebuild",
+  "next": [
+    "Trace the full-resolution gate and JavaScript cache bypass before selecting an update optimization. Preserve all real-corpus files and correctness checks.",
+    "Qualify large reviewed-memory catalogues and additional representative real repositories."
+  ],
+  "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+  "qualification": {
+    "calls": 16,
+    "fresh_cache_equal": true,
+    "passed": true,
+    "raw_result_path": "/private/tmp/graphicle-scale-e10-babel-full-20261106/results.json",
+    "raw_result_sha256": "132161a494ca11f8517eff12a4c2cdd64216fe7caf124dc9efc4f7393ffb6e53",
+    "rows": [
+      {
+        "admission": {
+          "analysis_cache": {
+            "cache_rebuilt": false,
+            "parsed_files": 29217,
+            "reused_files": 0,
+            "revision_reparsed_files": 0,
+            "structural_revision": "graphicle-static-rust-10",
+            "uncached_files": 29217
+          },
+          "binary_documents": 0,
+          "bytes": 47619441,
+          "excluded": 2,
+          "files": 29217,
+          "graph": {
+            "episode": "48d5e955847d7ca26f35f121e2d9c8068f90da3e71c86d051581d11c8f332631",
+            "status": "queued"
+          },
+          "original_bytes": 0,
+          "passage_index": {
+            "deferred": false,
+            "dropped": 0,
+            "emptied": 0,
+            "files": 29217,
+            "merged": false,
+            "passages": 45961,
+            "seconds": 2.1,
+            "segments": 2
+          },
+          "replayed": false,
+          "repository_id": "63d9ff9ec6dc408386809ff136cf4b33",
+          "skipped": [
+            {
+              "path": "benchmark/fixtures/typescript-5.6.2.js.txt",
+              "reason": "Too large to index (8,928,146 bytes; limit 8,388,608); left out"
+            }
+          ],
+          "snapshot": "03e2b2a99b01da471780a02cf47036220094e97c74ef662ae6746d46071d295c"
+        },
+        "exit_code": 0,
+        "label": "admit",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 958758912,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 28.498284916044213,
+        "stdout_sha256": "5f8be665d4d5429b22610d2f351b623e093231638eaf2e8c04a8789af7c311ee"
+      },
+      {
+        "checks": {
+          "call_edges": 14620,
+          "extraction": {
+            "cached": true,
+            "changed": 28689,
+            "materialization": {
+              "bytes_written": 47619441,
+              "cached": true,
+              "removed": 0,
+              "reused": 0,
+              "written": 29217
+            },
+            "persistence": {
+              "dirty_groups": 19070,
+              "edges_compared": 72570,
+              "groups": 19070,
+              "nodes_compared": 59415,
+              "total_edges": 72570,
+              "total_nodes": 59415
+            },
+            "resolution": {
+              "components": 1,
+              "context_files": 0,
+              "dirty_files": 29195,
+              "fallback": "language_or_external_context_requires_full_resolution",
+              "largest_component": 29195,
+              "resolved_files": 29195,
+              "reused_files": 0,
+              "skipped_parsing": 0
+            },
+            "unchanged": 0,
+            "unsupported": 506
+          },
+          "files": 29217,
+          "graph_sha256": "26270144ced87950969b5183c3ca2c30978941404daa50f37d2116968deffba6",
+          "nodes": 59415,
+          "reviewed_calls": [
+            {
+              "source": "packages_babel_types_src_clone_clonenode_clonenode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternal",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternal",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+              "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+              "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+              "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+            },
+            {
+              "source": "packages_babel_types_src_validators_isvalides3identifier_isvalides3identifier",
+              "source_path": "packages/babel-types/src/validators/isValidES3Identifier.ts",
+              "target": "packages_babel_types_src_validators_isvalididentifier_isvalididentifier",
+              "target_path": "packages/babel-types/src/validators/isValidIdentifier.ts"
+            }
+          ],
+          "source_heads_sha256": "9eacf41dcaf24c0a4bb9408c5bc9fce663530421506263fd77621d5214480983",
+          "unresolved_calls": 11179,
+          "unresolved_calls_sha256": "5b2113d07e03523d819a50260e7e292002015c2477cb6d5978f7f6c5bab61f6d"
+        },
+        "exit_code": 0,
+        "graph": {
+          "edges": 72570,
+          "episode": "48d5e955847d7ca26f35f121e2d9c8068f90da3e71c86d051581d11c8f332631",
+          "nodes": 59415,
+          "saved_graph": {
+            "bytes": 89197101,
+            "episode": "48d5e955847d7ca26f35f121e2d9c8068f90da3e71c86d051581d11c8f332631",
+            "query_file": "written",
+            "seconds": 1.3,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "label": "cold_graph",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2946826240,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 71.44841595797334,
+        "stdout_sha256": "1796e0d201549f1ded2e494b9ab7a33ac2b7e42654e2a85c03fae183523fc957",
+        "verification": "passed"
+      },
+      {
+        "checks": {
+          "call_edges": 14620,
+          "extraction": null,
+          "files": 29217,
+          "graph_sha256": "26270144ced87950969b5183c3ca2c30978941404daa50f37d2116968deffba6",
+          "nodes": 59415,
+          "reviewed_calls": [
+            {
+              "source": "packages_babel_types_src_clone_clonenode_clonenode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternal",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternal",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+              "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+              "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+              "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+            },
+            {
+              "source": "packages_babel_types_src_validators_isvalides3identifier_isvalides3identifier",
+              "source_path": "packages/babel-types/src/validators/isValidES3Identifier.ts",
+              "target": "packages_babel_types_src_validators_isvalididentifier_isvalididentifier",
+              "target_path": "packages/babel-types/src/validators/isValidIdentifier.ts"
+            }
+          ],
+          "source_heads_sha256": "9eacf41dcaf24c0a4bb9408c5bc9fce663530421506263fd77621d5214480983",
+          "unresolved_calls": 11179,
+          "unresolved_calls_sha256": "5b2113d07e03523d819a50260e7e292002015c2477cb6d5978f7f6c5bab61f6d"
+        },
+        "exit_code": 0,
+        "graph": {
+          "edges": 72570,
+          "episode": "48d5e955847d7ca26f35f121e2d9c8068f90da3e71c86d051581d11c8f332631",
+          "nodes": 59415,
+          "saved_graph": {
+            "episode": "48d5e955847d7ca26f35f121e2d9c8068f90da3e71c86d051581d11c8f332631",
+            "status": "saved"
+          },
+          "status": "current"
+        },
+        "label": "unchanged-0",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 245137408,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 9.096518374979496,
+        "stdout_sha256": "0dc525dc133ef08ceca91100b5d93f2d88957d679147d2b09b34045fc14aaac7",
+        "verification": "passed"
+      },
+      {
+        "checks": {
+          "call_edges": 14620,
+          "extraction": null,
+          "files": 29217,
+          "graph_sha256": "26270144ced87950969b5183c3ca2c30978941404daa50f37d2116968deffba6",
+          "nodes": 59415,
+          "reviewed_calls": [
+            {
+              "source": "packages_babel_types_src_clone_clonenode_clonenode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternal",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternal",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+              "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+              "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+              "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+            },
+            {
+              "source": "packages_babel_types_src_validators_isvalides3identifier_isvalides3identifier",
+              "source_path": "packages/babel-types/src/validators/isValidES3Identifier.ts",
+              "target": "packages_babel_types_src_validators_isvalididentifier_isvalididentifier",
+              "target_path": "packages/babel-types/src/validators/isValidIdentifier.ts"
+            }
+          ],
+          "source_heads_sha256": "9eacf41dcaf24c0a4bb9408c5bc9fce663530421506263fd77621d5214480983",
+          "unresolved_calls": 11179,
+          "unresolved_calls_sha256": "5b2113d07e03523d819a50260e7e292002015c2477cb6d5978f7f6c5bab61f6d"
+        },
+        "exit_code": 0,
+        "graph": {
+          "edges": 72570,
+          "episode": "48d5e955847d7ca26f35f121e2d9c8068f90da3e71c86d051581d11c8f332631",
+          "nodes": 59415,
+          "saved_graph": {
+            "episode": "48d5e955847d7ca26f35f121e2d9c8068f90da3e71c86d051581d11c8f332631",
+            "status": "saved"
+          },
+          "status": "current"
+        },
+        "label": "unchanged-1",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 238927872,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 9.315239500021562,
+        "stdout_sha256": "0dc525dc133ef08ceca91100b5d93f2d88957d679147d2b09b34045fc14aaac7",
+        "verification": "passed"
+      },
+      {
+        "checks": {
+          "call_edges": 14620,
+          "extraction": null,
+          "files": 29217,
+          "graph_sha256": "26270144ced87950969b5183c3ca2c30978941404daa50f37d2116968deffba6",
+          "nodes": 59415,
+          "reviewed_calls": [
+            {
+              "source": "packages_babel_types_src_clone_clonenode_clonenode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternal",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternal",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+              "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+              "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+              "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+            },
+            {
+              "source": "packages_babel_types_src_validators_isvalides3identifier_isvalides3identifier",
+              "source_path": "packages/babel-types/src/validators/isValidES3Identifier.ts",
+              "target": "packages_babel_types_src_validators_isvalididentifier_isvalididentifier",
+              "target_path": "packages/babel-types/src/validators/isValidIdentifier.ts"
+            }
+          ],
+          "source_heads_sha256": "9eacf41dcaf24c0a4bb9408c5bc9fce663530421506263fd77621d5214480983",
+          "unresolved_calls": 11179,
+          "unresolved_calls_sha256": "5b2113d07e03523d819a50260e7e292002015c2477cb6d5978f7f6c5bab61f6d"
+        },
+        "exit_code": 0,
+        "graph": {
+          "edges": 72570,
+          "episode": "48d5e955847d7ca26f35f121e2d9c8068f90da3e71c86d051581d11c8f332631",
+          "nodes": 59415,
+          "saved_graph": {
+            "episode": "48d5e955847d7ca26f35f121e2d9c8068f90da3e71c86d051581d11c8f332631",
+            "status": "saved"
+          },
+          "status": "current"
+        },
+        "label": "unchanged-2",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 241106944,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 9.356018332997337,
+        "stdout_sha256": "0dc525dc133ef08ceca91100b5d93f2d88957d679147d2b09b34045fc14aaac7",
+        "verification": "passed"
+      },
+      {
+        "checks": {
+          "call_edges": 14620,
+          "extraction": {
+            "cached": true,
+            "changed": 18562,
+            "materialization": {
+              "bytes_written": 4646,
+              "cached": true,
+              "removed": 0,
+              "reused": 29216,
+              "written": 1
+            },
+            "persistence": {
+              "dirty_groups": 1,
+              "edges_compared": 19,
+              "groups": 19070,
+              "nodes_compared": 7,
+              "total_edges": 72570,
+              "total_nodes": 59415
+            },
+            "resolution": {
+              "components": 1,
+              "context_files": 0,
+              "dirty_files": 29195,
+              "fallback": "language_or_external_context_requires_full_resolution",
+              "largest_component": 29195,
+              "resolved_files": 29195,
+              "reused_files": 0,
+              "skipped_parsing": 0
+            },
+            "unchanged": 10127,
+            "unsupported": 506
+          },
+          "files": 29217,
+          "graph_sha256": "a2d4190c911012b03b54ce2f6a20c81ac300358a2a7cffef3887a6a848adaa14",
+          "nodes": 59415,
+          "reviewed_calls": [
+            {
+              "source": "packages_babel_types_src_clone_clonenode_clonenode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe0",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe0",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+              "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+              "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+              "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+            },
+            {
+              "source": "packages_babel_types_src_validators_isvalides3identifier_isvalides3identifier",
+              "source_path": "packages/babel-types/src/validators/isValidES3Identifier.ts",
+              "target": "packages_babel_types_src_validators_isvalididentifier_isvalididentifier",
+              "target_path": "packages/babel-types/src/validators/isValidIdentifier.ts"
+            }
+          ],
+          "source_heads_sha256": "ced7009a827e0ab8ae1c88890d80b2b0e0b12b62bbb27cb904378c5ad0029c5a",
+          "unresolved_calls": 11179,
+          "unresolved_calls_sha256": "5b2113d07e03523d819a50260e7e292002015c2477cb6d5978f7f6c5bab61f6d"
+        },
+        "exit_code": 0,
+        "graph": {
+          "edges": 72570,
+          "episode": "c8f00caf9e77e58600d2647874fcf1e603ec6411f1410b665512ce4b730ce0e4",
+          "nodes": 59415,
+          "saved_graph": {
+            "bytes": 89197448,
+            "episode": "c8f00caf9e77e58600d2647874fcf1e603ec6411f1410b665512ce4b730ce0e4",
+            "query_file": "written",
+            "seconds": 1.3,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "label": "edit-0",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2745876480,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 56.57289520895574,
+        "stdout_sha256": "7eaad532fdb529a4ef01169103798310187b807f0af04b877eeb70a36af0cf78",
+        "verification": "passed"
+      },
+      {
+        "checks": {
+          "call_edges": 14620,
+          "extraction": {
+            "cached": true,
+            "changed": 18562,
+            "materialization": {
+              "bytes_written": 4646,
+              "cached": true,
+              "removed": 0,
+              "reused": 29216,
+              "written": 1
+            },
+            "persistence": {
+              "dirty_groups": 1,
+              "edges_compared": 19,
+              "groups": 19070,
+              "nodes_compared": 7,
+              "total_edges": 72570,
+              "total_nodes": 59415
+            },
+            "resolution": {
+              "components": 1,
+              "context_files": 0,
+              "dirty_files": 29195,
+              "fallback": "language_or_external_context_requires_full_resolution",
+              "largest_component": 29195,
+              "resolved_files": 29195,
+              "reused_files": 0,
+              "skipped_parsing": 0
+            },
+            "unchanged": 10127,
+            "unsupported": 506
+          },
+          "files": 29217,
+          "graph_sha256": "5ed13b4cf39d02fbe46de0f62d627ad3e6516d0393b6418f27a58d609ddef0e9",
+          "nodes": 59415,
+          "reviewed_calls": [
+            {
+              "source": "packages_babel_types_src_clone_clonenode_clonenode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe1",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe1",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+              "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+              "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+              "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+            },
+            {
+              "source": "packages_babel_types_src_validators_isvalides3identifier_isvalides3identifier",
+              "source_path": "packages/babel-types/src/validators/isValidES3Identifier.ts",
+              "target": "packages_babel_types_src_validators_isvalididentifier_isvalididentifier",
+              "target_path": "packages/babel-types/src/validators/isValidIdentifier.ts"
+            }
+          ],
+          "source_heads_sha256": "6b5e5134c00ddbb97c97e01b5cfda2e50ab5a93fe2aa918cb7ecbdb12c7b9a21",
+          "unresolved_calls": 11179,
+          "unresolved_calls_sha256": "5b2113d07e03523d819a50260e7e292002015c2477cb6d5978f7f6c5bab61f6d"
+        },
+        "exit_code": 0,
+        "graph": {
+          "edges": 72570,
+          "episode": "b0c00549090d139fdbd0ecf6f468690c0ccc92b3a02d1f5149402b615c47ed5a",
+          "nodes": 59415,
+          "saved_graph": {
+            "bytes": 89197446,
+            "episode": "b0c00549090d139fdbd0ecf6f468690c0ccc92b3a02d1f5149402b615c47ed5a",
+            "query_file": "written",
+            "seconds": 1.2,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "label": "edit-1",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2475425792,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 56.40593916596845,
+        "stdout_sha256": "9e205ccd4f8cde54ba4898c5fb4117b9b451cb5edba73277f75f4685aec554d1",
+        "verification": "passed"
+      },
+      {
+        "checks": {
+          "call_edges": 14620,
+          "extraction": {
+            "cached": true,
+            "changed": 18562,
+            "materialization": {
+              "bytes_written": 4646,
+              "cached": true,
+              "removed": 0,
+              "reused": 29216,
+              "written": 1
+            },
+            "persistence": {
+              "dirty_groups": 1,
+              "edges_compared": 19,
+              "groups": 19070,
+              "nodes_compared": 7,
+              "total_edges": 72570,
+              "total_nodes": 59415
+            },
+            "resolution": {
+              "components": 1,
+              "context_files": 0,
+              "dirty_files": 29195,
+              "fallback": "language_or_external_context_requires_full_resolution",
+              "largest_component": 29195,
+              "resolved_files": 29195,
+              "reused_files": 0,
+              "skipped_parsing": 0
+            },
+            "unchanged": 10127,
+            "unsupported": 506
+          },
+          "files": 29217,
+          "graph_sha256": "f2e6edc2bd635a60adb03234866daa38e1044b14f1acdd7c90936f79c23fde32",
+          "nodes": 59415,
+          "reviewed_calls": [
+            {
+              "source": "packages_babel_types_src_clone_clonenode_clonenode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe2",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe2",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+              "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+              "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+              "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+            },
+            {
+              "source": "packages_babel_types_src_validators_isvalides3identifier_isvalides3identifier",
+              "source_path": "packages/babel-types/src/validators/isValidES3Identifier.ts",
+              "target": "packages_babel_types_src_validators_isvalididentifier_isvalididentifier",
+              "target_path": "packages/babel-types/src/validators/isValidIdentifier.ts"
+            }
+          ],
+          "source_heads_sha256": "9c02bea93d3e4f7b375bdd53b6b4a8bcd1668e25991c9039f376835762718e9d",
+          "unresolved_calls": 11179,
+          "unresolved_calls_sha256": "5b2113d07e03523d819a50260e7e292002015c2477cb6d5978f7f6c5bab61f6d"
+        },
+        "exit_code": 0,
+        "graph": {
+          "edges": 72570,
+          "episode": "6a2fd119771c62eeff1e9f683bd683a5896b0f846f0f09ed981a431a3fb38cbb",
+          "nodes": 59415,
+          "saved_graph": {
+            "bytes": 89197444,
+            "episode": "6a2fd119771c62eeff1e9f683bd683a5896b0f846f0f09ed981a431a3fb38cbb",
+            "query_file": "written",
+            "seconds": 1.4,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "label": "edit-2",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2751037440,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 67.7595199579373,
+        "stdout_sha256": "74fe82b621794090302a24b606ef333725bf07fbdec276e5b94bbedb792c7393",
+        "verification": "passed"
+      },
+      {
+        "checks": {
+          "call_edges": 14619,
+          "extraction": {
+            "cached": true,
+            "changed": 18561,
+            "materialization": {
+              "bytes_written": 0,
+              "cached": true,
+              "removed": 1,
+              "reused": 29216,
+              "written": 0
+            },
+            "persistence": {
+              "dirty_groups": 3,
+              "edges_compared": 138,
+              "groups": 19069,
+              "nodes_compared": 482,
+              "total_edges": 72565,
+              "total_nodes": 59414
+            },
+            "resolution": {
+              "components": 1,
+              "context_files": 0,
+              "dirty_files": 29194,
+              "fallback": "language_or_external_context_requires_full_resolution",
+              "largest_component": 29194,
+              "resolved_files": 29194,
+              "reused_files": 0,
+              "skipped_parsing": 0
+            },
+            "unchanged": 10127,
+            "unsupported": 506
+          },
+          "files": 29216,
+          "graph_sha256": "7aa52ee60e26c59aefc593d8a95cdbe23a0b0d3b27c0b6bbdbe21b9b462b2b11",
+          "nodes": 59414,
+          "reviewed_calls": [
+            {
+              "source": "packages_babel_types_src_clone_clonenode_clonenode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe2",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe2",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+              "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+              "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+              "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+            }
+          ],
+          "source_heads_sha256": "1afd600a666272ebac4298bed7a84715c98b115608e330f2ca909366095369ab",
+          "unresolved_calls": 11179,
+          "unresolved_calls_sha256": "5b2113d07e03523d819a50260e7e292002015c2477cb6d5978f7f6c5bab61f6d"
+        },
+        "exit_code": 0,
+        "graph": {
+          "edges": 72565,
+          "episode": "13493b9a61a4efc838027a55928841b146e3ae57fe9fff357112912427c702b3",
+          "nodes": 59414,
+          "saved_graph": {
+            "bytes": 89194580,
+            "episode": "13493b9a61a4efc838027a55928841b146e3ae57fe9fff357112912427c702b3",
+            "query_file": "written",
+            "seconds": 1.2,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "label": "delete",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2687483904,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 55.78765487507917,
+        "stdout_sha256": "3892850286f814312d4015c2b93e712f62ca8f0fb7856e5c935c42d919a06cc4",
+        "verification": "passed"
+      },
+      {
+        "checks": {
+          "call_edges": 14619,
+          "extraction": {
+            "cached": true,
+            "changed": 28688,
+            "materialization": {
+              "bytes_written": 47618792,
+              "cached": true,
+              "removed": 0,
+              "reused": 0,
+              "written": 29216
+            },
+            "persistence": {
+              "dirty_groups": 19069,
+              "edges_compared": 72565,
+              "groups": 19069,
+              "nodes_compared": 59414,
+              "total_edges": 72565,
+              "total_nodes": 59414
+            },
+            "resolution": {
+              "components": 1,
+              "context_files": 0,
+              "dirty_files": 29194,
+              "fallback": "language_or_external_context_requires_full_resolution",
+              "largest_component": 29194,
+              "resolved_files": 29194,
+              "reused_files": 0,
+              "skipped_parsing": 0
+            },
+            "unchanged": 0,
+            "unsupported": 506
+          },
+          "files": 29216,
+          "graph_sha256": "7aa52ee60e26c59aefc593d8a95cdbe23a0b0d3b27c0b6bbdbe21b9b462b2b11",
+          "nodes": 59414,
+          "reviewed_calls": [
+            {
+              "source": "packages_babel_types_src_clone_clonenode_clonenode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe2",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+              "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+              "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe2",
+              "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+            },
+            {
+              "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+              "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+              "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+              "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+            }
+          ],
+          "source_heads_sha256": "1afd600a666272ebac4298bed7a84715c98b115608e330f2ca909366095369ab",
+          "unresolved_calls": 11179,
+          "unresolved_calls_sha256": "5b2113d07e03523d819a50260e7e292002015c2477cb6d5978f7f6c5bab61f6d"
+        },
+        "exit_code": 0,
+        "graph": {
+          "edges": 72565,
+          "episode": "13493b9a61a4efc838027a55928841b146e3ae57fe9fff357112912427c702b3",
+          "nodes": 59414,
+          "saved_graph": {
+            "bytes": 89194517,
+            "episode": "13493b9a61a4efc838027a55928841b146e3ae57fe9fff357112912427c702b3",
+            "query_file": "written",
+            "seconds": 1.4,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "label": "fresh_rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2986377216,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 84.77391508396249,
+        "stdout_sha256": "2dfa113378f2e5e014f777dc0384ec14830f911c24c3c3be398c4df0d9c9145b",
+        "verification": "passed"
+      },
+      {
+        "evidence": 8,
+        "exit_code": 0,
+        "label": "context-clone",
+        "limitations": null,
+        "measurement_worker": "fresh Python process",
+        "mechanisms": {
+          "code_graph_candidate_passages": 245,
+          "code_graph_enabled": true,
+          "code_graph_searched": true,
+          "doc_links_enabled": false,
+          "doc_links_pending_documents": 0,
+          "doc_links_sources": [],
+          "graph_candidate_passages": 200,
+          "graph_episode": "13493b9a61a4efc838027a55928841b146e3ae57fe9fff357112912427c702b3",
+          "graph_local_enabled": true,
+          "graph_local_searched": true,
+          "graph_local_status": "searched",
+          "graph_retrieval_enabled": true,
+          "graph_searched": true,
+          "graph_source": "episode",
+          "links_followed_through_move": 0,
+          "links_pending_projection": 0,
+          "links_used": {
+            "by_rung": {},
+            "document": 0,
+            "memory": 0
+          },
+          "memories_withheld": {
+            "by_file": 0,
+            "by_symbol": 0
+          },
+          "reviewed_memory_available": 0,
+          "reviewed_memory_enabled": false,
+          "reviewed_memory_included": 0,
+          "scope": "project",
+          "source_documents_available": 29216,
+          "source_windows_included": 8,
+          "static_edges_aggregated": false,
+          "static_edges_capped": false,
+          "static_edges_enabled": true,
+          "static_relationship_edges": 9972,
+          "switches": {
+            "code_first": "auto",
+            "cross_repo": true,
+            "doc_links": "counted",
+            "graph_retrieval": true,
+            "identifier_arm": "auto",
+            "identifier_route": false,
+            "memory_retrieval": false,
+            "more_files": "auto",
+            "notes_first": false,
+            "query_focus": "auto",
+            "scope": "project",
+            "symbol_links": "counted"
+          },
+          "symbol_links_enabled": false,
+          "workspace": {
+            "cross_edges_used": 0,
+            "projects_searched": 1
+          }
+        },
+        "peak_rss_bytes": 2389278720,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 6.305249667027965,
+        "stdout_sha256": "49e1a03d637b74575a17e139013db7bebd8f70f783f1804e96cb1e1bbb632829",
+        "tokens": 2637
+      },
+      {
+        "evidence": 2,
+        "exit_code": 0,
+        "label": "context-filtered",
+        "limitations": null,
+        "measurement_worker": "fresh Python process",
+        "mechanisms": {
+          "code_graph_candidate_passages": 2,
+          "code_graph_enabled": true,
+          "code_graph_searched": true,
+          "doc_links_enabled": false,
+          "doc_links_pending_documents": 0,
+          "doc_links_sources": [],
+          "graph_candidate_passages": 0,
+          "graph_episode": "13493b9a61a4efc838027a55928841b146e3ae57fe9fff357112912427c702b3",
+          "graph_local_enabled": true,
+          "graph_local_searched": true,
+          "graph_local_status": "searched",
+          "graph_retrieval_enabled": true,
+          "graph_searched": true,
+          "graph_source": "episode",
+          "links_followed_through_move": 0,
+          "links_pending_projection": 0,
+          "links_used": {
+            "by_rung": {},
+            "document": 0,
+            "memory": 0
+          },
+          "memories_withheld": {
+            "by_file": 0,
+            "by_symbol": 0
+          },
+          "reviewed_memory_available": 0,
+          "reviewed_memory_enabled": false,
+          "reviewed_memory_included": 0,
+          "scope": "project",
+          "source_documents_available": 1,
+          "source_windows_included": 2,
+          "static_edges_aggregated": false,
+          "static_edges_capped": false,
+          "static_edges_enabled": true,
+          "static_relationship_edges": 9972,
+          "switches": {
+            "code_first": "auto",
+            "cross_repo": true,
+            "doc_links": "counted",
+            "graph_retrieval": true,
+            "identifier_arm": "auto",
+            "identifier_route": false,
+            "memory_retrieval": false,
+            "more_files": "auto",
+            "notes_first": false,
+            "query_focus": "auto",
+            "scope": "project",
+            "symbol_links": "counted"
+          },
+          "symbol_links_enabled": false,
+          "workspace": {
+            "cross_edges_used": 0,
+            "projects_searched": 1
+          }
+        },
+        "peak_rss_bytes": 847953920,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 0.9557147499872372,
+        "stdout_sha256": "75c753123eb71366580f2085563c508a4f5ca32b67ea26ab9b1883a3e8372552",
+        "tokens": 1486
+      },
+      {
+        "evidence": 7,
+        "exit_code": 0,
+        "label": "context-deep",
+        "limitations": null,
+        "measurement_worker": "fresh Python process",
+        "mechanisms": {
+          "code_graph_candidate_passages": 186,
+          "code_graph_enabled": true,
+          "code_graph_searched": true,
+          "doc_links_enabled": false,
+          "doc_links_pending_documents": 0,
+          "doc_links_sources": [],
+          "graph_candidate_passages": 200,
+          "graph_episode": "13493b9a61a4efc838027a55928841b146e3ae57fe9fff357112912427c702b3",
+          "graph_local_enabled": true,
+          "graph_local_searched": true,
+          "graph_local_status": "searched",
+          "graph_retrieval_enabled": true,
+          "graph_searched": true,
+          "graph_source": "episode",
+          "links_followed_through_move": 0,
+          "links_pending_projection": 0,
+          "links_used": {
+            "by_rung": {},
+            "document": 0,
+            "memory": 0
+          },
+          "memories_withheld": {
+            "by_file": 0,
+            "by_symbol": 0
+          },
+          "reviewed_memory_available": 0,
+          "reviewed_memory_enabled": false,
+          "reviewed_memory_included": 0,
+          "scope": "project",
+          "source_documents_available": 29216,
+          "source_windows_included": 7,
+          "static_edges_aggregated": false,
+          "static_edges_capped": false,
+          "static_edges_enabled": true,
+          "static_relationship_edges": 9972,
+          "switches": {
+            "code_first": "auto",
+            "cross_repo": true,
+            "doc_links": "counted",
+            "graph_retrieval": true,
+            "identifier_arm": "auto",
+            "identifier_route": false,
+            "memory_retrieval": false,
+            "more_files": "auto",
+            "notes_first": false,
+            "query_focus": "auto",
+            "scope": "project",
+            "symbol_links": "counted"
+          },
+          "symbol_links_enabled": false,
+          "workspace": {
+            "cross_edges_used": 0,
+            "projects_searched": 1
+          }
+        },
+        "peak_rss_bytes": 2424700928,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 3.735202916082926,
+        "stdout_sha256": "fe4130fa46f514210dae96ea431f4a04bb665e6a7eda1383c8e6127ee83fb4e9",
+        "tokens": 2916
+      },
+      {
+        "exit_code": 0,
+        "label": "neighbors-0",
+        "measurement_worker": "fresh Python process",
+        "nodes": 24,
+        "peak_rss_bytes": 840712192,
+        "resource_accounting": "wait4 of the CLI process",
+        "reviewed_pair": {
+          "source": "packages_babel_types_src_clone_clonenode_clonenode",
+          "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+          "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe2",
+          "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+        },
+        "seconds": 1.4753692499361932,
+        "stdout_sha256": "044a03ac6484d6320704ff90c02d9898e5ef3833676d1ae3ed8c1a1173dfb965"
+      },
+      {
+        "exit_code": 0,
+        "label": "neighbors-1",
+        "measurement_worker": "fresh Python process",
+        "nodes": 3,
+        "peak_rss_bytes": 838631424,
+        "resource_accounting": "wait4 of the CLI process",
+        "reviewed_pair": {
+          "source": "packages_babel_types_src_clone_clonenode_cloneifnode",
+          "source_path": "packages/babel-types/src/clone/cloneNode.ts",
+          "target": "packages_babel_types_src_clone_clonenode_clonenodeinternalgraphicleprobe2",
+          "target_path": "packages/babel-types/src/clone/cloneNode.ts"
+        },
+        "seconds": 1.6798428340116516,
+        "stdout_sha256": "d477894c6c1b7e2f5f974cb70b2ea6c9954ec61f73b88d5dd31dcd0d45135fd0"
+      },
+      {
+        "exit_code": 0,
+        "label": "neighbors-2",
+        "measurement_worker": "fresh Python process",
+        "nodes": 4,
+        "peak_rss_bytes": 833273856,
+        "resource_accounting": "wait4 of the CLI process",
+        "reviewed_pair": {
+          "source": "packages_babel_types_src_modifications_removepropertiesdeep_removepropertiesdeep",
+          "source_path": "packages/babel-types/src/modifications/removePropertiesDeep.ts",
+          "target": "packages_babel_types_src_traverse_traversefast_traversefast",
+          "target_path": "packages/babel-types/src/traverse/traverseFast.ts"
+        },
+        "seconds": 2.322715250076726,
+        "stdout_sha256": "842bea493b9e697b57bc58692d2734bb30865775b816f4f95b479ac2c4bffb0b"
+      }
+    ],
+    "summary": {
+      "admission": {
+        "max_peak_rss_bytes": 958758912,
+        "median_seconds": 28.498284916044213,
+        "range_seconds": [
+          28.498284916044213,
+          28.498284916044213
+        ],
+        "samples": 1
+      },
+      "cold_graph": {
+        "max_peak_rss_bytes": 2946826240,
+        "median_seconds": 71.44841595797334,
+        "range_seconds": [
+          71.44841595797334,
+          71.44841595797334
+        ],
+        "samples": 1
+      },
+      "context_filtered": {
+        "max_peak_rss_bytes": 847953920,
+        "median_seconds": 0.9557147499872372,
+        "range_seconds": [
+          0.9557147499872372,
+          0.9557147499872372
+        ],
+        "samples": 1
+      },
+      "context_unfiltered": {
+        "max_peak_rss_bytes": 2424700928,
+        "median_seconds": 5.020226291555446,
+        "range_seconds": [
+          3.735202916082926,
+          6.305249667027965
+        ],
+        "samples": 2
+      },
+      "delete": {
+        "max_peak_rss_bytes": 2687483904,
+        "median_seconds": 55.78765487507917,
+        "range_seconds": [
+          55.78765487507917,
+          55.78765487507917
+        ],
+        "samples": 1
+      },
+      "edit": {
+        "max_peak_rss_bytes": 2751037440,
+        "median_seconds": 56.57289520895574,
+        "range_seconds": [
+          56.40593916596845,
+          67.7595199579373
+        ],
+        "samples": 3
+      },
+      "fresh_rebuild": {
+        "max_peak_rss_bytes": 2986377216,
+        "median_seconds": 84.77391508396249,
+        "range_seconds": [
+          84.77391508396249,
+          84.77391508396249
+        ],
+        "samples": 1
+      },
+      "navigation": {
+        "max_peak_rss_bytes": 840712192,
+        "median_seconds": 1.6798428340116516,
+        "range_seconds": [
+          1.4753692499361932,
+          2.322715250076726
+        ],
+        "samples": 3
+      },
+      "unchanged": {
+        "max_peak_rss_bytes": 245137408,
+        "median_seconds": 9.315239500021562,
+        "range_seconds": [
+          9.096518374979496,
+          9.356018332997337
+        ],
+        "samples": 3
+      }
+    },
+    "unresolved_calls_equal": true
+  },
+  "scope": {
+    "bytes": 56552075,
+    "commit": "992afd97a0535c1fa8a3d9eb33e8b5fde4ad2c55",
+    "copied_files": 29280,
+    "extensions": {
+      "": 244,
+      ".babelrc": 1,
+      ".bar": 1,
+      ".cjs": 52,
+      ".cmd": 1,
+      ".cts": 10,
+      ".es": 2,
+      ".htm": 5,
+      ".js": 15233,
+      ".json": 9897,
+      ".jsx": 2,
+      ".lock": 1,
+      ".map": 31,
+      ".md": 218,
+      ".mjs": 1573,
+      ".mts": 6,
+      ".patch": 4,
+      ".sh": 22,
+      ".snap": 7,
+      ".sublime-project": 1,
+      ".ts": 1724,
+      ".tsx": 9,
+      ".txt": 213,
+      ".vue": 1,
+      ".yml": 22
+    },
+    "harness_excluded": [],
+    "manifest_sha256": "3dd147edb0fef63fbcf210deb87605c70722d6fd369e991a0ae3e3e450602701",
+    "repository": "https://github.com/babel/babel",
+    "scope": "all tracked regular files",
+    "tracked_files": 29280
+  },
+  "smoke": {
+    "calls": 16,
+    "corpus": {
+      "bytes": 900625,
+      "commit": "992afd97a0535c1fa8a3d9eb33e8b5fde4ad2c55",
+      "copied_files": 123,
+      "extensions": {
+        "": 1,
+        ".js": 20,
+        ".json": 2,
+        ".md": 1,
+        ".snap": 4,
+        ".ts": 95
+      },
+      "harness_excluded": [],
+      "manifest_sha256": "2cf946b0036257e387b2c95d484348a762d6940e65a1809bbd612aeb6cf6acd8",
+      "repository": "https://github.com/babel/babel",
+      "scope": "packages/babel-types only",
+      "tracked_files": 29280
+    },
+    "passed": true,
+    "raw_result_path": "/private/tmp/graphicle-scale-e10-babel-smoke-20261106/results.json",
+    "raw_result_sha256": "513d7f1e43a59c05b236044a9406756668536af2fdc83cd98394107ac46b7d45"
+  },
+  "supplementary_script_path": "/private/tmp/graphicle-scale-e10-verify-20261106.py",
+  "supplementary_verification": {
+    "admission_missing_files": 63,
+    "disposable_source_changes_exact": true,
+    "excluded_by_node_modules_policy": 61,
+    "navigation_definition_spans": [
+      {
+        "byte_end": 1435,
+        "byte_start": 1200,
+        "name": "cloneNode",
+        "packet": 0,
+        "path": "packages/babel-types/src/clone/cloneNode.ts"
+      },
+      {
+        "byte_end": 4076,
+        "byte_start": 1437,
+        "name": "cloneNodeInternalGraphicleProbe2",
+        "packet": 0,
+        "path": "packages/babel-types/src/clone/cloneNode.ts"
+      },
+      {
+        "byte_end": 595,
+        "byte_start": 316,
+        "name": "cloneIfNode",
+        "packet": 1,
+        "path": "packages/babel-types/src/clone/cloneNode.ts"
+      },
+      {
+        "byte_end": 4076,
+        "byte_start": 1437,
+        "name": "cloneNodeInternalGraphicleProbe2",
+        "packet": 1,
+        "path": "packages/babel-types/src/clone/cloneNode.ts"
+      },
+      {
+        "byte_end": 342,
+        "byte_start": 165,
+        "name": "removePropertiesDeep",
+        "packet": 2,
+        "path": "packages/babel-types/src/modifications/removePropertiesDeep.ts"
+      },
+      {
+        "byte_end": 1416,
+        "byte_start": 479,
+        "name": "traverseFast",
+        "packet": 2,
+        "path": "packages/babel-types/src/traverse/traverseFast.ts"
+      }
+    ],
+    "reported_exclusions": [
+      {
+        "path": "benchmark/fixtures/typescript-5.6.2.js.txt",
+        "reason": "file_size_or_type"
+      },
+      {
+        "path": "packages/babel-parser/test/fixtures/core/uncategorised/318/input.js",
+        "reason": "unsupported_binary"
+      }
+    ],
+    "retrieval": {
+      "clone": {
+        "coverage": {
+          "omitted_documents": 5096,
+          "omitted_documents_are": "earliest_listed",
+          "omitted_reviewed_memories": 0,
+          "passage_limit_reached": true,
+          "selected_by_question": true,
+          "source_documents": 29216,
+          "source_passages": 40000,
+          "stale_memories": 0,
+          "unapproved_or_retired_memories": 0
+        },
+        "passage_index": null,
+        "reviewed_answer_fragments": [
+          "deep: boolean = true",
+          "withoutLoc: boolean = false"
+        ],
+        "tokens": 2637
+      },
+      "deep": {
+        "coverage": {
+          "omitted_documents": 4778,
+          "omitted_documents_are": "earliest_listed",
+          "omitted_reviewed_memories": 0,
+          "passage_limit_reached": true,
+          "selected_by_question": true,
+          "source_documents": 29216,
+          "source_passages": 40000,
+          "stale_memories": 0,
+          "unapproved_or_retired_memories": 0
+        },
+        "passage_index": null,
+        "reviewed_answer_fragments": [
+          "traverseFast(tree, removeProperties, opts)"
+        ],
+        "tokens": 2916
+      },
+      "filtered": {
+        "coverage": {
+          "omitted_documents": 0,
+          "omitted_documents_are": "none",
+          "omitted_reviewed_memories": 0,
+          "passage_limit_reached": false,
+          "source_documents": 1,
+          "source_passages": 2,
+          "stale_memories": 0,
+          "unapproved_or_retired_memories": 0
+        },
+        "passage_index": {
+          "files": 1,
+          "loaded_files": 1,
+          "passages": 2,
+          "read_here": 0,
+          "status": "ready"
+        },
+        "reviewed_answer_fragments": [
+          "deep: boolean = true",
+          "withoutLoc: boolean = false"
+        ],
+        "tokens": 1486
+      }
+    },
+    "script_sha256": "bc437c09ba53f8e66ba0ae953b81378c2faff6d5189166124499df4de9392b2b",
+    "source_checkout_unchanged": true,
+    "source_files_rehashed": 29280,
+    "sqlite_quick_check": {
+      "incremental-store": [
+        [
+          "ok"
+        ]
+      ],
+      "store": [
+        [
+          "ok"
+        ]
+      ]
+    },
+    "yaml_text_only_files": 22
+  },
+  "supplementary_verification_path": "/private/tmp/graphicle-scale-e10-babel-full-20261106/supplementary-verification.json",
+  "supplementary_verification_sha256": "3b398ab66222e0b473ced4d94dad24279d38aaf796ae929b26bc54485487e871"
+}

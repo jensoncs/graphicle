@@ -1,0 +1,307 @@
+{
+  "date": "2026-11-06",
+  "experiment": "Diagnostic single-file edit on a restored 24,749-file common-name fixture",
+  "limitations": [
+    "One profiled diagnostic run; no A/B speedup or latency SLO claim.",
+    "Cloning the retained store is setup and excluded from diagnostic_seconds.",
+    "Existing profile spans do not separately isolate dependency construction, partitioning, per-file cache I/O and hashing; unaccounted extraction time cannot all be attributed to cache writes.",
+    "Source and original store restored; original source hash independently rechecked after the run."
+  ],
+  "phase_seconds": {
+    "graph_assemble": 0.592,
+    "graph_build": 77.081,
+    "graph_extract": 45.456,
+    "graph_identity": 6.166,
+    "graph_materialize": 24.841,
+    "graph_persist": 0.432,
+    "graph_save": 1.3,
+    "job_link": 0.056,
+    "job_project": 77.599,
+    "sync_commit": 0.353,
+    "sync_passage_index": 0.073,
+    "sync_prepare": [
+      0.016,
+      0.019,
+      0.025,
+      0.029,
+      0.372
+    ],
+    "sync_read": 8.782,
+    "sync_read_documents": 0.0,
+    "sync_read_manifest": 0.02,
+    "sync_read_mark": 0.0
+  },
+  "phase_seconds_note": "Repeated phase names retain every occurrence as a list; nested spans are not additive.",
+  "profile_log": "phase=sync_read_mark ms=0 rss_mb=23.1 peak_rss_mb=23.1\nphase=sync_read_documents ms=0 converted=0 kept=0\nphase=sync_read_manifest ms=20 rss_mb=48.3 peak_rss_mb=48.3\nphase=sync_read ms=8782 rss_mb=48.3 peak_rss_mb=48.3\nphase=sync_prepare ms=16 rss_mb=61.9 peak_rss_mb=61.9\nphase=sync_prepare ms=19 rss_mb=72.8 peak_rss_mb=72.8\nphase=sync_prepare ms=25 rss_mb=81.8 peak_rss_mb=81.8\nphase=sync_prepare ms=29 rss_mb=96.8 peak_rss_mb=96.8\nphase=sync_prepare ms=372 rss_mb=104.8 peak_rss_mb=133.4\nphase=sync_commit ms=353 rss_mb=238.0 peak_rss_mb=241.4\nphase=sync_passage_index ms=73 rss_mb=249.1 peak_rss_mb=249.1\ngraphicle: building the code graph of 24749 files...\nphase=graph_materialize ms=24841 rss_mb=252.3 peak_rss_mb=254.9\n[graphicle profile] extract.records.cache_load wall=0.086s cpu=0.026s cores=0.3 rss=401MiB peak=473MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] extract.records.parse wall=0.006s cpu=0.002s cores=0.4 rss=402MiB peak=473MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] extract.records.files suffix=.py files=1 bytes=86 worker=0.006s ms_per_file=6.23 mb_per_s=0.0\n[graphicle profile] extract.records.cache_flush wall=0.121s cpu=0.120s cores=1.0 rss=433MiB peak=473MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] extract.records.cache_load wall=12.983s cpu=5.904s cores=0.5 rss=843MiB peak=843MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] extract.records.parse wall=0.000s cpu=0.000s cores=1.0 rss=843MiB peak=843MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] extract.records.cache_flush wall=0.000s cpu=0.000s cores=1.0 rss=843MiB peak=843MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.collect wall=0.076s cpu=0.076s cores=1.0 rss=1119MiB peak=1119MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.python_modules wall=0.201s cpu=0.191s cores=1.0 rss=1133MiB peak=1133MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution.collect_js wall=0.001s cpu=0.001s cores=0.9 rss=1133MiB peak=1133MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution.collect_python wall=0.040s cpu=0.106s cores=2.7 rss=1137MiB peak=1140MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution.index wall=0.044s cpu=0.044s cores=1.0 rss=1155MiB peak=1155MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution.declarations wall=0.000s cpu=0.000s cores=1.0 rss=1155MiB peak=1155MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution.exports wall=0.004s cpu=0.004s cores=1.0 rss=1155MiB peak=1155MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution.retarget wall=0.002s cpu=0.002s cores=1.0 rss=1155MiB peak=1155MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution.imports wall=0.003s cpu=0.003s cores=1.0 rss=1155MiB peak=1155MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution.uses wall=0.005s cpu=0.005s cores=1.0 rss=1155MiB peak=1155MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution.append wall=0.002s cpu=0.002s cores=1.0 rss=1155MiB peak=1155MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.symbol_resolution wall=0.101s cpu=0.167s cores=1.6 rss=1155MiB peak=1155MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.merge_decl_def wall=0.026s cpu=0.026s cores=1.0 rss=1166MiB peak=1166MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.normalize_ids wall=0.331s cpu=0.383s cores=1.2 rss=1231MiB peak=1252MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.repoint_python_imports wall=0.060s cpu=0.059s cores=1.0 rss=1231MiB peak=1252MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.swift_csharp_merge wall=0.000s cpu=0.000s cores=1.0 rss=1231MiB peak=1252MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.disambiguate wall=0.127s cpu=0.126s cores=1.0 rss=1246MiB peak=1252MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.php_java_go_types wall=0.003s cpu=0.003s cores=1.0 rss=1246MiB peak=1252MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.python_imports wall=0.092s cpu=0.178s cores=1.9 rss=1281MiB peak=1281MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.rewire_unique_stubs wall=0.041s cpu=0.041s cores=1.0 rss=1281MiB peak=1281MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.java_csharp_bash_kotlin wall=0.018s cpu=0.018s cores=1.0 rss=1281MiB peak=1281MiB vtab=0/0MiB writebacks=0 spills=0\n[graphicle profile] assemble.bind_raw_calls wall=0.054s cpu=0.084s cores=1.5 rss=1297MiB peak=1297MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] assemble.resolver.python_member_calls wall=0.049s cpu=0.048s cores=1.0 rss=1316MiB peak=1316MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] assemble.run_defaults wall=0.051s cpu=0.049s cores=1.0 rss=1316MiB peak=1316MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] assemble.receiver_precise_routes wall=6.285s cpu=1.307s cores=0.2 rss=1361MiB peak=1361MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] assemble.finish wall=0.116s cpu=0.209s cores=1.8 rss=1476MiB peak=1476MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] extract.assemble wall=7.591s cpu=2.925s cores=0.4 rss=1476MiB peak=1476MiB vtab=99004/13MiB writebacks=0 spills=0\nphase=graph_extract ms=45456 rss_mb=1587.6 peak_rss_mb=1627.6\n[graphicle profile] build.dedup_prepare wall=0.039s cpu=0.039s cores=1.0 rss=1588MiB peak=1628MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] build.dedup wall=0.217s cpu=0.218s cores=1.0 rss=1611MiB peak=1628MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] build.core.prepare wall=0.050s cpu=0.050s cores=1.0 rss=1611MiB peak=1628MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] build.core.validate wall=0.037s cpu=0.037s cores=1.0 rss=1611MiB peak=1628MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] build.core.remap wall=0.013s cpu=0.013s cores=1.0 rss=1613MiB peak=1628MiB vtab=99004/13MiB writebacks=0 spills=0\n[graphicle profile] build.core.add_nodes wall=0.051s cpu=0.051s cores=1.0 rss=1621MiB peak=1628MiB vtab=148505/22MiB writebacks=0 spills=49498\n[graphicle profile] build.core.ghosts_aliases wall=0.047s cpu=0.047s cores=1.0 rss=1629MiB peak=1629MiB vtab=148505/22MiB writebacks=0 spills=49498\n[graphicle profile] build.core.edges wall=0.112s cpu=0.112s cores=1.0 rss=1633MiB peak=1633MiB vtab=148505/22MiB writebacks=0 spills=49498\n[graphicle profile] build.core.file_labels wall=0.017s cpu=0.017s cores=1.0 rss=1657MiB peak=1657MiB vtab=148505/22MiB writebacks=0 spills=49498\n[graphicle profile] build.core wall=0.333s cpu=0.330s cores=1.0 rss=1657MiB peak=1657MiB vtab=148505/22MiB writebacks=0 spills=49498\nphase=graph_assemble ms=592 rss_mb=1656.8 peak_rss_mb=1656.8\nphase=graph_identity ms=6166 rss_mb=1735.0 peak_rss_mb=1735.0\nphase=graph_build ms=77081 rss_mb=1735.0 peak_rss_mb=1735.0\nphase=graph_persist ms=432 rss_mb=1748.6 peak_rss_mb=1748.6\nphase=job_project ms=77599 rss_mb=1748.7 peak_rss_mb=1748.7\nphase=job_link ms=56 rss_mb=1748.9 peak_rss_mb=1748.9\ngraphicle: code graph ready: 74247 nodes, 74247 edges (77.7 s)\nphase=graph_save ms=1300 rss_mb=2091.0 peak_rss_mb=2091.0\n",
+  "profile_spans": [
+    {
+      "cpu_seconds": 0.026,
+      "name": "extract.records.cache_load",
+      "wall_seconds": 0.086
+    },
+    {
+      "cpu_seconds": 0.002,
+      "name": "extract.records.parse",
+      "wall_seconds": 0.006
+    },
+    {
+      "cpu_seconds": 0.12,
+      "name": "extract.records.cache_flush",
+      "wall_seconds": 0.121
+    },
+    {
+      "cpu_seconds": 5.904,
+      "name": "extract.records.cache_load",
+      "wall_seconds": 12.983
+    },
+    {
+      "cpu_seconds": 0.0,
+      "name": "extract.records.parse",
+      "wall_seconds": 0.0
+    },
+    {
+      "cpu_seconds": 0.0,
+      "name": "extract.records.cache_flush",
+      "wall_seconds": 0.0
+    },
+    {
+      "cpu_seconds": 0.076,
+      "name": "assemble.collect",
+      "wall_seconds": 0.076
+    },
+    {
+      "cpu_seconds": 0.191,
+      "name": "assemble.python_modules",
+      "wall_seconds": 0.201
+    },
+    {
+      "cpu_seconds": 0.001,
+      "name": "assemble.symbol_resolution.collect_js",
+      "wall_seconds": 0.001
+    },
+    {
+      "cpu_seconds": 0.106,
+      "name": "assemble.symbol_resolution.collect_python",
+      "wall_seconds": 0.04
+    },
+    {
+      "cpu_seconds": 0.044,
+      "name": "assemble.symbol_resolution.index",
+      "wall_seconds": 0.044
+    },
+    {
+      "cpu_seconds": 0.0,
+      "name": "assemble.symbol_resolution.declarations",
+      "wall_seconds": 0.0
+    },
+    {
+      "cpu_seconds": 0.004,
+      "name": "assemble.symbol_resolution.exports",
+      "wall_seconds": 0.004
+    },
+    {
+      "cpu_seconds": 0.002,
+      "name": "assemble.symbol_resolution.retarget",
+      "wall_seconds": 0.002
+    },
+    {
+      "cpu_seconds": 0.003,
+      "name": "assemble.symbol_resolution.imports",
+      "wall_seconds": 0.003
+    },
+    {
+      "cpu_seconds": 0.005,
+      "name": "assemble.symbol_resolution.uses",
+      "wall_seconds": 0.005
+    },
+    {
+      "cpu_seconds": 0.002,
+      "name": "assemble.symbol_resolution.append",
+      "wall_seconds": 0.002
+    },
+    {
+      "cpu_seconds": 0.167,
+      "name": "assemble.symbol_resolution",
+      "wall_seconds": 0.101
+    },
+    {
+      "cpu_seconds": 0.026,
+      "name": "assemble.merge_decl_def",
+      "wall_seconds": 0.026
+    },
+    {
+      "cpu_seconds": 0.383,
+      "name": "assemble.normalize_ids",
+      "wall_seconds": 0.331
+    },
+    {
+      "cpu_seconds": 0.059,
+      "name": "assemble.repoint_python_imports",
+      "wall_seconds": 0.06
+    },
+    {
+      "cpu_seconds": 0.0,
+      "name": "assemble.swift_csharp_merge",
+      "wall_seconds": 0.0
+    },
+    {
+      "cpu_seconds": 0.126,
+      "name": "assemble.disambiguate",
+      "wall_seconds": 0.127
+    },
+    {
+      "cpu_seconds": 0.003,
+      "name": "assemble.php_java_go_types",
+      "wall_seconds": 0.003
+    },
+    {
+      "cpu_seconds": 0.178,
+      "name": "assemble.python_imports",
+      "wall_seconds": 0.092
+    },
+    {
+      "cpu_seconds": 0.041,
+      "name": "assemble.rewire_unique_stubs",
+      "wall_seconds": 0.041
+    },
+    {
+      "cpu_seconds": 0.018,
+      "name": "assemble.java_csharp_bash_kotlin",
+      "wall_seconds": 0.018
+    },
+    {
+      "cpu_seconds": 0.084,
+      "name": "assemble.bind_raw_calls",
+      "wall_seconds": 0.054
+    },
+    {
+      "cpu_seconds": 0.048,
+      "name": "assemble.resolver.python_member_calls",
+      "wall_seconds": 0.049
+    },
+    {
+      "cpu_seconds": 0.049,
+      "name": "assemble.run_defaults",
+      "wall_seconds": 0.051
+    },
+    {
+      "cpu_seconds": 1.307,
+      "name": "assemble.receiver_precise_routes",
+      "wall_seconds": 6.285
+    },
+    {
+      "cpu_seconds": 0.209,
+      "name": "assemble.finish",
+      "wall_seconds": 0.116
+    },
+    {
+      "cpu_seconds": 2.925,
+      "name": "extract.assemble",
+      "wall_seconds": 7.591
+    },
+    {
+      "cpu_seconds": 0.039,
+      "name": "build.dedup_prepare",
+      "wall_seconds": 0.039
+    },
+    {
+      "cpu_seconds": 0.218,
+      "name": "build.dedup",
+      "wall_seconds": 0.217
+    },
+    {
+      "cpu_seconds": 0.05,
+      "name": "build.core.prepare",
+      "wall_seconds": 0.05
+    },
+    {
+      "cpu_seconds": 0.037,
+      "name": "build.core.validate",
+      "wall_seconds": 0.037
+    },
+    {
+      "cpu_seconds": 0.013,
+      "name": "build.core.remap",
+      "wall_seconds": 0.013
+    },
+    {
+      "cpu_seconds": 0.051,
+      "name": "build.core.add_nodes",
+      "wall_seconds": 0.051
+    },
+    {
+      "cpu_seconds": 0.047,
+      "name": "build.core.ghosts_aliases",
+      "wall_seconds": 0.047
+    },
+    {
+      "cpu_seconds": 0.112,
+      "name": "build.core.edges",
+      "wall_seconds": 0.112
+    },
+    {
+      "cpu_seconds": 0.017,
+      "name": "build.core.file_labels",
+      "wall_seconds": 0.017
+    },
+    {
+      "cpu_seconds": 0.33,
+      "name": "build.core",
+      "wall_seconds": 0.333
+    }
+  ],
+  "raw_result_path": "/private/tmp/graphicle-scale-profile-20261106/results.json",
+  "raw_result_sha256": "acd4121c864a5e55a70631a2fa678ace0a13a9b17c42545a6c86b1dbe372f2f7",
+  "restoration": {
+    "original_store_restored": true,
+    "source_restored": true
+  },
+  "result": "pass",
+  "result_data": {
+    "binary_sha256": "e7f57a0cea3d4b9cea68babde9bb5d15c86a2ff06bf4b5fdcb6e4a2b63f5df8b",
+    "diagnostic_seconds": 89.36139962496236,
+    "extraction": {
+      "cached": true,
+      "changed": 1,
+      "materialization": {
+        "bytes_written": 86,
+        "cached": true,
+        "removed": 0,
+        "reused": 24748,
+        "written": 1
+      },
+      "persistence": {
+        "dirty_groups": 1,
+        "edges_compared": 3,
+        "groups": 24749,
+        "nodes_compared": 3,
+        "total_edges": 74247,
+        "total_nodes": 74247
+      },
+      "resolution": {
+        "components": 1,
+        "context_files": 0,
+        "dirty_files": 24749,
+        "fallback": null,
+        "largest_component": 24749,
+        "resolved_files": 24749,
+        "reused_files": 0,
+        "skipped_parsing": 0
+      },
+      "unchanged": 24748,
+      "unsupported": 0
+    },
+    "files": 24749,
+    "fixture_result_sha256": "6543b9d723bfeacc4c7a00714a257c9f72578bb0aca16989ea617461b76a3ea7",
+    "graph_sha256": "abf0bb8f04ea9f569ad42379a771ae61dd50ed2fc9ce7c036babd25a1590baf1",
+    "helper_sha256": {
+      "compare_graph_scaling.py": "c16246c7648ebc59843f3b63b8a9d6e9f67dbbd4a81f1ff133303f51d0bf79e3",
+      "graph_scaling.py": "5f6d2e8851b199cb712b6fe3ec8e0b3de5413bddcd6033cc750141be43bcc84f",
+      "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+    },
+    "limitations": "Diagnostic phase timings with profiling enabled, not an A/B performance measurement.",
+    "method": "Profiled one-file edit on a clone restored at the original cache root; original source and store restored afterwards",
+    "profile_log_sha256": "0e5888b65870c89b72a3600a913b32270504eef88e1a41917f12933d78532651",
+    "script_sha256": "4bb16015a8ef25b102709587d7a2719d554e8bd7cefbc9089979f5bd64a89279"
+  }
+}

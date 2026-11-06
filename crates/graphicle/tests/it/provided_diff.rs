@@ -144,12 +144,16 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
         args["provided_diff"] = partial_ranges.clone();
         let extra = f.run(&args);
         eprintln!("partial provided_diff budget={budget}: outside entries {} -> {}, overlap selected {}", outside_count(&plain), outside_count(&extra), extra["coverage"]["provided_diff"]["selected_overlapping_entries"]);
-        assert!(outside_count(&extra) >= 2, "{}", extra["coverage"]);
-        assert!(has(&extra, "head", "Caller"));
-        // Randomized repository IDs change token costs near 3,500: the second
-        // affordable outside entry can be the base caller. Require the head
-        // dependency at the budgets with enough room for its full evidence.
+        assert!(has(&extra, "head", "Caller"), "{}", extra["coverage"]);
+        // Fixed conservative identifier charges leave room for only the
+        // prioritized caller at 3,500. The larger budgets must also retain
+        // the exact dependency, without replacing it with overlapping code.
+        assert_eq!(
+            extra["coverage"]["packing"]["cost_model"],
+            "fixed_hex_identifiers_v1"
+        );
         if budget >= 5000 {
+            assert!(outside_count(&extra) >= 2, "{}", extra["coverage"]);
             assert!(has(&extra, "head", "Dependency"));
         }
         assert!(outside_count(&extra) >= outside_count(&plain));

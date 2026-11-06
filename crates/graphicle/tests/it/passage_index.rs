@@ -169,6 +169,98 @@ fn listed(packet: &Value, field: &str, key: &str) -> Vec<String> {
 }
 
 #[test]
+fn filtered_index_preserves_sources_memories_and_empty_results() {
+    let mut files = vec![("hub.py".to_string(), HUB.to_string())];
+    for i in 0..6 {
+        files.push((format!("spokes/spoke_{i:03}.py"), spoke(i)));
+    }
+    files.push((
+        "elsewhere/private.txt".into(),
+        "Unrelated orchid policy.\n".repeat(100),
+    ));
+    let h = Home::new(&files);
+    let synced = h.json(&["sync", "."], &[]);
+    let arguments = h.home.join("filtered-arguments.json");
+    let call = |operation: &str, args: Value, env: &[(&str, &str)]| {
+        std::fs::write(&arguments, args.to_string()).unwrap();
+        h.json(
+            &[
+                "call",
+                operation,
+                "--arguments",
+                arguments.to_str().unwrap(),
+            ],
+            env,
+        )
+    };
+    for dependencies in [
+        json!(["hub.py"]),
+        json!(["hub.py", "elsewhere/private.txt"]),
+        json!([]),
+    ] {
+        call(
+            "note",
+            json!({"title":"Gauge registry policy", "body":"Gauge registration requires review.",
+            "dependencies":dependencies}),
+            &[],
+        );
+    }
+    let store = graphicle_runtime::store::Store::open(&h.data).unwrap();
+    let session = graphicle_runtime::local::session(&store, false).unwrap();
+    let connector = store
+        .connector_add(
+            &session.workspace,
+            &session.capability,
+            &json!({"repository_id":synced["repository_id"],"kind":"jsonl","name":"Design",
+            "config":{"acl":{"workspace_readers":true,"credentials":[]}}}),
+        )
+        .unwrap();
+    store.import_documents(&session.workspace, &session.capability,
+        &json!({"repository_id":synced["repository_id"],"connector_id":connector["id"],"documents":[
+            {"id":"a","title":"Registry design","content":"Gauge metrics are registered centrally.","metadata":{"agent_id":"a"}},
+            {"id":"b","title":"Registry design","content":"Gauge metrics are registered remotely.","metadata":{"agent_id":"b"}}
+        ]})).unwrap();
+    // A missing layout must be overlaid with the current source, while the
+    // other indexed files retain their original segment/ordinal bindings.
+    store
+        .connect()
+        .unwrap()
+        .execute("DELETE FROM am_passage_files WHERE path='hub.py'", [])
+        .unwrap();
+    for filter in [
+        json!({"include":["file:hub.py"]}),
+        json!({"include":["file:spokes/", "file:hub.py", "file:spokes/"]}),
+        json!({"include":["file:missing/"]}),
+        json!({"metadata":{"parser":null}}),
+        json!({"include":["file:spokes/"],"metadata":{"agent_id":"absent"}}),
+        json!({"include":["connector:"],"metadata":{"agent_id":"a"}}),
+    ] {
+        for extra in [
+            json!({}),
+            json!({"memory_retrieval":false}),
+            json!({"graph_retrieval":false}),
+        ] {
+            let mut args = json!({"question":"Where does hub_metric_register register the gauge metric?",
+                "debug_candidates":400});
+            args.as_object_mut()
+                .unwrap()
+                .extend(filter.as_object().unwrap().clone());
+            args.as_object_mut()
+                .unwrap()
+                .extend(extra.as_object().unwrap().clone());
+            let mut indexed = call("context", args.clone(), &[]);
+            assert_eq!(
+                indexed["passage_index"]["status"], "ready",
+                "{args}: {indexed}"
+            );
+            indexed.as_object_mut().unwrap().remove("passage_index");
+            let full = call("context", args.clone(), &[("GRAPHICLE_PASSAGE_INDEX", "0")]);
+            assert_eq!(indexed, full, "{args}");
+        }
+    }
+}
+
+#[test]
 fn reviewed_memory_uses_the_index_without_changing_graph_recall() {
     let mut files = vec![("hub.py".to_string(), HUB.to_string())];
     for i in 0..24 {

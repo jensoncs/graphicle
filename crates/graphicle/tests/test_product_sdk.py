@@ -79,7 +79,17 @@ def test_python_client_runs_the_product_workflow_and_budget_recovery(product):
                                 profile={"goos": "linux", "goarch": "amd64"}, max_tokens=4000)
         assert impact["format"] == "graphicle.review.v1"
         assert impact["diffs"] and impact["impact"] == "incomplete"
-        assert any(i["reason"] == "unsupported_source_language_or_contract" for i in impact["coverage"]["issues"])
+        # Python now has basic file-level dependency analysis. Its compiler
+        # and runtime limitations must remain explicit in the SDK response.
+        assert impact["coverage"]["complete"] is False
+        assert any(i["reason"] == "basic_analysis_limitations"
+                   and i["detail"]["language"] == "python"
+                   and i["detail"]["granularity"] == "file"
+                   and i["detail"]["compiler_resolution"] is False
+                   and i["detail"]["dependency_coverage_complete"] is False
+                   for i in impact["coverage"]["issues"])
+        assert not any(i["reason"] == "unsupported_source_language_or_contract"
+                       for i in impact["coverage"]["issues"])
     elif info["change_impact"]:
         assert project.command("impact.report", base=first["episode"], head=latest, budget_tokens=4000)["changed_nodes"]
     else:

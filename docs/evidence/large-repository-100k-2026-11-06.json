@@ -1,0 +1,700 @@
+{
+  "completed_calls": 15,
+  "date": "2026-11-06",
+  "expected_calls": 15,
+  "experiment": "Combined E1/E2/E5 common-name graph qualification at 100,000 files",
+  "final_source_bytes": 9283896,
+  "initial_source_bytes": 9377780,
+  "qualification_complete": true,
+  "raw_result_path": "/private/tmp/graphicle-scale-qualify-100k-20261106/results.json",
+  "raw_result_sha256": "c1d86b557f0506f9e82bc94fa57a83f081415e3378bfe2aec0610c84b33c41c3",
+  "result": "pass",
+  "result_data": {
+    "batch_files": 1000,
+    "binary_sha256": "e7f57a0cea3d4b9cea68babde9bb5d15c86a2ff06bf4b5fdcb6e4a2b63f5df8b",
+    "cpu_count": 18,
+    "engine_max_workers_env": 4,
+    "files": 100000,
+    "final_files": 98999,
+    "fresh_cache_equal": true,
+    "harness_sha256": {
+      "compare_graph_scaling.py": "c16246c7648ebc59843f3b63b8a9d6e9f67dbbd4a81f1ff133303f51d0bf79e3",
+      "graph_scaling.py": "5f6d2e8851b199cb712b6fe3ec8e0b3de5413bddcd6033cc750141be43bcc84f",
+      "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85",
+      "qualify_large_graph.py": "66ae7ec956f7ffb306dbfe515812164865b71379aba6f24dab18e736db1c8f27"
+    },
+    "limitations": "One synthetic Python repository with common local function names. Timing samples establish observed costs, not an A/B speedup, realistic language completeness or a production SLO. Fresh-cache comparison uses the same incremental implementation; independent full-extraction checks are separate.",
+    "method": "Fresh CLI processes measured by fresh Python workers; warm OS cache; admission separated from cold graph; exact generated topology/source hashes throughout; final incremental graph equals fresh-cache graph at same store path",
+    "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+    "rows": [
+      {
+        "exit_code": 0,
+        "label": "admit",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 926351360,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 195.24503216601443,
+        "stdout_sha256": "ecc5536860151c87c489c1ecc07d5dc9279d2f73ea5c8d4962803893d01d8b80"
+      },
+      {
+        "exit_code": 0,
+        "extraction": {
+          "cached": true,
+          "changed": 100000,
+          "materialization": {
+            "bytes_written": 9377780,
+            "cached": true,
+            "removed": 0,
+            "reused": 0,
+            "written": 100000
+          },
+          "persistence": {
+            "dirty_groups": 100000,
+            "edges_compared": 300000,
+            "groups": 100000,
+            "nodes_compared": 300000,
+            "total_edges": 300000,
+            "total_nodes": 300000
+          },
+          "resolution": {
+            "components": 1,
+            "context_files": 0,
+            "dirty_files": 100000,
+            "fallback": null,
+            "largest_component": 100000,
+            "resolved_files": 100000,
+            "reused_files": 0,
+            "skipped_parsing": 0
+          },
+          "unchanged": 0,
+          "unsupported": 0
+        },
+        "files": 100000,
+        "graph": {
+          "edges": 300000,
+          "episode": "133ff375ab9eccfcd6f252ee0f09ab674a7f27b813ea3c323f215171107f7dca",
+          "nodes": 300000,
+          "saved_graph": {
+            "bytes": 298415352,
+            "episode": "133ff375ab9eccfcd6f252ee0f09ab674a7f27b813ea3c323f215171107f7dca",
+            "query_file": "written",
+            "seconds": 4.4,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "graph_sha256": "3a7f88de4ae4b75583305fa2eac3ec362e1b380fc8537fd27fa064b9eceae489",
+        "label": "cold_graph",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 6136741888,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 494.89069262496196,
+        "source_manifest_sha256": "d35d2bece2fabb51fe8bb9715409269d35cc438492830a3bcf8d28bdc0a68dc2",
+        "stdout_sha256": "8ac3be7b1dd43baa80f2be8036d1f78a814136debb3fd52ef794199e22d5ee68"
+      },
+      {
+        "exit_code": 0,
+        "extraction": null,
+        "files": 100000,
+        "graph": {
+          "edges": 300000,
+          "episode": "133ff375ab9eccfcd6f252ee0f09ab674a7f27b813ea3c323f215171107f7dca",
+          "nodes": 300000,
+          "saved_graph": {
+            "episode": "133ff375ab9eccfcd6f252ee0f09ab674a7f27b813ea3c323f215171107f7dca",
+            "status": "saved"
+          },
+          "status": "current"
+        },
+        "graph_sha256": "3a7f88de4ae4b75583305fa2eac3ec362e1b380fc8537fd27fa064b9eceae489",
+        "label": "unchanged-0",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 462307328,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 26.45993654197082,
+        "source_manifest_sha256": "d35d2bece2fabb51fe8bb9715409269d35cc438492830a3bcf8d28bdc0a68dc2",
+        "stdout_sha256": "34345b5151f675365fa45ac21a5226ece9603ce4be38c5e0dac1300090ef3ddc"
+      },
+      {
+        "exit_code": 0,
+        "extraction": null,
+        "files": 100000,
+        "graph": {
+          "edges": 300000,
+          "episode": "133ff375ab9eccfcd6f252ee0f09ab674a7f27b813ea3c323f215171107f7dca",
+          "nodes": 300000,
+          "saved_graph": {
+            "episode": "133ff375ab9eccfcd6f252ee0f09ab674a7f27b813ea3c323f215171107f7dca",
+            "status": "saved"
+          },
+          "status": "current"
+        },
+        "graph_sha256": "3a7f88de4ae4b75583305fa2eac3ec362e1b380fc8537fd27fa064b9eceae489",
+        "label": "unchanged-1",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 463372288,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 29.471583000035025,
+        "source_manifest_sha256": "d35d2bece2fabb51fe8bb9715409269d35cc438492830a3bcf8d28bdc0a68dc2",
+        "stdout_sha256": "34345b5151f675365fa45ac21a5226ece9603ce4be38c5e0dac1300090ef3ddc"
+      },
+      {
+        "exit_code": 0,
+        "extraction": null,
+        "files": 100000,
+        "graph": {
+          "edges": 300000,
+          "episode": "133ff375ab9eccfcd6f252ee0f09ab674a7f27b813ea3c323f215171107f7dca",
+          "nodes": 300000,
+          "saved_graph": {
+            "episode": "133ff375ab9eccfcd6f252ee0f09ab674a7f27b813ea3c323f215171107f7dca",
+            "status": "saved"
+          },
+          "status": "current"
+        },
+        "graph_sha256": "3a7f88de4ae4b75583305fa2eac3ec362e1b380fc8537fd27fa064b9eceae489",
+        "label": "unchanged-2",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 456933376,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 28.504242500057444,
+        "source_manifest_sha256": "d35d2bece2fabb51fe8bb9715409269d35cc438492830a3bcf8d28bdc0a68dc2",
+        "stdout_sha256": "34345b5151f675365fa45ac21a5226ece9603ce4be38c5e0dac1300090ef3ddc"
+      },
+      {
+        "exit_code": 0,
+        "extraction": {
+          "cached": true,
+          "changed": 1,
+          "materialization": {
+            "bytes_written": 86,
+            "cached": true,
+            "removed": 0,
+            "reused": 99999,
+            "written": 1
+          },
+          "persistence": {
+            "dirty_groups": 1,
+            "edges_compared": 3,
+            "groups": 100000,
+            "nodes_compared": 3,
+            "total_edges": 300000,
+            "total_nodes": 300000
+          },
+          "resolution": {
+            "components": 1,
+            "context_files": 0,
+            "dirty_files": 100000,
+            "fallback": null,
+            "largest_component": 100000,
+            "resolved_files": 100000,
+            "reused_files": 0,
+            "skipped_parsing": 0
+          },
+          "unchanged": 99999,
+          "unsupported": 0
+        },
+        "files": 100000,
+        "graph": {
+          "edges": 300000,
+          "episode": "bbd161c23291310c4a4877cd5e864c71529c9f3cc12a86d5271a010868202c26",
+          "nodes": 300000,
+          "saved_graph": {
+            "bytes": 298415127,
+            "episode": "bbd161c23291310c4a4877cd5e864c71529c9f3cc12a86d5271a010868202c26",
+            "query_file": "written",
+            "seconds": 5.1,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "graph_sha256": "6f0213c133fee41f711fe972dcb20f9e1d47edfd862e5d408a3ded91e5cef773",
+        "label": "edit-0",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 6060916736,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 356.9778285420034,
+        "source_manifest_sha256": "1c33aec6c7b83d1449f92329ff6ea25d50f09b54a4d42c5de48b3c6a13f1a9ff",
+        "stdout_sha256": "09d892da5deedce2f186e9f20e526387c1d1a3168bf1d333c135e562e9ecdee1"
+      },
+      {
+        "exit_code": 0,
+        "extraction": {
+          "cached": true,
+          "changed": 1,
+          "materialization": {
+            "bytes_written": 86,
+            "cached": true,
+            "removed": 0,
+            "reused": 99999,
+            "written": 1
+          },
+          "persistence": {
+            "dirty_groups": 1,
+            "edges_compared": 3,
+            "groups": 100000,
+            "nodes_compared": 3,
+            "total_edges": 300000,
+            "total_nodes": 300000
+          },
+          "resolution": {
+            "components": 1,
+            "context_files": 0,
+            "dirty_files": 100000,
+            "fallback": null,
+            "largest_component": 100000,
+            "resolved_files": 100000,
+            "reused_files": 0,
+            "skipped_parsing": 0
+          },
+          "unchanged": 99999,
+          "unsupported": 0
+        },
+        "files": 100000,
+        "graph": {
+          "edges": 300000,
+          "episode": "8ed12317cbd9772aa1facc096cd2bd9c5156c2efe053db7c43317c792b5f3eb9",
+          "nodes": 300000,
+          "saved_graph": {
+            "bytes": 298415127,
+            "episode": "8ed12317cbd9772aa1facc096cd2bd9c5156c2efe053db7c43317c792b5f3eb9",
+            "query_file": "written",
+            "seconds": 5.3,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "graph_sha256": "478883115ca68b46889b49c6deeaf4fb4caa75bf1d0b59a425a5826337b5df38",
+        "label": "edit-1",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 5840863232,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 307.1019662920153,
+        "source_manifest_sha256": "42e99afc376eabda26f3f64570b6e1eec1446c7247ee1c48f7a001a91eec4440",
+        "stdout_sha256": "46b4c11ac21a7b2d88ffe8d6c037398d27a3d268ab0ff62e4c1fad64d5f1d9d9"
+      },
+      {
+        "exit_code": 0,
+        "extraction": {
+          "cached": true,
+          "changed": 1,
+          "materialization": {
+            "bytes_written": 86,
+            "cached": true,
+            "removed": 0,
+            "reused": 99999,
+            "written": 1
+          },
+          "persistence": {
+            "dirty_groups": 1,
+            "edges_compared": 3,
+            "groups": 100000,
+            "nodes_compared": 3,
+            "total_edges": 300000,
+            "total_nodes": 300000
+          },
+          "resolution": {
+            "components": 1,
+            "context_files": 0,
+            "dirty_files": 100000,
+            "fallback": null,
+            "largest_component": 100000,
+            "resolved_files": 100000,
+            "reused_files": 0,
+            "skipped_parsing": 0
+          },
+          "unchanged": 99999,
+          "unsupported": 0
+        },
+        "files": 100000,
+        "graph": {
+          "edges": 300000,
+          "episode": "3393e34f461fe25d5490dff9a2fc3e017a8d8858791f23d5879e61a91efe8b2f",
+          "nodes": 300000,
+          "saved_graph": {
+            "bytes": 298415127,
+            "episode": "3393e34f461fe25d5490dff9a2fc3e017a8d8858791f23d5879e61a91efe8b2f",
+            "query_file": "written",
+            "seconds": 4.9,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "graph_sha256": "f42c72e55a20091a67757ff1d3e72cc15b6a05c66263e2708264fe27d6a44bd2",
+        "label": "edit-2",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 5861933056,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 308.6594918749761,
+        "source_manifest_sha256": "e791a70d4f88a47ba3db3c4ad11acce1f76c94bef6377aee1f7aeaf4a00e1445",
+        "stdout_sha256": "1d71a3c46eaaff718d557c7781cdbaf8aae6e1b1354efcaea3b40730595e7002"
+      },
+      {
+        "exit_code": 0,
+        "extraction": {
+          "cached": true,
+          "changed": 1,
+          "materialization": {
+            "bytes_written": 86,
+            "cached": true,
+            "removed": 1,
+            "reused": 99999,
+            "written": 1
+          },
+          "persistence": {
+            "dirty_groups": 2,
+            "edges_compared": 3,
+            "groups": 100000,
+            "nodes_compared": 3,
+            "total_edges": 300000,
+            "total_nodes": 300000
+          },
+          "resolution": {
+            "components": 1,
+            "context_files": 0,
+            "dirty_files": 100000,
+            "fallback": null,
+            "largest_component": 100000,
+            "resolved_files": 100000,
+            "reused_files": 0,
+            "skipped_parsing": 0
+          },
+          "unchanged": 99999,
+          "unsupported": 0
+        },
+        "files": 100000,
+        "graph": {
+          "edges": 300000,
+          "episode": "23dea6e81b2c77c7c2aca2a25b18f902f6fb7463ded6856ed9b6fa0009c234b2",
+          "nodes": 300000,
+          "saved_graph": {
+            "bytes": 298415592,
+            "episode": "23dea6e81b2c77c7c2aca2a25b18f902f6fb7463ded6856ed9b6fa0009c234b2",
+            "query_file": "written",
+            "seconds": 4.7,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "graph_sha256": "5f81b726ba3753c7b301a40cabcb0dc2830034e4ee1ca293251dd4cca0091a1b",
+        "label": "rename",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 6487539712,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 304.642137167044,
+        "source_manifest_sha256": "4d20e4316aaf39be33444b7ab9001576e5bebc1042d475d800637b3df4b0de04",
+        "stdout_sha256": "5ffab116f23d46bc86986da406d4e10e7578b9a6f07914e9390e5489a9402f50"
+      },
+      {
+        "exit_code": 0,
+        "extraction": {
+          "cached": true,
+          "changed": 0,
+          "materialization": {
+            "bytes_written": 0,
+            "cached": true,
+            "removed": 1,
+            "reused": 99999,
+            "written": 0
+          },
+          "persistence": {
+            "dirty_groups": 1,
+            "edges_compared": 0,
+            "groups": 99999,
+            "nodes_compared": 0,
+            "total_edges": 299997,
+            "total_nodes": 299997
+          },
+          "resolution": {
+            "components": 1,
+            "context_files": 0,
+            "dirty_files": 99999,
+            "fallback": null,
+            "largest_component": 99999,
+            "resolved_files": 99999,
+            "reused_files": 0,
+            "skipped_parsing": 0
+          },
+          "unchanged": 99999,
+          "unsupported": 0
+        },
+        "files": 99999,
+        "graph": {
+          "edges": 299997,
+          "episode": "5158ba70ac2575e0851ebd2f8152b3801de1aebe13752479745826c0e2cb529b",
+          "nodes": 299997,
+          "saved_graph": {
+            "bytes": 298412405,
+            "episode": "5158ba70ac2575e0851ebd2f8152b3801de1aebe13752479745826c0e2cb529b",
+            "query_file": "written",
+            "seconds": 4.7,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "graph_sha256": "306b86ce7cc202c9cae13f877f117e8e69f6fdb17b638ad9764c9bebb6619784",
+        "label": "delete",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 6023184384,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 297.4903277499834,
+        "source_manifest_sha256": "81cc33d2d75cb716bb735977c2705e51b0b173e339eb0633b763589221d6233a",
+        "stdout_sha256": "37eabbac2c0c47994d7ff147d36232d9d8a45e08a74839cc5077715dc6c30a8a"
+      },
+      {
+        "exit_code": 0,
+        "extraction": {
+          "cached": true,
+          "changed": 1000,
+          "materialization": {
+            "bytes_written": 90006,
+            "cached": true,
+            "removed": 0,
+            "reused": 98999,
+            "written": 1000
+          },
+          "persistence": {
+            "dirty_groups": 1000,
+            "edges_compared": 3000,
+            "groups": 99999,
+            "nodes_compared": 3000,
+            "total_edges": 299997,
+            "total_nodes": 299997
+          },
+          "resolution": {
+            "components": 1,
+            "context_files": 0,
+            "dirty_files": 99999,
+            "fallback": null,
+            "largest_component": 99999,
+            "resolved_files": 99999,
+            "reused_files": 0,
+            "skipped_parsing": 0
+          },
+          "unchanged": 98999,
+          "unsupported": 0
+        },
+        "files": 99999,
+        "graph": {
+          "edges": 299997,
+          "episode": "5087c666bcb1b6a5ad54bcd21797793a65b7bd673de186219c08df0e1a87d0cd",
+          "nodes": 299997,
+          "saved_graph": {
+            "bytes": 298003377,
+            "episode": "5087c666bcb1b6a5ad54bcd21797793a65b7bd673de186219c08df0e1a87d0cd",
+            "query_file": "written",
+            "seconds": 4.8,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "graph_sha256": "4ebd16f18d011bc57b2398f701e6d7c3510908fc7a4eec7f953e99d6751a8e55",
+        "label": "bulk_edit",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 5903597568,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 299.03088183293585,
+        "source_manifest_sha256": "bf29ac7a997cb16d0b464bb8fcf7c104cca06eb371c02501f5d27fc6d7b2e35a",
+        "stdout_sha256": "a742587d802def46cc4ea17b66ae23b5d61ccdf467f7ff2b162a7f814b5b6edb"
+      },
+      {
+        "exit_code": 0,
+        "extraction": {
+          "cached": true,
+          "changed": 0,
+          "materialization": {
+            "bytes_written": 0,
+            "cached": true,
+            "removed": 1000,
+            "reused": 98999,
+            "written": 0
+          },
+          "persistence": {
+            "dirty_groups": 1000,
+            "edges_compared": 0,
+            "groups": 98999,
+            "nodes_compared": 0,
+            "total_edges": 296997,
+            "total_nodes": 296997
+          },
+          "resolution": {
+            "components": 1,
+            "context_files": 0,
+            "dirty_files": 98999,
+            "fallback": null,
+            "largest_component": 98999,
+            "resolved_files": 98999,
+            "reused_files": 0,
+            "skipped_parsing": 0
+          },
+          "unchanged": 98999,
+          "unsupported": 0
+        },
+        "files": 98999,
+        "graph": {
+          "edges": 296997,
+          "episode": "4c220207368e4dca364610092b739662f441605b690d1bb181c8e066da662f68",
+          "nodes": 296997,
+          "saved_graph": {
+            "bytes": 295019033,
+            "episode": "4c220207368e4dca364610092b739662f441605b690d1bb181c8e066da662f68",
+            "query_file": "written",
+            "seconds": 4.7,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "graph_sha256": "7afe59a54caccf53493a2472f250299911b6b856d651bfec0e32ca786cd73127",
+        "label": "bulk_delete",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 6050922496,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 292.83056379202753,
+        "source_manifest_sha256": "d600ee7fe83f682f0421d915485adf3b851b02683dd17bbba0f110bd815441a7",
+        "stdout_sha256": "24a5102c5c77e405f03ba3eb96af92c563c6218875aca1167296b19ed899239f"
+      },
+      {
+        "exit_code": 0,
+        "extraction": {
+          "cached": true,
+          "changed": 98999,
+          "materialization": {
+            "bytes_written": 9283896,
+            "cached": true,
+            "removed": 0,
+            "reused": 0,
+            "written": 98999
+          },
+          "persistence": {
+            "dirty_groups": 98999,
+            "edges_compared": 296997,
+            "groups": 98999,
+            "nodes_compared": 296997,
+            "total_edges": 296997,
+            "total_nodes": 296997
+          },
+          "resolution": {
+            "components": 1,
+            "context_files": 0,
+            "dirty_files": 98999,
+            "fallback": null,
+            "largest_component": 98999,
+            "resolved_files": 98999,
+            "reused_files": 0,
+            "skipped_parsing": 0
+          },
+          "unchanged": 0,
+          "unsupported": 0
+        },
+        "files": 98999,
+        "graph": {
+          "edges": 296997,
+          "episode": "4c220207368e4dca364610092b739662f441605b690d1bb181c8e066da662f68",
+          "nodes": 296997,
+          "saved_graph": {
+            "bytes": 294858490,
+            "episode": "4c220207368e4dca364610092b739662f441605b690d1bb181c8e066da662f68",
+            "query_file": "written",
+            "seconds": 4.3,
+            "status": "written"
+          },
+          "status": "built"
+        },
+        "graph_sha256": "7afe59a54caccf53493a2472f250299911b6b856d651bfec0e32ca786cd73127",
+        "label": "fresh_rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 6443794432,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 468.49449937499594,
+        "source_manifest_sha256": "d600ee7fe83f682f0421d915485adf3b851b02683dd17bbba0f110bd815441a7",
+        "stdout_sha256": "681f28a2e1c483bda63a407a70ff7a07bde226e422f9e4b5aae937add2fe82aa"
+      },
+      {
+        "evidence": 14,
+        "exit_code": 0,
+        "label": "context",
+        "limitations": null,
+        "measurement_worker": "fresh Python process",
+        "mechanisms": {
+          "code_graph_candidate_passages": 111,
+          "code_graph_enabled": true,
+          "code_graph_searched": true,
+          "doc_links_enabled": false,
+          "doc_links_pending_documents": 0,
+          "doc_links_sources": [],
+          "graph_candidate_passages": 0,
+          "graph_episode": "4c220207368e4dca364610092b739662f441605b690d1bb181c8e066da662f68",
+          "graph_local_degraded": {
+            "edges": null,
+            "max_edges": 200000,
+            "max_nodes": 50000,
+            "nodes": 98999
+          },
+          "graph_local_enabled": true,
+          "graph_local_searched": false,
+          "graph_local_status": "degraded",
+          "graph_retrieval_enabled": true,
+          "graph_searched": true,
+          "graph_source": "episode",
+          "links_followed_through_move": 0,
+          "links_pending_projection": 0,
+          "links_used": {
+            "by_rung": {},
+            "document": 0,
+            "memory": 0
+          },
+          "memories_withheld": {
+            "by_file": 0,
+            "by_symbol": 0
+          },
+          "reviewed_memory_available": 0,
+          "reviewed_memory_enabled": false,
+          "reviewed_memory_included": 0,
+          "scope": "project",
+          "source_documents_available": 98999,
+          "source_windows_included": 14,
+          "static_edges_aggregated": false,
+          "static_edges_capped": false,
+          "static_edges_enabled": true,
+          "static_relationship_edges": 0,
+          "switches": {
+            "code_first": "auto",
+            "cross_repo": true,
+            "doc_links": "counted",
+            "graph_retrieval": true,
+            "identifier_arm": "auto",
+            "identifier_route": false,
+            "memory_retrieval": false,
+            "more_files": "auto",
+            "notes_first": false,
+            "query_focus": "auto",
+            "scope": "project",
+            "symbol_links": "counted"
+          },
+          "symbol_links_enabled": false,
+          "workspace": {
+            "cross_edges_used": 0,
+            "projects_searched": 1
+          }
+        },
+        "peak_rss_bytes": 3827154944,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 3.913797917077318,
+        "stdout_sha256": "86f4b344df84290f31b885a91360c633e0194a99dbe4841ecc7b8efe19c8a79d",
+        "tokens": 1474
+      },
+      {
+        "episode": "4c220207368e4dca364610092b739662f441605b690d1bb181c8e066da662f68",
+        "exit_code": 0,
+        "label": "neighbors",
+        "measurement_worker": "fresh Python process",
+        "nodes": 2,
+        "peak_rss_bytes": 3408052224,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 12.69755299994722,
+        "stdout_sha256": "e3849224337b4c14ea0172e4e6ebdf9639b5bbe5051926e30bba5c6c45c60b16"
+      }
+    ],
+    "samples": 3
+  }
+}

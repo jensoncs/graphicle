@@ -4,7 +4,7 @@
 use crate::{Result, graph::Graph, paths, security, serve_find, serve_search::*, serve_text::*};
 use serde_json::{Value, json};
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque},
     fs,
     io::{BufRead, Write},
     path::{Path, PathBuf},
@@ -134,6 +134,9 @@ pub fn load_context(path: &Path) -> Result<GraphContext> {
 }
 pub fn communities(g: &Graph) -> Result<Vec<(i64, Vec<usize>)>> {
     let mut out = Vec::<(i64, Vec<usize>)>::new();
+    // Keep first-encounter order without scanning every earlier community
+    // for each node. Disconnected graphs can have one community per file.
+    let mut positions = HashMap::<i64, usize>::new();
     for (i, n) in g.nodes.iter().enumerate() {
         let Some(v) = n.attributes.get("community").filter(|v| !v.is_null()) else {
             continue;
@@ -143,9 +146,10 @@ pub fn communities(g: &Graph) -> Result<Vec<(i64, Vec<usize>)>> {
             .or_else(|| v.as_f64().map(|n| n as i64))
             .or_else(|| v.as_str()?.parse().ok())
             .ok_or("invalid community ID")?;
-        if let Some((_, ns)) = out.iter_mut().find(|(c, _)| *c == cid) {
-            ns.push(i);
+        if let Some(&position) = positions.get(&cid) {
+            out[position].1.push(i);
         } else {
+            positions.insert(cid, out.len());
             out.push((cid, vec![i]));
         }
     }

@@ -1,0 +1,623 @@
+{
+  "candidate_binary_sha256": "307776b7377a322f0bb3b307d5f03acdc1abad8c173a1de47cd0ec57cc85aaf8",
+  "candidate_sources": {
+    "crates/graphicle-memory/src/graph/cross_repo_imports.rs": "89739f1dc9eadb47e7f591961f1adb1d0ab54c29496ad85e4ae23e03b32d6509"
+  },
+  "control_binary_sha256": "1de0456ac6e79538fbb97ccd5c0a42c5502b201c4dd63d72d81db53b82a5e82b",
+  "correctness": {
+    "cross_repo_runtime": {
+      "failed": 0,
+      "ignored": 0,
+      "log": "/private/tmp/graphicle-scale-e8-cross-repo-tests-20261106.log",
+      "log_sha256": "51cb25839528e7801d0b4228d562445f1e7e03ce3f68df502da33a978a9f2a13",
+      "passed": 8
+    },
+    "memory_unit": {
+      "failed": 0,
+      "ignored": 0,
+      "log": "/private/tmp/graphicle-scale-e8-memory-tests-20261106.log",
+      "log_sha256": "fb3f2661c67733bb4e5271c4cf724dd98c623fdb5369e06f6592e13c764308a1",
+      "passed": 22
+    },
+    "memory_unit_final": {
+      "failed": 0,
+      "ignored": 0,
+      "log": "/private/tmp/graphicle-scale-e8-memory-final-tests-20261106.log",
+      "log_sha256": "a22dd09356ed1d37de886b78691671beddbff169b3e19d4bb93fa9d4688509b3",
+      "passed": 22,
+      "seconds": 0.07,
+      "source_sha256": "89739f1dc9eadb47e7f591961f1adb1d0ab54c29496ad85e4ae23e03b32d6509"
+    },
+    "workspace_runtime": {
+      "failed": 0,
+      "ignored": 1,
+      "ignored_reason": "Existing distributed-consumer test requires isolated Redis/Valkey on 127.0.0.1:16379.",
+      "log": "/private/tmp/graphicle-scale-e8-workspace-tests-20261106.log",
+      "log_sha256": "9e9f382bd105e8541f4294f85eb773dacaa75ae2d73c4ef3c46e8488b12e4d0e",
+      "passed": 49
+    }
+  },
+  "date": "2026-11-06",
+  "decision": "retain: median export-index rebuild/relink falls 96.4%; all five candidate samples are faster; full indexes, links and packets match, with similar peak RSS",
+  "experiment": "E8: group export symbols by normalized file path, preserving graph encounter order",
+  "format_check": {
+    "log": "/private/tmp/graphicle-scale-e8-format-20261106.log",
+    "passed": true,
+    "scope": [
+      "crates/graphicle-memory/src/graph/cross_repo_imports.rs"
+    ]
+  },
+  "harness_checks": {
+    "candidate_smoke": {
+      "calls": 16,
+      "harness_sha256": {
+        "compare_export_linking.py": "7b54f47c1efeb9067aa502d3a11cfb2f8476808d2269f96a88713fd46467b88d",
+        "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+      },
+      "raw_result_path": "/private/tmp/graphicle-scale-e8-export-smoke-20261106/results.json",
+      "raw_result_sha256": "ef0e651bcfaf76ac57cdc35e7aab74992a690a4ac58b1dd31d52b0f933d074c7",
+      "status": "passed",
+      "timing_claim": "None; small correctness check."
+    },
+    "self_check": {
+      "calls": 16,
+      "harness_sha256": {
+        "compare_export_linking.py": "7b54f47c1efeb9067aa502d3a11cfb2f8476808d2269f96a88713fd46467b88d",
+        "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+      },
+      "raw_result_path": "/private/tmp/graphicle-scale-export-selfcheck-20261106/results.json",
+      "raw_result_sha256": "398131603b32000495f2ef64b37c1be79f46f77eaba1c65ac069c3142a0fdbeb",
+      "status": "passed",
+      "timing_claim": "None; small correctness check."
+    }
+  },
+  "invariants": [
+    "Existing file-node selection, including Go symbol-as-module fallback, is unchanged.",
+    "relpath precedence, source_file fallback, path normalization and all three external-node filters are unchanged.",
+    "Member indices preserve graph encounter order and first-symbol-name tie winners.",
+    "Language name filters, module-path ordering, package derivation and merged Go exports are unchanged.",
+    "No public API, runtime setting or persisted format changes."
+  ],
+  "limitations": [
+    "One synthetic ten-repository Python/TypeScript/Go fixture; 100000 generated files plus 20 remaining manifests/probes.",
+    "The earlier Python-library deletion remains; four live cross edges and three unresolved imports are preserved.",
+    "Both binaries reject older E3 graph caches by build key; source graph reconstruction is included equally.",
+    "Early calls are slower in both arms; every sample is retained. No assistant build, test, fixture preparation or separate benchmark overlapped a measurement.",
+    "Only export-index rebuilding/relinking improves. No parsing, single-repository update, independent language-semantic correctness, real repository or warm-server claim."
+  ],
+  "pending": [],
+  "release_build": {
+    "build_config_sha256": {
+      "crates/graphicle-memory/.cargo/config.toml": "fa91759077f9c6997c8f923ea082564bd5b885be4040815fa379ba2901201f4c",
+      "crates/graphicle/.cargo/config.toml": "72c7e7ea24e3fcc23d32b48a0b99753f5fe78e64901e7b6f6d068a5da3bed051"
+    },
+    "build_seconds": 548.7766490840586,
+    "changed_from_e7": [
+      "crates/graphicle-memory/src/graph/cross_repo_imports.rs"
+    ],
+    "command": [
+      "/private/tmp/graphicle-merge-cargo",
+      "build",
+      "--release",
+      "--bin",
+      "graphicle",
+      "--locked",
+      "--offline"
+    ],
+    "cwd": "/Users/jensoncs/sharechat/graphicle/crates/graphicle",
+    "exit_code": 0,
+    "log": "/private/tmp/graphicle-scale-e8-release-20261106.log",
+    "metadata_path": "/private/tmp/graphicle-scale-binaries/e8.json",
+    "metadata_sha256": "dcdf8cb79ee1324b97a9cbf26a467611988164d46cabd8a4a62f48f6965f51e8",
+    "parser_configuration": {
+      "PROJECT_ROOT": {
+        "relative": true,
+        "value": "../../.tslp-root"
+      },
+      "TSLP_LANGUAGES": "python,javascript,typescript,tsx,rust,java,c,cpp,ruby,csharp,kotlin,scala,php,lua,swift,go,apex,bash,blade,commonlisp,dart,elixir,fortran,julia,objc,ocaml,pascal,powershell,sql,hcl,verilog,zig,json,yaml,toml,html,css,markdown,xml,r,haskell,make,cmake,dockerfile,vue,svelte,astro,razor,robot",
+      "TSLP_LINK_MODE": "static"
+    },
+    "profile": "release",
+    "rust": "1.94.1",
+    "wrapper_sha256": "648fa7d9e27e82e225ec9041f138c487f79ebd29edec10192837c0439c486fa5"
+  },
+  "scale_comparison": {
+    "binary_sha256": {
+      "baseline": "1de0456ac6e79538fbb97ccd5c0a42c5502b201c4dd63d72d81db53b82a5e82b",
+      "candidate": "307776b7377a322f0bb3b307d5f03acdc1abad8c173a1de47cd0ec57cc85aaf8"
+    },
+    "cpu_count": 18,
+    "expected_cross_sha256": "d47ec688d567d8f9081fc1a78c17caa9975a85373e8c886d72684bd9887edb9d",
+    "fixture": "/private/tmp/graphicle-scale-workspace-100k-20261106",
+    "fixture_result_sha256": "7f2fdede61414adf605bcca9d5820e3b321f83e8ff129212f31d90b9c9ac9a48",
+    "generated_files": 100000,
+    "harness_sha256": {
+      "compare_export_linking.py": "7b54f47c1efeb9067aa502d3a11cfb2f8476808d2269f96a88713fd46467b88d",
+      "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+    },
+    "immutable": {
+      "gf_edges": {
+        "rows": 300036,
+        "sha256": "3b5e6ec9c421457897e95a4bf181cc32e925857ea7f80373893b119fdd8a8310"
+      },
+      "gf_episodes": {
+        "rows": 12,
+        "sha256": "6bfd1bd4536dc3d464319d189c27702e7101e7b0626ee8456d8c3b04cbb49ab0"
+      },
+      "gf_nodes": {
+        "rows": 300055,
+        "sha256": "c7ae6865a8f40955d39e7780246ede8b931cf6977cd66c4c5d542e7465093b63"
+      },
+      "gf_repo_access": {
+        "rows": 1,
+        "sha256": "8358f550b7068843ec264178b13a5dce480d115bd23c435e2c138442cb4d6feb"
+      },
+      "repo_heads": {
+        "rows": 100020,
+        "sha256": "9cc7ef0fb5728024baad73aceae36cd0e4d69ace5a6b96723c6751c2165046d3"
+      },
+      "repo_objects": {
+        "rows": 100022,
+        "sha256": "d9eb1ee6ccc936ea748feb236dc074f687ed35016f19190aa4da1f9d6e88cce2"
+      },
+      "repo_projects": {
+        "rows": 10,
+        "sha256": "a3e914b134e23096e22a00a390a7c871ce8abe228e96243a08733c23bd649838"
+      },
+      "repo_snapshots": {
+        "rows": 12,
+        "sha256": "b24278714b1da6413cfbd34eab62bceb556fc7c9d7888d4a8f006237da297293"
+      }
+    },
+    "limitations": "Synthetic Python/TypeScript/Go workspace with the Python library already deleted. Qualifies export-index rebuilding and cached relinking, not cold parsing, admission, arbitrary import forms, concurrent writers, warm-server requests or real repository SLOs.",
+    "matched_rebuilds": [
+      {
+        "baseline_seconds": 218.59574729111046,
+        "candidate_seconds": 7.606394666945562,
+        "reduction_percent": 96.52033730701271,
+        "sample": 1
+      },
+      {
+        "baseline_seconds": 188.27176654199138,
+        "candidate_seconds": 3.805033667013049,
+        "reduction_percent": 97.97896745916792,
+        "sample": 2
+      },
+      {
+        "baseline_seconds": 100.88685654196888,
+        "candidate_seconds": 3.671256583998911,
+        "reduction_percent": 96.36101598380988,
+        "sample": 3
+      },
+      {
+        "baseline_seconds": 99.59846108302008,
+        "candidate_seconds": 3.441296999924816,
+        "reduction_percent": 96.54482914444196,
+        "sample": 4
+      },
+      {
+        "baseline_seconds": 100.71948991692625,
+        "candidate_seconds": 3.5942089169984683,
+        "reduction_percent": 96.43146632298973,
+        "sample": 5
+      }
+    ],
+    "max_rebuild_rss_change_bytes": 16384,
+    "median_rebuild_reduction_percent": 96.36101598380988,
+    "method": "Same disposable store path restored from SQLite backup per arm; derived cross-link state deleted during untimed setup. Sequential fresh CLI calls with warm OS cache, alternating arm order, one excluded warmup per arm. Compare complete packets and export indexes, all cross rows except creation timestamps, and all source/graph/access rows. Cached link immediately follows each rebuild.",
+    "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+    "project_count": 10,
+    "raw_result_path": "/private/tmp/graphicle-scale-e8-export-100k-20261106/results.json",
+    "raw_result_sha256": "8bdd34ef8c637fd533a37312aea39fdd86a6139cf4074b33a718c0052d40e732",
+    "rows": [
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "0-baseline-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2109325312,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 0,
+        "seconds": 216.28300095791928,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": true,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "0-baseline-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 291389440,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 0,
+        "seconds": 2.0210751249687746,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": true,
+        "workload": "cached"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "0-candidate-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2111406080,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 0,
+        "seconds": 8.125244082999416,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": true,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "0-candidate-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 290275328,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 0,
+        "seconds": 1.8626989999320358,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": true,
+        "workload": "cached"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "1-candidate-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2108702720,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 1,
+        "seconds": 7.606394666945562,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "1-candidate-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 292323328,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 1,
+        "seconds": 1.8241356670623645,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "1-baseline-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2108686336,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 1,
+        "seconds": 218.59574729111046,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "1-baseline-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 291438592,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 1,
+        "seconds": 1.9469773329328746,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "2-baseline-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2103885824,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 2,
+        "seconds": 188.27176654199138,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "2-baseline-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 280330240,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 2,
+        "seconds": 0.7416307079838589,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "2-candidate-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2103263232,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 2,
+        "seconds": 3.805033667013049,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "2-candidate-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 286965760,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 2,
+        "seconds": 0.7826127079315484,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "3-candidate-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2101477376,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 3,
+        "seconds": 3.671256583998911,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "3-candidate-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 287653888,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 3,
+        "seconds": 0.7729017500532791,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "3-baseline-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2100248576,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 3,
+        "seconds": 100.88685654196888,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "3-baseline-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 280346624,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 3,
+        "seconds": 0.7993570409016684,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "4-baseline-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2100576256,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 4,
+        "seconds": 99.59846108302008,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "4-baseline-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 280494080,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 4,
+        "seconds": 0.765075791045092,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "4-candidate-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2101706752,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 4,
+        "seconds": 3.441296999924816,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "4-candidate-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 282738688,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 4,
+        "seconds": 0.7706263749860227,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "5-candidate-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2102247424,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 5,
+        "seconds": 3.5942089169984683,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "candidate",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "5-candidate-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 276119552,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 5,
+        "seconds": 0.789972833939828,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "5-baseline-rebuild",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 2100871168,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 5,
+        "seconds": 100.71948991692625,
+        "stdout_sha256": "62b798cb3d27c1d79941efb5919c58f09cf90dfde54002848a51d752ff3ad00c",
+        "warmup": false,
+        "workload": "rebuild"
+      },
+      {
+        "arm": "baseline",
+        "complete_cross_state_equal": true,
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "immutable_source_graph_access_equal": true,
+        "label": "5-baseline-cached",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 280494080,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 5,
+        "seconds": 0.7895502090686932,
+        "stdout_sha256": "44d30c20603d232f3ba375cf9fabef7410b94db2cbfd56375786b5d7e0960fdf",
+        "warmup": false,
+        "workload": "cached"
+      }
+    ],
+    "samples": 5,
+    "source_files": 100020,
+    "summary": {
+      "cached": {
+        "baseline": {
+          "max_peak_rss_bytes": 291438592,
+          "median_seconds": 0.7895502090686932
+        },
+        "candidate": {
+          "max_peak_rss_bytes": 292323328,
+          "median_seconds": 0.7826127079315484
+        }
+      },
+      "rebuild": {
+        "baseline": {
+          "max_peak_rss_bytes": 2108686336,
+          "median_seconds": 100.88685654196888
+        },
+        "candidate": {
+          "max_peak_rss_bytes": 2108702720,
+          "median_seconds": 3.671256583998911
+        }
+      }
+    }
+  }
+}

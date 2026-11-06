@@ -416,36 +416,51 @@ pub fn list_of(
     for row in &mut values {
         decode(row, "data")?;
     }
-    let original = values.clone();
-    let lookup = Lookup::new(db, s(repository, "id"), documents, &original, None)?;
-    // Every record's reasons in one pass; each equals `reasons` for that record.
-    let nodes: Vec<Value> = original.iter().map(|item| lookup.node(item)).collect();
-    let batched = native("lifecycle.dependencies_all", json!({"nodes":nodes}))?;
-    let allowed: BTreeSet<&str> = lookup.live.keys().copied().collect();
-    for row in &mut values {
-        // A user who cannot read a dependency cannot read its derived memory.
-        let problems: Vec<String> =
-            serde_json::from_value(batched["reasons"][s(row, "id")].clone())?;
-        row["stale"] = json!(!problems.is_empty());
-        row["stale_reasons"] = json!(problems);
-        row["authority"] = row["data"]
-            .get("authority")
-            .cloned()
-            .unwrap_or(json!("member_assertion"));
-        // Only a memory with symbol links has this field.
-        if let Some(summary) =
-            lookup
-                .symbols
-                .summary(Some(s(row, "id")), &row["data"], &lookup.live)
-        {
-            row["symbol_links"] = summary;
-        }
-    }
-    values.retain(|v| {
-        (include_retired || v["state"] != "retired")
-            && accessible_with(&v["data"], &allowed, &lookup.memories)
-    });
-    Ok(values)
+    // Resolve annotations and visibility against the unchanged catalogue, then
+    // release its borrows before applying them. Keep only those small results
+    // alongside the records instead of cloning every body and dependency map.
+    let annotations = {
+        let lookup = Lookup::new(db, s(repository, "id"), documents, &values, None)?;
+        // Every record's reasons in one pass; each equals `reasons` for that record.
+        let nodes: Vec<Value> = values.iter().map(|item| lookup.node(item)).collect();
+        let batched = native("lifecycle.dependencies_all", json!({"nodes":nodes}))?;
+        let allowed: BTreeSet<&str> = lookup.live.keys().copied().collect();
+        values
+            .iter()
+            .map(|row| -> Result<_> {
+                let problems: Vec<String> =
+                    serde_json::from_value(batched["reasons"][s(row, "id")].clone())?;
+                let symbol_links =
+                    lookup
+                        .symbols
+                        .summary(Some(s(row, "id")), &row["data"], &lookup.live);
+                // A user who cannot read a dependency cannot read its derived memory.
+                let visible = (include_retired || row["state"] != "retired")
+                    && accessible_with(&row["data"], &allowed, &lookup.memories);
+                Ok((problems, symbol_links, visible))
+            })
+            .collect::<Result<Vec<_>>>()?
+    };
+    Ok(values
+        .into_iter()
+        .zip(annotations)
+        .filter_map(|(mut row, (problems, symbol_links, visible))| {
+            if !visible {
+                return None;
+            }
+            row["stale"] = json!(!problems.is_empty());
+            row["stale_reasons"] = json!(problems);
+            row["authority"] = row["data"]
+                .get("authority")
+                .cloned()
+                .unwrap_or(json!("member_assertion"));
+            // Only a memory with symbol links has this field.
+            if let Some(summary) = symbol_links {
+                row["symbol_links"] = summary;
+            }
+            Some(row)
+        })
+        .collect())
 }
 pub fn accessible(data: &Value, documents: &[Value], memories: &[Value]) -> bool {
     let allowed: BTreeSet<_> = documents.iter().map(|d| s(d, "id")).collect();

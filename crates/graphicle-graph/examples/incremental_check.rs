@@ -16,6 +16,8 @@ fn order(v: &mut Value) {
         "unresolved_calls",
         "extracted_sources",
         "failed_sources",
+        "content_failed_sources",
+        "skipped_sources",
     ] {
         if let Some(a) = v.get_mut(key).and_then(Value::as_array_mut) {
             a.sort_by_cached_key(|v| graphicle::extract_normalize::canonical(v).to_string());

@@ -1,0 +1,98 @@
+{
+  "decision": "retain in harness only",
+  "experiment": "Benchmark process-accounting correction",
+  "fake_cli_checks": {
+    "json_output": true,
+    "nonzero_exit": true,
+    "resource_receipt": true,
+    "timeout": true
+  },
+  "limitations": "Resource-accounting correctness only. Latencies were not assessed because the release build overlaps. A synthetic Python-script child did not reproduce the inherited-peak effect; the real Mach-O Graphicle child did.",
+  "native_time_attempt": "Unavailable in sandbox: /usr/bin/time -l requires denied sysctl kern.clockrate. No escalation requested.",
+  "new_runner_sha256": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85",
+  "original_harness_sources": "large-repository-harness-v1-2026-11-06.json",
+  "real_cli": {
+    "rows": [
+      {
+        "exit_code": 0,
+        "graph_sha256": "0668a278c733a042e191af2f96cc11ca657c477ddbc7760691d01e5cb1d78294",
+        "kind": "direct",
+        "label": "real-0-direct",
+        "parent_peak_rss": 165134336,
+        "peak_rss_bytes": 202899456,
+        "phase_max_peak_mib": 193.5,
+        "resource_accounting": "fresh Python worker; wait4 of the CLI process",
+        "round": 0,
+        "seconds": 2.62853929202538,
+        "stdout_sha256": "04e4646e15a95e775a6e1e692a491a2d4bc2f2b1095bea99d8737347171c3fc9"
+      },
+      {
+        "exit_code": 0,
+        "graph_sha256": "0668a278c733a042e191af2f96cc11ca657c477ddbc7760691d01e5cb1d78294",
+        "kind": "isolated",
+        "label": "real-0-isolated",
+        "parent_peak_rss": 165134336,
+        "peak_rss_bytes": 51642368,
+        "phase_max_peak_mib": 49.0,
+        "resource_accounting": "fresh Python worker; wait4 of the CLI process",
+        "round": 0,
+        "seconds": 1.2709262910066172,
+        "stdout_sha256": "0c5232f06e8125b41a736986b8e06baa2575a06d970f2fd296e8352e723d1e1e"
+      },
+      {
+        "exit_code": 0,
+        "graph_sha256": "0668a278c733a042e191af2f96cc11ca657c477ddbc7760691d01e5cb1d78294",
+        "kind": "direct",
+        "label": "real-1-direct",
+        "parent_peak_rss": 168067072,
+        "peak_rss_bytes": 51134464,
+        "phase_max_peak_mib": 48.5,
+        "resource_accounting": "fresh Python worker; wait4 of the CLI process",
+        "round": 1,
+        "seconds": 1.2154073340352625,
+        "stdout_sha256": "0c5232f06e8125b41a736986b8e06baa2575a06d970f2fd296e8352e723d1e1e"
+      },
+      {
+        "exit_code": 0,
+        "graph_sha256": "0668a278c733a042e191af2f96cc11ca657c477ddbc7760691d01e5cb1d78294",
+        "kind": "isolated",
+        "label": "real-1-isolated",
+        "parent_peak_rss": 168067072,
+        "peak_rss_bytes": 51757056,
+        "phase_max_peak_mib": 49.1,
+        "resource_accounting": "fresh Python worker; wait4 of the CLI process",
+        "round": 1,
+        "seconds": 1.311929792049341,
+        "stdout_sha256": "0c5232f06e8125b41a736986b8e06baa2575a06d970f2fd296e8352e723d1e1e"
+      },
+      {
+        "exit_code": 0,
+        "graph_sha256": "0668a278c733a042e191af2f96cc11ca657c477ddbc7760691d01e5cb1d78294",
+        "kind": "direct",
+        "label": "real-2-direct",
+        "parent_peak_rss": 168247296,
+        "peak_rss_bytes": 51970048,
+        "phase_max_peak_mib": 49.3,
+        "resource_accounting": "fresh Python worker; wait4 of the CLI process",
+        "round": 2,
+        "seconds": 1.3532551659736782,
+        "stdout_sha256": "0c5232f06e8125b41a736986b8e06baa2575a06d970f2fd296e8352e723d1e1e"
+      },
+      {
+        "exit_code": 0,
+        "graph_sha256": "0668a278c733a042e191af2f96cc11ca657c477ddbc7760691d01e5cb1d78294",
+        "kind": "isolated",
+        "label": "real-2-isolated",
+        "parent_peak_rss": 168247296,
+        "peak_rss_bytes": 51052544,
+        "phase_max_peak_mib": 48.5,
+        "resource_accounting": "fresh Python worker; wait4 of the CLI process",
+        "round": 2,
+        "seconds": 1.1996305829379708,
+        "stdout_sha256": "0c5232f06e8125b41a736986b8e06baa2575a06d970f2fd296e8352e723d1e1e"
+      }
+    ],
+    "scope": "resource accounting reproduction only, not latency evidence; release build overlaps"
+  },
+  "reason": "Real Graphicle unchanged-sync reproducer reports a high inherited peak after a graph snapshot; fresh workers consistently report the CLI peak near 49 MiB"
+}

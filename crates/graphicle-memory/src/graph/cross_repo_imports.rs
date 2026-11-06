@@ -1138,10 +1138,12 @@ pub fn package_identities(manifests: &[PackageManifest]) -> Vec<PackageIdentity>
 struct FileNode {
     index: usize,
     relpath: String,
+    // Non-external nodes at this normalized path, in graph encounter order.
+    members: Vec<usize>,
 }
 
 fn file_nodes(graph: &Graph) -> Vec<FileNode> {
-    let mut by_path: BTreeMap<String, usize> = BTreeMap::new();
+    let mut by_path: BTreeMap<String, (usize, Vec<usize>)> = BTreeMap::new();
     // A file node's id is the node whose `source_file` equals the path and
     // whose label is the file name, or (fallback) the first node per path.
     for (index, node) in graph.nodes().iter().enumerate() {
@@ -1156,23 +1158,29 @@ fn file_nodes(graph: &Graph) -> Vec<FileNode> {
         let is_file = label == file_name(&relpath)
             || attr(attrs, "kind") == Some("file")
             || attr(attrs, "kind") == Some("module");
-        match by_path.get(&relpath) {
+        match by_path.get_mut(&relpath) {
             None => {
-                by_path.insert(relpath, index);
+                by_path.insert(relpath, (index, vec![index]));
             }
-            Some(&existing) if is_file => {
-                let existing_label =
-                    attr(&graph.nodes()[existing].attributes, "label").unwrap_or("");
-                if existing_label != file_name(&relpath) {
-                    by_path.insert(relpath, index);
+            Some((existing, members)) => {
+                members.push(index);
+                if is_file {
+                    let existing_label =
+                        attr(&graph.nodes()[*existing].attributes, "label").unwrap_or("");
+                    if existing_label != file_name(&relpath) {
+                        *existing = index;
+                    }
                 }
             }
-            _ => {}
         }
     }
     by_path
         .into_iter()
-        .map(|(relpath, index)| FileNode { index, relpath })
+        .map(|(relpath, (index, members))| FileNode {
+            index,
+            relpath,
+            members,
+        })
         .collect()
 }
 
@@ -1183,14 +1191,14 @@ fn symbols_of(graph: &Graph, file: &FileNode, ecosystem: Ecosystem) -> BTreeMap<
     // is then both the module node and an exported symbol.
     let file_label = attr(&graph.nodes()[file.index].attributes, "label").unwrap_or("");
     let file_is_symbol = file_label != file_name(&file.relpath);
-    for (index, node) in graph.nodes().iter().enumerate() {
-        if (index == file.index && !file_is_symbol) || is_external(node) {
+    // file_nodes already groups by normalized path and excludes external
+    // nodes. Visiting those members avoids a full graph scan per export file.
+    for &index in &file.members {
+        if index == file.index && !file_is_symbol {
             continue;
         }
+        let node = &graph.nodes()[index];
         let attrs = &node.attributes;
-        if node_relpath(attrs).as_deref() != Some(file.relpath.as_str()) {
-            continue;
-        }
         if attr(attrs, "file_type") == Some("rationale") || attr(attrs, "type") == Some("package") {
             continue;
         }
@@ -2737,6 +2745,171 @@ mod tests {
             "links",
         )
         .unwrap()
+    }
+
+    #[test]
+    fn exports_preserve_path_precedence_file_selection_and_symbol_ties() {
+        let g = graph(
+            vec![
+                node("first", "run()", "./core.py", json!({"kind": "function"})),
+                node("hint", ".hint", "core.py", json!({"kind": "file"})),
+                node("module", ".module", "core.py", json!({"kind": "module"})),
+                node("file", "core.py", r".\core.py", json!({})),
+                node("later_hint", ".later", "core.py", json!({"kind": "file"})),
+                node("duplicate", "run()", "core.py", json!({"kind": "class"})),
+                node("fallback", "fallback()", "core.py", json!({"relpath": ""})),
+                node(
+                    "elsewhere",
+                    "elsewhere()",
+                    "core.py",
+                    json!({"relpath": "other.py"}),
+                ),
+                node(
+                    "boolean_external",
+                    "boolean_external()",
+                    "core.py",
+                    json!({"external": true}),
+                ),
+                node(
+                    "typed_external",
+                    "typed_external()",
+                    "core.py",
+                    json!({"type": "external"}),
+                ),
+                node(
+                    "ref_concept",
+                    "concept_external()",
+                    "core.py",
+                    json!({"file_type": "concept"}),
+                ),
+                node(
+                    "rationale",
+                    "rationale()",
+                    "core.py",
+                    json!({"file_type": "rationale"}),
+                ),
+                node(
+                    "package",
+                    "package()",
+                    "core.py",
+                    json!({"type": "package"}),
+                ),
+                node("method", ".method()", "core.py", json!({})),
+                node("private", "_private()", "core.py", json!({})),
+                node("no_path", "no_path()", "", json!({})),
+            ],
+            vec![],
+        );
+        let index = exports(&g, "repo", Some("ep"), &[]);
+        let core = &index.modules["core"];
+        assert_eq!(core.node_id, "file");
+        assert_eq!(core.stable_id.as_deref(), Some("sid:file"));
+        assert_eq!(core.relpath, "core.py");
+        assert_eq!(
+            core.symbols.keys().map(String::as_str).collect::<Vec<_>>(),
+            ["fallback", "run"]
+        );
+        assert_eq!(core.symbols["run"].node_id, "first");
+        assert_eq!(core.symbols["run"].stable_id.as_deref(), Some("sid:first"));
+        assert_eq!(core.symbols["run"].kind, "function");
+        assert_eq!(core.symbols["fallback"].relpath, "core.py");
+        assert_eq!(index.modules["other"].node_id, "elsewhere");
+        assert_eq!(
+            index.modules["other"].symbols["elsewhere"].node_id,
+            "elsewhere"
+        );
+
+        // Until a basename-labelled node is found, each explicit file/module
+        // marker replaces the fallback, while symbols keep encounter order.
+        let hints = graph(
+            g.to_node_link("links")["nodes"].as_array().unwrap()[..3].to_vec(),
+            vec![],
+        );
+        let index = exports(&hints, "repo", None, &[]);
+        assert_eq!(index.modules["core"].node_id, "module");
+        assert_eq!(index.modules["core"].symbols["run"].node_id, "first");
+    }
+
+    #[test]
+    fn go_symbol_can_be_both_file_fallback_and_export() {
+        let g = graph(
+            vec![
+                node(
+                    "store",
+                    "Store",
+                    "./store/store.go",
+                    json!({"kind": "class"}),
+                ),
+                node("private", "private()", r"store\store.go", json!({})),
+                node("open", "Open()", "store/store.go", json!({})),
+                node("duplicate", "Store", "store/store.go", json!({})),
+            ],
+            vec![],
+        );
+        let manifests = [PackageManifest::new("go.mod", "module example.com/lib\n")];
+        let index = exports(&g, "repo", None, &manifests);
+        let module = &index.modules["example.com/lib/store"];
+        assert_eq!(module.node_id, "store");
+        assert_eq!(
+            module
+                .symbols
+                .keys()
+                .map(String::as_str)
+                .collect::<Vec<_>>(),
+            ["Open", "Store"]
+        );
+        assert_eq!(module.symbols["Store"].node_id, "store");
+        assert_eq!(
+            module.symbols["Store"].stable_id.as_deref(),
+            Some("sid:store")
+        );
+    }
+
+    #[test]
+    fn exports_keep_first_symbols_across_many_interleaved_files() {
+        let count = 2_000;
+        let mut nodes = Vec::new();
+        for i in 0..count {
+            nodes.push(node(
+                &format!("first-{i}"),
+                "run()",
+                &format!("./unit_{i:04}.ts"),
+                json!({}),
+            ));
+        }
+        for i in 0..count {
+            nodes.push(node(
+                &format!("file-{i}"),
+                &format!("unit_{i:04}.ts"),
+                &format!("unit_{i:04}.ts"),
+                json!({}),
+            ));
+        }
+        for i in 0..count {
+            nodes.push(node(
+                &format!("later-{i}"),
+                "run()",
+                &format!(".\\unit_{i:04}.ts"),
+                json!({}),
+            ));
+        }
+        let manifests = [PackageManifest::new(
+            "package.json",
+            r#"{"name":"@test/lib"}"#,
+        )];
+        let index = exports(&graph(nodes, vec![]), "repo", Some("ep"), &manifests);
+        assert_eq!(index.modules.len(), count);
+        for i in 0..count {
+            let module = &index.modules[&format!("@test/lib/unit_{i:04}")];
+            assert_eq!(module.node_id, format!("file-{i}"));
+            assert_eq!(module.relpath, format!("unit_{i:04}.ts"));
+            assert_eq!(module.symbols.len(), 1);
+            assert_eq!(module.symbols["run"].node_id, format!("first-{i}"));
+            assert_eq!(
+                module.symbols["run"].stable_id,
+                Some(format!("sid:first-{i}"))
+            );
+        }
     }
 
     // ── Python ──

@@ -1,0 +1,662 @@
+{
+  "candidate_binary_sha256": "802b54cd69178e2a2acd18ad03e332797cc493287bc67eabb393ed9f49f2cb9c",
+  "candidate_sources": {
+    "crates/graphicle/src/graph_tools.rs": "2a8bec71baf50a47fc26fec416d1cfd51e82f8cd72f20254faf406484b515a69"
+  },
+  "control_binary_sha256": "307776b7377a322f0bb3b307d5f03acdc1abad8c173a1de47cd0ec57cc85aaf8",
+  "correctness": {
+    "new_navigation_cache_history": {
+      "failed": 0,
+      "ignored": 0,
+      "log_path": "/private/tmp/graphicle-scale-e9-navigation-tests-20261106.log",
+      "log_sha256": "3c776636cf0ce95fece80b17c8ddf25cdde10c848c4d871aa7484b65f24f6ed1",
+      "passed": 2
+    },
+    "server": {
+      "failed": 0,
+      "ignored": 0,
+      "log_path": "/private/tmp/graphicle-scale-e9-server-tests-20261106.log",
+      "log_sha256": "2bcf77c9d396932c93081fadbce56bd1900a1c9f14b3e8ccf6a45105d21adcef",
+      "passed": 23
+    },
+    "workspace_scope": {
+      "failed": 0,
+      "ignored": 0,
+      "log_path": "/private/tmp/graphicle-scale-e9-workspace-tests-20261106.log",
+      "log_sha256": "ae0f33e93f9699062529b501d47bf8c45203930a7b6fc561fc7f02d092bad866",
+      "passed": 22
+    }
+  },
+  "date": "2026-11-06",
+  "decision": "retain: 24.6% faster caller/callee navigation and 22.9% faster search, with 6.1% and 12.5% lower maximum peak RSS; every paired candidate sample is faster and complete responses match",
+  "experiment": "E9: reuse verified graph and search-index snapshots for navigation",
+  "format_check": {
+    "log": "/private/tmp/graphicle-scale-e9-format-20261106.log",
+    "passed": true,
+    "scope": "Modified resident function and full query_file.rs test file; unrelated pre-existing graph_tools.rs formatting preserved"
+  },
+  "harness_checks": {
+    "candidate_smoke": {
+      "cache_setup_calls": 2,
+      "harness_sha256": {
+        "compare_export_linking.py": "7b54f47c1efeb9067aa502d3a11cfb2f8476808d2269f96a88713fd46467b88d",
+        "compare_navigation_cache.py": "bf2e11bc5a155ed7177e45783e46cae02c9f96bd8e3c2905dd4035a93986ad5e",
+        "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+      },
+      "navigation_calls": 16,
+      "raw_result_path": "/private/tmp/graphicle-scale-e9-navigation-cache-smoke-20261106/results.json",
+      "raw_result_sha256": "a4368cf6e80fc2d2d91788834c988a0ee4bc1bc5fc04bccc02b6fe30395d9e2b",
+      "status": "passed",
+      "timing_claim": "None; small correctness check."
+    },
+    "self_check": {
+      "cache_setup_calls": 2,
+      "harness_sha256": {
+        "compare_export_linking.py": "7b54f47c1efeb9067aa502d3a11cfb2f8476808d2269f96a88713fd46467b88d",
+        "compare_navigation_cache.py": "bf2e11bc5a155ed7177e45783e46cae02c9f96bd8e3c2905dd4035a93986ad5e",
+        "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+      },
+      "navigation_calls": 16,
+      "raw_result_path": "/private/tmp/graphicle-scale-navigation-cache-selfcheck-20261106/results.json",
+      "raw_result_sha256": "f90b6ed254db4d1e0c5a1c69680d74f855db7a101345262cb4fa86b0c0fe2714",
+      "status": "passed",
+      "timing_claim": "None; small correctness check."
+    }
+  },
+  "invariants": [
+    "Existing query_graph::read owns project/episode/build-key/checksum validation and damaged-cache handling. Missing, disabled, wrong-build and damaged files fall back to graph_projection::load.",
+    "The resident build lock, eviction policy and per-call authorization are unchanged.",
+    "Clustering only adds top-level community, which SearchIndex does not index; graph node and edge order are unchanged.",
+    "Current source hashes, historical episode lag, stale citations and unchecked-relation diagnostics remain exact.",
+    "No new cache writer, persisted format, switch or public API."
+  ],
+  "limitations": [
+    "Two synthetic Python navigation requests on the retained 98999-file graph. Compatible caches prepared independently per binary; no cold OS-cache measurement.",
+    "Measures resident startup in fresh CLI processes. No improvement is claimed for already-warm server requests, parsing, graph building or updates.",
+    "This is an independent comparison against E8. Absolute values from E7 and earlier runs should not be combined into cumulative speedup claims.",
+    "Peak memory remains about 3.0 GiB for caller/callee navigation and 3.6 GiB for search; whole-graph materialization remains costly.",
+    "No build, test, fixture preparation or other benchmark overlapped timed calls. Setup and source/graph/access/cache integrity checks are untimed."
+  ],
+  "pending": [],
+  "release_build": {
+    "build_config_sha256": {
+      "crates/graphicle-memory/.cargo/config.toml": "fa91759077f9c6997c8f923ea082564bd5b885be4040815fa379ba2901201f4c",
+      "crates/graphicle/.cargo/config.toml": "72c7e7ea24e3fcc23d32b48a0b99753f5fe78e64901e7b6f6d068a5da3bed051"
+    },
+    "build_seconds": 255.84966129099485,
+    "changed_from_e8": [
+      "crates/graphicle/src/graph_tools.rs"
+    ],
+    "command": [
+      "/private/tmp/graphicle-merge-cargo",
+      "build",
+      "--release",
+      "--bin",
+      "graphicle",
+      "--locked",
+      "--offline"
+    ],
+    "cwd": "/Users/jensoncs/sharechat/graphicle/crates/graphicle",
+    "exit_code": 0,
+    "log": "/private/tmp/graphicle-scale-e9-release-20261106.log",
+    "metadata_path": "/private/tmp/graphicle-scale-binaries/e9.json",
+    "metadata_sha256": "c8fa6223e2a6522185cb7a5cf51c049a9b03ab29561f43eaa75eb19357f1a5b2",
+    "parser_configuration": {
+      "PROJECT_ROOT": {
+        "relative": true,
+        "value": "../../.tslp-root"
+      },
+      "TSLP_LANGUAGES": "python,javascript,typescript,tsx,rust,java,c,cpp,ruby,csharp,kotlin,scala,php,lua,swift,go,apex,bash,blade,commonlisp,dart,elixir,fortran,julia,objc,ocaml,pascal,powershell,sql,hcl,verilog,zig,json,yaml,toml,html,css,markdown,xml,r,haskell,make,cmake,dockerfile,vue,svelte,astro,razor,robot",
+      "TSLP_LINK_MODE": "static"
+    },
+    "profile": "release",
+    "rust": "1.94.1",
+    "test_source_sha256": {
+      "crates/graphicle/tests/it/query_file.rs": "f38f084e856233f8a16aa7ad712bfb7123e3d2f17a0a7e404f711945a6571d65"
+    },
+    "wrapper_sha256": "648fa7d9e27e82e225ec9041f138c487f79ebd29edec10192837c0439c486fa5"
+  },
+  "scale_comparison": {
+    "benefits": {
+      "neighbors": {
+        "matched_pairs": [
+          {
+            "baseline_seconds": 8.864871165947989,
+            "candidate_seconds": 6.646644959109835,
+            "sample": 1
+          },
+          {
+            "baseline_seconds": 8.75187587493565,
+            "candidate_seconds": 6.603531875065528,
+            "sample": 2
+          },
+          {
+            "baseline_seconds": 8.761308709043078,
+            "candidate_seconds": 6.560923250042833,
+            "sample": 3
+          },
+          {
+            "baseline_seconds": 8.689314207993448,
+            "candidate_seconds": 6.636757832951844,
+            "sample": 4
+          },
+          {
+            "baseline_seconds": 8.846163250040263,
+            "candidate_seconds": 6.59428929106798,
+            "sample": 5
+          }
+        ],
+        "max_rss_reduction_percent": 6.055891783186929,
+        "median_wall_reduction_percent": 24.628476242942764
+      },
+      "search": {
+        "matched_pairs": [
+          {
+            "baseline_seconds": 10.194348499993794,
+            "candidate_seconds": 7.1465951250866055,
+            "sample": 1
+          },
+          {
+            "baseline_seconds": 9.266458499943838,
+            "candidate_seconds": 7.093864792026579,
+            "sample": 2
+          },
+          {
+            "baseline_seconds": 9.18040850001853,
+            "candidate_seconds": 7.073596040951088,
+            "sample": 3
+          },
+          {
+            "baseline_seconds": 9.211093958001584,
+            "candidate_seconds": 7.099904707982205,
+            "sample": 4
+          },
+          {
+            "baseline_seconds": 9.178319166996516,
+            "candidate_seconds": 7.102882249979302,
+            "sample": 5
+          }
+        ],
+        "max_rss_reduction_percent": 12.481993177933525,
+        "median_wall_reduction_percent": 22.920070728248408
+      }
+    },
+    "binary_sha256": {
+      "baseline": "307776b7377a322f0bb3b307d5f03acdc1abad8c173a1de47cd0ec57cc85aaf8",
+      "candidate": "802b54cd69178e2a2acd18ad03e332797cc493287bc67eabb393ed9f49f2cb9c"
+    },
+    "cpu_count": 18,
+    "fixture": "/private/tmp/graphicle-scale-qualify-100k-20261106",
+    "fixture_sha256": {
+      "admit.json": "ecc5536860151c87c489c1ecc07d5dc9279d2f73ea5c8d4962803893d01d8b80",
+      "final-heads.json": "148c6f7b81c89a4ee4a8dffc54212d6fc42fd9c9b7368f91a307d3e3f51307d6",
+      "results.json": "c1d86b557f0506f9e82bc94fa57a83f081415e3378bfe2aec0610c84b33c41c3"
+    },
+    "harness_sha256": {
+      "compare_export_linking.py": "7b54f47c1efeb9067aa502d3a11cfb2f8476808d2269f96a88713fd46467b88d",
+      "compare_navigation_cache.py": "bf2e11bc5a155ed7177e45783e46cae02c9f96bd8e3c2905dd4035a93986ad5e",
+      "large_repositories.py": "4d9717334e6e8cad68ec7aed88ab695dce85b1c166982739ddbb2f08ee35da85"
+    },
+    "immutable": {
+      "gf_edges": {
+        "rows": 296997,
+        "sha256": "e718c2dc23fe96049053ae91d60912debc28a3c3da3dc5a4bf251c9742126225"
+      },
+      "gf_episodes": {
+        "rows": 1,
+        "sha256": "2f50806fd913c2dace31f1c1a8051bf6e2b1dceeee5abc66412b38ce0f07158e"
+      },
+      "gf_nodes": {
+        "rows": 296997,
+        "sha256": "072b5b6c9b27fea415239b5121bdc8b8a01ce50d862c0f545a89381f8724e171"
+      },
+      "gf_repo_access": {
+        "rows": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "repo_heads": {
+        "rows": 98999,
+        "sha256": "499fdeb76d581e70d88dd0a9c047762044d623ff46063f33bda1563fda9a7d24"
+      },
+      "repo_objects": {
+        "rows": 101001,
+        "sha256": "197cec8aaa41423e36c8b02c80392ecc8970d9b14d8584dccff8cd8ce4bb869d"
+      },
+      "repo_projects": {
+        "rows": 1,
+        "sha256": "ce684d1dcb210cd90a708a10bd83b6c2a93829357c3311f70a45c26c67572caf"
+      },
+      "repo_snapshots": {
+        "rows": 2,
+        "sha256": "45f66335383c2faf8ec28dec43ed8af48c54a35474b128149c62c5c804a5d503"
+      }
+    },
+    "limitations": "Synthetic Python search and caller/callee navigation, with compatible saved graphs. Measures first-request resident setup, not warm-server latency, parsing or source updates. Missing/damaged/disabled/wrong-build caches are covered by focused integration tests, not these timings.",
+    "method": "Each binary's cache is prepared through pack in a disposable clone. Stores are parked by rename to use the same path. Fresh CLI and measurement processes, warm OS cache, alternating arm and workload order, one excluded warmup per arm/workload. Complete packets and independent AST citation spans match; all source/graph/access rows and saved graphs remain unchanged.",
+    "platform": "macOS-26.6-arm64-arm-64bit-Mach-O",
+    "prepared_caches": {
+      "baseline": {
+        "graph_bytes": 142761753,
+        "graph_path": "gf-cache/27a632a7ee0c4645be4d555f8959efaf/query/4c220207368e4dca364610092b739662f441605b690d1bb181c8e066da662f68.graph",
+        "graph_sha256": "d00230bb2ba33bfeff3629202b9a4d0619c9f0086c4a19f452378641b2705ba9"
+      },
+      "candidate": {
+        "graph_bytes": 142761753,
+        "graph_path": "gf-cache/27a632a7ee0c4645be4d555f8959efaf/query/4c220207368e4dca364610092b739662f441605b690d1bb181c8e066da662f68.graph",
+        "graph_sha256": "3b94a26081e92a8de7c10c0f3607a61e9e480f77df0910b16987339446d8332a"
+      }
+    },
+    "probe": "unit_00000.py",
+    "raw_result_path": "/private/tmp/graphicle-scale-e9-navigation-cache-100k-20261106/results.json",
+    "raw_result_sha256": "ab9192d0991cd63cd9c73873fd066281f8b9248731e445a7f4e9633b2de634a7",
+    "rows": [
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "0-baseline-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3420422144,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 0,
+        "seconds": 9.710817624931224,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": true,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "0-baseline-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 4366467072,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 0,
+        "seconds": 10.314691709005274,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": true,
+        "workload": "search"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "0-candidate-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3214360576,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 0,
+        "seconds": 6.959757167031057,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": true,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "0-candidate-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3813605376,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 0,
+        "seconds": 7.199955541989766,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": true,
+        "workload": "search"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "1-candidate-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3842179072,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 1,
+        "seconds": 7.1465951250866055,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "1-candidate-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3204661248,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 1,
+        "seconds": 6.646644959109835,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "1-baseline-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 4365058048,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 1,
+        "seconds": 10.194348499993794,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "1-baseline-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3454337024,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 1,
+        "seconds": 8.864871165947989,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "2-baseline-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3447308288,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 2,
+        "seconds": 8.75187587493565,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "2-baseline-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 4390158336,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 2,
+        "seconds": 9.266458499943838,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "2-candidate-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3208462336,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 2,
+        "seconds": 6.603531875065528,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "2-candidate-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3824369664,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 2,
+        "seconds": 7.093864792026579,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "3-candidate-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3828727808,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 3,
+        "seconds": 7.073596040951088,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "3-candidate-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3245146112,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 3,
+        "seconds": 6.560923250042833,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "3-baseline-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 4380737536,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 3,
+        "seconds": 9.18040850001853,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "3-baseline-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3453616128,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 3,
+        "seconds": 8.761308709043078,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "4-baseline-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3431284736,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 4,
+        "seconds": 8.689314207993448,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "4-baseline-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 4374691840,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 4,
+        "seconds": 9.211093958001584,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "4-candidate-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3218784256,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 4,
+        "seconds": 6.636757832951844,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "4-candidate-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3839410176,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 4,
+        "seconds": 7.099904707982205,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "5-candidate-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3837034496,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 5,
+        "seconds": 7.102882249979302,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "candidate",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "5-candidate-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3212820480,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 5,
+        "seconds": 6.59428929106798,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "5-baseline-search",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 4386816000,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 5,
+        "seconds": 9.178319166996516,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "784ecc7cd038271826b2aaf6bda9c0d23acf4207dcc35c5ebd8a1af84dff06e1",
+        "warmup": false,
+        "workload": "search"
+      },
+      {
+        "arm": "baseline",
+        "complete_packet_equal": true,
+        "exit_code": 0,
+        "label": "5-baseline-neighbors",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3437707264,
+        "resource_accounting": "wait4 of the CLI process",
+        "sample": 5,
+        "seconds": 8.846163250040263,
+        "source_spans_checked_against_ast": true,
+        "stdout_sha256": "a2e7563ce9a015af3aebf619f0b489f1c55bcf565ef04c45ac32e7d997f5d5f3",
+        "warmup": false,
+        "workload": "neighbors"
+      }
+    ],
+    "samples": 5,
+    "setup": [
+      {
+        "exit_code": 0,
+        "label": "baseline-prepare",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3141255168,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 6.469881540979259,
+        "stdout_sha256": "e91de643ffe2ac4f67e7b18d9ef49481839ac056a50a3f7d01a656495e010baf"
+      },
+      {
+        "exit_code": 0,
+        "label": "candidate-prepare",
+        "measurement_worker": "fresh Python process",
+        "peak_rss_bytes": 3131375616,
+        "resource_accounting": "wait4 of the CLI process",
+        "seconds": 6.625386666040868,
+        "stdout_sha256": "8c98c814835727ed75bd11c8be1c3d9f35a925f162df644458118c3655e7a63d"
+      }
+    ],
+    "source_files": 98999,
+    "summary": {
+      "neighbors": {
+        "baseline": {
+          "max_peak_rss_bytes": 3454337024,
+          "median_seconds": 8.761308709043078
+        },
+        "candidate": {
+          "max_peak_rss_bytes": 3245146112,
+          "median_seconds": 6.603531875065528
+        }
+      },
+      "search": {
+        "baseline": {
+          "max_peak_rss_bytes": 4390158336,
+          "median_seconds": 9.211093958001584
+        },
+        "candidate": {
+          "max_peak_rss_bytes": 3842179072,
+          "median_seconds": 7.099904707982205
+        }
+      }
+    }
+  },
+  "test_sources": {
+    "crates/graphicle/tests/it/query_file.rs": "f38f084e856233f8a16aa7ad712bfb7123e3d2f17a0a7e404f711945a6571d65"
+  }
+}
