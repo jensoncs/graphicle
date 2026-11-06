@@ -2,6 +2,13 @@
 
 Assessment: suitable for a controlled pilot; not yet production-qualified for
 interactive context and graph management of very large repositories.
+Production use through **Sentinel** was reported by the owner on 2026-11-06.
+A read-only VM check confirms a running Graphicle 0.2.0 artifact labelled
+`9a73af09`; the latest E1–E20 work is committed locally as `d8d9948` and was not
+deployed by this check. The
+[production observation plan](#production-observation-through-sentinel) records
+the initial baseline and next evidence to collect; qualification gates remain open.
+
 E1–E20 are complete. E15 passes the bounded million-file qualification,
 1,341 runtime tests and the 536-case quality gate. E16 retains indexed retrieval
 for graph-enabled and filtered file queries: its 999,999-file replay reports
@@ -33,6 +40,120 @@ count across ten repositories. This qualifies the tested graph and bounded
 retrieval behavior. E16 expands eligible indexed file retrieval on the retained
 fixture after its deliberate deletion; independent recall and interactive
 production performance remain unqualified.
+
+## Completed work and release focus
+
+Substantial implementation and validation are complete. The retained work includes:
+
+| Completed work | Evidence and scope |
+| --- | --- |
+| Million-file scale qualification | E15 passes 73 public CLI checks across ten synthetic repositories, including graph equality, citations, permissions and changed/deleted exporters. |
+| Indexed repository-file coverage fix | E16 removes the indexed-file cutoff; the retained 999,999-file replay reports zero corpus omissions. Independent retrieval quality remains to be qualified. |
+| Reduced graph-loading costs | E17 and E18 avoid unnecessary resident graph loads while preserving complete responses, authorization and freshness checks, with measured latency and RSS improvements. |
+| Catalogue profiling and streamed document construction | E19 identifies the major costs; E20 removes intermediate JSON rows and unnecessary field copies. E20 lowers median latency by 6.1–7.0%, with a 5.3–7.0% increase in maximum RSS. |
+| Regression checks and reproducible evidence | E15 passes 1,341 runtime tests and the 536-case quality gate. Later changes have targeted checks; E20 passes 59 tests and 16 scale queries with identical responses. The full suites still need to run on the release candidate. |
+
+The [production checklist](#pending-work-for-full-production) tracks broad
+acceptance gates with completed implementation recorded under each. An open gate
+means its remaining fixes or validation criteria still need evidence; it does
+not reset the work above or measure the proportion of engineering left.
+
+The release focus is to agree deployment requirements, close the known
+source-restoration freshness and recall gaps for supported workloads, and
+validate representative corpora, concurrent operation and recovery. The current
+release candidate then needs full regression, staging and rollout validation.
+
+Further performance changes should be selected against the agreed latency,
+memory and freshness budgets. Streaming state fingerprints, reducing catalogue
+copies and reducing retained workspace metadata are candidates when those
+budgets require them. Completing every possible optimization is not a release
+criterion. Correctness, authorization, accurate coverage diagnostics and required
+release checks remain acceptance requirements.
+
+## Production observation through Sentinel
+
+The owner reports that Graphicle is integrated into Sentinel and already used
+in production on a VM, without a dedicated dashboard. The owner supplied SSH
+access and `../agent-poc-space` as the integration context. Its runbook documents
+the `graphicle-review.service` persistent server and per-review `graphicle.json`
+records. The existing `cra.context.retrieval_metrics` summarizer reports delivery
+status and p50/p95 stage timings, deduplicating shared attempt IDs for latency.
+Use these records and VM resource/service statistics; a new dashboard is not
+required to begin observation.
+
+Use an initial **three-week observation period**, with proposed reviews on
+2026-11-13, 2026-11-20 and 2026-11-27. No new timer, scheduled review or alert was
+configured. Sentinel already writes the per-review records used for the baseline.
+Separate observations by binary digest and retrieval mode. Qualification of a
+new build starts with that build's own baseline after deployment; observations
+of the older artifact do not validate the later local changes.
+
+### Initial VM baseline: 2026-11-06, 23:03–23:06 IST
+
+The read-only check inspected systemd status, host resources, the live process's
+executable identity and existing review metadata. It changed no service, setting,
+binary or review data, and ran no new review or model call.
+
+| Observed item | Baseline and scope |
+| --- | --- |
+| Sentinel release | `67b1096561dc9472bb3c75dd61a17accc7ce6391` from the deployed release. |
+| Running Graphicle artifact | `graphicle 0.2.0 (core)`, directory label `0.2.0-9a73af09`, executable SHA-256 `8d54c9183731ba5823c883b57153509093507fd64fa896d44bebb5d9f6b3d53f`. The directory label is not a source-build attestation. |
+| Latest local Graphicle work | Commit `d8d9948` contains the later readiness changes, including E20. No deployment or rebuild was performed; do not attribute those changes to the running artifact. |
+| Service state | Persistent Graphicle service active/running; systemd reports zero automatic restarts since its current activation at 19:37 IST. This is not an all-history restart count. |
+| VM resources | 32 CPUs; approximately 56.8 GiB memory available and 39% disk use at the instant sampled. Graphicle's service cgroup used about 30.5 MiB at that instant; this does not establish peak workload memory. |
+| Selected review records | 98 records representing 50 unique attempt IDs across four binary digests. Selection used file modification times in the preceding 24 hours, with no truncation at the 500-record cap and no unreadable records. Frozen attempts can reappear in newer records, so this is not a request-rate measurement. |
+| Running binary's selected records | Six records from three unique attempts; all delivered context and recorded no errors. Each skipped pinned impact analysis with `no_go_change`. No executed pinned impact call for this binary appears in this sample. |
+| Running binary's measured timings | Graphicle section p50/p95 17.13/52.62 seconds, including source preparation; context query stage p50/p95 1.07/2.33 seconds. Only three unique attempts: p95 is the sample maximum, not a reliable tail-latency estimate. These are different operations from the million-file workspace benchmark. |
+| Older binaries in the sample | Nine unique pinned impact attempts delivered evidence but all reported `impact=incomplete` and `coverage_complete=false`, including budget omissions. Keep this coverage limitation visible; delivery success does not establish complete analysis or relevance. |
+
+Raw aggregate snapshots are retained locally in
+`/private/tmp/graphicle-sentinel-vm-baseline-20261106.json` and
+`/private/tmp/graphicle-sentinel-records-baseline-20261106.json`. The latter records
+the deployed summarizer hash, selected record hashes, per-binary results and
+server measurements; source text, questions and review bodies were not exported.
+The read-only collection script is
+`/private/tmp/graphicle-sentinel-records-probe.py`; it uses the existing summarizer.
+The snapshots have SHA-256 digests
+`5bea89b72862a5755d74049262f50054652dee8254359ccb4b03d206f348bd58`
+and `fd72309ee07fa520e3acb0e4b01e76527b7310ff671ca2b26eb9a09b01b8a097`, respectively.
+
+**Still to establish:** workload size and feature coverage, actual traffic and
+concurrency, agreed latency/memory/freshness targets, operational review ownership,
+existing alert thresholds and verified recovery/rollback evidence. Record new
+attempt IDs across reviews so frozen or shared records are not counted as new
+executions. An initial success sample does not close these requirements.
+
+### Observation and review
+
+| Observe in Sentinel | Evidence to retain |
+| --- | --- |
+| Query latency and reliability | Graphicle-call and end-to-end Sentinel p50/p95/p99, request counts, failures, timeouts and fallback frequency; distinguish warm requests, startup and concurrent indexing. |
+| Resource use | Steady and peak RSS, memory growth over sustained load, CPU, disk growth, OOMs and restarts, together with deployment limits and workload size. |
+| Indexing and freshness | Successful/failed updates, update duration, queue age and delay from a source change to a queryable graph; sampled edit/delete/restore outcomes. |
+| Retrieval correctness | Representative expected sources, exact citation bytes, omitted/degraded coverage, memory freshness and permission behavior; retain reproducible incorrect or missing results. |
+| Operational experience | User-reported issues, incident timelines, deployment/configuration changes, recovery actions and their outcomes. |
+
+**Proposed review cadence:** check existing health/error alerts daily, record a
+weekly summary with traffic and workload coverage, and review the three-week
+record against agreed latency, memory, freshness and correctness targets.
+Keep critical correctness fixes actionable during observation. Investigate
+unauthorized evidence, invalid citations, persistent freshness errors, repeated
+OOMs/restarts or sustained budget breaches when they occur; use the deployment's
+incident and rollback procedure rather than waiting for the final review.
+
+Production observation can close gates where the actual workload and evidence
+meet their criteria. A quiet period with little traffic or unexercised features
+does not demonstrate those paths are qualified. The known restored-source
+freshness inconsistency and large-memory recall bound still require targeted
+checks and resolution for supported workloads. Run disruptive recovery and
+failure-injection exercises in staging, and retain full release regression and
+rollback validation as explicit requirements.
+
+**Observation status:** the VM, running artifact and initial metadata baseline
+have been inspected. The current binary's sample is small and covers only the
+context path. Weekly reviews are proposed, not automatically scheduled; acceptance
+targets and broader workload/recovery evidence remain open. No completed
+observation window or full production qualification is claimed.
 
 ## Readiness decision
 
@@ -170,11 +291,14 @@ These measured results are not a released production guarantee.
 ## Pending work for full production
 
 The completed E1–E20 experiments establish the controlled-pilot result above.
-The following work remains open, in recommended order. Each checkbox requires
+The following checkboxes track remaining acceptance criteria across overlapping
+areas of work. Progress notes identify completed fixes; an unchecked category
+does not mean that all its implementation is pending. Each gate requires
 recorded evidence before closure. Production latency, memory, concurrency and
 freshness budgets have not yet been agreed; the measured values are baselines,
-not acceptance targets. Progress notes identify implemented fixes; unchecked
-completion criteria remain open.
+not acceptance targets. Define those targets and prioritize known correctness
+gaps and deployment validation; select additional optimizations where needed
+to meet the targets.
 
 - [ ] **Define the production acceptance envelope.** Keep the one-million-file
   target and specify the intended repository distribution, source bytes,
@@ -199,15 +323,21 @@ completion criteria remain open.
   Evidence: [E15](evidence/large-repository-e15-2026-11-06.json) and
   [E16](evidence/large-repository-e16-2026-11-06.json).
 
-- [ ] **Reduce context and graph-update costs.** E15's fresh-CLI workspace
-  context baseline medians are 32–44 seconds with up to 15.82 GiB peak RSS. One exporter
-  edit takes 132.8 seconds to admit and 349.5 seconds to refresh its graph;
-  deletion refresh takes 194.5 seconds. Profile remaining whole-corpus loading,
-  verification, graph assembly and persistence costs before selecting changes.
-  **Done when:** repeated comparisons show useful improvements and the agreed
-  budgets pass, with exact citations, preserved permissions and graph equality
+- [ ] **Meet production context and graph-update budgets.** The final E20 replay
+  measures fresh-CLI workspace context medians of 8.26/9.06 seconds and maximum
+  RSS of 3.78/3.84 GiB with cross-repository retrieval off/on. These synthetic
+  results record completed improvements; deployment budgets still need to be
+  defined and tested. Graph-update costs remain unchanged by E16–E20: E15's
+  exporter edit takes 132.8 seconds to admit and 349.5 seconds to refresh its
+  graph; deletion refresh takes 194.5 seconds. Profile and address costs that
+  prevent the intended deployment from meeting its budgets.
+  **Done when:** representative query, indexing and update workloads meet the
+  agreed budgets, with exact citations, preserved permissions and graph equality
   after edits, renames and deletions. Measure warm-server requests separately
-  from fresh-process startup. Evidence: [E15](evidence/large-repository-e15-2026-11-06.json).
+  from fresh-process startup. Further optimization is not required solely
+  because a measurable cost remains. Evidence:
+  [E15](evidence/large-repository-e15-2026-11-06.json) and
+  [E20](evidence/large-repository-e20-2026-11-06.json).
   **Progress:** E16 removes the indexed-file coverage cutoff. E17 avoids full
   source-graph loading when the property graph must degrade and saved file
   relationships suffice. Its paired medians are 14.64/16.77 seconds; maximum
@@ -228,10 +358,12 @@ completion criteria remain open.
   JSON row collection is gone. SQL, metadata, state hashes and complete query
   responses are preserved. See the paired measurements and limitations in
   [E20](evidence/large-repository-e20-2026-11-06.json).
-  **Next focused change:** stream state fingerprint serialization while keeping
-  byte-identical digests. Then investigate avoidable catalogue copies and
-  retained workspace metadata. Those changes still need independent correctness
-  and impact checks. Graph-update behavior and costs have not changed in E16–E20.
+  **Candidate performance work, if needed to meet budgets:** stream state
+  fingerprint serialization while keeping byte-identical digests, then assess
+  avoidable catalogue copies and retained workspace metadata. These are proposed
+  improvements with independent correctness and impact checks required; they
+  are not unconditional release prerequisites. Graph-update behavior and costs
+  have not changed in E16–E20.
 
 - [ ] **Reconcile memory freshness after source restoration (E11-F1).** Restored
   source bytes make dependent notes eligible again while `gf_stale` still marks
@@ -276,6 +408,11 @@ completion criteria remain open.
   lag and error monitoring and a tested rollback procedure. **Done when:** the
   reviewed release has reproducible build identity, passing required checks and
   recorded staging/rollback results.
+  **Deployment progress:** production use through Sentinel and the running
+  artifact have been inspected; the initial baseline is recorded above. The latest
+  local readiness commit has not been deployed by this work. Continue collecting
+  evidence against the actual build; deployment itself does not close the
+  remaining release-validation criteria.
 
 ## Million-file measured envelope
 
@@ -2029,9 +2166,10 @@ or runs are pooled, and the initial run is not presented as a success.
 
 **Remaining work:** every final document record is still retained through
 workspace fusion. This change removes intermediate allocations; it does not
-make the final catalogue bounded or qualify concurrent production use. Next,
-stream state fingerprint serialization with byte-identical digests, then assess
-avoidable property/assembly catalogue clones and retained workspace metadata.
+make the final catalogue bounded or qualify concurrent production use. If the
+agreed resource budgets require further reductions, candidate changes are
+streaming state fingerprint serialization with byte-identical digests, avoiding
+property/assembly catalogue clones and reducing retained workspace metadata.
 The property-graph budget, connector bounds, graph-update costs and
 source-restoration freshness work remain open.
 
