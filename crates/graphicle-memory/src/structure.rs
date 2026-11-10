@@ -635,11 +635,20 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
             .ok_or("Source parsing did not complete")?;
         if ext == "py" {
             environment = python_environment::analyze(tree.root_node(), content.as_bytes(), limits);
-            let env_issues = environment["issues"].as_array().expect("bounded environment analysis");
-            environment_limited = env_issues.iter().any(|i| i == "python_environment_operation_limit");
-            nodes_stopped |= env_issues.iter().any(|i| i == "python_environment_node_limit");
+            let env_issues = environment["issues"]
+                .as_array()
+                .expect("bounded environment analysis");
+            environment_limited = env_issues
+                .iter()
+                .any(|i| i == "python_environment_operation_limit");
+            nodes_stopped |= env_issues
+                .iter()
+                .any(|i| i == "python_environment_node_limit");
             if environment_limited {
-                issues.push(format!("Environment operation list truncated at {}",counted(limits.calls, "operation", "operations")));
+                issues.push(format!(
+                    "Environment operation list truncated at {}",
+                    counted(limits.calls, "operation", "operations")
+                ));
             }
         }
         if tree.root_node().has_error() {

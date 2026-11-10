@@ -220,10 +220,10 @@ pub(super) fn analyze(root: Node<'_>, raw: &[u8], limits: &Limits) -> Value {
         if let Some(parameters) = node.child_by_field_name("parameters") {
             pattern_names(parameters, raw, &mut unsafe_names);
         }
-        if matches!(node.kind(), "function_definition" | "class_definition") {
-            if let Some(name) = node.child_by_field_name("name") {
-                pattern_names(name, raw, &mut unsafe_names);
-            }
+        if matches!(node.kind(), "function_definition" | "class_definition")
+            && let Some(name) = node.child_by_field_name("name")
+        {
+            pattern_names(name, raw, &mut unsafe_names);
         }
         if matches!(
             node.kind(),
@@ -232,16 +232,14 @@ pub(super) fn analyze(root: Node<'_>, raw: &[u8], limits: &Limits) -> Value {
                 | "named_expression"
                 | "for_statement"
                 | "for_in_clause"
-        ) {
-            if let Some(target) = node
-                .child_by_field_name("left")
-                .or_else(|| node.child_by_field_name("name"))
-            {
-                if target.kind() == "attribute" {
-                    assignment_names(target, raw, &mut unsafe_names);
-                } else if target.kind() != "subscript" {
-                    pattern_names(target, raw, &mut unsafe_names);
-                }
+        ) && let Some(target) = node
+            .child_by_field_name("left")
+            .or_else(|| node.child_by_field_name("name"))
+        {
+            if target.kind() == "attribute" {
+                assignment_names(target, raw, &mut unsafe_names);
+            } else if target.kind() != "subscript" {
+                pattern_names(target, raw, &mut unsafe_names);
             }
         }
         if matches!(
@@ -335,19 +333,17 @@ pub(super) fn analyze(root: Node<'_>, raw: &[u8], limits: &Limits) -> Value {
             {
                 consumed.insert((node.start_byte(), node.end_byte()));
             }
-        } else if node.kind() == "subscript" {
-            if let Some(object) = node.child_by_field_name("value") {
-                if binding(object, raw, &imports, &unsafe_names, node.start_byte())
-                    == Some(Binding::Environ)
-                {
-                    operation = Some((
-                        if written(node) { "write" } else { "read" },
-                        node.child_by_field_name("subscript")
-                            .and_then(|n| key(n, raw)),
-                    ));
-                    consumed.insert((object.start_byte(), object.end_byte()));
-                }
-            }
+        } else if node.kind() == "subscript"
+            && let Some(object) = node.child_by_field_name("value")
+            && binding(object, raw, &imports, &unsafe_names, node.start_byte())
+                == Some(Binding::Environ)
+        {
+            operation = Some((
+                if written(node) { "write" } else { "read" },
+                node.child_by_field_name("subscript")
+                    .and_then(|n| key(n, raw)),
+            ));
+            consumed.insert((object.start_byte(), object.end_byte()));
         }
         if let Some((kind, key)) = operation {
             if operations.len() >= limits.calls {

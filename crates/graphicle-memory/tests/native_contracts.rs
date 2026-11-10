@@ -43,9 +43,13 @@ fn lexical_retrieval_rejects_duplicate_identities_and_unknown_modes() {
 
 #[test]
 fn memory_fusion_diagnostics_are_bounded_and_preserve_selection() {
-    let rows: Vec<_> = (0..3).map(|i| json!({"identity":format!("note{i}"),
+    let rows: Vec<_> = (0..3)
+        .map(|i| {
+            json!({"identity":format!("note{i}"),
         "kind":"memory", "origin":"memory", "title":"Retention policy",
-        "text":format!("Retain fiscal records for {} years", i + 1)})).collect();
+        "text":format!("Retain fiscal records for {} years", i + 1)})
+        })
+        .collect();
     let mut request = json!({"scope":"memory-debug-contract","rows":rows,
         "question":"fiscal retention policy","limit":2});
     let plain = retrieval::rank(&request).unwrap();

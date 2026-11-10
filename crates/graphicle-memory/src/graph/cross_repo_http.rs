@@ -114,10 +114,10 @@ fn compatible(method: &str, request: &str, route: &RouteExport) -> bool {
     if request.starts_with("//") || (!request.starts_with('/') && origin(request).is_none()) {
         return false;
     }
-    if let Some(host) = origin(request) {
-        if route.origin.as_deref().and_then(origin).as_deref() != Some(host.as_str()) {
-            return false;
-        }
+    if let Some(host) = origin(request)
+        && route.origin.as_deref().and_then(origin).as_deref() != Some(host.as_str())
+    {
+        return false;
     }
     graphicle::extractors::routes::http_path_matches(&route.path, request)
 }

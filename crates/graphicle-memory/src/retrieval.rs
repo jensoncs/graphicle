@@ -854,11 +854,16 @@ pub fn rank(request: &Value) -> Result<Value> {
     // The source-only fused prefix cannot explain memory selection misses.
     // Keep a separate bounded memory prefix, with actual fusion scores.
     let memory_fused: Vec<Value> = if debug_fused > 0 {
-        remaining.iter().filter(|(id, _)| rows[ids[id]]["kind"] == "memory")
-            .take(debug_fused).enumerate()
+        remaining
+            .iter()
+            .filter(|(id, _)| rows[ids[id]]["kind"] == "memory")
+            .take(debug_fused)
+            .enumerate()
             .map(|(rank, (id, score))| json!({"identity":id,"rank":rank + 1,"score":score}))
             .collect()
-    } else { Vec::new() };
+    } else {
+        Vec::new()
+    };
     // Evidence strength (Tiermem's router features, memind's strong signal):
     // weak when the best passages cover little of the question, or the best
     // lexical score is low and barely above the next.
