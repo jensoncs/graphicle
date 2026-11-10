@@ -6,6 +6,11 @@ kit: the tools that measure the retrieval options of the runtime README (its
 "Retrieval defaults" and "Benchmark kit" sections) and the transport the
 answer evaluations use.
 
+The [interpretation-guidance evaluation](claim-guidance.md) records the measured
+benefits and limits of the shared helper-attribution and predicate-condition
+instructions. It is a small paired generation study, not a production accuracy
+estimate.
+
 | Tool | What it measures | Model calls |
 |---|---|---|
 | `tools/retrieval_recall.py` | LongMemEval-S/M retrieval recall. Each question's sessions are synced into a fresh store, and the `context` packet is scored against the dataset's support labels: session recall, all-sessions recall, turn coverage and tokens, with McNemar tests for `--paired` variants | None; dense and reranked variants run local ONNX models |
