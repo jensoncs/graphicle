@@ -84,6 +84,7 @@ pub fn capture_bounded(
     max_bytes: usize,
 ) -> io::Result<Output> {
     let timeout = bounded_timeout(timeout)?;
+    let started = Instant::now();
     fn drain(mut stream: impl Read, max: usize) -> io::Result<Vec<u8>> {
         let mut bytes = Vec::new();
         let mut buffer = [0u8; 8192];
@@ -111,15 +112,30 @@ pub fn capture_bounded(
         use std::os::unix::process::CommandExt;
         command.process_group(0);
     }
-    let mut child = command
+    command
         .stdin(if input.is_some() {
             Stdio::piped()
         } else {
             Stdio::null()
         })
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()?;
+        .stderr(Stdio::piped());
+    let mut child = loop {
+        if started.elapsed() >= timeout {
+            return Err(io::Error::new(io::ErrorKind::TimedOut, "command timed out"));
+        }
+        match command.spawn() {
+            Ok(child) => break child,
+            // A concurrent fork can briefly retain the writable descriptor of
+            // a freshly materialized helper, even after this thread closed it.
+            // No child ran on ETXTBSY; retry without extending its time budget.
+            Err(error) if error.kind() == io::ErrorKind::ExecutableFileBusy => {
+                let remaining = timeout.saturating_sub(started.elapsed());
+                std::thread::sleep(remaining.min(Duration::from_millis(10)));
+            }
+            Err(error) => return Err(error),
+        }
+    };
     let writer = input.map(|bytes| {
         let mut stdin = child.stdin.take().expect("piped stdin");
         std::thread::spawn(move || stdin.write_all(&bytes))
@@ -129,7 +145,7 @@ pub fn capture_bounded(
     let stderr = child.stderr.take().expect("piped stderr");
     let out = std::thread::spawn(move || drain(stdout, max_bytes));
     let err = std::thread::spawn(move || drain(stderr, max_bytes));
-    let status = child.wait_timeout(timeout);
+    let status = child.wait_timeout(timeout.saturating_sub(started.elapsed()));
     if !matches!(status, Ok(Some(_))) {
         #[cfg(unix)]
         {
@@ -175,6 +191,77 @@ pub fn capture_bounded(
 mod tests {
     #[cfg(unix)]
     use super::*;
+
+    #[cfg(target_os = "linux")]
+    fn busy_executable() -> (tempfile::TempDir, std::fs::File, Command) {
+        let directory = tempfile::tempdir().unwrap();
+        let executable = directory.path().join("cat");
+        std::fs::copy("/bin/cat", &executable).unwrap();
+        let writer = std::fs::OpenOptions::new()
+            .write(true)
+            .open(&executable)
+            .unwrap();
+        let mut command = Command::new(executable);
+        assert_eq!(
+            command.spawn().unwrap_err().kind(),
+            io::ErrorKind::ExecutableFileBusy
+        );
+        (directory, writer, command)
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn transient_busy_executable_recovers_and_preserves_input() {
+        let (_directory, writer, mut command) = busy_executable();
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(50));
+            drop(writer);
+        });
+        let output = capture_with_input(
+            &mut command,
+            Duration::from_secs(5),
+            Some(b"recovered\n".to_vec()),
+        );
+        release.join().unwrap();
+        let output = output.unwrap();
+        assert!(output.success);
+        assert_eq!(output.stdout, b"recovered\n");
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn busy_executable_retry_respects_command_and_request_deadlines() {
+        let (_directory, _writer, mut command) = busy_executable();
+        for request_deadline in [false, true] {
+            let started = Instant::now();
+            let _scope =
+                deadline_scope(request_deadline.then_some(started + Duration::from_millis(40)));
+            let timeout = if request_deadline {
+                Duration::from_secs(5)
+            } else {
+                Duration::from_millis(40)
+            };
+            assert_eq!(
+                capture(&mut command, timeout).err().unwrap().kind(),
+                io::ErrorKind::TimedOut
+            );
+            assert!(started.elapsed() < Duration::from_secs(2));
+        }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn missing_executable_is_not_retried() {
+        let directory = tempfile::tempdir().unwrap();
+        let started = Instant::now();
+        let result = capture(
+            &mut Command::new(directory.path().join("missing")),
+            Duration::from_secs(5),
+        );
+        assert_eq!(result.err().unwrap().kind(), io::ErrorKind::NotFound);
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
     #[test]
     #[cfg(unix)]
     fn request_deadline_bounds_children_and_does_not_leak_to_the_next_request() {
