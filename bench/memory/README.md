@@ -29,6 +29,11 @@ kit: the tools that measure the retrieval options of the runtime README (its
 "Retrieval defaults" and "Benchmark kit" sections) and the transport the
 answer evaluations use.
 
+The [interpretation-guidance evaluation](claim-guidance.md) records the measured
+benefits and limits of the shared helper-attribution and predicate-condition
+instructions. It is a small paired generation study, not a production accuracy
+estimate.
+
 | Tool | What it measures | Model calls |
 |---|---|---|
 | `tools/symbol_link_precision.py` | Paired symbol-links off/counted/on: reviewed-memory precision, recall, false positives, correct empty-memory results, and context tokens. Includes synthetic coding regression fixtures; accepts separately labelled held-out projects | None by default; explicit local reranker optional |
