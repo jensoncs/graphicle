@@ -13,20 +13,44 @@ fn js_method_import_aliases_keep_the_method_caller_and_respect_shadowing() {
     let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().canonicalize().unwrap();
-    write(&root,"sender.js",concat!(
-        "import { pauseFor as retryWait } from './policy.js';\n",
-        "export class Sender { async send(attempt) { return retryWait(attempt); } }\n",
-        "export class Shadow { send(retryWait) { return retryWait(2); } }\n",
-        "export class Local { send() { const retryWait = x => x; return retryWait(2); } }\n"
-    ));
-    write(&root,"policy.js","export const pauseFor = n => Math.min(n, 30);\n");
-    let options = ExtractOptions { root:Some(root.clone()), cache_root:Some(root.clone()), ..Default::default() };
+    write(
+        &root,
+        "sender.js",
+        concat!(
+            "import { pauseFor as retryWait } from './policy.js';\n",
+            "export class Sender { async send(attempt) { return retryWait(attempt); } }\n",
+            "export class Shadow { send(retryWait) { return retryWait(2); } }\n",
+            "export class Local { send() { const retryWait = x => x; return retryWait(2); } }\n"
+        ),
+    );
+    write(
+        &root,
+        "policy.js",
+        "export const pauseFor = n => Math.min(n, 30);\n",
+    );
+    let options = ExtractOptions {
+        root: Some(root.clone()),
+        cache_root: Some(root.clone()),
+        ..Default::default()
+    };
     for _ in 0..2 {
-        let graph = extract(&[root.join("sender.js"),root.join("policy.js")],&options).unwrap();
-        let calls: Vec<_> = graph["edges"].as_array().unwrap().iter()
-            .filter(|e| e["relation"] == "calls" && e["target"] == "policy_pausefor").collect();
-        assert!(calls.iter().any(|e| e["source"] == "sender_sender_send"),"{graph:#}");
-        assert!(!calls.iter().any(|e| e["source"] == "sender_shadow_send" || e["source"] == "sender_local_send"),"{graph:#}");
+        let graph = extract(&[root.join("sender.js"), root.join("policy.js")], &options).unwrap();
+        let calls: Vec<_> = graph["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["relation"] == "calls" && e["target"] == "policy_pausefor")
+            .collect();
+        assert!(
+            calls.iter().any(|e| e["source"] == "sender_sender_send"),
+            "{graph:#}"
+        );
+        assert!(
+            !calls
+                .iter()
+                .any(|e| e["source"] == "sender_shadow_send" || e["source"] == "sender_local_send"),
+            "{graph:#}"
+        );
     }
 }
 
@@ -129,16 +153,43 @@ fn extracted_callback_candidates_remain_inferred_and_keep_unresolved_dispatch() 
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().canonicalize().unwrap();
     write(&root, "go.mod", "module example/fixture\ngo 1.23\n");
-    write(&root, "main.go", "package fixture\nfunc A() {}\nfunc B() {}\nfunc Invoke(callback func()) { callback() }\nfunc Use() { Invoke(A) }\n");
-    let graph = extract(&[root.join("main.go")], &ExtractOptions { root: Some(root.clone()), cache_root: Some(root), ..Default::default() }).unwrap();
-    let calls: Vec<_> = graph["edges"].as_array().unwrap().iter().filter(|e|e["relation"] == "may_call").collect();
+    write(
+        &root,
+        "main.go",
+        "package fixture\nfunc A() {}\nfunc B() {}\nfunc Invoke(callback func()) { callback() }\nfunc Use() { Invoke(A) }\n",
+    );
+    let graph = extract(
+        &[root.join("main.go")],
+        &ExtractOptions {
+            root: Some(root.clone()),
+            cache_root: Some(root),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let calls: Vec<_> = graph["edges"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|e| e["relation"] == "may_call")
+        .collect();
     assert_eq!(calls.len(), 1, "{graph}");
     assert_eq!(calls[0]["evidence"], "function_value_candidate");
     assert_eq!(calls[0]["confidence"], "INFERRED");
     let nodes = graph["nodes"].as_array().unwrap();
-    let target = nodes.iter().find(|n|n["id"] == calls[0]["target"]).unwrap();
+    let target = nodes
+        .iter()
+        .find(|n| n["id"] == calls[0]["target"])
+        .unwrap();
     assert_eq!(target["source_location"], "L2");
-    assert!(graph["unresolved_calls"].as_array().unwrap().iter().any(|c|c["reason"] == "unresolved_type"), "{graph}");
+    assert!(
+        graph["unresolved_calls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["reason"] == "unresolved_type"),
+        "{graph}"
+    );
 }
 
 #[test]

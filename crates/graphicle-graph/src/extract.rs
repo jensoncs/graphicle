@@ -405,8 +405,14 @@ pub fn register_resolvers() {
                 Ok(())
             }),
         );
-        add("helm_references", &[".yaml", ".yml", ".tpl", ".gotmpl"],
-            Arc::new(|p, n, e| { extractors::helm::resolve(p, n, e); Ok(()) }));
+        add(
+            "helm_references",
+            &[".yaml", ".yml", ".tpl", ".gotmpl"],
+            Arc::new(|p, n, e| {
+                extractors::helm::resolve(p, n, e);
+                Ok(())
+            }),
+        );
         // The member passes read the per-file results and the edges in
         // either form, so none of them turns assembly's lists back to JSON.
         for (name, lang, ext) in [
@@ -2646,20 +2652,40 @@ mod tests {
         let file = root.join("values.yaml");
         std::fs::write(&file, "service:\n  port: 80\n").unwrap();
         let options = ExtractOptions {
-            root: Some(root.clone()), cache_root: Some(root.join("cache")),
-            parallel: false, ..Default::default()
+            root: Some(root.clone()),
+            cache_root: Some(root.join("cache")),
+            parallel: false,
+            ..Default::default()
         };
         let run = || extract(std::slice::from_ref(&file), &options).unwrap();
         let plain = run();
-        assert!(!plain["nodes"].as_array().unwrap().iter().any(|n| n.get("_helm_kind").is_some()));
+        assert!(
+            !plain["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|n| n.get("_helm_kind").is_some())
+        );
         std::fs::write(root.join("Chart.yaml"), "name: parcel\n").unwrap();
         for _ in 0..2 {
             let chart = run();
-            assert!(chart["nodes"].as_array().unwrap().iter().any(|n| n["label"] == "Values.service.port"));
+            assert!(
+                chart["nodes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|n| n["label"] == "Values.service.port")
+            );
         }
         std::fs::remove_file(root.join("Chart.yaml")).unwrap();
         let plain = run();
-        assert!(!plain["nodes"].as_array().unwrap().iter().any(|n| n.get("_helm_kind").is_some()));
+        assert!(
+            !plain["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|n| n.get("_helm_kind").is_some())
+        );
     }
 
     #[cfg(unix)]

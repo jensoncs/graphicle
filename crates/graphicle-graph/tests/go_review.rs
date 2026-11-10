@@ -20,7 +20,11 @@ fn run(
 }
 #[test]
 fn interface_candidates_require_the_whole_contract_and_keep_dispatch_unresolved() {
-    let root = tree(&[("app/go.mod", "module example/app\ngo 1.23\n"), ("app/main.go", r#"package app
+    let root = tree(&[
+        ("app/go.mod", "module example/app\ngo 1.23\n"),
+        (
+            "app/main.go",
+            r#"package app
 type Store interface { Load() ([]string,error); Ready() bool }
 type A struct{}
 func (*A) Load() ([]string,error) { return nil, failure{} }
@@ -36,13 +40,32 @@ func Ignore(s Store) { items,_ := s.Load(); _ = items }
 func Handle(s Store) error { _,err := s.Load(); return err }
 func Unassigned(s Store) { s.Load() }
 func Declaration(s Store) { var items, _ = s.Load(); _ = items }
-"#)]);
+"#,
+        ),
+    ]);
     let report = run(&root, &["app"], &[], false, "");
     let calls = report["worlds"][0]["calls"].as_array().unwrap();
     for caller in ["Ignore", "Handle", "Unassigned", "Declaration"] {
-        let calls: Vec<_> = calls.iter().filter(|c| c["caller"].as_str().unwrap().contains(&format!(".{caller}|")) && c["spelling"] == "s.Load").collect();
-        assert!(calls.iter().any(|c| c["reason"] == "interface_dispatch" && c.get("target").is_none()), "{report}");
-        let possible: Vec<_> = calls.iter().filter(|c| c["relation"] == "may_call").collect();
+        let calls: Vec<_> = calls
+            .iter()
+            .filter(|c| {
+                c["caller"]
+                    .as_str()
+                    .unwrap()
+                    .contains(&format!(".{caller}|"))
+                    && c["spelling"] == "s.Load"
+            })
+            .collect();
+        assert!(
+            calls
+                .iter()
+                .any(|c| c["reason"] == "interface_dispatch" && c.get("target").is_none()),
+            "{report}"
+        );
+        let possible: Vec<_> = calls
+            .iter()
+            .filter(|c| c["relation"] == "may_call")
+            .collect();
         assert_eq!(possible.len(), 2, "{report}");
         for call in possible {
             assert_eq!(call["evidence"], "interface_implementation");
@@ -54,40 +77,85 @@ func Declaration(s Store) { var items, _ = s.Load(); _ = items }
 
 #[test]
 fn discarded_error_candidates_survive_interface_site_budget() {
-    let source = format!("package app\ntype Store interface {{ Load() (int,error) }}\ntype S struct{{}}\nfunc (S) Load() (int,error) {{ return 0,nil }}\nfunc AHandled(s Store) error {{ var err error; {} return err }}\nfunc ZDiscarded(s Store) {{ _,_ = s.Load() }}\n", "_,err = s.Load();".repeat(20_001));
-    let root = tree(&[("app/go.mod", "module example/app\ngo 1.23\n"), ("app/main.go", &source)]);
+    let source = format!(
+        "package app\ntype Store interface {{ Load() (int,error) }}\ntype S struct{{}}\nfunc (S) Load() (int,error) {{ return 0,nil }}\nfunc AHandled(s Store) error {{ var err error; {} return err }}\nfunc ZDiscarded(s Store) {{ _,_ = s.Load() }}\n",
+        "_,err = s.Load();".repeat(20_001)
+    );
+    let root = tree(&[
+        ("app/go.mod", "module example/app\ngo 1.23\n"),
+        ("app/main.go", &source),
+    ]);
     let report = run(&root, &["app"], &[], false, "");
     let calls = report["worlds"][0]["calls"].as_array().unwrap();
-    assert!(calls.iter().any(|c| c["caller"].as_str().unwrap().contains(".ZDiscarded|") && c["relation"] == "may_call" && c["discarded_error"] == true));
-    assert!(calls.iter().any(|c| c["reason"] == "interface_candidate_budget"));
+    assert!(
+        calls
+            .iter()
+            .any(|c| c["caller"].as_str().unwrap().contains(".ZDiscarded|")
+                && c["relation"] == "may_call"
+                && c["discarded_error"] == true)
+    );
+    assert!(
+        calls
+            .iter()
+            .any(|c| c["reason"] == "interface_candidate_budget")
+    );
 }
 
 #[test]
 fn interface_candidates_respect_consumer_instances_and_build_tags() {
     let root = tree(&[
-        ("one/go.mod", "module example/one\ngo 1.23\nrequire example/dep v1.0.0\nreplace example/dep => ../v1\n"),
-        ("one/main.go", "package one\nimport \"example/dep\"\nfunc Use(s dep.Store) { _,_ = s.Load() }\n"),
-        ("two/go.mod", "module example/two\ngo 1.23\nrequire example/dep v1.1.0\nreplace example/dep => ../v2\n"),
-        ("two/main.go", "package two\nimport \"example/dep\"\nfunc Use(s dep.Store) { _,_ = s.Load() }\n"),
+        (
+            "one/go.mod",
+            "module example/one\ngo 1.23\nrequire example/dep v1.0.0\nreplace example/dep => ../v1\n",
+        ),
+        (
+            "one/main.go",
+            "package one\nimport \"example/dep\"\nfunc Use(s dep.Store) { _,_ = s.Load() }\n",
+        ),
+        (
+            "two/go.mod",
+            "module example/two\ngo 1.23\nrequire example/dep v1.1.0\nreplace example/dep => ../v2\n",
+        ),
+        (
+            "two/main.go",
+            "package two\nimport \"example/dep\"\nfunc Use(s dep.Store) { _,_ = s.Load() }\n",
+        ),
         ("v1/go.mod", "module example/dep\ngo 1.23\n"),
         ("v2/go.mod", "module example/dep\ngo 1.23\n"),
     ]);
     for version in ["v1", "v2"] {
-        std::fs::write(root.path().join(version).join("main.go"), "package dep\ntype Store interface { Load() (int,error) }\ntype S struct{}\n").unwrap();
+        std::fs::write(
+            root.path().join(version).join("main.go"),
+            "package dep\ntype Store interface { Load() (int,error) }\ntype S struct{}\n",
+        )
+        .unwrap();
         for (file, tag) in [("active.go", "pilot"), ("inactive.go", "!pilot")] {
             std::fs::write(root.path().join(version).join(file), format!("//go:build {tag}\npackage dep\nfunc (S) Load() (int,error) {{ return 0,nil }}\n")).unwrap();
         }
     }
     let report = run(&root, &["one", "two", "v1", "v2"], &["pilot"], false, "");
-    for (index, version) in [(0,"v1"), (1,"v2")] {
+    for (index, version) in [(0, "v1"), (1, "v2")] {
         let calls = report["worlds"][index]["calls"].as_array().unwrap();
-        let candidates: Vec<_> = calls.iter().filter(|c| c["relation"] == "may_call").collect();
+        let candidates: Vec<_> = calls
+            .iter()
+            .filter(|c| c["relation"] == "may_call")
+            .collect();
         assert_eq!(candidates.len(), 1);
         assert_eq!(candidates[0]["target_file"], format!("{version}/active.go"));
     }
-    std::fs::write(root.path().join("v1/active.go"), "//go:build pilot\npackage dep\nfunc (S) Load() (int,error) { return missing, nil }\n").unwrap();
+    std::fs::write(
+        root.path().join("v1/active.go"),
+        "//go:build pilot\npackage dep\nfunc (S) Load() (int,error) { return missing, nil }\n",
+    )
+    .unwrap();
     let broken = run(&root, &["one", "v1"], &["pilot"], false, "");
-    assert!(!broken["worlds"][0]["calls"].as_array().unwrap().iter().any(|c| c["relation"] == "may_call"));
+    assert!(
+        !broken["worlds"][0]["calls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["relation"] == "may_call")
+    );
 }
 
 #[test]
@@ -178,19 +246,52 @@ fn discovery_only_templates_are_not_phantom_type_checks_or_external_packages() {
     for with_valid_package in [false, true] {
         let root = tree(&[
             ("app/go.mod", "module example/app\ngo 1.23\n"),
-            ("app/templates/{{name}}/main.go", "package template\nfunc Template() {}\n"),
+            (
+                "app/templates/{{name}}/main.go",
+                "package template\nfunc Template() {}\n",
+            ),
         ]);
         if with_valid_package {
-            std::fs::write(root.path().join("app/main.go"), "package app\nfunc Entry() {}\n").unwrap();
+            std::fs::write(
+                root.path().join("app/main.go"),
+                "package app\nfunc Entry() {}\n",
+            )
+            .unwrap();
         }
         let report = run(&root, &["app"], &[], false, "");
         let world = &report["worlds"][0];
         let issues = world["issues"].as_array().unwrap();
-        assert!(issues.iter().any(|v| v == "incomplete_discovery:example/app/templates/{{name}}"), "{report}");
-        assert!(!issues.iter().any(|v| v.as_str().unwrap().starts_with("type_check_failed:") || v.as_str().unwrap().starts_with("unavailable_external_package:")), "{report}");
-        assert_eq!(world["package_diagnostics"]["example/app/templates/{{name}}"]["discovery_error"], 1, "{report}");
-        assert!(!world["diagnostics"].as_array().unwrap().iter().any(|v| v["cause"] == "outside_snapshot"), "{report}");
-        assert_eq!(world["symbols"].as_array().unwrap().len(), usize::from(with_valid_package));
+        assert!(
+            issues
+                .iter()
+                .any(|v| v == "incomplete_discovery:example/app/templates/{{name}}"),
+            "{report}"
+        );
+        assert!(
+            !issues
+                .iter()
+                .any(|v| v.as_str().unwrap().starts_with("type_check_failed:")
+                    || v.as_str()
+                        .unwrap()
+                        .starts_with("unavailable_external_package:")),
+            "{report}"
+        );
+        assert_eq!(
+            world["package_diagnostics"]["example/app/templates/{{name}}"]["discovery_error"], 1,
+            "{report}"
+        );
+        assert!(
+            !world["diagnostics"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|v| v["cause"] == "outside_snapshot"),
+            "{report}"
+        );
+        assert_eq!(
+            world["symbols"].as_array().unwrap().len(),
+            usize::from(with_valid_package)
+        );
     }
 }
 
@@ -198,16 +299,43 @@ fn discovery_only_templates_are_not_phantom_type_checks_or_external_packages() {
 fn undiscovered_dependencies_still_fail_importers_without_claiming_snapshot_escape() {
     let root = tree(&[
         ("app/go.mod", "module example/app\ngo 1.23\n"),
-        ("app/main.go", "package app\nimport \"example/missing\"\nfunc Entry() { missing.Run() }\n"),
+        (
+            "app/main.go",
+            "package app\nimport \"example/missing\"\nfunc Entry() { missing.Run() }\n",
+        ),
     ]);
     let report = run(&root, &["app"], &[], false, "");
     let world = &report["worlds"][0];
     let issues = world["issues"].as_array().unwrap();
-    assert!(issues.iter().any(|v| v == "unavailable_external_package:example/missing"), "{report}");
-    assert!(issues.iter().any(|v| v == "type_check_failed:example/app"), "{report}");
-    assert_eq!(world["package_diagnostics"]["example/missing"]["discovery_error"], 1, "{report}");
-    assert!(world["package_diagnostics"]["example/app"]["type_error"].as_u64().unwrap() > 0, "{report}");
-    assert!(!world["diagnostics"].as_array().unwrap().iter().any(|v| v["cause"] == "outside_snapshot"), "{report}");
+    assert!(
+        issues
+            .iter()
+            .any(|v| v == "unavailable_external_package:example/missing"),
+        "{report}"
+    );
+    assert!(
+        issues.iter().any(|v| v == "type_check_failed:example/app"),
+        "{report}"
+    );
+    assert_eq!(
+        world["package_diagnostics"]["example/missing"]["discovery_error"], 1,
+        "{report}"
+    );
+    assert!(
+        world["package_diagnostics"]["example/app"]["type_error"]
+            .as_u64()
+            .unwrap()
+            > 0,
+        "{report}"
+    );
+    assert!(
+        !world["diagnostics"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|v| v["cause"] == "outside_snapshot"),
+        "{report}"
+    );
 }
 
 #[test]
@@ -466,7 +594,11 @@ func Captured() int { f := Seed; mutate := func() { f = func() int {return 9} };
 
 #[test]
 fn function_values_arguments_assignments_and_storage_keep_potential_targets() {
-    let root=tree(&[("app/go.mod","module example/app\ngo 1.23\n"),("app/main.go",r#"package app
+    let root = tree(&[
+        ("app/go.mod", "module example/app\ngo 1.23\n"),
+        (
+            "app/main.go",
+            r#"package app
 func A() {}
 func B() {}
 func invoke(cb func()) { cb() }
@@ -482,20 +614,48 @@ func Use(flag bool) {
     storage.Run()
 }
 func Other() { invoke(B) }
-"#)]);
-    let report=run(&root,&["app"],&[],false,"");let calls=report["worlds"][0]["calls"].as_array().unwrap();
-    for (spelling,targets) in [("f()",vec!["A","B"]),("cb()",vec!["A","B"]),("table[\"a\"]()",vec!["A"]),("storage.Run()",vec!["B"])] {
-        let name=spelling.trim_end_matches("()");
-        let possible:std::collections::BTreeSet<_>=calls.iter().filter(|c|c["spelling"]==name && c["relation"]=="may_call").map(|c|c["target"].as_str().unwrap().rsplit('.').next().unwrap()).collect();
-        for target in targets {assert!(possible.iter().any(|v|v.starts_with(target)),"{name}: {possible:?}\n{report}");}
-        assert!(calls.iter().any(|c|c["spelling"]==name && c["relation"]=="calls" && c.get("reason").is_some()),"unresolved invocation lost: {name}");
+"#,
+        ),
+    ]);
+    let report = run(&root, &["app"], &[], false, "");
+    let calls = report["worlds"][0]["calls"].as_array().unwrap();
+    for (spelling, targets) in [
+        ("f()", vec!["A", "B"]),
+        ("cb()", vec!["A", "B"]),
+        ("table[\"a\"]()", vec!["A"]),
+        ("storage.Run()", vec!["B"]),
+    ] {
+        let name = spelling.trim_end_matches("()");
+        let possible: std::collections::BTreeSet<_> = calls
+            .iter()
+            .filter(|c| c["spelling"] == name && c["relation"] == "may_call")
+            .map(|c| c["target"].as_str().unwrap().rsplit('.').next().unwrap())
+            .collect();
+        for target in targets {
+            assert!(
+                possible.iter().any(|v| v.starts_with(target)),
+                "{name}: {possible:?}\n{report}"
+            );
+        }
+        assert!(
+            calls.iter().any(|c| c["spelling"] == name
+                && c["relation"] == "calls"
+                && c.get("reason").is_some()),
+            "unresolved invocation lost: {name}"
+        );
     }
-    assert!(!calls.iter().any(|c|c["spelling"]=="table[\"a\"]" && c["relation"]=="may_call" && c["target"].as_str().unwrap().contains(".B")));
+    assert!(!calls.iter().any(|c| c["spelling"] == "table[\"a\"]"
+        && c["relation"] == "may_call"
+        && c["target"].as_str().unwrap().contains(".B")));
 }
 
 #[test]
 fn unknown_indexes_interfaces_and_incomplete_packages_do_not_invent_callbacks() {
-    let root=tree(&[("app/go.mod","module example/app\ngo 1.23\n"),("app/main.go",r#"package app
+    let root = tree(&[
+        ("app/go.mod", "module example/app\ngo 1.23\n"),
+        (
+            "app/main.go",
+            r#"package app
 func A() {}
 func Use(key string, cb func(), service interface{ Run() }) {
     table := map[string]func(){"a": A}
@@ -504,15 +664,28 @@ func Use(key string, cb func(), service interface{ Run() }) {
     service.Run()
 }
 
-"#)]);
-    let report=run(&root,&["app"],&[],false,"");let calls=report["worlds"][0]["calls"].as_array().unwrap();
-    assert!(!calls.iter().any(|c|c["relation"]=="may_call"));
-    assert_eq!(calls.iter().filter(|c|c["relation"]=="calls" && c.get("reason").is_some()).count(),3);
+"#,
+        ),
+    ]);
+    let report = run(&root, &["app"], &[], false, "");
+    let calls = report["worlds"][0]["calls"].as_array().unwrap();
+    assert!(!calls.iter().any(|c| c["relation"] == "may_call"));
+    assert_eq!(
+        calls
+            .iter()
+            .filter(|c| c["relation"] == "calls" && c.get("reason").is_some())
+            .count(),
+        3
+    );
 }
 
 #[test]
 fn explicit_generic_callbacks_and_sparse_storage_do_not_conflate_slots() {
-    let root=tree(&[("app/go.mod","module example/app\ngo 1.23\n"),("app/main.go",r#"package app
+    let root = tree(&[
+        ("app/go.mod", "module example/app\ngo 1.23\n"),
+        (
+            "app/main.go",
+            r#"package app
 func A() {}
 func B() {}
 func invoke[T any](value T, callback func(T)) { callback(value) }
@@ -525,17 +698,37 @@ func Use() {
     object := &struct { Run func() }{Run:A}
     object.Run()
 }
-"#)]);
-    let report=run(&root,&["app"],&[],false,"");let calls=report["worlds"][0]["calls"].as_array().unwrap();
-    assert!(calls.iter().any(|c|c["spelling"]=="callback" && c["relation"]=="may_call" && c["target"].as_str().unwrap().contains(".Receive|")),"{report}");
-    assert!(!calls.iter().any(|c|c["spelling"]=="slots[1]" && c["relation"]=="may_call"));
-    assert!(calls.iter().any(|c|c["spelling"]=="slots[3]" && c["relation"]=="may_call" && c["target"].as_str().unwrap().contains(".B|")));
-    assert!(calls.iter().any(|c|c["spelling"]=="object.Run" && c["relation"]=="may_call" && c["target"].as_str().unwrap().contains(".A|")));
+"#,
+        ),
+    ]);
+    let report = run(&root, &["app"], &[], false, "");
+    let calls = report["worlds"][0]["calls"].as_array().unwrap();
+    assert!(
+        calls.iter().any(|c| c["spelling"] == "callback"
+            && c["relation"] == "may_call"
+            && c["target"].as_str().unwrap().contains(".Receive|")),
+        "{report}"
+    );
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c["spelling"] == "slots[1]" && c["relation"] == "may_call")
+    );
+    assert!(calls.iter().any(|c| c["spelling"] == "slots[3]"
+        && c["relation"] == "may_call"
+        && c["target"].as_str().unwrap().contains(".B|")));
+    assert!(calls.iter().any(|c| c["spelling"] == "object.Run"
+        && c["relation"] == "may_call"
+        && c["target"].as_str().unwrap().contains(".A|")));
 }
 
 #[test]
 fn storage_identity_is_local_and_mutations_never_keep_a_stale_literal_target() {
-    let root=tree(&[("app/go.mod","module example/app\ngo 1.23\n"),("app/main.go",r#"package app
+    let root = tree(&[
+        ("app/go.mod", "module example/app\ngo 1.23\n"),
+        (
+            "app/main.go",
+            r#"package app
 func A() {}
 func B() {}
 func Use() {
@@ -548,25 +741,56 @@ func Use() {
     alias.Run = B
     mutable.Run()
 }
-"#)]);
-    let report=run(&root,&["app"],&[],false,"");let calls=report["worlds"][0]["calls"].as_array().unwrap();
-    for (name,target) in [("one.Run",".A|"),("two.Run",".B|")] {
-        let candidates:Vec<_>=calls.iter().filter(|c|c["spelling"]==name && c["relation"]=="may_call").collect();assert_eq!(candidates.len(),1,"{report}");assert!(candidates[0]["target"].as_str().unwrap().contains(target));
+"#,
+        ),
+    ]);
+    let report = run(&root, &["app"], &[], false, "");
+    let calls = report["worlds"][0]["calls"].as_array().unwrap();
+    for (name, target) in [("one.Run", ".A|"), ("two.Run", ".B|")] {
+        let candidates: Vec<_> = calls
+            .iter()
+            .filter(|c| c["spelling"] == name && c["relation"] == "may_call")
+            .collect();
+        assert_eq!(candidates.len(), 1, "{report}");
+        assert!(candidates[0]["target"].as_str().unwrap().contains(target));
     }
-    assert!(!calls.iter().any(|c|c["spelling"]=="mutable.Run" && c["relation"]=="may_call"));
-    assert!(calls.iter().any(|c|c["spelling"]=="mutable.Run" && c.get("reason").is_some()));
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c["spelling"] == "mutable.Run" && c["relation"] == "may_call")
+    );
+    assert!(
+        calls
+            .iter()
+            .any(|c| c["spelling"] == "mutable.Run" && c.get("reason").is_some())
+    );
 }
 
 #[test]
 fn callback_constraint_exhaustion_is_explicit_and_suppresses_storage_guesses() {
-    let source = format!("package app\nfunc A() {{}}\nfunc Use() {{ f := A\n{}\nf()\nbox := struct {{ Run func() }}{{Run:A}}\nbox.Run()\n}}\n", "f = A\n".repeat(130));
-    let root = tree(&[("app/go.mod", "module example/app\ngo 1.23\n"), ("app/main.go", &source)]);
+    let source = format!(
+        "package app\nfunc A() {{}}\nfunc Use() {{ f := A\n{}\nf()\nbox := struct {{ Run func() }}{{Run:A}}\nbox.Run()\n}}\n",
+        "f = A\n".repeat(130)
+    );
+    let root = tree(&[
+        ("app/go.mod", "module example/app\ngo 1.23\n"),
+        ("app/main.go", &source),
+    ]);
     let report = run(&root, &["app"], &[], false, "");
     let calls = report["worlds"][0]["calls"].as_array().unwrap();
     for spelling in ["f", "box.Run"] {
-        assert!(calls.iter().any(|c|c["spelling"] == spelling && c["reason"] == "function_value_budget"), "{report}");
+        assert!(
+            calls
+                .iter()
+                .any(|c| c["spelling"] == spelling && c["reason"] == "function_value_budget"),
+            "{report}"
+        );
     }
-    assert!(!calls.iter().any(|c|c["spelling"] == "box.Run" && c["relation"] == "may_call"));
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c["spelling"] == "box.Run" && c["relation"] == "may_call")
+    );
 }
 
 #[test]
@@ -598,14 +822,24 @@ fn dependency_bodies_do_not_enter_the_owned_graph_but_inputs_and_types_remain() 
         ),
         ("app/vendor/example/dep/dep.go", &dependency),
     ]);
-    std::fs::write(root.path().join("app/indirect.go"), r#"package app
+    std::fs::write(
+        root.path().join("app/indirect.go"),
+        r#"package app
 import "example/dep"
 type Promoted struct { dep.Base }
 func Dynamic(flag bool) int { f := dep.Target; if flag { f = dep.Other }; return f() }
 func Interface(x interface{ Run() int }) int { return x.Run() }
-"#).unwrap();
-    dependency.push_str("func Other() int {return 2}\ntype Base struct{}\nfunc (Base) Run() int {return 3}\n");
-    std::fs::write(root.path().join("app/vendor/example/dep/dep.go"), &dependency).unwrap();
+"#,
+    )
+    .unwrap();
+    dependency.push_str(
+        "func Other() int {return 2}\ntype Base struct{}\nfunc (Base) Run() int {return 3}\n",
+    );
+    std::fs::write(
+        root.path().join("app/vendor/example/dep/dep.go"),
+        &dependency,
+    )
+    .unwrap();
     let report = run(&root, &["app"], &[], false, "");
     let world = &report["worlds"][0];
     assert!(world["issues"].as_array().unwrap().is_empty(), "{report}");
@@ -624,9 +858,19 @@ func Interface(x interface{ Run() int }) int { return x.Run() }
             .all(|c| !c["file"].as_str().unwrap().contains("/vendor/"))
     );
     let calls = world["calls"].as_array().unwrap();
-    assert!(!calls.iter().any(|c| c["reason"] == "ambiguous_or_missing_declaration"), "{report}");
+    assert!(
+        !calls
+            .iter()
+            .any(|c| c["reason"] == "ambiguous_or_missing_declaration"),
+        "{report}"
+    );
     for name in ["Target", "Other", "Run"] {
-        assert!(calls.iter().any(|c| c["relation"] == "may_call" && c["boundary"]["symbol"] == name && c.get("reason").is_none()), "{name}: {report}");
+        assert!(
+            calls.iter().any(|c| c["relation"] == "may_call"
+                && c["boundary"]["symbol"] == name
+                && c.get("reason").is_none()),
+            "{name}: {report}"
+        );
     }
     let boundary = calls
         .iter()

@@ -798,33 +798,83 @@ fn js_calls(path: &Path, parsed: &Parsed, f: &mut JsFileFacts) {
     for node in children(parsed.tree.root_node()) {
         let class = if node.kind_name() == "export_statement" {
             node.child_by_field_name("declaration").unwrap_or(node)
-        } else { node };
-        if !matches!(class.kind_name(), "class_declaration" | "abstract_class_declaration") { continue; }
-        let (Some(name), Some(body)) = (class.child_by_field_name("name"), class.child_by_field_name("body")) else { continue; };
-        for method in children(body).into_iter().filter(|n| n.kind_name() == "method_definition") {
-            let (Some(member), Some(body)) = (method.child_by_field_name("name"), method.child_by_field_name("body")) else { continue; };
-            if !matches!(member.kind_name(), "property_identifier" | "identifier") { continue; }
-            let id = make_id([file_stem(path).as_str(), read_text(name,s).as_str(), read_text(member,s).as_str()]);
+        } else {
+            node
+        };
+        if !matches!(
+            class.kind_name(),
+            "class_declaration" | "abstract_class_declaration"
+        ) {
+            continue;
+        }
+        let (Some(name), Some(body)) = (
+            class.child_by_field_name("name"),
+            class.child_by_field_name("body"),
+        ) else {
+            continue;
+        };
+        for method in children(body)
+            .into_iter()
+            .filter(|n| n.kind_name() == "method_definition")
+        {
+            let (Some(member), Some(body)) = (
+                method.child_by_field_name("name"),
+                method.child_by_field_name("body"),
+            ) else {
+                continue;
+            };
+            if !matches!(member.kind_name(), "property_identifier" | "identifier") {
+                continue;
+            }
+            let id = make_id([
+                file_stem(path).as_str(),
+                read_text(name, s).as_str(),
+                read_text(member, s).as_str(),
+            ]);
             // A parameter/local binding can hide the import. Conservatively
             // exclude those names throughout the method, including destructuring.
             let mut bound = FxHashSet::default();
-            let mut bindings = method.child_by_field_name("parameters").into_iter().collect::<Vec<_>>();
+            let mut bindings = method
+                .child_by_field_name("parameters")
+                .into_iter()
+                .collect::<Vec<_>>();
             for n in walk(body) {
-                if matches!(n.kind_name(), "variable_declarator" | "function_declaration" | "class_declaration") {
+                if matches!(
+                    n.kind_name(),
+                    "variable_declarator" | "function_declaration" | "class_declaration"
+                ) {
                     bindings.extend(n.child_by_field_name("name"));
                 }
                 bindings.extend(n.child_by_field_name("parameters"));
-                if n.kind_name() == "catch_clause" { bindings.extend(n.child_by_field_name("parameter")); }
+                if n.kind_name() == "catch_clause" {
+                    bindings.extend(n.child_by_field_name("parameter"));
+                }
             }
             for binding in bindings {
-                bound.extend(walk(binding).into_iter().filter(|n| matches!(n.kind_name(), "identifier" | "shorthand_property_identifier_pattern"))
-                    .map(|n| read_text(n,s)));
+                bound.extend(
+                    walk(binding)
+                        .into_iter()
+                        .filter(|n| {
+                            matches!(
+                                n.kind_name(),
+                                "identifier" | "shorthand_property_identifier_pattern"
+                            )
+                        })
+                        .map(|n| read_text(n, s)),
+                );
             }
             let source = f.source(&id);
             for n in walk(body) {
-                if let Some(local) = call_identifier(n,s,false) && !bound.contains(&local) {
-                    f.calls.push(JsUse { local_name:local.into(), line:(n.start_position().row+1) as i64,
-                        source, relation:UseRelation::Calls, context:UseContext::Call });
+                if let Some(local) = call_identifier(n, s, false)
+                    && !bound.contains(&local)
+                {
+                    f.calls.push(JsUse {
+                        local_name: local.into(),
+                        line: (n.start_position().row + 1) as i64,
+                        source,
+                        relation: UseRelation::Calls,
+                        context: UseContext::Call,
+                    });
                 }
             }
         }

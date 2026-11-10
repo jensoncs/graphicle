@@ -755,8 +755,16 @@ impl<'a, 't> Engine<'a, 't> {
         }
     }
     pub(crate) fn function_types(&mut self, n: Node<'t>, id: &str, parent: Option<&str>) {
-        let language = self.config.ts_module.strip_prefix("tree_sitter_").unwrap_or("");
-        super::symbol_metadata::attach(&mut self.nodes, id, super::symbol_metadata::declaration(n, self.source, language));
+        let language = self
+            .config
+            .ts_module
+            .strip_prefix("tree_sitter_")
+            .unwrap_or("");
+        super::symbol_metadata::attach(
+            &mut self.nodes,
+            id,
+            super::symbol_metadata::declaration(n, self.source, language),
+        );
         let line = n.start_position().row + 1;
         if self.is("python") {
             for (name, role) in

@@ -29,7 +29,10 @@ pub fn deadline_scope(deadline: Option<Instant>) -> DeadlineScope {
         });
         previous
     });
-    DeadlineScope { previous, _thread: std::marker::PhantomData }
+    DeadlineScope {
+        previous,
+        _thread: std::marker::PhantomData,
+    }
 }
 
 impl Drop for DeadlineScope {
@@ -46,7 +49,8 @@ pub fn check_deadline() -> io::Result<()> {
 pub fn bounded_timeout(timeout: Duration) -> io::Result<Duration> {
     DEADLINE.with(|slot| match slot.get() {
         None => Ok(timeout),
-        Some(deadline) => deadline.checked_duration_since(Instant::now())
+        Some(deadline) => deadline
+            .checked_duration_since(Instant::now())
             .filter(|left| !left.is_zero())
             .map(|left| left.min(timeout))
             .ok_or_else(|| io::Error::new(io::ErrorKind::TimedOut, "request deadline exceeded")),
@@ -94,7 +98,10 @@ pub fn capture_bounded(
             exceeded |= keep != n;
         }
         if exceeded {
-            Err(io::Error::new(io::ErrorKind::FileTooLarge, "command output bound exceeded"))
+            Err(io::Error::new(
+                io::ErrorKind::FileTooLarge,
+                "command output bound exceeded",
+            ))
         } else {
             Ok(bytes)
         }
@@ -175,12 +182,22 @@ mod tests {
         {
             let _request = deadline_scope(Some(started + Duration::from_millis(40)));
             let _nested = deadline_scope(Some(started + Duration::from_secs(30)));
-            let result = capture(Command::new("/bin/sh").args(["-c", "sleep 10 & wait"]), Duration::from_secs(5));
+            let result = capture(
+                Command::new("/bin/sh").args(["-c", "sleep 10 & wait"]),
+                Duration::from_secs(5),
+            );
             assert_eq!(result.err().unwrap().kind(), io::ErrorKind::TimedOut);
             assert!(started.elapsed() < Duration::from_secs(2));
-            assert_eq!(check_deadline().unwrap_err().kind(), io::ErrorKind::TimedOut);
+            assert_eq!(
+                check_deadline().unwrap_err().kind(),
+                io::ErrorKind::TimedOut
+            );
         }
-        let result = capture(Command::new("/bin/sh").args(["-c", "printf recovered"]), Duration::from_secs(1)).unwrap();
+        let result = capture(
+            Command::new("/bin/sh").args(["-c", "printf recovered"]),
+            Duration::from_secs(1),
+        )
+        .unwrap();
         assert!(result.success);
         assert_eq!(result.stdout, b"recovered");
     }

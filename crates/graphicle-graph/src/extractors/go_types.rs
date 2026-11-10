@@ -149,11 +149,23 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
 
 /// Analyze supplied, admitted Go source bytes without executing source code.
 pub fn semantic(request: &Value) -> crate::Result<Value> {
-    let bytes=serde_json::to_vec(&json!({"semantic":request}))?;
-    if bytes.len()>3*1024*1024 {return Err("Semantic request limit exceeded".into());}
-    let (directory,binary)=helper().ok_or("Go compiler helper unavailable")?;
-    let output=crate::process::capture_bounded(offline_command(binary).current_dir(directory.path()).env_remove("GOOS").env_remove("GOARCH"),Duration::from_secs(30),Some(bytes),8*1024*1024)?;
-    if !output.success {return Err("Go semantic analysis failed".into());}
+    let bytes = serde_json::to_vec(&json!({"semantic":request}))?;
+    if bytes.len() > 3 * 1024 * 1024 {
+        return Err("Semantic request limit exceeded".into());
+    }
+    let (directory, binary) = helper().ok_or("Go compiler helper unavailable")?;
+    let output = crate::process::capture_bounded(
+        offline_command(binary)
+            .current_dir(directory.path())
+            .env_remove("GOOS")
+            .env_remove("GOARCH"),
+        Duration::from_secs(30),
+        Some(bytes),
+        8 * 1024 * 1024,
+    )?;
+    if !output.success {
+        return Err("Go semantic analysis failed".into());
+    }
     Ok(serde_json::from_slice(&output.stdout)?)
 }
 
@@ -161,7 +173,9 @@ pub fn semantic(request: &Value) -> crate::Result<Value> {
 /// helper shares go/types resolution with extraction, but records build inputs,
 /// exact declarations and every call site instead of graph-name guesses.
 pub fn review(root: &Path, request: &Value) -> crate::Result<Value> {
-    decode_review_facts(&review_encoded(root, request).map_err(|e| crate::Error::from(e.to_string()))?)
+    decode_review_facts(
+        &review_encoded(root, request).map_err(|e| crate::Error::from(e.to_string()))?,
+    )
 }
 
 /// Bounded compressed facts, also suitable for immutable cache storage.
@@ -179,9 +193,13 @@ pub fn review_encoded(root: &Path, request: &Value) -> Result<Value, ReviewFailu
             .env("GOMODCACHE", cache.path().join("modules"))
             .env("GOCACHE", cache.path().join("build")),
         Duration::from_secs(REVIEW_TIMEOUT_SECONDS),
-        Some(serde_json::to_vec(&json!({"review":request})).map_err(|_| ReviewFailure::new("invalid_request"))?),
+        Some(
+            serde_json::to_vec(&json!({"review":request}))
+                .map_err(|_| ReviewFailure::new("invalid_request"))?,
+        ),
         REVIEW_OUTPUT_BYTES,
-    ).map_err(ReviewFailure::process)?;
+    )
+    .map_err(ReviewFailure::process)?;
     if timings {
         // Never relay arbitrary helper/toolchain stderr, which may contain
         // source text or paths. Only fixed phases, counters and identity hashes.
@@ -203,36 +221,93 @@ pub fn review_encoded(root: &Path, request: &Value) -> Result<Value, ReviewFailu
 
 fn native_review_timing(line: &str) -> Option<(&str, u64)> {
     let (name, ns) = line.strip_prefix("go_phase=")?.split_once(" ns=")?;
-    if !matches!(name, "other" | "preflight" | "discovery" | "metadata" | "import"
-        | "parse" | "type_check" | "collect" | "link" | "encode"
-        | "fingerprint" | "export_load" | "export_save") {
+    if !matches!(
+        name,
+        "other"
+            | "preflight"
+            | "discovery"
+            | "metadata"
+            | "import"
+            | "parse"
+            | "type_check"
+            | "collect"
+            | "link"
+            | "encode"
+            | "fingerprint"
+            | "export_load"
+            | "export_save"
+    ) {
         return None;
     }
     Some((name, ns.parse().ok()?))
 }
 
 fn native_review_cache(line: &str) -> Option<Value> {
-    if line.len() > 8192 { return None; }
+    if line.len() > 8192 {
+        return None;
+    }
     let value: Value = serde_json::from_str(line.strip_prefix("go_cache=")?).ok()?;
     let object = value.as_object()?;
-    if object.len() != 12 { return None; }
+    if object.len() != 12 {
+        return None;
+    }
     for field in ["key", "identity", "configuration_sha256"] {
         let text = object.get(field)?.as_str()?;
-        if !text.is_empty() && !(field == "key" && text == "unavailable")
-            && !(text.len() == 64 && text.bytes().all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))) {
+        if !text.is_empty()
+            && !(field == "key" && text == "unavailable")
+            && !(text.len() == 64
+                && text
+                    .bytes()
+                    .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)))
+        {
             return None;
         }
     }
-    for field in ["hits", "misses", "rejected", "pool_entries", "pool_bytes", "created_entries", "created_bytes", "used_entries"] {
+    for field in [
+        "hits",
+        "misses",
+        "rejected",
+        "pool_entries",
+        "pool_bytes",
+        "created_entries",
+        "created_bytes",
+        "used_entries",
+    ] {
         object.get(field)?.as_u64()?;
     }
     for (name, count) in object.get("counts")?.as_object()? {
-        if !matches!(name.as_str(), "supplied_entries" | "supplied_bytes" | "disabled_identity" | "configuration_unreadable"
-            | "input_invalid_key" | "input_entry_limit" | "input_count_limit" | "input_byte_limit" | "loaded_entries" | "loaded_bytes"
-            | "miss_not_present" | "miss_import_failed" | "miss_invalid_export" | "hit_standard_library" | "hit_dependency"
-            | "save_attempted" | "save_export_failed" | "save_raw_limit" | "save_compression_failed" | "save_entry_limit"
-            | "evicted_unused_entries" | "save_count_limit" | "save_byte_limit" | "saved_entries" | "transport_metadata_omitted"
-            | "transport_omitted_entries" | "transport_omitted_bytes" | "transport_entries" | "transport_bytes") {
+        if !matches!(
+            name.as_str(),
+            "supplied_entries"
+                | "supplied_bytes"
+                | "disabled_identity"
+                | "configuration_unreadable"
+                | "input_invalid_key"
+                | "input_entry_limit"
+                | "input_count_limit"
+                | "input_byte_limit"
+                | "loaded_entries"
+                | "loaded_bytes"
+                | "miss_not_present"
+                | "miss_import_failed"
+                | "miss_invalid_export"
+                | "hit_standard_library"
+                | "hit_dependency"
+                | "save_attempted"
+                | "save_export_failed"
+                | "save_raw_limit"
+                | "save_compression_failed"
+                | "save_entry_limit"
+                | "evicted_unused_entries"
+                | "save_count_limit"
+                | "save_byte_limit"
+                | "saved_entries"
+                | "transport_metadata_omitted"
+                | "transport_omitted_entries"
+                | "transport_omitted_bytes"
+                | "transport_entries"
+                | "transport_bytes"
+        ) {
             return None;
         }
         count.as_u64()?;
@@ -248,22 +323,36 @@ mod timing_tests {
             "counts":{"miss_not_present":2},"hits":0,"misses":2,"rejected":0,"pool_entries":2,"pool_bytes":20,
             "created_entries":2,"created_bytes":20,"used_entries":2});
         let parse = |v: &serde_json::Value| super::native_review_cache(&format!("go_cache={v}"));
-        assert_eq!(parse(&good),Some(good.clone()));
-        for (field, value) in [("key",serde_json::json!("/private/source.go")), ("identity",serde_json::json!("bad\nmessage")),
-            ("hits",serde_json::json!(-1)), ("pool_bytes",serde_json::json!("123")),
-            ("counts",serde_json::json!({"/private/source.go":1})), ("counts",serde_json::json!({"miss_not_present":"source"})),
-            ("extra",serde_json::json!("must not leak"))] {
-            let mut bad = good.clone(); bad[field] = value;
-            assert!(parse(&bad).is_none(),"{bad}");
+        assert_eq!(parse(&good), Some(good.clone()));
+        for (field, value) in [
+            ("key", serde_json::json!("/private/source.go")),
+            ("identity", serde_json::json!("bad\nmessage")),
+            ("hits", serde_json::json!(-1)),
+            ("pool_bytes", serde_json::json!("123")),
+            ("counts", serde_json::json!({"/private/source.go":1})),
+            ("counts", serde_json::json!({"miss_not_present":"source"})),
+            ("extra", serde_json::json!("must not leak")),
+        ] {
+            let mut bad = good.clone();
+            bad[field] = value;
+            assert!(parse(&bad).is_none(), "{bad}");
         }
-        assert!(super::native_review_cache(&format!("go_cache={} "," ".repeat(8192))).is_none());
+        assert!(super::native_review_cache(&format!("go_cache={} ", " ".repeat(8192))).is_none());
     }
 
     #[test]
     fn forwards_only_known_numeric_native_timings() {
-        assert_eq!(super::native_review_timing("go_phase=type_check ns=123"), Some(("type_check", 123)));
-        for line in ["go_phase=/private/source.go ns=123", "go_phase=collect ns=123 source",
-            "go_phase=collect ns=-1", "source error", "go_phase=collect ns=18446744073709551616"] {
+        assert_eq!(
+            super::native_review_timing("go_phase=type_check ns=123"),
+            Some(("type_check", 123))
+        );
+        for line in [
+            "go_phase=/private/source.go ns=123",
+            "go_phase=collect ns=123 source",
+            "go_phase=collect ns=-1",
+            "source error",
+            "go_phase=collect ns=18446744073709551616",
+        ] {
             assert_eq!(super::native_review_timing(line), None);
         }
     }
@@ -279,12 +368,18 @@ pub struct ReviewFailure {
 }
 impl ReviewFailure {
     fn new(cause: &str) -> Self {
-        Self { detail: json!({"stage":"go_compiler_analysis","cause":cause}) }
+        Self {
+            detail: json!({"stage":"go_compiler_analysis","cause":cause}),
+        }
     }
     fn process(error: std::io::Error) -> Self {
         match error.kind() {
-            std::io::ErrorKind::TimedOut => Self { detail: json!({"stage":"go_compiler_analysis","cause":"timeout","limit_seconds":REVIEW_TIMEOUT_SECONDS}) },
-            std::io::ErrorKind::FileTooLarge => Self { detail: json!({"stage":"go_compiler_analysis","cause":"output_bound","limit_bytes_per_stream":REVIEW_OUTPUT_BYTES}) },
+            std::io::ErrorKind::TimedOut => Self {
+                detail: json!({"stage":"go_compiler_analysis","cause":"timeout","limit_seconds":REVIEW_TIMEOUT_SECONDS}),
+            },
+            std::io::ErrorKind::FileTooLarge => Self {
+                detail: json!({"stage":"go_compiler_analysis","cause":"output_bound","limit_bytes_per_stream":REVIEW_OUTPUT_BYTES}),
+            },
             _ => Self::new("process_io"),
         }
     }
@@ -400,7 +495,8 @@ pub fn resolve(
         .collect();
     // Remove all legacy guesses, including same-file and receiver passes.
     edges.retain(|e| {
-        !matches!(s(e,"relation"),"calls"|"may_call") || !files.contains(&source_key(s(e, "source_file"), root))
+        !matches!(s(e, "relation"), "calls" | "may_call")
+            || !files.contains(&source_key(s(e, "source_file"), root))
     });
     let mut unresolved = BTreeMap::new();
     for path in &paths {
@@ -497,10 +593,18 @@ pub fn resolve(
         if site.reason.is_empty()
             && let (Some(from), Some(to)) = (from, to)
         {
-            if have.insert((from.clone(), to.clone(), site.candidate, site.line, site.column)) {
+            if have.insert((
+                from.clone(),
+                to.clone(),
+                site.candidate,
+                site.line,
+                site.column,
+            )) {
                 edges.push(json!({"source":from,"target":to,"relation":if site.candidate{"may_call"}else{"calls"},"confidence":if site.candidate{"INFERRED"}else{"EXTRACTED"},"weight":1.0,"context":"call","source_file":site.file,"source_location":format!("L{}",site.line),"resolution":"go_types","evidence":if site.candidate{"function_value_candidate"}else{"type"}}));
             }
-            if !site.candidate { unresolved.remove(&key); }
+            if !site.candidate {
+                unresolved.remove(&key);
+            }
         } else if let Some(value) = unresolved.get_mut(&key) {
             value["reason"] = json!(if site.reason.is_empty() {
                 "target_not_in_graph"
@@ -519,10 +623,16 @@ mod fact_encoding_tests {
     use std::io::Write;
     #[test]
     fn compiler_failures_name_the_bound_without_forwarding_process_output() {
-        let timeout = ReviewFailure::process(std::io::Error::new(std::io::ErrorKind::TimedOut, "private source"));
+        let timeout = ReviewFailure::process(std::io::Error::new(
+            std::io::ErrorKind::TimedOut,
+            "private source",
+        ));
         assert_eq!(timeout.detail["cause"], "timeout");
         assert_eq!(timeout.detail["limit_seconds"], 120);
-        let output = ReviewFailure::process(std::io::Error::new(std::io::ErrorKind::FileTooLarge, "private source"));
+        let output = ReviewFailure::process(std::io::Error::new(
+            std::io::ErrorKind::FileTooLarge,
+            "private source",
+        ));
         assert_eq!(output.detail["cause"], "output_bound");
         assert_eq!(output.detail["limit_bytes_per_stream"], 64 * 1024 * 1024);
         assert!(!output.to_string().contains("private source"));

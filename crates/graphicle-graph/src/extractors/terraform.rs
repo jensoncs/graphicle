@@ -591,11 +591,22 @@ impl Extractor<'_> {
 /// Used for source-backed value questions; comments, expressions, duplicate
 /// blocks, and incomplete excerpts cannot justify suppressing design notes.
 pub fn has_literal_block_count(source: &str, kind: &str, label: &str) -> bool {
-    if source.len() > 1_048_576 { return false; }
+    if source.len() > 1_048_576 {
+        return false;
+    }
     let mut parser = tree_sitter::Parser::new();
-    if parser.set_language(&graphicle_tree_sitter_hcl::LANGUAGE.into()).is_err() { return false; }
-    let Some(tree) = parser.parse(source, None) else { return false; };
-    if tree.root_node().has_error() { return false; }
+    if parser
+        .set_language(&graphicle_tree_sitter_hcl::LANGUAGE.into())
+        .is_err()
+    {
+        return false;
+    }
+    let Some(tree) = parser.parse(source, None) else {
+        return false;
+    };
+    if tree.root_node().has_error() {
+        return false;
+    }
     let bytes = source.as_bytes();
     let mut pending = vec![tree.root_node()];
     let mut matched = 0;
@@ -603,20 +614,32 @@ pub fn has_literal_block_count(source: &str, kind: &str, label: &str) -> bool {
     let mut visits = 0;
     while let Some(node) = pending.pop() {
         visits += 1;
-        if visits > 4096 { return false; }
+        if visits > 4096 {
+            return false;
+        }
         if node.kind() == "block" {
-            let head: Vec<_> = named(node).filter(|n| matches!(n.kind(), "identifier" | "string_lit"))
-                .map(|n| read_text(n, bytes).trim_matches('"').to_string()).collect();
+            let head: Vec<_> = named(node)
+                .filter(|n| matches!(n.kind(), "identifier" | "string_lit"))
+                .map(|n| read_text(n, bytes).trim_matches('"').to_string())
+                .collect();
             if head == [kind, label] {
                 matched += 1;
-                let attrs: Vec<_> = named(node).filter(|n| n.kind() == "body")
-                    .flat_map(named).filter(|n| n.kind() == "attribute")
-                    .filter(|n| n.named_child(0).is_some_and(|key| read_text(key, bytes) == "count"))
+                let attrs: Vec<_> = named(node)
+                    .filter(|n| n.kind() == "body")
+                    .flat_map(named)
+                    .filter(|n| n.kind() == "attribute")
+                    .filter(|n| {
+                        n.named_child(0)
+                            .is_some_and(|key| read_text(key, bytes) == "count")
+                    })
                     .collect();
-                literal = attrs.len() == 1 && attrs[0].named_child(1).is_some_and(|value| {
-                    let raw = read_text(value, bytes);
-                    !raw.is_empty() && raw.bytes().all(|b| b.is_ascii_digit()) && raw.parse::<u64>().is_ok()
-                });
+                literal = attrs.len() == 1
+                    && attrs[0].named_child(1).is_some_and(|value| {
+                        let raw = read_text(value, bytes);
+                        !raw.is_empty()
+                            && raw.bytes().all(|b| b.is_ascii_digit())
+                            && raw.parse::<u64>().is_ok()
+                    });
             }
         }
         pending.extend(named(node));
@@ -723,17 +746,35 @@ variable "drain_seconds" { default = 45 }
         let graph = super::extract_terraform(&path).unwrap();
         let nodes = graph["nodes"].as_array().unwrap();
         let id = |label| &nodes.iter().find(|n| n["label"] == label).unwrap()["id"];
-        assert!(graph["edges"].as_array().unwrap().iter().any(|edge|
-            &edge["source"] == id("job.worker")
-                && &edge["target"] == id("var.drain_seconds")
-                && edge["relation"] == "references"));
-        assert!(!graph["edges"].as_array().unwrap().iter().any(|edge|
-            &edge["source"] == id("job.metrics") && edge["relation"] == "references"));
+        assert!(
+            graph["edges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|edge| &edge["source"] == id("job.worker")
+                    && &edge["target"] == id("var.drain_seconds")
+                    && edge["relation"] == "references")
+        );
+        assert!(
+            !graph["edges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(
+                    |edge| &edge["source"] == id("job.metrics") && edge["relation"] == "references"
+                )
+        );
         // Unknown Terraform blocks do not acquire generic HCL semantics.
         let path = dir.path().join("main.tf");
         std::fs::write(&path, source).unwrap();
         let graph = super::extract_terraform(&path).unwrap();
-        assert!(!graph["nodes"].as_array().unwrap().iter().any(|n| n["label"] == "job.worker"));
+        assert!(
+            !graph["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|n| n["label"] == "job.worker")
+        );
     }
 
     #[test]
