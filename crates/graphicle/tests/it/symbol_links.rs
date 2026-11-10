@@ -291,7 +291,10 @@ fn covered_prose_topics_do_not_expand_to_dependency_notes() {
         "Which constraints apply to `encode_item`?",
         json!({"symbol_links":true}),
     );
-    assert!(includes(&code, &anchor) && includes(&code, &dependency), "{code:#}");
+    assert!(
+        includes(&code, &anchor) && includes(&code, &dependency),
+        "{code:#}"
+    );
     let explicit = f.context(
         "What governs the quokka ledger and `missing_item`?",
         json!({"symbol_links":true}),
@@ -336,191 +339,501 @@ fn covered_prose_topics_do_not_expand_to_dependency_notes() {
 
 #[test]
 fn yaml_field_topics_and_absent_resource_attributes_do_not_mix_policies() {
-    let f = Fixture::new(&[("base/service.yaml","apiVersion: v1\nkind: Service\nmetadata:\n  name: parcel-worker\nspec:\n  selector:\n    app: parcel-worker\n  ports:\n    - port: 80\n      targetPort: 8080\n")]);
-    let note = |title: &str, body: &str| f.store.note(&f.workspace,&f.key,&f.args(json!({
+    let f = Fixture::new(&[(
+        "base/service.yaml",
+        "apiVersion: v1\nkind: Service\nmetadata:\n  name: parcel-worker\nspec:\n  selector:\n    app: parcel-worker\n  ports:\n    - port: 80\n      targetPort: 8080\n",
+    )]);
+    let note =
+        |title: &str, body: &str| {
+            f.store.note(&f.workspace,&f.key,&f.args(json!({
         "title":title,"body":body,"kind":"decision","dependencies":["base/service.yaml"]
-    }))).unwrap();
-    let selector = note("Traffic membership agreement","The Service selector must match the intended pod labels.");
-    let port = note("Listener compatibility","The Service target port must match the container listener.");
+    }))).unwrap()
+        };
+    let selector = note(
+        "Traffic membership agreement",
+        "The Service selector must match the intended pod labels.",
+    );
+    let port = note(
+        "Listener compatibility",
+        "The Service target port must match the container listener.",
+    );
     let q = "Which constraint governs selector in base/service.yaml?";
-    let packet = f.context(q,json!({"symbol_links":true,"debug_candidates":400}));
-    assert!(includes(&packet,&selector) && !includes(&packet,&port),"{packet:#}");
-    assert_eq!(packet["memory_rationale_support"]["basis"],"named_field_topic");
-    for q in ["Which constraints must a change to base/service.yaml preserve?","Which constraints govern selector and port in base/service.yaml?"] {
-        let broad = f.context(q,json!({"symbol_links":true}));
-        assert!(includes(&broad,&selector) && includes(&broad,&port),"{broad:#}");
+    let packet = f.context(q, json!({"symbol_links":true,"debug_candidates":400}));
+    assert!(
+        includes(&packet, &selector) && !includes(&packet, &port),
+        "{packet:#}"
+    );
+    assert_eq!(
+        packet["memory_rationale_support"]["basis"],
+        "named_field_topic"
+    );
+    for q in [
+        "Which constraints must a change to base/service.yaml preserve?",
+        "Which constraints govern selector and port in base/service.yaml?",
+    ] {
+        let broad = f.context(q, json!({"symbol_links":true}));
+        assert!(
+            includes(&broad, &selector) && includes(&broad, &port),
+            "{broad:#}"
+        );
     }
-    let expanded = f.context(q,json!({"symbol_links":true,"needs":["listener compatibility"]}));
-    assert!(includes(&expanded,&port),"{expanded:#}");
-    let missing = f.context("Which constraint governs selector in missing.yaml?",json!({"symbol_links":true}));
-    assert!(missing.get("memory_rationale_support").is_none(),"{missing:#}");
+    let expanded = f.context(
+        q,
+        json!({"symbol_links":true,"needs":["listener compatibility"]}),
+    );
+    assert!(includes(&expanded, &port), "{expanded:#}");
+    let missing = f.context(
+        "Which constraint governs selector in missing.yaml?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        missing.get("memory_rationale_support").is_none(),
+        "{missing:#}"
+    );
     let q = "Which backup storage region is required for the parcel-worker service?";
-    let absent = f.context(q,json!({"symbol_links":true}));
-    assert!(absent["memories"].as_array().unwrap().is_empty(),"{absent:#}");
-    assert_eq!(absent["memory_topic_support"]["status"],"unsupported_in_candidates");
-    let backup = note("Regional backup policy","Backup storage must stay in the approved home region.");
-    let supported = f.context(q,json!({"symbol_links":true}));
-    assert!(includes(&supported,&backup),"{supported:#}");
-    assert_eq!(supported["memory_topic_support"]["status"],"supported");
+    let absent = f.context(q, json!({"symbol_links":true}));
+    assert!(
+        absent["memories"].as_array().unwrap().is_empty(),
+        "{absent:#}"
+    );
+    assert_eq!(
+        absent["memory_topic_support"]["status"],
+        "unsupported_in_candidates"
+    );
+    let backup = note(
+        "Regional backup policy",
+        "Backup storage must stay in the approved home region.",
+    );
+    let supported = f.context(q, json!({"symbol_links":true}));
+    assert!(includes(&supported, &backup), "{supported:#}");
+    assert_eq!(supported["memory_topic_support"]["status"], "supported");
 }
 
 #[test]
 fn factual_contract_and_expiry_requests_keep_their_requested_topics() {
-    let f = Fixture::new(&[("policy.py","def total_amount(items):\n    return round(sum(items),2)\n\ndef pause_delay(attempt):\n    return min(2 ** attempt,60)\n")]);
-    let contract = f.note("Money settlement contract","Preserve fractional minor units at the outbound boundary.",json!([{"path":"policy.py","qualified_name":"total_amount"}]));
-    let audit = f.note("Audit archive","Retain original fiscal items for seven years.",json!([{"path":"policy.py","qualified_name":"total_amount"}]));
-    let value = f.context("What is the money settlement contract for fractional minor units?",json!({"symbol_links":true}));
-    assert!(includes(&value,&contract) && !includes(&value,&audit),"{value:#}");
-    let lease = f.note("Receiver allowance","The remote session lease expires after one minute.",json!([{"path":"policy.py","qualified_name":"pause_delay"}]));
-    let condition = f.note("Maintenance condition","The session lease may end early during maintenance.",json!([{"path":"policy.py","qualified_name":"pause_delay"}]));
-    let jitter = f.note("Randomization follow-up","Randomized scheduling is deferred until migration finishes.",json!([{"path":"policy.py","qualified_name":"pause_delay"}]));
-    let value = f.context("When does the remote session lease expire?",json!({"symbol_links":true}));
-    assert!(includes(&value,&lease) && includes(&value,&condition) && !includes(&value,&jitter),"{value:#}");
-    let broad = f.context("Which constraints must a change to pause_delay preserve?",json!({"symbol_links":true}));
-    assert!(includes(&broad,&lease) && includes(&broad,&jitter),"{broad:#}");
+    let f = Fixture::new(&[(
+        "policy.py",
+        "def total_amount(items):\n    return round(sum(items),2)\n\ndef pause_delay(attempt):\n    return min(2 ** attempt,60)\n",
+    )]);
+    let contract = f.note(
+        "Money settlement contract",
+        "Preserve fractional minor units at the outbound boundary.",
+        json!([{"path":"policy.py","qualified_name":"total_amount"}]),
+    );
+    let audit = f.note(
+        "Audit archive",
+        "Retain original fiscal items for seven years.",
+        json!([{"path":"policy.py","qualified_name":"total_amount"}]),
+    );
+    let value = f.context(
+        "What is the money settlement contract for fractional minor units?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&value, &contract) && !includes(&value, &audit),
+        "{value:#}"
+    );
+    let lease = f.note(
+        "Receiver allowance",
+        "The remote session lease expires after one minute.",
+        json!([{"path":"policy.py","qualified_name":"pause_delay"}]),
+    );
+    let condition = f.note(
+        "Maintenance condition",
+        "The session lease may end early during maintenance.",
+        json!([{"path":"policy.py","qualified_name":"pause_delay"}]),
+    );
+    let jitter = f.note(
+        "Randomization follow-up",
+        "Randomized scheduling is deferred until migration finishes.",
+        json!([{"path":"policy.py","qualified_name":"pause_delay"}]),
+    );
+    let value = f.context(
+        "When does the remote session lease expire?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&value, &lease) && includes(&value, &condition) && !includes(&value, &jitter),
+        "{value:#}"
+    );
+    let broad = f.context(
+        "Which constraints must a change to pause_delay preserve?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&broad, &lease) && includes(&broad, &jitter),
+        "{broad:#}"
+    );
 }
 
 #[test]
 fn qualified_changes_keep_imported_policies_and_exclude_other_owners() {
     let f = Fixture::new(&[
-        ("sender.js","import { pauseFor as retryWait } from './policy.js';\nexport class NoticeSender { async send(attempt) { return retryWait(attempt); } }\nexport class PreviewSender { async send(attempt) { return attempt; } }\nexport function noticeKey(value) { return String(value); }\n"),
-        ("policy.js","export const pauseFor = attempt => Math.min(2 ** attempt,30);\n"),
+        (
+            "sender.js",
+            "import { pauseFor as retryWait } from './policy.js';\nexport class NoticeSender { async send(attempt) { return retryWait(attempt); } }\nexport class PreviewSender { async send(attempt) { return attempt; } }\nexport function noticeKey(value) { return String(value); }\n",
+        ),
+        (
+            "policy.js",
+            "export const pauseFor = attempt => Math.min(2 ** attempt,30);\n",
+        ),
     ]);
-    let wire = f.note("Envelope field agreement","Readers require the original field order.",json!([{"path":"sender.js","qualified_name":"NoticeSender.send"}]));
-    let owner = f.note("Sender shutdown contract","Repeated shutdown must be harmless for all operations on this sender.",json!([{"path":"sender.js","qualified_name":"NoticeSender"}]));
-    let lease = f.note("Pending lifetime","The receiver expires after half a minute. Longer waits lose the notice.",json!([{"path":"policy.js","qualified_name":"pauseFor"}]));
-    let trace = f.note("Notice change diagnostics","A change to NoticeSender.send should record noticeKey calls for diagnostics.",json!([{"path":"sender.js","qualified_name":"noticeKey"}]));
-    let alternate = f.note("Preview display agreement","Preview consumers require a visible prefix.",json!([{"path":"sender.js","qualified_name":"PreviewSender.send"}]));
+    let wire = f.note(
+        "Envelope field agreement",
+        "Readers require the original field order.",
+        json!([{"path":"sender.js","qualified_name":"NoticeSender.send"}]),
+    );
+    let owner = f.note(
+        "Sender shutdown contract",
+        "Repeated shutdown must be harmless for all operations on this sender.",
+        json!([{"path":"sender.js","qualified_name":"NoticeSender"}]),
+    );
+    let lease = f.note(
+        "Pending lifetime",
+        "The receiver expires after half a minute. Longer waits lose the notice.",
+        json!([{"path":"policy.js","qualified_name":"pauseFor"}]),
+    );
+    let trace = f.note(
+        "Notice change diagnostics",
+        "A change to NoticeSender.send should record noticeKey calls for diagnostics.",
+        json!([{"path":"sender.js","qualified_name":"noticeKey"}]),
+    );
+    let alternate = f.note(
+        "Preview display agreement",
+        "Preview consumers require a visible prefix.",
+        json!([{"path":"sender.js","qualified_name":"PreviewSender.send"}]),
+    );
     let q = "Which constraints must a change to NoticeSender.send preserve?";
-    let packet = f.context(q,json!({"symbol_links":true,"debug_candidates":400}));
-    assert!(includes(&packet,&wire) && includes(&packet,&owner) && includes(&packet,&lease),"{packet:#}");
-    assert!(!includes(&packet,&trace) && !includes(&packet,&alternate),"{packet:#}");
-    assert_eq!(packet["memory_scope_support"]["basis"],"qualified_change");
-    let preview = f.context("Which constraints must a change to PreviewSender.send preserve?",json!({"symbol_links":true}));
-    assert!(includes(&preview,&alternate) && !includes(&preview,&owner),"{preview:#}");
-    let compound = f.context("Why does NoticeSender.send wait at most thirty seconds and preserve field order?",json!({"symbol_links":true}));
-    assert!(includes(&compound,&wire) && includes(&compound,&lease),"{compound:#}");
-    assert!(!includes(&compound,&owner) && !includes(&compound,&trace),"{compound:#}");
-    assert_eq!(compound["memory_rationale_support"]["basis"],"rationale_compound_agreement");
-    let expanded = f.context(q,json!({"symbol_links":true,"needs":["notice change diagnostics"]}));
-    assert!(includes(&expanded,&trace),"{expanded:#}");
+    let packet = f.context(q, json!({"symbol_links":true,"debug_candidates":400}));
+    assert!(
+        includes(&packet, &wire) && includes(&packet, &owner) && includes(&packet, &lease),
+        "{packet:#}"
+    );
+    assert!(
+        !includes(&packet, &trace) && !includes(&packet, &alternate),
+        "{packet:#}"
+    );
+    assert_eq!(packet["memory_scope_support"]["basis"], "qualified_change");
+    let preview = f.context(
+        "Which constraints must a change to PreviewSender.send preserve?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&preview, &alternate) && !includes(&preview, &owner),
+        "{preview:#}"
+    );
+    let compound = f.context(
+        "Why does NoticeSender.send wait at most thirty seconds and preserve field order?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&compound, &wire) && includes(&compound, &lease),
+        "{compound:#}"
+    );
+    assert!(
+        !includes(&compound, &owner) && !includes(&compound, &trace),
+        "{compound:#}"
+    );
+    assert_eq!(
+        compound["memory_rationale_support"]["basis"],
+        "rationale_compound_agreement"
+    );
+    let expanded = f.context(
+        q,
+        json!({"symbol_links":true,"needs":["notice change diagnostics"]}),
+    );
+    assert!(includes(&expanded, &trace), "{expanded:#}");
     assert!(expanded.get("memory_scope_support").is_none());
-    let missing = f.context("Which constraints must a change to MissingSender.send preserve?",json!({"symbol_links":true}));
-    assert!(missing.get("memory_scope_support").is_none(),"{missing:#}");
+    let missing = f.context(
+        "Which constraints must a change to MissingSender.send preserve?",
+        json!({"symbol_links":true}),
+    );
+    assert!(missing.get("memory_scope_support").is_none(), "{missing:#}");
 }
 
 #[test]
 fn javascript_timing_focus_and_literal_values_preserve_broad_requests() {
-    let f = Fixture::new(&[("notice.js", "export function pauseNotice(attempt) { return Math.min(2 ** attempt, 30); }\nexport function dispatchNotice(attempt) { return pauseNotice(attempt); }\nexport function noticeKey(value) { return String(value); }\n")]);
-    let lifetime = f.note("Receiver expiry", "The peer expires pending notices after half a minute. Longer waits lose the notice.",json!([{"path":"notice.js","qualified_name":"pauseNotice"}]));
-    let wire = f.note("Field ordering", "Consumers require the original field order.",json!([{"path":"notice.js","qualified_name":"dispatchNotice"}]));
-    let trace = f.note("Notice key sampling", "Record noticeKey invocations for dispatchNotice retry timing telemetry.",json!([{"path":"notice.js","qualified_name":"noticeKey"}]));
-    for q in ["Which constraints govern dispatchNotice retry timing?", "Why does dispatchNotice stop increasing the pause after thirty seconds?"] {
-        let packet = f.context(q,json!({"symbol_links":true}));
-        assert!(includes(&packet,&lifetime),"{packet:#}");
-        assert!(!includes(&packet,&wire) && !includes(&packet,&trace),"{packet:#}");
+    let f = Fixture::new(&[(
+        "notice.js",
+        "export function pauseNotice(attempt) { return Math.min(2 ** attempt, 30); }\nexport function dispatchNotice(attempt) { return pauseNotice(attempt); }\nexport function noticeKey(value) { return String(value); }\n",
+    )]);
+    let lifetime = f.note(
+        "Receiver expiry",
+        "The peer expires pending notices after half a minute. Longer waits lose the notice.",
+        json!([{"path":"notice.js","qualified_name":"pauseNotice"}]),
+    );
+    let wire = f.note(
+        "Field ordering",
+        "Consumers require the original field order.",
+        json!([{"path":"notice.js","qualified_name":"dispatchNotice"}]),
+    );
+    let trace = f.note(
+        "Notice key sampling",
+        "Record noticeKey invocations for dispatchNotice retry timing telemetry.",
+        json!([{"path":"notice.js","qualified_name":"noticeKey"}]),
+    );
+    for q in [
+        "Which constraints govern dispatchNotice retry timing?",
+        "Why does dispatchNotice stop increasing the pause after thirty seconds?",
+    ] {
+        let packet = f.context(q, json!({"symbol_links":true}));
+        assert!(includes(&packet, &lifetime), "{packet:#}");
+        assert!(
+            !includes(&packet, &wire) && !includes(&packet, &trace),
+            "{packet:#}"
+        );
     }
-    for mode in [json!(false),Value::Null,json!(true)] {
-        let packet = f.context("What does noticeKey(9) return?",json!({"symbol_links":mode,"debug_candidates":400}));
-        assert!(packet["memories"].as_array().unwrap().is_empty(),"{packet:#}");
+    for mode in [json!(false), Value::Null, json!(true)] {
+        let packet = f.context(
+            "What does noticeKey(9) return?",
+            json!({"symbol_links":mode,"debug_candidates":400}),
+        );
+        assert!(
+            packet["memories"].as_array().unwrap().is_empty(),
+            "{packet:#}"
+        );
         assert!(!packet["evidence"].as_array().unwrap().is_empty());
-        assert_eq!(packet["memory_value_request"]["basis"],"literal_call_value_request","{packet:#}");
+        assert_eq!(
+            packet["memory_value_request"]["basis"], "literal_call_value_request",
+            "{packet:#}"
+        );
     }
-    for q in ["Which constraints must a change to dispatchNotice preserve?", "Which constraints govern dispatchNotice retry timing and field ordering?"] {
-        let broad = f.context(q,json!({"symbol_links":true}));
-        assert!(includes(&broad,&lifetime) && includes(&broad,&wire),"{broad:#}");
+    for q in [
+        "Which constraints must a change to dispatchNotice preserve?",
+        "Which constraints govern dispatchNotice retry timing and field ordering?",
+    ] {
+        let broad = f.context(q, json!({"symbol_links":true}));
+        assert!(
+            includes(&broad, &lifetime) && includes(&broad, &wire),
+            "{broad:#}"
+        );
     }
-    for q in ["What does noticeKey(9) return and why?", "What does noticeKey(value) return?"] {
-        let broad = f.context(q,json!({"symbol_links":true}));
-        assert!(includes(&broad,&trace),"{broad:#}");
+    for q in [
+        "What does noticeKey(9) return and why?",
+        "What does noticeKey(value) return?",
+    ] {
+        let broad = f.context(q, json!({"symbol_links":true}));
+        assert!(includes(&broad, &trace), "{broad:#}");
     }
-    let expanded = f.context("What does noticeKey(9) return?",json!({"symbol_links":true,"needs":["notice key sampling"]}));
-    assert!(includes(&expanded,&trace),"{expanded:#}");
-    let absent = f.context("What does missingKey(9) return?",json!({"symbol_links":true}));
-    assert!(absent.get("memory_value_request").is_none(),"{absent:#}");
+    let expanded = f.context(
+        "What does noticeKey(9) return?",
+        json!({"symbol_links":true,"needs":["notice key sampling"]}),
+    );
+    assert!(includes(&expanded, &trace), "{expanded:#}");
+    let absent = f.context(
+        "What does missingKey(9) return?",
+        json!({"symbol_links":true}),
+    );
+    assert!(absent.get("memory_value_request").is_none(), "{absent:#}");
 }
 
 #[test]
 fn shell_scope_keeps_sourced_dependencies_and_literal_caps_keep_only_code() {
     let files = [
-        ("deliver.sh", "source \"./lib/policy.sh\"\ndeliver_payload() {\n retry_delay \"$1\" | consume_payload\n}\nconsume_payload() { cat; }\n"),
-        ("lib/policy.sh", "retry_delay() {\n local delay=$((1 << attempt))\n if (( delay > 45 )); then\n delay=45\n fi\n printf '%s\\n' \"$delay\"\n}\n"),
+        (
+            "deliver.sh",
+            "source \"./lib/policy.sh\"\ndeliver_payload() {\n retry_delay \"$1\" | consume_payload\n}\nconsume_payload() { cat; }\n",
+        ),
+        (
+            "lib/policy.sh",
+            "retry_delay() {\n local delay=$((1 << attempt))\n if (( delay > 45 )); then\n delay=45\n fi\n printf '%s\\n' \"$delay\"\n}\n",
+        ),
         ("preview.sh", "deliver_payload() { echo preview; }\n"),
     ];
     let f = Fixture::new(&files);
-    let owner = f.note("Delivery agreement","A change must preserve literal payload bytes.",json!([{"path":"deliver.sh","qualified_name":"deliver_payload"}]));
-    let lease = f.note("Delay allowance","The peer permits forty-five seconds to recover.",json!([{"path":"lib/policy.sh","qualified_name":"retry_delay"}]));
-    let pipe = f.note("Consumer agreement","A change must preserve failure propagation.",json!([{"path":"deliver.sh","qualified_name":"consume_payload"}]));
-    let preview = f.note("Alternate delivery agreement","A change to deliver_payload must preserve the preview prefix.",json!([{"path":"preview.sh","qualified_name":"deliver_payload"}]));
+    let owner = f.note(
+        "Delivery agreement",
+        "A change must preserve literal payload bytes.",
+        json!([{"path":"deliver.sh","qualified_name":"deliver_payload"}]),
+    );
+    let lease = f.note(
+        "Delay allowance",
+        "The peer permits forty-five seconds to recover.",
+        json!([{"path":"lib/policy.sh","qualified_name":"retry_delay"}]),
+    );
+    let pipe = f.note(
+        "Consumer agreement",
+        "A change must preserve failure propagation.",
+        json!([{"path":"deliver.sh","qualified_name":"consume_payload"}]),
+    );
+    let preview = f.note(
+        "Alternate delivery agreement",
+        "A change to deliver_payload must preserve the preview prefix.",
+        json!([{"path":"preview.sh","qualified_name":"deliver_payload"}]),
+    );
     let question = "Which constraints must a change to deliver_payload in deliver.sh preserve?";
-    let packet = f.context(question,json!({"symbol_links":true,"debug_candidates":400}));
-    assert!(includes(&packet,&owner) && includes(&packet,&lease) && includes(&packet,&pipe),"{packet:#}");
-    assert!(!includes(&packet,&preview),"{packet:#}");
-    assert_eq!(packet["memory_scope_support"]["basis"],"shell_dependencies");
-    let broad = f.context("Which constraints must a change to deliver_payload preserve?",json!({"symbol_links":true}));
-    assert!(includes(&broad,&preview),"{broad:#}");
-    for mode in [json!(false),Value::Null,json!(true)] {
-        let value = f.context("What cap value does lib/policy.sh assign to delay?",json!({"symbol_links":mode}));
-        assert!(value["memories"].as_array().unwrap().is_empty(),"{value:#}");
+    let packet = f.context(
+        question,
+        json!({"symbol_links":true,"debug_candidates":400}),
+    );
+    assert!(
+        includes(&packet, &owner) && includes(&packet, &lease) && includes(&packet, &pipe),
+        "{packet:#}"
+    );
+    assert!(!includes(&packet, &preview), "{packet:#}");
+    assert_eq!(
+        packet["memory_scope_support"]["basis"],
+        "shell_dependencies"
+    );
+    let broad = f.context(
+        "Which constraints must a change to deliver_payload preserve?",
+        json!({"symbol_links":true}),
+    );
+    assert!(includes(&broad, &preview), "{broad:#}");
+    for mode in [json!(false), Value::Null, json!(true)] {
+        let value = f.context(
+            "What cap value does lib/policy.sh assign to delay?",
+            json!({"symbol_links":mode}),
+        );
+        assert!(
+            value["memories"].as_array().unwrap().is_empty(),
+            "{value:#}"
+        );
         assert!(!value["evidence"].as_array().unwrap().is_empty());
-        assert_eq!(value["memory_value_request"]["key"],"delay");
+        assert_eq!(value["memory_value_request"]["key"], "delay");
     }
-    let expanded = f.context(question,json!({"symbol_links":true,"needs":["preview prefix"]}));
-    assert!(expanded.get("memory_scope_support").is_none(),"{expanded:#}");
-    assert!(includes(&expanded,&preview),"{expanded:#}");
+    let expanded = f.context(
+        question,
+        json!({"symbol_links":true,"needs":["preview prefix"]}),
+    );
+    assert!(
+        expanded.get("memory_scope_support").is_none(),
+        "{expanded:#}"
+    );
+    assert!(includes(&expanded, &preview), "{expanded:#}");
     let mut dynamic = files;
     dynamic[0].1 = "source \"$POLICY\"\ndeliver_payload() { retry_delay \"$1\"; }\n";
     f.sync(&dynamic);
-    let unknown = f.context(question,json!({"symbol_links":true}));
-    assert!(unknown.get("memory_scope_support").is_none(),"{unknown:#}");
-    assert!(includes(&unknown,&preview),"{unknown:#}");
+    let unknown = f.context(question, json!({"symbol_links":true}));
+    assert!(unknown.get("memory_scope_support").is_none(), "{unknown:#}");
+    assert!(includes(&unknown, &preview), "{unknown:#}");
 }
 
 #[test]
 fn rationale_focus_can_start_from_a_linked_reason_before_the_cap() {
-    let f = Fixture::new(&[("delivery.py","def send_packet(attempt):\n    return backoff_delay(attempt)\n\ndef backoff_delay(attempt):\n    return min(2 ** attempt, 60)\n")]);
-    let lease = f.note("Peer lifetime","The remote session expires after one minute. Longer pauses abandon the connection.",json!([{"path":"delivery.py","qualified_name":"backoff_delay"}]));
-    let audit = f.note("Ledger storage","Keep fiscal archives immutable.",json!([{"path":"delivery.py","qualified_name":"send_packet"}]));
-    let packet = f.context("Why does send_packet cap the backoff at sixty seconds?",json!({"symbol_links":true,"debug_candidates":400}));
-    assert!(includes(&packet,&lease) && !includes(&packet,&audit),"{packet:#}");
-    assert_eq!(packet["memory_rationale_support"]["anchor_route"],"symbol_link","{packet:#}");
-    let broad = f.context("Which constraints must a change to send_packet preserve?",json!({"symbol_links":true}));
-    assert!(includes(&broad,&lease) && includes(&broad,&audit),"{broad:#}");
+    let f = Fixture::new(&[(
+        "delivery.py",
+        "def send_packet(attempt):\n    return backoff_delay(attempt)\n\ndef backoff_delay(attempt):\n    return min(2 ** attempt, 60)\n",
+    )]);
+    let lease = f.note(
+        "Peer lifetime",
+        "The remote session expires after one minute. Longer pauses abandon the connection.",
+        json!([{"path":"delivery.py","qualified_name":"backoff_delay"}]),
+    );
+    let audit = f.note(
+        "Ledger storage",
+        "Keep fiscal archives immutable.",
+        json!([{"path":"delivery.py","qualified_name":"send_packet"}]),
+    );
+    let packet = f.context(
+        "Why does send_packet cap the backoff at sixty seconds?",
+        json!({"symbol_links":true,"debug_candidates":400}),
+    );
+    assert!(
+        includes(&packet, &lease) && !includes(&packet, &audit),
+        "{packet:#}"
+    );
+    assert_eq!(
+        packet["memory_rationale_support"]["anchor_route"], "symbol_link",
+        "{packet:#}"
+    );
+    let broad = f.context(
+        "Which constraints must a change to send_packet preserve?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&broad, &lease) && includes(&broad, &audit),
+        "{broad:#}"
+    );
 }
 
 #[test]
 fn same_symbol_quantified_policy_does_not_override_a_supported_rationale() {
-    let f = Fixture::new(&[("billing.py","def invoice_total(items):\n    return round(sum(items), 2)\n")]);
-    let settlement = f.note("Settlement boundary","Preserve two decimal places at the outbound boundary.",json!([{"path":"billing.py","qualified_name":"invoice_total"}]));
-    let audit = f.note("Audit evidence","Finance retains original line items for seven years in an archive.",json!([{"path":"billing.py","qualified_name":"invoice_total"}]));
-    let extra = f.note("Processor requirement","Card networks reject fractional minor units.",json!([{"path":"billing.py","qualified_name":"invoice_total"}]));
-    let packet = f.context("Why does invoice_total round to two decimal places?",json!({"symbol_links":true}));
-    assert!(includes(&packet,&settlement) && includes(&packet,&extra) && !includes(&packet,&audit),"{packet:#}");
-    let broad = f.context("Which constraints must a change to invoice_total preserve?",json!({"symbol_links":true}));
-    assert!(includes(&broad,&settlement) && includes(&broad,&extra) && includes(&broad,&audit),"{broad:#}");
+    let f = Fixture::new(&[(
+        "billing.py",
+        "def invoice_total(items):\n    return round(sum(items), 2)\n",
+    )]);
+    let settlement = f.note(
+        "Settlement boundary",
+        "Preserve two decimal places at the outbound boundary.",
+        json!([{"path":"billing.py","qualified_name":"invoice_total"}]),
+    );
+    let audit = f.note(
+        "Audit evidence",
+        "Finance retains original line items for seven years in an archive.",
+        json!([{"path":"billing.py","qualified_name":"invoice_total"}]),
+    );
+    let extra = f.note(
+        "Processor requirement",
+        "Card networks reject fractional minor units.",
+        json!([{"path":"billing.py","qualified_name":"invoice_total"}]),
+    );
+    let packet = f.context(
+        "Why does invoice_total round to two decimal places?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&packet, &settlement) && includes(&packet, &extra) && !includes(&packet, &audit),
+        "{packet:#}"
+    );
+    let broad = f.context(
+        "Which constraints must a change to invoice_total preserve?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&broad, &settlement) && includes(&broad, &extra) && includes(&broad, &audit),
+        "{broad:#}"
+    );
 }
 
 #[test]
 fn rationale_support_filters_both_routes_without_overriding_expanded_requests() {
-    let f = Fixture::new(&[("queue.py", "def limit():\n    return floor()\n\ndef floor():\n    return 60\n")]);
-    let cap = f.note("Backlog reservation", "Reserved capacity covers at most five minutes of backlog.",
-        json!([{"path":"queue.py","qualified_name":"limit"}]));
-    let floor = f.note("Replay horizon", "Clients need sixty seconds to reconnect.",
-        json!([{"path":"queue.py","qualified_name":"floor"}]));
-    let reason = f.note("Peer covenant", "Slow peers need room to acknowledge the batch.",
-        json!([{"path":"queue.py","qualified_name":"limit"}]));
+    let f = Fixture::new(&[(
+        "queue.py",
+        "def limit():\n    return floor()\n\ndef floor():\n    return 60\n",
+    )]);
+    let cap = f.note(
+        "Backlog reservation",
+        "Reserved capacity covers at most five minutes of backlog.",
+        json!([{"path":"queue.py","qualified_name":"limit"}]),
+    );
+    let floor = f.note(
+        "Replay horizon",
+        "Clients need sixty seconds to reconnect.",
+        json!([{"path":"queue.py","qualified_name":"floor"}]),
+    );
+    let reason = f.note(
+        "Peer covenant",
+        "Slow peers need room to acknowledge the batch.",
+        json!([{"path":"queue.py","qualified_name":"limit"}]),
+    );
     let question = "Why does limit() cap backlog at 300 seconds?";
     for mode in [json!(false), Value::Null, json!(true)] {
-        let packet = f.context(question, json!({"symbol_links":mode,"debug_candidates":400}));
+        let packet = f.context(
+            question,
+            json!({"symbol_links":mode,"debug_candidates":400}),
+        );
         assert!(includes(&packet, &cap), "{packet:#}");
         assert!(!includes(&packet, &floor), "{packet:#}");
-        assert_eq!(packet["memory_rationale_support"]["basis"], "rationale_duration_agreement", "{packet:#}");
-        if mode == true { assert!(includes(&packet, &reason), "{packet:#}"); }
+        assert_eq!(
+            packet["memory_rationale_support"]["basis"], "rationale_duration_agreement",
+            "{packet:#}"
+        );
+        if mode == true {
+            assert!(includes(&packet, &reason), "{packet:#}");
+        }
     }
-    for switches in [json!({"needs":["reconnection floor"]}), json!({"query_variants":[{"text":"reconnect clients","kind":"query"}]})] {
-        let mut switches = switches; switches["symbol_links"] = json!(true);
+    for switches in [
+        json!({"needs":["reconnection floor"]}),
+        json!({"query_variants":[{"text":"reconnect clients","kind":"query"}]}),
+    ] {
+        let mut switches = switches;
+        switches["symbol_links"] = json!(true);
         let packet = f.context(question, switches);
-        assert!(packet.get("memory_rationale_support").is_none(), "{packet:#}");
+        assert!(
+            packet.get("memory_rationale_support").is_none(),
+            "{packet:#}"
+        );
         assert!(includes(&packet, &floor), "{packet:#}");
     }
 }
@@ -528,31 +841,77 @@ fn rationale_support_filters_both_routes_without_overriding_expanded_requests() 
 #[test]
 fn helm_helpers_and_value_fields_keep_only_their_dependency_notes() {
     let files = [
-        ("Chart.yaml", "apiVersion: v2\nname: parcel\nversion: 0.1.0\n"),
-        ("values.yaml", "replicaCount: 2\nservice:\n  port: 8080\nresources:\n  cpu: 100m\n"),
-        ("templates/_helpers.tpl", "{{ define \"parcel.labels\" }}\napp: {{ .Release.Name }}\n{{ end }}\n"),
-        ("templates/service.yaml", "kind: Service\nselector:\n  {{ include \"parcel.labels\" . }}\nport: {{ .Values.service.port }}\n"),
-        ("templates/deployment.yaml", "kind: Deployment\nreplicas: {{ .Values.replicaCount }}\nport: {{ .Values.service.port }}\n"),
+        (
+            "Chart.yaml",
+            "apiVersion: v2\nname: parcel\nversion: 0.1.0\n",
+        ),
+        (
+            "values.yaml",
+            "replicaCount: 2\nservice:\n  port: 8080\nresources:\n  cpu: 100m\n",
+        ),
+        (
+            "templates/_helpers.tpl",
+            "{{ define \"parcel.labels\" }}\napp: {{ .Release.Name }}\n{{ end }}\n",
+        ),
+        (
+            "templates/service.yaml",
+            "kind: Service\nselector:\n  {{ include \"parcel.labels\" . }}\nport: {{ .Values.service.port }}\n",
+        ),
+        (
+            "templates/deployment.yaml",
+            "kind: Deployment\nreplicas: {{ .Values.replicaCount }}\nport: {{ .Values.service.port }}\n",
+        ),
     ];
     let f = Fixture::new(&files);
-    let labels = f.note("Release isolation", "Selectors must preserve tenant boundaries.",
-        json!([{"path":"templates/_helpers.tpl","qualified_name":"parcel.labels"}]));
-    let port = f.note("Listener compatibility", "The target must agree with the container port.",
-        json!([{"path":"values.yaml","qualified_name":"Values.service.port"}]));
-    let replicas = f.note("Availability floor", "Replicas must preserve replacement capacity.",
-        json!([{"path":"values.yaml","qualified_name":"Values.replicaCount"}]));
-    let cpu = f.note("Compute reservation", "Capacity must preserve a core per replica.",
-        json!([{"path":"values.yaml","qualified_name":"Values.resources.cpu"}]));
+    let labels = f.note(
+        "Release isolation",
+        "Selectors must preserve tenant boundaries.",
+        json!([{"path":"templates/_helpers.tpl","qualified_name":"parcel.labels"}]),
+    );
+    let port = f.note(
+        "Listener compatibility",
+        "The target must agree with the container port.",
+        json!([{"path":"values.yaml","qualified_name":"Values.service.port"}]),
+    );
+    let replicas = f.note(
+        "Availability floor",
+        "Replicas must preserve replacement capacity.",
+        json!([{"path":"values.yaml","qualified_name":"Values.replicaCount"}]),
+    );
+    let cpu = f.note(
+        "Compute reservation",
+        "Capacity must preserve a core per replica.",
+        json!([{"path":"values.yaml","qualified_name":"Values.resources.cpu"}]),
+    );
     for (question, wanted) in [
-        ("Which constraints must a change to parcel.labels preserve?", vec![&labels]),
-        ("Which constraints must a change to templates/service.yaml preserve?", vec![&labels, &port]),
-        ("Which constraints govern .Values.replicaCount?", vec![&replicas]),
+        (
+            "Which constraints must a change to parcel.labels preserve?",
+            vec![&labels],
+        ),
+        (
+            "Which constraints must a change to templates/service.yaml preserve?",
+            vec![&labels, &port],
+        ),
+        (
+            "Which constraints govern .Values.replicaCount?",
+            vec![&replicas],
+        ),
         ("Which constraints govern .Values.service?", vec![&port]),
     ] {
-        let packet = f.context(question, json!({"symbol_links":true,"debug_candidates":400}));
-        assert_eq!(packet["memory_scope_support"]["basis"], "helm_dependencies", "{packet:#}");
+        let packet = f.context(
+            question,
+            json!({"symbol_links":true,"debug_candidates":400}),
+        );
+        assert_eq!(
+            packet["memory_scope_support"]["basis"], "helm_dependencies",
+            "{packet:#}"
+        );
         for note in [&labels, &port, &replicas, &cpu] {
-            assert_eq!(includes(&packet, note), wanted.iter().any(|n| n["id"] == note["id"]), "{question}: {packet:#}");
+            assert_eq!(
+                includes(&packet, note),
+                wanted.iter().any(|n| n["id"] == note["id"]),
+                "{question}: {packet:#}"
+            );
         }
     }
     // Computed names and indirect field access preserve the same dependencies.
@@ -565,94 +924,217 @@ fn helm_helpers_and_value_fields_keep_only_their_dependency_notes() {
         let mut dynamic = files;
         dynamic[3].1 = template;
         f.sync(&dynamic);
-        let packet = f.context("Which constraints must a change to templates/service.yaml preserve?", json!({"symbol_links":true}));
-        assert_eq!(packet["memory_scope_support"]["basis"],"helm_dependencies","{packet:#}");
-        assert!(includes(&packet,&labels) && includes(&packet,&port),"{packet:#}");
-        assert!(!includes(&packet,&replicas) && !includes(&packet,&cpu),"{packet:#}");
+        let packet = f.context(
+            "Which constraints must a change to templates/service.yaml preserve?",
+            json!({"symbol_links":true}),
+        );
+        assert_eq!(
+            packet["memory_scope_support"]["basis"], "helm_dependencies",
+            "{packet:#}"
+        );
+        assert!(
+            includes(&packet, &labels) && includes(&packet, &port),
+            "{packet:#}"
+        );
+        assert!(
+            !includes(&packet, &replicas) && !includes(&packet, &cpu),
+            "{packet:#}"
+        );
     }
     // The graph must refresh references when a template changes, even though
     // its old helper and values declarations are unchanged.
     let mut changed = files;
     changed[3].1 = "kind: Service\nreplicas: {{ .Values.replicaCount }}\n";
     f.sync(&changed);
-    let packet = f.context("Which constraints must a change to templates/service.yaml preserve?", json!({"symbol_links":true}));
+    let packet = f.context(
+        "Which constraints must a change to templates/service.yaml preserve?",
+        json!({"symbol_links":true}),
+    );
     assert!(includes(&packet, &replicas), "{packet:#}");
-    assert!(!includes(&packet, &labels) && !includes(&packet, &port), "{packet:#}");
+    assert!(
+        !includes(&packet, &labels) && !includes(&packet, &port),
+        "{packet:#}"
+    );
     changed[3].1 = "kind: Service\n{{ include .Values.helper . }}\n";
     f.sync(&changed);
-    let packet = f.context("Which constraints must a change to templates/service.yaml preserve?", json!({"symbol_links":true}));
+    let packet = f.context(
+        "Which constraints must a change to templates/service.yaml preserve?",
+        json!({"symbol_links":true}),
+    );
     assert!(packet.get("memory_scope_support").is_none(), "{packet:#}");
     changed[2].1 = "{{ define \"parcel.labels\" }}{{ tpl .Values.labels . }}{{ end }}\n";
     f.sync(&changed);
-    let packet = f.context("Which constraints must a change to parcel.labels preserve?", json!({"symbol_links":true}));
+    let packet = f.context(
+        "Which constraints must a change to parcel.labels preserve?",
+        json!({"symbol_links":true}),
+    );
     assert!(packet.get("memory_scope_support").is_none(), "{packet:#}");
-    assert_eq!(packet["symbol_links"]["query_symbol_scope"]["applied"], false, "{packet:#}");
+    assert_eq!(
+        packet["symbol_links"]["query_symbol_scope"]["applied"], false,
+        "{packet:#}"
+    );
 }
 
 #[test]
 fn unsupported_helm_structures_preserve_sync_and_text_retrieval() {
     let f = Fixture::new(&[
-        ("Chart.yaml", "apiVersion: v2\nname: parcel\nversion: 0.1.0\n"),
+        (
+            "Chart.yaml",
+            "apiVersion: v2\nname: parcel\nversion: 0.1.0\n",
+        ),
         ("values.yaml", "? [region, zone]\n: custom-placement\n"),
-        ("templates/service.yaml", "kind: Service\nport: {{ .Values.port }}\n"),
+        (
+            "templates/service.yaml",
+            "kind: Service\nport: {{ .Values.port }}\n",
+        ),
     ]);
-    let packet = f.context("Which constraints govern templates/service.yaml?", json!({"symbol_links":true}));
+    let packet = f.context(
+        "Which constraints govern templates/service.yaml?",
+        json!({"symbol_links":true}),
+    );
     assert!(packet.get("memory_scope_support").is_none(), "{packet:#}");
-    assert!(!packet["evidence"].as_array().unwrap().is_empty(), "{packet:#}");
+    assert!(
+        !packet["evidence"].as_array().unwrap().is_empty(),
+        "{packet:#}"
+    );
 }
 
 #[test]
 fn configuration_owner_and_named_title_exclude_consumer_notes_but_keep_change_queries_broad() {
     let f = Fixture::new(&[
-        ("main.tf", "module \"queue\" {\n source = \"./queue\"\n retention = var.retention_seconds\n}\n"),
-        ("variables.tf", "variable \"retention_seconds\" {\n default = 60\n}\n"),
-        ("worker.hcl", "job \"worker\" {\n group \"processors\" {\n count = 2\n }\n}\n"),
+        (
+            "main.tf",
+            "module \"queue\" {\n source = \"./queue\"\n retention = var.retention_seconds\n}\n",
+        ),
+        (
+            "variables.tf",
+            "variable \"retention_seconds\" {\n default = 60\n}\n",
+        ),
+        (
+            "worker.hcl",
+            "job \"worker\" {\n group \"processors\" {\n count = 2\n }\n}\n",
+        ),
     ]);
-    let contract = f.note("Queue handoff contract", "The queue output stays in seconds.",
-        json!([{"path":"main.tf","qualified_name":"module.queue"}]));
-    let floor = f.note("Replay horizon", "The queue must keep at least sixty seconds of backlog.",
-        json!([{"path":"variables.tf","qualified_name":"var.retention_seconds"}]));
-    let availability = f.note("Worker availability", "The processors count must preserve rolling replacement room.",
-        json!([{"path":"worker.hcl","qualified_name":"job.worker"}]));
+    let contract = f.note(
+        "Queue handoff contract",
+        "The queue output stays in seconds.",
+        json!([{"path":"main.tf","qualified_name":"module.queue"}]),
+    );
+    let floor = f.note(
+        "Replay horizon",
+        "The queue must keep at least sixty seconds of backlog.",
+        json!([{"path":"variables.tf","qualified_name":"var.retention_seconds"}]),
+    );
+    let availability = f.note(
+        "Worker availability",
+        "The processors count must preserve rolling replacement room.",
+        json!([{"path":"worker.hcl","qualified_name":"job.worker"}]),
+    );
     for mode in [json!(false), Value::Null, json!(true)] {
-        let title = f.context("What is the queue handoff contract?", json!({"symbol_links":mode}));
-        assert!(includes(&title,&contract) && !includes(&title,&floor), "{title:#}");
+        let title = f.context(
+            "What is the queue handoff contract?",
+            json!({"symbol_links":mode}),
+        );
+        assert!(
+            includes(&title, &contract) && !includes(&title, &floor),
+            "{title:#}"
+        );
         assert_eq!(title["memory_prose_support"]["basis"], "exact_note_title");
-        let owner = f.context("Which constraint governs var.retention_seconds in variables.tf?", json!({"symbol_links":mode}));
-        assert!(includes(&owner,&floor) && !includes(&owner,&contract), "{owner:#}");
-        assert_eq!(owner["memory_scope_support"]["basis"], "configuration_input");
-        let count = f.context("What count is assigned to the processors group in worker.hcl?", json!({"symbol_links":mode}));
-        assert!(!includes(&count,&availability), "{count:#}");
-        assert!(count["memories"].as_array().unwrap().is_empty(), "{count:#}");
+        let owner = f.context(
+            "Which constraint governs var.retention_seconds in variables.tf?",
+            json!({"symbol_links":mode}),
+        );
+        assert!(
+            includes(&owner, &floor) && !includes(&owner, &contract),
+            "{owner:#}"
+        );
+        assert_eq!(
+            owner["memory_scope_support"]["basis"],
+            "configuration_input"
+        );
+        let count = f.context(
+            "What count is assigned to the processors group in worker.hcl?",
+            json!({"symbol_links":mode}),
+        );
+        assert!(!includes(&count, &availability), "{count:#}");
+        assert!(
+            count["memories"].as_array().unwrap().is_empty(),
+            "{count:#}"
+        );
         assert!(!count["evidence"].as_array().unwrap().is_empty());
         assert_eq!(count["memory_value_request"]["key"], "count");
     }
-    let change = f.context("Which constraints must a change to module.queue preserve?", json!({"symbol_links":true}));
-    assert!(includes(&change,&contract) && includes(&change,&floor), "{change:#}");
-    let expanded = f.context("Which constraint governs var.retention_seconds in variables.tf?", json!({"symbol_links":true,"needs":["queue handoff contract"]}));
-    assert!(expanded.get("memory_scope_support").is_none(), "{expanded:#}");
-    assert!(includes(&expanded,&contract) && includes(&expanded,&floor), "{expanded:#}");
+    let change = f.context(
+        "Which constraints must a change to module.queue preserve?",
+        json!({"symbol_links":true}),
+    );
+    assert!(
+        includes(&change, &contract) && includes(&change, &floor),
+        "{change:#}"
+    );
+    let expanded = f.context(
+        "Which constraint governs var.retention_seconds in variables.tf?",
+        json!({"symbol_links":true,"needs":["queue handoff contract"]}),
+    );
+    assert!(
+        expanded.get("memory_scope_support").is_none(),
+        "{expanded:#}"
+    );
+    assert!(
+        includes(&expanded, &contract) && includes(&expanded, &floor),
+        "{expanded:#}"
+    );
 }
 
 #[test]
 fn configuration_values_keep_source_without_design_memories() {
     let f = Fixture::new(&[("settings.tf", "variable \"timeout\" {\n  default = 60\n}\n")]);
-    let note = f.note("Timeout allowance", "The timeout must preserve room for recovery.",
-        json!([{"path":"settings.tf","qualified_name":"var.timeout"}]));
+    let note = f.note(
+        "Timeout allowance",
+        "The timeout must preserve room for recovery.",
+        json!([{"path":"settings.tf","qualified_name":"var.timeout"}]),
+    );
     let question = "What default value does settings.tf assign to timeout?";
     for mode in [Value::Null, json!(false), json!(true)] {
-        let packet = f.context(question, json!({"symbol_links":mode,"debug_candidates":400}));
-        assert!(packet["memories"].as_array().unwrap().is_empty(), "{packet:#}");
-        assert!(!packet["evidence"].as_array().unwrap().is_empty(), "{packet:#}");
+        let packet = f.context(
+            question,
+            json!({"symbol_links":mode,"debug_candidates":400}),
+        );
+        assert!(
+            packet["memories"].as_array().unwrap().is_empty(),
+            "{packet:#}"
+        );
+        assert!(
+            !packet["evidence"].as_array().unwrap().is_empty(),
+            "{packet:#}"
+        );
         assert_eq!(packet["memory_value_request"]["key"], "timeout");
-        assert!(packet["memory_candidates_debug"]["candidates"].as_array().unwrap()
-            .iter().any(|c| c["id"] == note["id"] && c["selection_filter"] == "configuration_value_request"));
+        assert!(
+            packet["memory_candidates_debug"]["candidates"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| c["id"] == note["id"]
+                    && c["selection_filter"] == "configuration_value_request")
+        );
     }
     for (question, switches) in [
-        (question, json!({"symbol_links":true,"needs":["recovery room"]})),
-        ("What default value does missing.tf assign to timeout?", json!({"symbol_links":true})),
-        ("What default value does settings.tf assign to missing_setting?", json!({"symbol_links":true})),
-        ("What default value does settings.tf assign to timeout and why?", json!({"symbol_links":true})),
+        (
+            question,
+            json!({"symbol_links":true,"needs":["recovery room"]}),
+        ),
+        (
+            "What default value does missing.tf assign to timeout?",
+            json!({"symbol_links":true}),
+        ),
+        (
+            "What default value does settings.tf assign to missing_setting?",
+            json!({"symbol_links":true}),
+        ),
+        (
+            "What default value does settings.tf assign to timeout and why?",
+            json!({"symbol_links":true}),
+        ),
     ] {
         let packet = f.context(question, switches);
         assert!(packet.get("memory_value_request").is_none(), "{packet:#}");
@@ -663,18 +1145,37 @@ fn configuration_values_keep_source_without_design_memories() {
 #[test]
 fn hcl_job_constraints_reach_referenced_variables() {
     let f = Fixture::new(&[
-        ("worker.hcl", "job \"worker\" {\n  group \"pool\" {\n    shutdown_delay = \"${var.drain_seconds}s\"\n  }\n}\n"),
-        ("variables.hcl", "variable \"drain_seconds\" {\n  default = 45\n}\n"),
+        (
+            "worker.hcl",
+            "job \"worker\" {\n  group \"pool\" {\n    shutdown_delay = \"${var.drain_seconds}s\"\n  }\n}\n",
+        ),
+        (
+            "variables.hcl",
+            "variable \"drain_seconds\" {\n  default = 45\n}\n",
+        ),
         ("other.hcl", "job \"metrics\" {\n  type = \"batch\"\n}\n"),
     ]);
-    let drain = f.note("Checkpoint covenant", "Persist outstanding checkpoints before termination.",
-        json!([{"path":"variables.hcl","qualified_name":"var.drain_seconds"}]));
-    let unrelated = f.note("Reporting cadence", "Archive summaries hourly.",
-        json!([{"path":"other.hcl","qualified_name":"job.metrics"}]));
-    let owner = f.store.note(&f.workspace, &f.key, &f.args(json!({
-        "title":"Worker handoff agreement", "body":"Keep a consumer accepting work.",
-        "kind":"decision", "dependencies":["worker.hcl"]
-    }))).unwrap();
+    let drain = f.note(
+        "Checkpoint covenant",
+        "Persist outstanding checkpoints before termination.",
+        json!([{"path":"variables.hcl","qualified_name":"var.drain_seconds"}]),
+    );
+    let unrelated = f.note(
+        "Reporting cadence",
+        "Archive summaries hourly.",
+        json!([{"path":"other.hcl","qualified_name":"job.metrics"}]),
+    );
+    let owner = f
+        .store
+        .note(
+            &f.workspace,
+            &f.key,
+            &f.args(json!({
+                "title":"Worker handoff agreement", "body":"Keep a consumer accepting work.",
+                "kind":"decision", "dependencies":["worker.hcl"]
+            })),
+        )
+        .unwrap();
     let question = "Which constraints must a change to job.worker preserve?";
     let on = f.context(question, json!({"symbol_links":true}));
     assert!(includes(&on, &drain), "{on:#}");
@@ -682,10 +1183,16 @@ fn hcl_job_constraints_reach_referenced_variables() {
     assert_eq!(on["symbol_links"]["query_symbol_scope"]["applied"], true);
     let off = f.context(question, json!({"symbol_links":false}));
     assert!(!includes(&off, &drain), "{off:#}");
-    let prose = f.context("What is the worker handoff agreement?", json!({"symbol_links":true}));
+    let prose = f.context(
+        "What is the worker handoff agreement?",
+        json!({"symbol_links":true}),
+    );
     assert!(includes(&prose, &owner), "{prose:#}");
     assert!(!includes(&prose, &drain), "{prose:#}");
-    assert_eq!(prose["symbol_links"]["query_symbol_scope"]["basis"], "ranked_memories");
+    assert_eq!(
+        prose["symbol_links"]["query_symbol_scope"]["basis"],
+        "ranked_memories"
+    );
 }
 
 #[test]
@@ -962,7 +1469,10 @@ fn equivalent_durations_can_rescue_a_late_linked_constraint() {
         json!({"symbol_links":true,"debug_candidates":400}),
     );
     assert!(includes(&packet, &needed), "{packet:#}");
-    assert_eq!(packet["symbol_links"]["candidate_memories_before_filters"], 5);
+    assert_eq!(
+        packet["symbol_links"]["candidate_memories_before_filters"],
+        5
+    );
     assert_eq!(packet["symbol_links"]["candidate_memories"], 1);
     assert_eq!(packet["memory_rationale_support"]["withheld_linked"], 4);
     assert_eq!(packet["symbol_links"]["memory_limit"], 4);

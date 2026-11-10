@@ -288,7 +288,10 @@ mod cpu {
         let encoded = model.tokenizer.encode_batch(inputs, true).map_err(fail)?;
         run_encoded(model, &encoded)
     }
-    fn run_encoded(model: &mut Model, encoded: &[tokenizers::Encoding]) -> Result<(Vec<Vec<f64>>, usize)> {
+    fn run_encoded(
+        model: &mut Model,
+        encoded: &[tokenizers::Encoding],
+    ) -> Result<(Vec<Vec<f64>>, usize)> {
         let batch = encoded.len();
         let width = encoded.first().map_or(0, |e| e.len());
         if batch == 0 || batch > 32 || width == 0 {
@@ -424,7 +427,11 @@ mod cpu {
             return Err(Error::bad("Rerank at most 32 bounded candidates"));
         }
         if texts.is_empty() {
-            return Ok(RerankResult { scores: vec![], tokens: 0, passage_ranges: vec![] });
+            return Ok(RerankResult {
+                scores: vec![],
+                tokens: 0,
+                passage_ranges: vec![],
+            });
         }
         let shared = checked_load(profile)?;
         let mut model = shared
@@ -433,17 +440,35 @@ mod cpu {
         if model.manifest.pooling != "logits" {
             return Err(Error::bad("Reranking requires a cross-encoder manifest"));
         }
-        let encoded = model.tokenizer.encode_batch(texts
-                .iter()
-                .map(|s| EncodeInput::Dual(query.into(), s.as_str().into()))
-                .collect(), true).map_err(fail)?;
-        let passage_ranges = encoded.iter().map(|encoding| {
-            encoding.get_sequence_ids().iter().zip(encoding.get_offsets())
-                .filter_map(|(sequence, &(start, end))| (*sequence == Some(1) && start < end).then_some((start, end)))
-                .collect()
-        }).collect();
+        let encoded = model
+            .tokenizer
+            .encode_batch(
+                texts
+                    .iter()
+                    .map(|s| EncodeInput::Dual(query.into(), s.as_str().into()))
+                    .collect(),
+                true,
+            )
+            .map_err(fail)?;
+        let passage_ranges = encoded
+            .iter()
+            .map(|encoding| {
+                encoding
+                    .get_sequence_ids()
+                    .iter()
+                    .zip(encoding.get_offsets())
+                    .filter_map(|(sequence, &(start, end))| {
+                        (*sequence == Some(1) && start < end).then_some((start, end))
+                    })
+                    .collect()
+            })
+            .collect();
         let (scores, tokens) = run_encoded(&mut model, &encoded)?;
-        Ok(RerankResult { scores: scores.into_iter().map(|v| v[0]).collect(), tokens, passage_ranges })
+        Ok(RerankResult {
+            scores: scores.into_iter().map(|v| v[0]).collect(),
+            tokens,
+            passage_ranges,
+        })
     }
     // The dynamic-runtime loader can panic on an incompatible native library.
     // Keep that operator error inside the Rust Result boundary.
@@ -479,7 +504,9 @@ pub fn rerank_counted(
 }
 #[cfg(not(feature = "local-inference"))]
 pub fn rerank_visible(_profile: &Profile, _query: &str, _texts: &[String]) -> Result<RerankResult> {
-    Err(Error::bad("This binary was built without the local-inference feature"))
+    Err(Error::bad(
+        "This binary was built without the local-inference feature",
+    ))
 }
 
 /// Convenience API when only the ordering scores are needed.

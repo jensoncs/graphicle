@@ -390,27 +390,44 @@ fn large_vendor_assets_are_admitted_without_losing_owned_go_impact() {
     let dependency = b"package dep\nimport \"embed\"\n//go:embed data/*.bin\nvar Files embed.FS\nfunc Value() int {return 1}\n";
     // 72 MiB materialized, despite object-store deduplication of equal blobs.
     let blob = vec![0u8; 8 * 1024 * 1024];
-    let names: Vec<_> = (0..9).map(|n| format!("vendor/example/dep/data/{n}.bin")).collect();
-    let mut files: Vec<(&str, &[u8])> = vec![("go.mod",module),("code.go",before),
-        ("vendor/modules.txt",vendor),("vendor/example/dep/code.go",dependency)];
-    files.extend(names.iter().map(|p| (p.as_str(),blob.as_slice())));
-    let base = f.pin_bytes(&repo,"app",&"a".repeat(40),&files);
+    let names: Vec<_> = (0..9)
+        .map(|n| format!("vendor/example/dep/data/{n}.bin"))
+        .collect();
+    let mut files: Vec<(&str, &[u8])> = vec![
+        ("go.mod", module),
+        ("code.go", before),
+        ("vendor/modules.txt", vendor),
+        ("vendor/example/dep/code.go", dependency),
+    ];
+    files.extend(names.iter().map(|p| (p.as_str(), blob.as_slice())));
+    let base = f.pin_bytes(&repo, "app", &"a".repeat(40), &files);
     files[1].1 = after;
-    let head = f.pin_bytes(&repo,"app",&"b".repeat(40),&files);
-    let packet = f.run(&request(&repo,vec![base.clone()],vec![head.clone()]));
+    let head = f.pin_bytes(&repo, "app", &"b".repeat(40), &files);
+    let packet = f.run(&request(&repo, vec![base.clone()], vec![head.clone()]));
     assert_no_false_go_failure(&packet);
-    assert!(has(&packet,"head",".Use"));
-    assert!(has(&packet,"head",".Caller"));
-    assert!(!has(&packet,"head",".Value"));
-    assert_eq!(packet["coverage"]["analysis_diagnostics"]["head"]["go"]["dependency_package_instances"],1);
-    let warm = f.run(&request(&repo,vec![base],vec![head]));
-    assert_eq!(warm["analysis_cache"]["base_hit"],true);
-    assert_eq!(warm["analysis_cache"]["head_hit"],true);
-    assert_eq!(warm["packet_id"],packet["packet_id"]);
+    assert!(has(&packet, "head", ".Use"));
+    assert!(has(&packet, "head", ".Caller"));
+    assert!(!has(&packet, "head", ".Value"));
+    assert_eq!(
+        packet["coverage"]["analysis_diagnostics"]["head"]["go"]["dependency_package_instances"],
+        1
+    );
+    let warm = f.run(&request(&repo, vec![base], vec![head]));
+    assert_eq!(warm["analysis_cache"]["base_hit"], true);
+    assert_eq!(warm["analysis_cache"]["head_hit"], true);
+    assert_eq!(warm["packet_id"], packet["packet_id"]);
     // An arbitrary folder named vendor cannot use the larger allowance.
-    files.retain(|(path,_)| *path != "vendor/modules.txt");
-    let unmarked = f.pin_bytes(&repo,"app",&"c".repeat(40),&files);
-    let error = review::run(&f.store,&f.workspace,&f.token,
-        &request(&repo,vec![unmarked.clone()],vec![unmarked])).unwrap_err();
-    assert!(error.to_string().contains("64 MiB of repository source"), "{error}");
+    files.retain(|(path, _)| *path != "vendor/modules.txt");
+    let unmarked = f.pin_bytes(&repo, "app", &"c".repeat(40), &files);
+    let error = review::run(
+        &f.store,
+        &f.workspace,
+        &f.token,
+        &request(&repo, vec![unmarked.clone()], vec![unmarked]),
+    )
+    .unwrap_err();
+    assert!(
+        error.to_string().contains("64 MiB of repository source"),
+        "{error}"
+    );
 }

@@ -923,14 +923,13 @@ async fn overridable(
         };
     let args = admission.take_arguments().unwrap_or(args);
     let deadline = crate::review::request_deadline(operation, &args);
-    let result =
-        tokio::task::spawn_blocking(move || {
-            let _deadline = graphicle::process::deadline_scope(deadline);
-            dispatch(&app, &workspace, &token, operation, &args)
-        })
-            .await
-            .map_err(|_| Error::bad(interrupted))
-            .and_then(|result| result);
+    let result = tokio::task::spawn_blocking(move || {
+        let _deadline = graphicle::process::deadline_scope(deadline);
+        dispatch(&app, &workspace, &token, operation, &args)
+    })
+    .await
+    .map_err(|_| Error::bad(interrupted))
+    .and_then(|result| result);
     let served = match result {
         Ok(value) => crate::metering::served(&store, admission, value).await,
         Err(error) => Err(error),
@@ -2268,10 +2267,13 @@ fn mcp_in(
     request.get("id")?;
     let result: Result<Value> = (|| {
         match repository {
+            // A check that only reads: a snapshot, so a connection's every
+            // message does not wait for the write lock behind an indexing
+            // job.
             Some(repository) => {
                 app.worker
                     .store
-                    .authorized(workspace, capability, "read", |db, p| {
+                    .authorized_read(workspace, capability, "read", |db, p| {
                         repo(db, p, repository)?;
                         Ok(())
                     })?

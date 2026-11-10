@@ -42,7 +42,7 @@ use std::{
     fs::Metadata,
     path::{Path, PathBuf},
     sync::{
-        Mutex, PoisonError,
+        Arc, Mutex, PoisonError, TryLockError,
         atomic::{AtomicBool, Ordering},
     },
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
@@ -987,7 +987,60 @@ impl Outcome {
 /// Checks reused within [`CACHE_TTL`], by data directory and project: the
 /// stale outcome again, or nothing to report (fresh, or refreshed then).
 static RECENT: Mutex<Option<Recent>> = Mutex::new(None);
-type Recent = HashMap<(PathBuf, String), (Instant, Outcome)>;
+type CheckKey = (PathBuf, String);
+type Recent = HashMap<CheckKey, Arc<Mutex<Option<(Instant, Outcome)>>>>;
+
+/// Share both a completed check and work in progress. The registry is held
+/// only to find the project's entry; unrelated projects check independently.
+/// As with the cross-process folder lock, a waiting answer has a budget and
+/// reports uncertainty if the check has not finished in time.
+fn cached_check(
+    key: CheckKey,
+    wait: Duration,
+    refresh: impl FnOnce() -> Outcome,
+) -> Option<Outcome> {
+    let entry = {
+        let mut recent = RECENT.lock().unwrap_or_else(PoisonError::into_inner);
+        let recent = recent.get_or_insert_with(HashMap::new);
+        recent.retain(|_, entry| {
+            // Never remove an entry another caller owns, even if its last
+            // result expired: that would let a second check start beside it.
+            Arc::strong_count(entry) > 1
+                || entry
+                    .lock()
+                    .unwrap_or_else(PoisonError::into_inner)
+                    .as_ref()
+                    .is_some_and(|(at, _)| at.elapsed() < CACHE_TTL)
+        });
+        recent.entry(key).or_default().clone()
+    };
+    let deadline = Instant::now() + wait;
+    let mut cached = loop {
+        match entry.try_lock() {
+            Ok(cached) => break cached,
+            Err(TryLockError::Poisoned(error)) => break error.into_inner(),
+            Err(TryLockError::WouldBlock) => {}
+        }
+        let left = deadline.saturating_duration_since(Instant::now());
+        if left.is_zero() {
+            return None;
+        }
+        std::thread::sleep(left.min(Duration::from_millis(25)));
+    };
+    if let Some((at, outcome)) = cached.as_ref()
+        && at.elapsed() < CACHE_TTL
+    {
+        return Some(outcome.clone());
+    }
+    let outcome = refresh();
+    let kept = if outcome.stale() {
+        outcome.clone()
+    } else {
+        Outcome::default()
+    };
+    *cached = Some((Instant::now(), kept));
+    Some(outcome)
+}
 
 /// Before an answer from `project`: check its folder and, within
 /// [`REFRESH_LIMIT`] changed files and a quick sync, sync them (the code
@@ -999,32 +1052,26 @@ pub fn ensure(store: &Store, session: &Session, project: &str, options: Options)
     if options.mode == Mode::Off {
         return Outcome::default();
     }
-    let key = (store.directory.to_path_buf(), project.to_string());
-    {
-        let mut recent = RECENT.lock().unwrap_or_else(PoisonError::into_inner);
-        let recent = recent.get_or_insert_with(HashMap::new);
-        recent.retain(|_, (at, _)| at.elapsed() < CACHE_TTL);
-        if let Some((_, outcome)) = recent.get(&key) {
-            return outcome.clone();
-        }
-    }
     // A check or lock that fails is reported, never passed off as fresh.
-    let outcome = refresh(store, session, project, options).unwrap_or_else(|error| {
+    let error_outcome = |error: Error| {
         let mut check = Check::without(project, State::Changed, None);
         check.changed = None;
         stale(&check, "error", Some(error.message))
-    });
-    let kept = if outcome.stale() {
-        outcome.clone()
-    } else {
-        Outcome::default()
     };
-    RECENT
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .get_or_insert_with(HashMap::new)
-        .insert(key, (Instant::now(), kept));
-    outcome
+    let wait = match graphicle::process::bounded_timeout(BUDGET) {
+        Ok(wait) => wait,
+        Err(error) => return error_outcome(error.into()),
+    };
+    cached_check(
+        (store.directory.to_path_buf(), project.to_string()),
+        wait,
+        || refresh(store, session, project, options).unwrap_or_else(error_outcome),
+    )
+    .unwrap_or_else(|| {
+        let mut check = Check::without(project, State::Changed, None);
+        check.changed = None;
+        stale(&check, "checking", None)
+    })
 }
 
 fn refresh(store: &Store, session: &Session, project: &str, options: Options) -> Result<Outcome> {
@@ -1117,6 +1164,7 @@ fn stale(check: &Check, reason: &str, error: Option<String>) -> Outcome {
         None => "this folder changed since the last sync".to_string(),
     };
     let note = match (reason, &error) {
+        ("checking", _) => "this project's folder is still being checked by another request; the answer may be stale; run graphicle sync if files changed".to_string(),
         ("busy", _) => format!("{what}; another graphicle process is syncing them"),
         ("slow_sync", _) => format!(
             "{what}; run {sync} (a sync of this folder takes over {:.1} s, too long to run before an answer)",
@@ -1450,6 +1498,79 @@ fn rebaseline(store: &Store, session: &Session, folder: &Path, check: &Check) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn concurrent_answers_share_a_check_without_blocking_other_projects() {
+        let dir = tempfile::tempdir().unwrap();
+        let key = (dir.path().to_path_buf(), "one".to_string());
+        let other = (dir.path().to_path_buf(), "two".to_string());
+        let outcome = Outcome {
+            report: Some(json!({"status":"stale","reason":"too_many_changes"})),
+        };
+        let (entered, started) = std::sync::mpsc::channel();
+        let (release, released) = std::sync::mpsc::channel();
+        std::thread::scope(|scope| {
+            let leader_key = key.clone();
+            let leader_outcome = outcome.clone();
+            let leader = scope.spawn(move || {
+                cached_check(leader_key, BUDGET, || {
+                    entered.send(()).unwrap();
+                    released.recv_timeout(Duration::from_secs(5)).unwrap();
+                    leader_outcome
+                })
+            });
+            started.recv_timeout(Duration::from_secs(5)).unwrap();
+            // An expired wait must not start duplicate work or claim freshness.
+            assert!(
+                cached_check(key.clone(), Duration::ZERO, || panic!("duplicate check")).is_none()
+            );
+            assert_eq!(
+                cached_check(other, Duration::ZERO, Outcome::default),
+                Some(Outcome::default()),
+                "a different project must not wait behind the first"
+            );
+            let callers: Vec<_> = (0..8)
+                .map(|_| {
+                    scope.spawn(|| cached_check(key.clone(), BUDGET, || panic!("duplicate check")))
+                })
+                .collect();
+            release.send(()).unwrap();
+            assert_eq!(leader.join().unwrap(), Some(outcome.clone()));
+            for caller in callers {
+                assert_eq!(caller.join().unwrap(), Some(outcome.clone()));
+            }
+        });
+    }
+
+    #[test]
+    fn completed_checks_expire_and_only_the_refresher_reports_a_sync() {
+        let dir = tempfile::tempdir().unwrap();
+        let key = (dir.path().to_path_buf(), "one".to_string());
+        let refreshed = Outcome {
+            report: Some(json!({"status":"refreshed","changed":1})),
+        };
+        assert_eq!(
+            cached_check(key.clone(), BUDGET, || refreshed.clone()),
+            Some(refreshed)
+        );
+        assert_eq!(
+            cached_check(key.clone(), BUDGET, || panic!("check is still fresh")),
+            Some(Outcome::default())
+        );
+        let entry = RECENT.lock().unwrap().as_ref().unwrap()[&key].clone();
+        entry.lock().unwrap().as_mut().unwrap().0 = Instant::now() - CACHE_TTL;
+        let changed = Outcome {
+            report: Some(json!({"status":"stale","reason":"slow_sync"})),
+        };
+        assert_eq!(
+            cached_check(key.clone(), BUDGET, || changed.clone()),
+            Some(changed.clone())
+        );
+        assert_eq!(
+            cached_check(key, BUDGET, || panic!("reuse the stale note")),
+            Some(changed)
+        );
+    }
 
     #[test]
     fn porcelain_lists_the_folders_entries_with_their_paths() {

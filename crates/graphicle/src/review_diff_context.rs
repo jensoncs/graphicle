@@ -129,9 +129,16 @@ impl Context {
 
     fn overlaps(&self, side: &str, path: &str, sha: &str, start: u64, end: u64) -> bool {
         start < end
-            && self.files.get(&(side.to_owned(), path.to_owned())).is_some_and(|file| {
-                file.sha == sha && file.ranges.iter().any(|(a, b)| (*a as u64) < end && start < *b as u64)
-            })
+            && self
+                .files
+                .get(&(side.to_owned(), path.to_owned()))
+                .is_some_and(|file| {
+                    file.sha == sha
+                        && file
+                            .ranges
+                            .iter()
+                            .any(|(a, b)| (*a as u64) < end && start < *b as u64)
+                })
     }
 
     pub(super) fn annotate(&self, report: &mut Value) {
@@ -215,9 +222,13 @@ mod tests {
     #[test]
     fn partial_overlap_respects_byte_boundaries_hash_side_and_repository_path() {
         let context = Context {
-            files: BTreeMap::from([(("head".into(), "app/code.go".into()), File {
-                sha: "hash".into(), ranges: vec![(10, 20), (30, 40)],
-            })]),
+            files: BTreeMap::from([(
+                ("head".into(), "app/code.go".into()),
+                File {
+                    sha: "hash".into(),
+                    ranges: vec![(10, 20), (30, 40)],
+                },
+            )]),
             directories: BTreeMap::new(),
         };
         assert!(context.overlaps("head", "app/code.go", "hash", 9, 11));

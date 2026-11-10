@@ -295,7 +295,8 @@ mod requested_range_tests {
             let doc = json!({"id":"file:a.rs","sha256":"pin","content":content});
             let hit = json!({"source":{"id":"file:a.rs","sha256":"pin","byte_start":start,
                 "byte_end":content.len(),"keep_whole":true}});
-            let result = source_hits(&[doc.clone()], &[hit.clone()], true).unwrap();
+            let result =
+                source_hits(std::slice::from_ref(&doc), std::slice::from_ref(&hit), true).unwrap();
             assert!(s(&result[0], "text").starts_with(prefix));
             assert!(!s(&result[0], "text").contains("previous_code"));
             let exact = source_hits(&[doc], &[hit], false).unwrap();
@@ -313,7 +314,12 @@ mod requested_range_tests {
             "id":"file:a.rs","sha256":"pinned","byte_start":a,"byte_end":b,"keep_whole":true}});
         let neighbor = json!({"identity":"chunk","source":{
             "id":"file:a.rs","sha256":"pinned","byte_start":0,"byte_end":b}});
-        let hits = source_hits(&[doc.clone()], &[requested.clone(), neighbor], true).unwrap();
+        let hits = source_hits(
+            std::slice::from_ref(&doc),
+            &[requested.clone(), neighbor],
+            true,
+        )
+        .unwrap();
         assert_eq!(hits.len(), 2);
         assert_eq!(hits[0]["text"], &content[a..b]);
         assert_eq!(hits[0]["source"]["byte_start"], a);

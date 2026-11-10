@@ -175,8 +175,7 @@ pub(crate) fn sensitive(name: &str) -> bool {
 /// Source admission checks directory policy separately from credential filenames.
 /// A public package directory named `credentials` is not a credential file.
 pub(crate) fn excluded_source_path(path: &str) -> bool {
-    excluded_pinned_source_path(path)
-        || path.split('/').any(|p| SKIPPED_NAMES.contains(&p))
+    excluded_pinned_source_path(path) || path.split('/').any(|p| SKIPPED_NAMES.contains(&p))
 }
 
 /// A pinned manifest already selects the inputs. Discovery hints such as
@@ -187,8 +186,18 @@ pub(crate) fn excluded_pinned_source_path(path: &str) -> bool {
         || sensitive(path.rsplit('/').next().unwrap_or(path))
         || path.split('/').any(|p| {
             p.starts_with(".env")
-                || matches!(p, "secrets" | ".git" | ".ssh" | ".aws" | ".azure"
-                    | ".codex" | ".graphicle" | ".graphicle-graph" | "graphify-out")
+                || matches!(
+                    p,
+                    "secrets"
+                        | ".git"
+                        | ".ssh"
+                        | ".aws"
+                        | ".azure"
+                        | ".codex"
+                        | ".graphicle"
+                        | ".graphicle-graph"
+                        | "graphify-out"
+                )
         })
 }
 
@@ -967,7 +976,9 @@ fn sync_folder_with(
     skipped.extend(not_analysed);
     skipped.sort_by(|a, b| s(a, "path").cmp(s(b, "path")));
     let mut result = json!({"repository_id":repository,"files":file_count,"binary_documents":binaries.len(),"original_bytes":binary_bytes,"bytes":bytes,"excluded":excluded.len(),"snapshot":prepared["snapshot"],"replayed":prepared["replayed"]});
-    if let Some(cache) = prepared.get("analysis_cache") { result["analysis_cache"] = cache.clone(); }
+    if let Some(cache) = prepared.get("analysis_cache") {
+        result["analysis_cache"] = cache.clone();
+    }
     // Files read although an ignore pattern matches them, because Git tracks
     // them (`sync.tracked_ignored`).
     if tracked_read > 0 {
@@ -1520,7 +1531,11 @@ pub fn restore(backup: &std::path::Path, directory: &std::path::Path) -> Result<
     #[cfg(unix)]
     options.mode(0o600);
     options.open(&destination)?;
-    if let Err(error) = source.backup(rusqlite::MAIN_DB, &destination, None) {
+    if let Err(error) = source.backup(
+        rusqlite::MAIN_DB,
+        &destination,
+        None::<fn(rusqlite::backup::Progress)>,
+    ) {
         let _ = std::fs::remove_file(&destination);
         return Err(error.into());
     }

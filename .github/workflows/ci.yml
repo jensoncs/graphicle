@@ -109,6 +109,9 @@ jobs:
         run: |
           python -m pip install -r bench/memory/requirements-test.txt
           python -m pytest bench/memory/tests -q
+      - name: Test store-load harness
+        if: matrix.crate == 'graphicle' && runner.os == 'Linux'
+        run: python -I -m unittest discover -s bench/store-load -p 'test_*.py' -v
       - name: Quality regression gate
         if: matrix.crate == 'graphicle' && runner.os == 'Linux'
         run: >-

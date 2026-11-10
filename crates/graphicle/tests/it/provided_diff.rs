@@ -143,7 +143,12 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
         let plain = f.run(&args);
         args["provided_diff"] = partial_ranges.clone();
         let extra = f.run(&args);
-        eprintln!("partial provided_diff budget={budget}: outside entries {} -> {}, overlap selected {}", outside_count(&plain), outside_count(&extra), extra["coverage"]["provided_diff"]["selected_overlapping_entries"]);
+        eprintln!(
+            "partial provided_diff budget={budget}: outside entries {} -> {}, overlap selected {}",
+            outside_count(&plain),
+            outside_count(&extra),
+            extra["coverage"]["provided_diff"]["selected_overlapping_entries"]
+        );
         assert!(has(&extra, "head", "Caller"), "{}", extra["coverage"]);
         // Fixed conservative identifier charges leave room for only the
         // prioritized caller at 3,500. The larger budgets must also retain
@@ -159,8 +164,14 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
         assert!(outside_count(&extra) >= outside_count(&plain));
         assert_eq!(extra["coverage"]["provided_diff"]["entries"], 0);
         assert_eq!(extra["coverage"]["provided_diff"]["overlapping_entries"], 2);
-        assert_eq!(extra["coverage"]["provided_diff"]["selected_outside_entries"], outside_count(&extra));
-        assert_eq!(extra["coverage"]["packing"]["policy"], "additional_context_then_overlap_v1");
+        assert_eq!(
+            extra["coverage"]["provided_diff"]["selected_outside_entries"],
+            outside_count(&extra)
+        );
+        assert_eq!(
+            extra["coverage"]["packing"]["policy"],
+            "additional_context_then_overlap_v1"
+        );
         assert_eq!(extra["impact"], plain["impact"]);
         assert!(text::count(&extra.to_string()) <= budget);
         assert!(!extra.to_string().contains("_provided_diff"));

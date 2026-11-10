@@ -17,11 +17,22 @@ fn encoding(json: &str) -> Cow<'_, str> {
         // Source bodies and these content-addressed fields are identical for
         // identical pinned inputs. Keep their exact cost instead of reserving
         // a worst-case hash allowance for them too.
-        let pinned = matches!(previous.1, "\"text\"" | "\"hunk\"" | "\"symbol_id\"" | "\"parent\""
-            | "\"file_sha256\"" | "\"text_sha256\"" | "\"signature_revision\"" | "\"implementation_revision\""
-            | "\"commit\"" | "\"snapshot\"" | "\"policy_sha256\"")
-            && json[previous.0..token.start()].trim() == ":";
-        if !pinned && matches!(body.len(), 32 | 40 | 64)
+        let pinned = matches!(
+            previous.1,
+            "\"text\""
+                | "\"hunk\""
+                | "\"symbol_id\""
+                | "\"parent\""
+                | "\"file_sha256\""
+                | "\"text_sha256\""
+                | "\"signature_revision\""
+                | "\"implementation_revision\""
+                | "\"commit\""
+                | "\"snapshot\""
+                | "\"policy_sha256\""
+        ) && json[previous.0..token.start()].trim() == ":";
+        if !pinned
+            && matches!(body.len(), 32 | 40 | 64)
             && body.bytes().all(|b| b.is_ascii_hexdigit())
         {
             let out = output.get_or_insert_with(|| String::with_capacity(json.len()));
@@ -30,14 +41,19 @@ fn encoding(json: &str) -> Cow<'_, str> {
             // Alternating digits/letters prevent hex BPE compression. Charge
             // the same conservative cost for equal-width IDs and fingerprints,
             // including object keys and references in arrays.
-            for _ in 0..body.len() / 2 { out.push_str("0a"); }
+            for _ in 0..body.len() / 2 {
+                out.push_str("0a");
+            }
             out.push('"');
             copied = token.end();
         }
         previous = (token.end(), literal);
     }
     match output {
-        Some(mut out) => { out.push_str(&json[copied..]); Cow::Owned(out) }
+        Some(mut out) => {
+            out.push_str(&json[copied..]);
+            Cow::Owned(out)
+        }
         None => Cow::Borrowed(json),
     }
 }
@@ -64,7 +80,8 @@ mod tests {
             let value = json!({"id":id,"repository_id":format!("{seed:032x}"),
                 "revision":format!("{seed:040x}"),"refs":[id],"definitions":{&id:{"ref":id}},
                 "text":literal,"hunk":format!("+ const id = \"{literal}\";"),
-                "name":"非ASCII context"}).to_string();
+                "name":"非ASCII context"})
+            .to_string();
             let cost = count(&value);
             assert_eq!(*expected.get_or_insert(cost), cost);
             assert!(cost >= text::count(&value));
@@ -74,11 +91,24 @@ mod tests {
             assert_eq!(count_within(&value, cost), Some(cost));
             assert_eq!(count_within(&value, cost - 1), None);
         }
-        for value in [json!({"text":literal}), json!({"text":format!("prefix\"{literal}")}), json!({"hunk":literal})] {
+        for value in [
+            json!({"text":literal}),
+            json!({"text":format!("prefix\"{literal}")}),
+            json!({"hunk":literal}),
+        ] {
             assert_eq!(encoding(&value.to_string()), value.to_string());
         }
-        for field in ["symbol_id", "parent", "file_sha256", "text_sha256", "signature_revision",
-            "implementation_revision", "commit", "snapshot", "policy_sha256"] {
+        for field in [
+            "symbol_id",
+            "parent",
+            "file_sha256",
+            "text_sha256",
+            "signature_revision",
+            "implementation_revision",
+            "commit",
+            "snapshot",
+            "policy_sha256",
+        ] {
             let value = json!({field:literal}).to_string();
             assert_eq!(encoding(&value), value);
         }

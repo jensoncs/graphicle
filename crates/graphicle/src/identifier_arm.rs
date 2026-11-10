@@ -59,8 +59,10 @@ const PATH_EXTENSIONS: &str = "c h cc cpp cxx hpp hh hxx inl ipp tpp cu cuh rs j
 /// is lowercase. Ordinary dotted prose and host names keep their old treatment.
 pub(crate) fn configuration_address(token: &str) -> bool {
     token.split_once('.').is_some_and(|(namespace, name)| {
-        matches!(namespace, "var" | "local" | "module" | "data" | "output" | "provider" | "job")
-            && !name.is_empty()
+        matches!(
+            namespace,
+            "var" | "local" | "module" | "data" | "output" | "provider" | "job"
+        ) && !name.is_empty()
     })
 }
 
@@ -455,10 +457,17 @@ impl CodeGraph {
     /// Code dependencies in either direction, plus enclosing symbols. Nesting
     /// only follows inward to the owner: keep its contract without traversing
     /// back out into unrelated sibling declarations.
-    fn dependencies(&self, node: usize, remaining: &mut usize, outgoing_only: bool) -> Option<BTreeSet<usize>> {
+    fn dependencies(
+        &self,
+        node: usize,
+        remaining: &mut usize,
+        outgoing_only: bool,
+    ) -> Option<BTreeSet<usize>> {
         let mut found = BTreeSet::new();
         let eligible = |relation: Option<&str>, source: usize, target: usize| {
-            if outgoing_only { return source == node && relation == Some("references"); }
+            if outgoing_only {
+                return source == node && relation == Some("references");
+            }
             if relation
                 .is_some_and(|r| graphicle_memory::graph::identity::NESTING_RELATIONS.contains(&r))
             {
@@ -473,7 +482,11 @@ impl CodeGraph {
                 let incoming = handle.in_edges(node);
                 *remaining = remaining.checked_sub(edges.len() + incoming.len())?;
                 for (a, b, edge) in edges.into_iter().chain(incoming) {
-                    if eligible(edge.attributes.get("relation").and_then(Value::as_str), a, b) {
+                    if eligible(
+                        edge.attributes.get("relation").and_then(Value::as_str),
+                        a,
+                        b,
+                    ) {
                         found.insert(if a == node { b } else { a });
                     }
                 }
@@ -482,7 +495,11 @@ impl CodeGraph {
                 let ids: Vec<u32> = file.adjacency(node).ok()?.all().into_iter().collect();
                 *remaining = remaining.checked_sub(ids.len())?;
                 for edge in file.edges(&ids).ok()? {
-                    if eligible(edge.relation.as_ref().and_then(Value::as_str), edge.source, edge.target) {
+                    if eligible(
+                        edge.relation.as_ref().and_then(Value::as_str),
+                        edge.source,
+                        edge.target,
+                    ) {
                         found.insert(if edge.source == node {
                             edge.target
                         } else {
@@ -646,11 +663,16 @@ pub(crate) fn helm_memory_scope(
     let named = explicit_names(question);
     let names = if named.names.is_empty() && named.paths.is_empty() {
         match crate::identifier_route::classify(question) {
-            crate::identifier_route::Shape::Lookup(names) | crate::identifier_route::Shape::AsksMore(names) => names,
+            crate::identifier_route::Shape::Lookup(names)
+            | crate::identifier_route::Shape::AsksMore(names) => names,
             _ => return None,
         }
-    } else { named.names };
-    if names.is_empty() && named.paths.is_empty() { return None; }
+    } else {
+        named.names
+    };
+    if names.is_empty() && named.paths.is_empty() {
+        return None;
+    }
     let graph = code_graph(db, repository, true)?;
     let mut pending = BTreeSet::new();
     if names.is_empty() {
@@ -660,24 +682,39 @@ pub(crate) fn helm_memory_scope(
             let mut found = false;
             for symbol in graph.definitions(path.rsplit('.').next()?) {
                 let (_, file) = graph.symbol(symbol);
-                if file != path && !file.ends_with(&format!("/{path}")) { continue; }
+                if file != path && !file.ends_with(&format!("/{path}")) {
+                    continue;
+                }
                 let node = graph.node_index(symbol)?;
                 if graph.attributes(node)?["_helm_kind"] == "render" {
-                    pending.insert(node); found = true;
+                    pending.insert(node);
+                    found = true;
                 }
             }
-            if !found { return None; }
+            if !found {
+                return None;
+            }
         }
     } else {
         for name in names {
-            let found: Vec<_> = graph.definitions(&name).into_iter().filter(|&symbol| {
-                let (_, file) = graph.symbol(symbol);
-                named.paths.is_empty() || named.paths.iter().any(|p| file == p || file.ends_with(&format!("/{p}")))
-            }).collect();
-            if found.is_empty() { return None; }
+            let found: Vec<_> = graph
+                .definitions(&name)
+                .into_iter()
+                .filter(|&symbol| {
+                    let (_, file) = graph.symbol(symbol);
+                    named.paths.is_empty()
+                        || named
+                            .paths
+                            .iter()
+                            .any(|p| file == p || file.ends_with(&format!("/{p}")))
+                })
+                .collect();
+            if found.is_empty() {
+                return None;
+            }
             for symbol in found {
                 let node = graph.node_index(symbol)?;
-                if graph.attributes(node)?.get("_helm_kind").is_none() { return None; }
+                graph.attributes(node)?.get("_helm_kind")?;
                 pending.insert(node);
             }
         }
@@ -688,18 +725,29 @@ pub(crate) fn helm_memory_scope(
 /// Reuse the same complete dependency scope for ranked notes when a shell
 /// question explicitly identifies both a function and its implementation file.
 pub(crate) fn shell_memory_scope(
-    db: &Connection, repository: &str, question: &str, documents: &HashMap<&str, &Value>,
+    db: &Connection,
+    repository: &str,
+    question: &str,
+    documents: &HashMap<&str, &Value>,
 ) -> Option<BTreeSet<(String, String)>> {
     let named = explicit_names(question);
-    if named.names.is_empty() || named.paths.is_empty()
-        || !named.paths.iter().all(|path| path.ends_with(".sh") || path.ends_with(".bash")) {
+    if named.names.is_empty()
+        || named.paths.is_empty()
+        || !named
+            .paths
+            .iter()
+            .all(|path| path.ends_with(".sh") || path.ends_with(".bash"))
+    {
         return None;
     }
     let scope = memory_symbol_scope(db, repository, question, documents)?;
-    for path in scope.iter().map(|(path,_)| path).collect::<BTreeSet<_>>() {
+    for path in scope.iter().map(|(path, _)| path).collect::<BTreeSet<_>>() {
         let document = documents.get(format!("file:{path}").as_str())?;
         if (path.ends_with(".sh") || path.ends_with(".bash"))
-            && !graphicle::extractors::bash::has_static_dispatch(s(document,"content")) { return None; }
+            && !graphicle::extractors::bash::has_static_dispatch(s(document, "content"))
+        {
+            return None;
+        }
     }
     Some(scope)
 }
@@ -708,32 +756,51 @@ pub(crate) fn shell_memory_scope(
 /// same dependency/owner scope as linked notes. Unknown and ambiguous shapes
 /// keep ordinary retrieval, as do broader or compound requests.
 pub(crate) fn qualified_change_scope(
-    db: &Connection, repository: &str, question: &str, documents: &HashMap<&str, &Value>,
+    db: &Connection,
+    repository: &str,
+    question: &str,
+    documents: &HashMap<&str, &Value>,
 ) -> Option<BTreeSet<(String, String)>> {
-    static CHANGE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(
+    static CHANGE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(
         r"(?i)^\s*which\s+constraints\s+must\s+a\s+change\s+to\s+`?(?P<target>[a-z_][a-z0-9_]*(?:(?:\.|::)[a-z_][a-z0-9_]*)+)`?\s+preserve\s*\??\s*$"
-    ).expect("qualified declaration change question"));
+    ).expect("qualified declaration change question")
+    });
     CHANGE.captures(question)?;
     // Dotted Helm helper names belong to the existing chart-specific policy,
     // including its explicit symbol-links switch; do not override that route.
-    if helm_memory_scope(db,repository,question,documents).is_some() { return None; }
-    memory_symbol_scope(db,repository,question,documents)
+    if helm_memory_scope(db, repository, question, documents).is_some() {
+        return None;
+    }
+    memory_symbol_scope(db, repository, question, documents)
 }
 
 pub(crate) fn configuration_owner_scope(
-    db: &Connection, repository: &str, question: &str, documents: &HashMap<&str, &Value>,
+    db: &Connection,
+    repository: &str,
+    question: &str,
+    documents: &HashMap<&str, &Value>,
 ) -> Option<BTreeSet<(String, String)>> {
     let (path, name) = crate::code_question::configuration_owner_request(question)?;
     let graph = code_graph(db, repository, true)?;
-    let pending: Option<BTreeSet<_>> = graph.definitions(&name).into_iter().filter(|&symbol| {
-        let (_, file) = graph.symbol(symbol);
-        file == path || file.ends_with(&format!("/{path}"))
-    }).map(|symbol| graph.node_index(symbol)).collect();
+    let pending: Option<BTreeSet<_>> = graph
+        .definitions(&name)
+        .into_iter()
+        .filter(|&symbol| {
+            let (_, file) = graph.symbol(symbol);
+            file == path || file.ends_with(&format!("/{path}"))
+        })
+        .map(|symbol| graph.node_index(symbol))
+        .collect();
     memory_dependency_scope(&graph, pending?, documents, ScopeTraversal::Declarations)
 }
 
 #[derive(Clone, Copy, PartialEq)]
-enum ScopeTraversal { Related, References, Declarations }
+enum ScopeTraversal {
+    Related,
+    References,
+    Declarations,
+}
 
 fn memory_dependency_scope(
     graph: &CodeGraph,
@@ -769,12 +836,22 @@ fn memory_dependency_scope(
         scope.insert((path, crate::identifier_route::symbol_name(&fields)?));
         // Incomplete Helm syntax or unresolved references cannot prove that
         // an omitted note lies outside the template's dependency scope.
-        if traversal == ScopeTraversal::References && ["_helm_issues", "_helm_unresolved"].iter().any(|key|
-            fields.get(*key).and_then(Value::as_array).is_some_and(|v| !v.is_empty())) {
+        if traversal == ScopeTraversal::References
+            && ["_helm_issues", "_helm_unresolved"].iter().any(|key| {
+                fields
+                    .get(*key)
+                    .and_then(Value::as_array)
+                    .is_some_and(|v| !v.is_empty())
+            })
+        {
             return None;
         }
         if traversal != ScopeTraversal::Declarations {
-            pending.extend(graph.dependencies(node, &mut remaining_edges, traversal == ScopeTraversal::References)?);
+            pending.extend(graph.dependencies(
+                node,
+                &mut remaining_edges,
+                traversal == ScopeTraversal::References,
+            )?);
         }
     }
     (!graph.corrupt() && !scope.is_empty()).then_some(scope)
@@ -1423,10 +1500,16 @@ mod tests {
 
     #[test]
     fn lowercase_configuration_addresses_and_paths_are_explicit() {
-        let names = explicit_names("Change module.queue and job.worker using variables.tf and worker.nomad.hcl");
+        let names = explicit_names(
+            "Change module.queue and job.worker using variables.tf and worker.nomad.hcl",
+        );
         assert_eq!(names.names, ["module.queue", "job.worker"]);
         assert_eq!(names.paths, ["variables.tf", "worker.nomad.hcl"]);
-        assert!(explicit_names("Read example.com and e.g. the docs").names.is_empty());
+        assert!(
+            explicit_names("Read example.com and e.g. the docs")
+                .names
+                .is_empty()
+        );
     }
 
     #[test]

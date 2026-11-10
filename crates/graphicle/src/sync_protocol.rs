@@ -54,27 +54,27 @@ pub(crate) fn missing_page(
                 .map_err(|_| Error::bad("Invalid missing cursor"))?;
             let value: Value =
                 serde_json::from_slice(&bytes).map_err(|_| Error::bad("Invalid missing cursor"))?;
-            if value["sync_id"] != sync["id"]
-                || value["snapshot"] != sync["snapshot"]
-            {
+            if value["sync_id"] != sync["id"] || value["snapshot"] != sync["snapshot"] {
                 return Err(Error::bad("Missing cursor does not belong to this sync"));
             }
             Some(s(&value, "after").to_owned())
         }
     };
     let mut query = db.prepare_cached(MISSING_QUERY)?;
-    let mut rows = query.query(params![s(sync,"manifest"),repository,after,limit+1])?;
+    let mut rows = query.query(params![s(sync, "manifest"), repository, after, limit + 1])?;
     let mut missing = Vec::new();
     let (mut total, mut bytes, mut more) = (0usize, 0usize, false);
     while let Some(row) = rows.next()? {
-        if !row.get::<_,bool>(3)? {
+        if !row.get::<_, bool>(3)? {
             return Err(Error::bad("Invalid sync manifest"));
         }
         total = row.get(0)?;
-        if !row.get::<_,bool>(1)? {
+        if !row.get::<_, bool>(1)? {
             return Err(Error::bad("Missing cursor does not belong to this sync"));
         }
-        let Some(name) = row.get::<_,Option<String>>(2)? else { break };
+        let Some(name) = row.get::<_, Option<String>>(2)? else {
+            break;
+        };
         let cost = serde_json::to_vec(&name)?.len() + 1;
         if missing.len() >= limit || bytes + cost > PAGE_BYTES {
             more = true;

@@ -151,7 +151,7 @@ fn load(
             .as_object()
             .ok_or_else(|| Error::bad("Invalid stored source manifest"))?;
         for (path, entry) in files {
-        checkpoint()?;
+            checkpoint()?;
             store::path(path)?;
             if local::excluded_pinned_source_path(path) {
                 input

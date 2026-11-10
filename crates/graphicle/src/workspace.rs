@@ -427,7 +427,9 @@ pub fn context(
         .zip(searched)
         .map(|((position, packet), mut report)| {
             for key in ["local_reranker", "reranker_inputs_debug"] {
-                if let Some(value) = packet.get(key) { report[key] = value.clone(); }
+                if let Some(value) = packet.get(key) {
+                    report[key] = value.clone();
+                }
             }
             (position, report)
         })

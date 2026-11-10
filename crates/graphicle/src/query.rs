@@ -859,19 +859,34 @@ pub fn context_with(
 fn scoring_passage<'a>(row: &'a Value, named: &[Value]) -> (&'a str, usize) {
     let body = s(row, "text");
     let source = &row["source"];
-    let Some(start) = source["byte_start"].as_u64() else { return (body, 0); };
-    let Some(end) = source["byte_end"].as_u64() else { return (body, 0); };
-    if end.checked_sub(start) != Some(body.len() as u64) { return (body, 0); }
-    let matches: Vec<_> = named.iter().filter_map(|window| {
-        let anchor = &window["source"];
-        let a = anchor["byte_start"].as_u64()?;
-        let b = anchor["byte_end"].as_u64()?;
-        if source["id"] != anchor["id"] || a < start || b > end || a >= b { return None; }
-        let offset = (a - start) as usize;
-        let text = body.get(offset..(b - start) as usize)?;
-        (text == s(window, "text")).then_some((text, offset))
-    }).collect();
-    if matches.len() == 1 { matches[0] } else { (body, 0) }
+    let Some(start) = source["byte_start"].as_u64() else {
+        return (body, 0);
+    };
+    let Some(end) = source["byte_end"].as_u64() else {
+        return (body, 0);
+    };
+    if end.checked_sub(start) != Some(body.len() as u64) {
+        return (body, 0);
+    }
+    let matches: Vec<_> = named
+        .iter()
+        .filter_map(|window| {
+            let anchor = &window["source"];
+            let a = anchor["byte_start"].as_u64()?;
+            let b = anchor["byte_end"].as_u64()?;
+            if source["id"] != anchor["id"] || a < start || b > end || a >= b {
+                return None;
+            }
+            let offset = (a - start) as usize;
+            let text = body.get(offset..(b - start) as usize)?;
+            (text == s(window, "text")).then_some((text, offset))
+        })
+        .collect();
+    if matches.len() == 1 {
+        matches[0]
+    } else {
+        (body, 0)
+    }
 }
 
 /// Candidate order after cross-encoder scoring of the fused prefix (index =
@@ -1564,8 +1579,12 @@ fn context_impl(
     }
     let by_id: BTreeMap<&str, &Value> = rows.iter().map(|r| (s(r, "identity"), r)).collect();
     let named_windows = if graph_enabled {
-        code_graph.map(|arm| crate::code_graph_arm::named_windows(arm, query, &snapshot.documents)).unwrap_or_default()
-    } else { vec![] };
+        code_graph
+            .map(|arm| crate::code_graph_arm::named_windows(arm, query, &snapshot.documents))
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
     let mut reranker_usage = Value::Null;
     let mut reranker_inputs = Vec::new();
     if let Some(reranker) = reranker {
@@ -1614,7 +1633,10 @@ fn context_impl(
             .iter()
             .map(|id| scoring_passage(by_id[id.as_str()], &named_windows))
             .collect::<Vec<_>>();
-        let texts: Vec<_> = passages.iter().map(|(text, _)| (*text).to_owned()).collect();
+        let texts: Vec<_> = passages
+            .iter()
+            .map(|(text, _)| (*text).to_owned())
+            .collect();
         let started = std::time::Instant::now();
         // The local models score at most 32 passages per call; passages are
         // scored independently, so a deeper prefix is scored in chunks. The
@@ -1754,8 +1776,8 @@ fn context_impl(
             .is_none_or(Vec::is_empty)
         && rank_request["needs"].as_array().is_none_or(Vec::is_empty);
     let topic = lexical_only
-    .then(|| crate::code_question::requested_memory_topic(query))
-    .flatten();
+        .then(|| crate::code_question::requested_memory_topic(query))
+        .flatten();
     let mut memory_topic_report = Value::Null;
     let unsupported_topic = topic.is_some_and(|topic| {
         let matched: BTreeSet<_> = rows
@@ -1778,62 +1800,136 @@ fn context_impl(
     let mut configuration_scope = None;
     if lexical_only && let Some(lookup) = doc_links {
         let documents = snapshot.documents.iter().map(|d| (s(d, "id"), d)).collect();
-        let scope = crate::identifier_arm::configuration_owner_scope(lookup.db(), lookup.repository(), query, &documents)
-            .map(|scope| (scope, "configuration_input", "outside_configuration_input"))
-            .or_else(|| crate::identifier_arm::shell_memory_scope(lookup.db(), lookup.repository(), query, &documents)
-                .map(|scope| (scope, "shell_dependencies", "outside_shell_scope")))
-            .or_else(|| crate::identifier_arm::qualified_change_scope(lookup.db(), lookup.repository(), query, &documents)
-                .map(|scope| (scope, "qualified_change", "outside_qualified_change")))
-            .or_else(|| symbol_links.enabled().then(|| crate::identifier_arm::helm_memory_scope(lookup.db(), lookup.repository(), query, &documents))
-                .flatten().map(|scope| (scope, "helm_dependencies", "outside_helm_scope")));
+        let scope = crate::identifier_arm::configuration_owner_scope(
+            lookup.db(),
+            lookup.repository(),
+            query,
+            &documents,
+        )
+        .map(|scope| (scope, "configuration_input", "outside_configuration_input"))
+        .or_else(|| {
+            crate::identifier_arm::shell_memory_scope(
+                lookup.db(),
+                lookup.repository(),
+                query,
+                &documents,
+            )
+            .map(|scope| (scope, "shell_dependencies", "outside_shell_scope"))
+        })
+        .or_else(|| {
+            crate::identifier_arm::qualified_change_scope(
+                lookup.db(),
+                lookup.repository(),
+                query,
+                &documents,
+            )
+            .map(|scope| (scope, "qualified_change", "outside_qualified_change"))
+        })
+        .or_else(|| {
+            symbol_links
+                .enabled()
+                .then(|| {
+                    crate::identifier_arm::helm_memory_scope(
+                        lookup.db(),
+                        lookup.repository(),
+                        query,
+                        &documents,
+                    )
+                })
+                .flatten()
+                .map(|scope| (scope, "helm_dependencies", "outside_helm_scope"))
+        });
         if let Some((scope, basis, reason)) = scope {
             let before = selected_memories.len();
             selected_memories.retain(|row| {
-                if !crate::symbol_links::outside_scope(row, &scope, &documents) { return true; }
-                if let Some(trace) = memory_trace.as_mut() { trace.withheld(row, reason); }
+                if !crate::symbol_links::outside_scope(row, &scope, &documents) {
+                    return true;
+                }
+                if let Some(trace) = memory_trace.as_mut() {
+                    trace.withheld(row, reason);
+                }
                 false
             });
             memory_scope_report = json!({"basis":basis,"symbols":scope.len(),
                 "withheld_ranked":before-selected_memories.len()});
-            if basis == "configuration_input" { configuration_scope = Some(scope); }
+            if basis == "configuration_input" {
+                configuration_scope = Some(scope);
+            }
         }
     }
-    let mut rationale = lexical_only.then(|| crate::symbol_links::NoteFocus::new(query, &selected_memories, &rows)).flatten();
+    let mut rationale = lexical_only
+        .then(|| crate::symbol_links::NoteFocus::new(query, &selected_memories, &rows))
+        .flatten();
     let mut rationale_report = Value::Null;
     if let Some(focus) = &rationale {
         let before = selected_memories.len();
         selected_memories.retain(|row| {
-            if focus.keep(row) { return true; }
-            if let Some(trace) = memory_trace.as_mut() { trace.withheld(row, focus.filter_reason()); }
+            if focus.keep(row) {
+                return true;
+            }
+            if let Some(trace) = memory_trace.as_mut() {
+                trace.withheld(row, focus.filter_reason());
+            }
             false
         });
         rationale_report = json!({"basis":focus.basis,"anchors":focus.anchors(),
             "anchor_route":"ranked","withheld_ranked":before-selected_memories.len(),"withheld_linked":0});
     }
     let configuration_value = lexical_only
-        .then(|| crate::code_question::configuration_value_request(query)).flatten()
-        .filter(|(path, key)| sources.iter().any(|row| {
-            s(row, "origin").strip_prefix("file:").is_some_and(|origin|
-                origin == path || origin.ends_with(&format!("/{path}")))
-                && s(row, "text").split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.')
-                    .any(|word| word == key)
-        })).or_else(|| lexical_only.then(|| sources.iter().find_map(|row| {
-            let path = s(row, "origin").strip_prefix("file:")?;
-            crate::code_question::configuration_count_request(query, path, s(row,"text"))
-                .or_else(|| crate::code_question::shell_cap_request(query,path,s(row,"text")))
-        })).flatten());
+        .then(|| crate::code_question::configuration_value_request(query))
+        .flatten()
+        .filter(|(path, key)| {
+            sources.iter().any(|row| {
+                s(row, "origin")
+                    .strip_prefix("file:")
+                    .is_some_and(|origin| origin == path || origin.ends_with(&format!("/{path}")))
+                    && s(row, "text")
+                        .split(|c: char| !c.is_alphanumeric() && c != '_' && c != '.')
+                        .any(|word| word == key)
+            })
+        })
+        .or_else(|| {
+            lexical_only
+                .then(|| {
+                    sources.iter().find_map(|row| {
+                        let path = s(row, "origin").strip_prefix("file:")?;
+                        crate::code_question::configuration_count_request(
+                            query,
+                            path,
+                            s(row, "text"),
+                        )
+                        .or_else(|| {
+                            crate::code_question::shell_cap_request(query, path, s(row, "text"))
+                        })
+                    })
+                })
+                .flatten()
+        });
     // Apply the existing literal-call intent to ranked notes only when the
     // selected source includes a graph-resolved declaration for the target.
-    let literal_call = lexical_only.then(|| crate::code_question::literal_call_target(query)).flatten()
-        .filter(|target| sources.iter().any(|row| {
-            let name = s(&row["source"][crate::code_graph_arm::ARM], "qualified_name");
-            name == target || name.ends_with(&format!(".{target}")) || name.ends_with(&format!("::{target}"))
-        }));
-    let mut memory_value_report = configuration_value.as_ref().map(|(path, key)|
-        json!({"basis":"configuration_value_request","path":path,"key":key,
-            "withheld_ranked":0,"withheld_linked":0}))
-        .or_else(|| literal_call.as_ref().map(|target| json!({"basis":"literal_call_value_request",
-            "target":target,"withheld_ranked":0,"withheld_linked":0})));
+    let literal_call = lexical_only
+        .then(|| crate::code_question::literal_call_target(query))
+        .flatten()
+        .filter(|target| {
+            sources.iter().any(|row| {
+                let name = s(&row["source"][crate::code_graph_arm::ARM], "qualified_name");
+                name == target
+                    || name.ends_with(&format!(".{target}"))
+                    || name.ends_with(&format!("::{target}"))
+            })
+        });
+    let mut memory_value_report = configuration_value
+        .as_ref()
+        .map(|(path, key)| {
+            json!({"basis":"configuration_value_request","path":path,"key":key,
+            "withheld_ranked":0,"withheld_linked":0})
+        })
+        .or_else(|| {
+            literal_call.as_ref().map(|target| {
+                json!({"basis":"literal_call_value_request",
+            "target":target,"withheld_ranked":0,"withheld_linked":0})
+            })
+        });
     let memory_filter = if configuration_value.is_some() {
         Some("configuration_value_request")
     } else if literal_call.is_some() {
@@ -1949,7 +2045,10 @@ fn context_impl(
     let mut linked_memories = Vec::new();
     let mut linked_reranker_usage = Value::Null;
     let memory_limit = if crate::code_question::asks_for_project_decisions(query) {
-        limit.clamp(crate::symbol_links::MEMORY_LIMIT, crate::symbol_links::MEMORY_CANDIDATES)
+        limit.clamp(
+            crate::symbol_links::MEMORY_LIMIT,
+            crate::symbol_links::MEMORY_CANDIDATES,
+        )
     } else {
         crate::symbol_links::MEMORY_LIMIT
     };
@@ -1980,7 +2079,8 @@ fn context_impl(
                 linked_memories = lifted.memories;
                 symbol_links_report = lifted.report;
                 if symbol_links.enabled() && symbol_links_report.get("considered").is_some() {
-                    symbol_links_report["candidate_memories_before_filters"] = json!(linked_memories.len());
+                    symbol_links_report["candidate_memories_before_filters"] =
+                        json!(linked_memories.len());
                 }
                 if let Some(trace) = memory_trace.as_mut() {
                     trace.linked_candidates(&linked_memories);
@@ -2008,12 +2108,16 @@ fn context_impl(
                     let mut scores = Vec::with_capacity(texts.len());
                     let mut tokens = 0;
                     for (batch, chunk) in texts.chunks(32).enumerate() {
-                        let result = crate::local_inference::rerank_visible(reranker, query, chunk)?;
+                        let result =
+                            crate::local_inference::rerank_visible(reranker, query, chunk)?;
                         if let Some(trace) = memory_trace.as_mut() {
                             for (offset, ranges) in result.passage_ranges.iter().enumerate() {
                                 let end = ranges.iter().map(|r| r.1).max().unwrap_or(0);
-                                trace.reranked(&linked_memories[batch * 32 + offset],
-                                    result.scores[offset], end < chunk[offset].trim_end().len());
+                                trace.reranked(
+                                    &linked_memories[batch * 32 + offset],
+                                    result.scores[offset],
+                                    end < chunk[offset].trim_end().len(),
+                                );
                             }
                         }
                         scores.extend(result.scores);
@@ -2036,14 +2140,18 @@ fn context_impl(
                     crate::symbol_links::prioritize_literals(query, &mut linked_memories);
                 }
                 if let Some(scope) = &configuration_scope {
-                    let documents = snapshot.documents.iter().map(|d| (s(d,"id"), d)).collect();
+                    let documents = snapshot.documents.iter().map(|d| (s(d, "id"), d)).collect();
                     let before = linked_memories.len();
                     linked_memories.retain(|row| {
-                        if !crate::symbol_links::outside_scope(row, scope, &documents) { return true; }
-                        if let Some(trace) = memory_trace.as_mut() { trace.withheld(row,"outside_configuration_input"); }
+                        if !crate::symbol_links::outside_scope(row, scope, &documents) {
+                            return true;
+                        }
+                        if let Some(trace) = memory_trace.as_mut() {
+                            trace.withheld(row, "outside_configuration_input");
+                        }
                         false
                     });
-                    memory_scope_report["withheld_linked"] = json!(before-linked_memories.len());
+                    memory_scope_report["withheld_linked"] = json!(before - linked_memories.len());
                     symbol_links_report["lifted_memories"] = json!(linked_memories.len());
                 }
                 // A matching reason may arrive only through a caller/callee
@@ -2055,30 +2163,46 @@ fn context_impl(
                 if lexical_only && rationale.is_none() {
                     // Compound premises may have one anchor ranked and another
                     // linked. Require the union of actually retrieved evidence.
-                    let retrieved: Vec<_> = selected_memories.iter().chain(&linked_memories).cloned().collect();
-                    rationale = crate::symbol_links::NoteFocus::new(query,&retrieved,&rows);
+                    let retrieved: Vec<_> = selected_memories
+                        .iter()
+                        .chain(&linked_memories)
+                        .cloned()
+                        .collect();
+                    rationale = crate::symbol_links::NoteFocus::new(query, &retrieved, &rows);
                     if let Some(focus) = &rationale {
                         rationale_report = json!({"basis":focus.basis,"anchors":focus.anchors(),
                             "anchor_route":"symbol_link","withheld_ranked":0,"withheld_linked":0});
-                        if matches!(focus.basis, "retry_timing_policy" | "rationale_compound_agreement") {
+                        if matches!(
+                            focus.basis,
+                            "retry_timing_policy" | "rationale_compound_agreement"
+                        ) {
                             let before = selected_memories.len();
                             selected_memories.retain(|row| {
-                                if focus.keep(row) { return true; }
-                                if let Some(trace) = memory_trace.as_mut() { trace.withheld(row, focus.filter_reason()); }
+                                if focus.keep(row) {
+                                    return true;
+                                }
+                                if let Some(trace) = memory_trace.as_mut() {
+                                    trace.withheld(row, focus.filter_reason());
+                                }
                                 false
                             });
-                            rationale_report["withheld_ranked"] = json!(before-selected_memories.len());
+                            rationale_report["withheld_ranked"] =
+                                json!(before - selected_memories.len());
                         }
                     }
                 }
                 if let Some(focus) = &rationale {
                     let before = linked_memories.len();
                     linked_memories.retain(|row| {
-                        if focus.keep(row) { return true; }
-                        if let Some(trace) = memory_trace.as_mut() { trace.withheld(row, focus.filter_reason()); }
+                        if focus.keep(row) {
+                            return true;
+                        }
+                        if let Some(trace) = memory_trace.as_mut() {
+                            trace.withheld(row, focus.filter_reason());
+                        }
                         false
                     });
-                    rationale_report["withheld_linked"] = json!(before-linked_memories.len());
+                    rationale_report["withheld_linked"] = json!(before - linked_memories.len());
                     symbol_links_report["lifted_memories"] = json!(linked_memories.len());
                 }
                 if symbol_links.enabled() && symbol_links_report.get("considered").is_some() {
@@ -2088,9 +2212,7 @@ fn context_impl(
                 if let Some(trace) = memory_trace.as_mut() {
                     trace.linked_order(&linked_memories, memory_limit);
                 }
-                let omitted = linked_memories
-                    .len()
-                    .saturating_sub(memory_limit);
+                let omitted = linked_memories.len().saturating_sub(memory_limit);
                 if omitted > 0 {
                     linked_memories.truncate(memory_limit);
                     symbol_links_report["over_limit"] = json!(
@@ -2442,9 +2564,15 @@ fn context_impl(
     if let Some(report) = memory_value_report {
         packet["memory_value_request"] = report;
     }
-    if !memory_scope_report.is_null() { packet["memory_scope_support"] = memory_scope_report; }
+    if !memory_scope_report.is_null() {
+        packet["memory_scope_support"] = memory_scope_report;
+    }
     if !rationale_report.is_null() {
-        let field = if rationale_report["basis"] == "exact_note_title" { "memory_prose_support" } else { "memory_rationale_support" };
+        let field = if rationale_report["basis"] == "exact_note_title" {
+            "memory_prose_support"
+        } else {
+            "memory_rationale_support"
+        };
         packet[field] = rationale_report;
     }
     packet["depth"] = json!({"limit":limit,"max_tokens":max_tokens});
@@ -3101,8 +3229,14 @@ mod tests {
         let mut row = row;
         row["source"]["byte_end"] = json!(10 + row["text"].as_str().unwrap().len());
         let named = json!({"text":"fn target() {}", "source":{"id":"file:a.rs","byte_start":16,"byte_end":30}});
-        assert_eq!(super::scoring_passage(&row, &[named.clone()]), ("fn target() {}", 6));
-        assert_eq!(super::scoring_passage(&row, &[named.clone(), named.clone()]).1, 0);
+        assert_eq!(
+            super::scoring_passage(&row, std::slice::from_ref(&named)),
+            ("fn target() {}", 6)
+        );
+        assert_eq!(
+            super::scoring_passage(&row, &[named.clone(), named.clone()]).1,
+            0
+        );
         let mut wrong = named.clone();
         wrong["source"]["id"] = json!("file:other.rs");
         assert_eq!(super::scoring_passage(&row, &[wrong]).1, 0);

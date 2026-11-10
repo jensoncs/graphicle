@@ -311,7 +311,11 @@ impl Store {
         let file = options.open(path)?;
         drop(file);
         let result = (|| {
-            self.connect()?.backup(rusqlite::MAIN_DB, path, None)?;
+            self.connect()?.backup(
+                rusqlite::MAIN_DB,
+                path,
+                None::<fn(rusqlite::backup::Progress)>,
+            )?;
             let backup = Connection::open(path)?;
             // A portable source backup must not silently contain unusable encrypted
             // credentials or require copying the device's master key beside it.

@@ -27,26 +27,26 @@ mod go;
 #[path = "review_diagnostics.rs"]
 mod diagnostics;
 
-#[path = "review_components.rs"]
-mod components;
 #[path = "review_analysis_coverage.rs"]
 mod analysis_coverage;
-#[path = "review_reuse.rs"]
-mod reuse;
-#[path = "service_graph.rs"]
-mod services;
-#[path = "review_flows.rs"]
-mod flows;
-#[path = "review_environment.rs"]
-mod environment;
 #[path = "review_basic.rs"]
 mod basic;
+#[path = "review_components.rs"]
+mod components;
+#[path = "review_diff_context.rs"]
+mod diff_context;
+#[path = "review_environment.rs"]
+mod environment;
+#[path = "review_flows.rs"]
+mod flows;
 #[path = "review_packing.rs"]
 mod packing;
 #[path = "review_provenance.rs"]
 mod provenance;
-#[path = "review_diff_context.rs"]
-mod diff_context;
+#[path = "review_reuse.rs"]
+mod reuse;
+#[path = "service_graph.rs"]
+mod services;
 
 const FORMAT: &str = "graphicle.review.v1";
 pub const RISK_SCHEMA: &str = "graphicle.review-risk.v2";
@@ -208,22 +208,48 @@ struct Facts {
 // They remain failures. Never retain incomplete discovery, parse/read failures,
 // missing input inventories, or helper failures as compiler facts.
 fn fact_cache_status(facts: &Facts) -> &'static str {
-    if facts.worlds.is_empty() { return "empty_worlds"; }
+    if facts.worlds.is_empty() {
+        return "empty_worlds";
+    }
     for world in &facts.worlds {
-        if world.issues.is_empty() { continue; }
-        let packages: BTreeMap<_, _> = world.packages.iter().map(|p| (s(p,"path"), p)).collect();
-        if packages.is_empty() { return "missing_packages"; }
-        if !world.inputs.iter().any(|i| i["role"] == "selected") { return "missing_selected_inputs"; }
+        if world.issues.is_empty() {
+            continue;
+        }
+        let packages: BTreeMap<_, _> = world.packages.iter().map(|p| (s(p, "path"), p)).collect();
+        if packages.is_empty() {
+            return "missing_packages";
+        }
+        if !world.inputs.iter().any(|i| i["role"] == "selected") {
+            return "missing_selected_inputs";
+        }
         if !world.issues.iter().all(|reason| {
             if let Some(package) = reason.strip_prefix("incomplete_package:") {
                 packages.contains_key(package)
             } else if let Some(package) = reason.strip_prefix("type_check_failed:") {
-                world.issues.iter().any(|r| r == &format!("incomplete_package:{package}"))
-            } else { false }
-        }) { return "non_cacheable_world_issue"; }
-        if !world.inputs.iter().filter(|i| i["role"] == "selected").all(|i| {
-            packages.get(s(i,"package")).is_some_and(|p| p["files"].as_array().is_some_and(|files| files.iter().any(|file| file == &i["file"])))
-        }) { return "selected_input_not_in_package"; }
+                world
+                    .issues
+                    .iter()
+                    .any(|r| r == &format!("incomplete_package:{package}"))
+            } else {
+                false
+            }
+        }) {
+            return "non_cacheable_world_issue";
+        }
+        if !world
+            .inputs
+            .iter()
+            .filter(|i| i["role"] == "selected")
+            .all(|i| {
+                packages.get(s(i, "package")).is_some_and(|p| {
+                    p["files"]
+                        .as_array()
+                        .is_some_and(|files| files.iter().any(|file| file == &i["file"]))
+                })
+            })
+        {
+            return "selected_input_not_in_package";
+        }
     }
     "cacheable"
 }
@@ -252,7 +278,9 @@ fn key(world: &str, symbol: &str) -> String {
 }
 fn validate(r: &Request) -> Result<()> {
     if !cfg!(unix) && r.timeout_ms.is_some() {
-        return Err(Error::bad("Review request deadlines require Unix process groups"));
+        return Err(Error::bad(
+            "Review request deadlines require Unix process groups",
+        ));
     }
     if r.timeout_ms.is_some_and(|ms| !(1..=600_000).contains(&ms)) {
         return Err(Error::bad("timeout_ms must be in 1..600000"));
@@ -303,7 +331,9 @@ fn validate(r: &Request) -> Result<()> {
             }
             let mut excluded = BTreeSet::new();
             for module in &pin.excluded_modules {
-                if module != "." { store::path(module)?; }
+                if module != "." {
+                    store::path(module)?;
+                }
                 if !excluded.insert(module) {
                     return Err(Error::bad("Duplicate excluded module root"));
                 }
@@ -378,7 +408,13 @@ pub(crate) fn validate_profile(profile: &Profile) -> Result<()> {
     }
     Ok(())
 }
-fn analyze(input: &Input, profile: &Profile, cached: Option<Value>, packages: &mut crate::review_cache::PackagePool, cache_key: &str) -> Result<Analysis> {
+fn analyze(
+    input: &Input,
+    profile: &Profile,
+    cached: Option<Value>,
+    packages: &mut crate::review_cache::PackagePool,
+    cache_key: &str,
+) -> Result<Analysis> {
     let mut out = analyze_go(input, profile, cached, packages, cache_key)?;
     basic::extend(input, &mut out)?;
     if out.symbols.len() > 200_000 {
@@ -387,13 +423,19 @@ fn analyze(input: &Input, profile: &Profile, cached: Option<Value>, packages: &m
     Ok(out)
 }
 
-fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages: &mut crate::review_cache::PackagePool, cache_key: &str) -> Result<Analysis> {
+fn analyze_go(
+    input: &Input,
+    profile: &Profile,
+    cached: Option<Value>,
+    packages: &mut crate::review_cache::PackagePool,
+    cache_key: &str,
+) -> Result<Analysis> {
     let scope = go::scope(input)?;
     let roots = scope.roots;
     let mut out = Analysis {
         package_diagnostics: BTreeMap::new(),
-        diagnostics:vec![],
-        diagnostic_count:0,
+        diagnostics: vec![],
+        diagnostic_count: 0,
         symbols: BTreeMap::new(),
         calls: vec![],
         packages: vec![],
@@ -407,7 +449,10 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     };
     out.issues.extend(scope.issues);
     if roots.is_empty() {
-        crate::phase::note("review_cache_eligibility", &format!("key={cache_key} status=no_go_roots"));
+        crate::phase::note(
+            "review_cache_eligibility",
+            &format!("key={cache_key} status=no_go_roots"),
+        );
         out.analyzer = "source-only".into();
         out.toolchain = "none".into();
         return Ok(out);
@@ -415,7 +460,9 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     let raw = if let Some(facts) = cached {
         Ok(facts)
     } else {
-        let cache_identity = if packages.identity.is_empty() { String::new() } else {
+        let cache_identity = if packages.identity.is_empty() {
+            String::new()
+        } else {
             go::package_identity(input, profile, &packages.identity)
         };
         let request = json!({"trace_key":cache_key,"roots":roots,"goos":profile.goos,"goarch":profile.goarch,"tags":profile.tags,"tests":profile.tests,"workspace":profile.workspace,
@@ -429,18 +476,27 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     let mut raw = match raw {
         Ok(v) => v,
         Err(error) => {
-            crate::phase::note("review_cache_eligibility", &format!("key={cache_key} status=native_failure"));
+            crate::phase::note(
+                "review_cache_eligibility",
+                &format!("key={cache_key} status=native_failure"),
+            );
             out.issues
                 .push(issue("compiler_analysis_unavailable", error.detail));
             return Ok(out);
         }
     };
-    if let Some(encoded) = raw.as_object_mut().and_then(|o| o.remove("dependency_cache")) {
+    if let Some(encoded) = raw
+        .as_object_mut()
+        .and_then(|o| o.remove("dependency_cache"))
+    {
         // Optional compiler-cache transport never substitutes for source facts.
         out.package_cache = serde_json::from_value(encoded).unwrap_or_default();
         let stats = packages.absorb(&mut out.package_cache);
         if crate::phase::enabled() {
-            crate::phase::note("review_package_cache_absorb", &format!("key={cache_key} stats={stats}"));
+            crate::phase::note(
+                "review_package_cache_absorb",
+                &format!("key={cache_key} stats={stats}"),
+            );
         }
     }
     let facts: Facts = crate::phase::phase("review_decode_facts", || {
@@ -454,18 +510,32 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
         for reason in facts.worlds.iter().flat_map(|w| &w.issues) {
             let category = reason.split(':').next().unwrap_or("");
             let category = match category {
-                "incomplete_package" | "type_check_failed" | "incomplete_discovery"
-                | "unavailable_external_package" | "unreadable_source" | "unsupported_cgo"
-                | "invalid_package_metadata" | "source_outside_snapshot"
-                | "unsafe_or_invalid_module_configuration" | "package_discovery_failed"
+                "incomplete_package"
+                | "type_check_failed"
+                | "incomplete_discovery"
+                | "unavailable_external_package"
+                | "unreadable_source"
+                | "unsupported_cgo"
+                | "invalid_package_metadata"
+                | "source_outside_snapshot"
+                | "unsafe_or_invalid_module_configuration"
+                | "package_discovery_failed"
                 | "unsupported_architecture" => category,
                 _ => "other",
             };
             *causes.entry(category).or_default() += 1;
         }
-        crate::phase::note("review_cache_eligibility", &format!("key={cache_key} status={cache_status} native_issues={}", json!(causes)));
+        crate::phase::note(
+            "review_cache_eligibility",
+            &format!(
+                "key={cache_key} status={cache_status} native_issues={}",
+                json!(causes)
+            ),
+        );
     }
-    if cache_status == "cacheable" { out.raw = Some(raw); }
+    if cache_status == "cacheable" {
+        out.raw = Some(raw);
+    }
     out.analyzer = facts.analyzer;
     out.toolchain = facts.toolchain;
     for world in facts.worlds {
@@ -488,7 +558,8 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
         }
         out.diagnostic_count += world.diagnostic_count;
         for (package, causes) in world.package_diagnostics {
-            out.package_diagnostics.insert((world.root.clone(), package), causes);
+            out.package_diagnostics
+                .insert((world.root.clone(), package), causes);
         }
         for mut diagnostic in world.diagnostics {
             diagnostic["consumer_build"] = json!(world.root);
@@ -564,16 +635,18 @@ fn analyze_go(input: &Input, profile: &Profile, cached: Option<Value>, packages:
     // types. Keep a hard cardinality cap as well as the bounded fact transport.
     if out.symbols.len() > 200_000 {
         return Err(Error::bad(format!(
-            "Review graph bound exceeded: {} symbols (limit 200000)", out.symbols.len()
+            "Review graph bound exceeded: {} symbols (limit 200000)",
+            out.symbols.len()
         )));
     }
     // A byte-reuse hash is not semantic validity. This separate fingerprint
     // covers compiler-owned transitive package dependencies and native inputs.
-    let config = crate::digest(
-        &go::with_exclusions(json!({"profile":profile,"analyzer":out.analyzer,"toolchain":out.toolchain,
+    let config = crate::digest(&go::with_exclusions(
+        json!({"profile":profile,"analyzer":out.analyzer,"toolchain":out.toolchain,
         "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.policy_sha256])).collect::<Vec<_>>(),
-        "configuration":input.sources.iter().filter(|(path,_)|matches!(Path::new(path).file_name().and_then(|n|n.to_str()),Some("go.mod"|"go.sum"|"go.work"|"go.work.sum"))).map(|(path,s)|json!([path,s.repository,s.sha])).collect::<Vec<_>>() }),input),
-    );
+        "configuration":input.sources.iter().filter(|(path,_)|matches!(Path::new(path).file_name().and_then(|n|n.to_str()),Some("go.mod"|"go.sum"|"go.work"|"go.work.sum"))).map(|(path,s)|json!([path,s.repository,s.sha])).collect::<Vec<_>>() }),
+        input,
+    ));
     let nodes: BTreeMap<_, _> = out
         .packages
         .iter()
@@ -638,7 +711,10 @@ fn outside_declarations(analysis: &Analysis, file: &str, source: &str) -> String
 // (including unresolved calls) that never become graph edges.
 fn call_links(analysis: &Analysis, limit: usize) -> Result<Vec<(&str, &str, usize)>> {
     if analysis.services.edges.len() > limit {
-        return Err(Error::bad(format!("Review graph bound exceeded: {} service links (limit {limit})", analysis.services.edges.len())));
+        return Err(Error::bad(format!(
+            "Review graph bound exceeded: {} service links (limit {limit})",
+            analysis.services.edges.len()
+        )));
     }
     // Declaration identities already exist. Re-hashing them for every endpoint
     // (and again for evidence) costs millions of digests on dependency graphs.
@@ -658,7 +734,9 @@ fn call_links(analysis: &Analysis, limit: usize) -> Result<Vec<(&str, &str, usiz
         ) else {
             continue;
         };
-        let old = links.entry((caller, callee, call.relation.as_str())).or_insert(call_index);
+        let old = links
+            .entry((caller, callee, call.relation.as_str()))
+            .or_insert(call_index);
         // Prefer a discarded-error call as the representative when the same
         // caller invokes a supplier more than once. No target is discarded.
         if call.discarded_error && !analysis.calls[*old].1.discarded_error {
@@ -667,11 +745,15 @@ fn call_links(analysis: &Analysis, limit: usize) -> Result<Vec<(&str, &str, usiz
         if links.len() + analysis.services.edges.len() > limit {
             return Err(Error::bad(format!(
                 "Review graph bound exceeded: {} distinct links (limit {limit}); {} call sites",
-                links.len() + analysis.services.edges.len(), analysis.calls.len()
+                links.len() + analysis.services.edges.len(),
+                analysis.calls.len()
             )));
         }
     }
-    Ok(links.into_iter().map(|((from, to, _), index)| (from, to, index)).collect())
+    Ok(links
+        .into_iter()
+        .map(|((from, to, _), index)| (from, to, index))
+        .collect())
 }
 
 fn call_evidence(world: &str, call: &Call) -> Value {
@@ -680,9 +762,17 @@ fn call_evidence(world: &str, call: &Call) -> Value {
 
 fn graph(analysis: &Analysis, reverse: bool) -> Result<Graph> {
     let links = call_links(analysis, 500_000)?;
-    let mut graph = Graph::with_capacity(true, true, analysis.symbols.len(), links.len() + analysis.services.edges.len());
+    let mut graph = Graph::with_capacity(
+        true,
+        true,
+        analysis.symbols.len(),
+        links.len() + analysis.services.edges.len(),
+    );
     for (id, (_, symbol)) in &analysis.symbols {
-        graph.add_node(json!(id), json!({"label":symbol.name}).as_object().unwrap().clone())?;
+        graph.add_node(
+            json!(id),
+            json!({"label":symbol.name}).as_object().unwrap().clone(),
+        )?;
     }
     for (caller, callee, call_index) in links {
         let call = &analysis.calls[call_index].1;
@@ -703,9 +793,20 @@ fn graph(analysis: &Analysis, reverse: bool) -> Result<Graph> {
         )?;
     }
     for (index, edge) in analysis.services.edges.iter().enumerate() {
-        let (from, to) = if reverse { (&edge.to, &edge.from) } else { (&edge.from, &edge.to) };
-        graph.add_edge(json!(from),json!(to),None,
-            json!({"relation":edge.relation,"service_index":index}).as_object().unwrap().clone())?;
+        let (from, to) = if reverse {
+            (&edge.to, &edge.from)
+        } else {
+            (&edge.from, &edge.to)
+        };
+        graph.add_edge(
+            json!(from),
+            json!(to),
+            None,
+            json!({"relation":edge.relation,"service_index":index})
+                .as_object()
+                .unwrap()
+                .clone(),
+        )?;
     }
     Ok(graph)
 }
@@ -728,10 +829,16 @@ fn add_reason(reasons: &mut Vec<Value>, reason: Value) {
     }
     if let Some(old) = reasons.iter_mut().find(|r| r["reason"] == reason["reason"]) {
         let length = |r: &Value| r["path"].as_array().map_or(0, Vec::len);
-        let discarded = |r: &Value| r["steps"].as_array().is_some_and(|steps| steps.iter().any(|s| s["discarded_error"] == true));
+        let discarded = |r: &Value| {
+            r["steps"]
+                .as_array()
+                .is_some_and(|steps| steps.iter().any(|s| s["discarded_error"] == true))
+        };
         if length(&reason) < length(old)
-            || (length(&reason) == length(old) && (discarded(&reason) && !discarded(old)
-                || discarded(&reason) == discarded(old) && reason.to_string().cmp(&old.to_string()).is_lt()))
+            || (length(&reason) == length(old)
+                && (discarded(&reason) && !discarded(old)
+                    || discarded(&reason) == discarded(old)
+                        && reason.to_string().cmp(&old.to_string()).is_lt()))
         {
             *old = reason;
         }
@@ -755,13 +862,21 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
         let mut direct = 0;
         for (caller, callee, index) in call_links(analysis, 500_000)? {
             let (world, call) = &analysis.calls[index];
-            if !seed_set.contains(caller) || !call.discarded_error
-                || !matches!(call.relation.as_str(), "calls" | "may_call") { continue; }
+            if !seed_set.contains(caller)
+                || !call.discarded_error
+                || !matches!(call.relation.as_str(), "calls" | "may_call")
+            {
+                continue;
+            }
             if direct == 20_000 {
-                out.issues.push(issue("call_contract_budget", json!({"limit":20_000})));
+                out.issues
+                    .push(issue("call_contract_budget", json!({"limit":20_000})));
                 break;
             }
-            add_reason(out.reasons.entry(callee.to_owned()).or_default(), json!({"reason":"dependency","path":[caller,callee],"steps":[call_evidence(world,call)]}));
+            add_reason(
+                out.reasons.entry(callee.to_owned()).or_default(),
+                json!({"reason":"dependency","path":[caller,callee],"steps":[call_evidence(world,call)]}),
+            );
             direct += 1;
         }
     }
@@ -834,7 +949,8 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
                     let edge = &analysis.services.edges[index as usize];
                     json!({"relation":edge.relation,"caller":edge.from,"callee":edge.to,"evidence":"configured_static","provenance":edge.evidence})
                 } else {
-                    let (world, call) = &analysis.calls[reference["call_index"].as_u64().unwrap() as usize];
+                    let (world, call) =
+                        &analysis.calls[reference["call_index"].as_u64().unwrap() as usize];
                     call_evidence(world, call)
                 };
                 let mut path = paths[&predecessor].clone();
@@ -1268,7 +1384,8 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                 ));
             }
             if basic::language(input, path).is_none()
-                && let Some(cause) = unsupported_source_cause(path, source.content.text().unwrap_or(""))
+                && let Some(cause) =
+                    unsupported_source_cause(path, source.content.text().unwrap_or(""))
             {
                 issues.push(issue(
                     "unsupported_source_language_or_contract",
@@ -1324,14 +1441,25 @@ struct PackingCost {
 }
 impl PackingCost {
     fn measured(entry: &Value) -> Self {
-        Self { exact: Some(packing::count(&entry.to_string()) + packing::count(&entry["id"].to_string()) + 24), exceeds: 0 }
+        Self {
+            exact: Some(
+                packing::count(&entry.to_string()) + packing::count(&entry["id"].to_string()) + 24,
+            ),
+            exceeds: 0,
+        }
     }
     fn exact(&mut self, entry: &Value) -> usize {
-        *self.exact.get_or_insert_with(|| packing::count(&entry.to_string()) + packing::count(&entry["id"].to_string()) + 24)
+        *self.exact.get_or_insert_with(|| {
+            packing::count(&entry.to_string()) + packing::count(&entry["id"].to_string()) + 24
+        })
     }
     fn within(&mut self, entry: &Value, limit: usize) -> Option<usize> {
-        if let Some(cost) = self.exact { return (cost <= limit).then_some(cost); }
-        if limit <= self.exceeds { return None; }
+        if let Some(cost) = self.exact {
+            return (cost <= limit).then_some(cost);
+        }
+        if limit <= self.exceeds {
+            return None;
+        }
         let overhead = packing::count(&entry["id"].to_string()) + 24;
         if let Some(remaining) = limit.checked_sub(overhead)
             && let Some(cost) = packing::count_within(&entry.to_string(), remaining)
@@ -1359,15 +1487,28 @@ fn compact_required_metadata(report: &mut Value, candidates: &mut [(&str, Value,
     let issues = report["coverage"]["issues"].as_array_mut().unwrap();
     issues.retain(|issue| {
         let reason = s(issue, "reason").split(':').next().unwrap_or("");
-        reason != "unresolved_edge" && seen.insert((reason.to_owned(),
-            s(&issue["detail"], "cause").to_owned(), s(&issue["detail"], "side").to_owned()))
+        reason != "unresolved_edge"
+            && seen.insert((
+                reason.to_owned(),
+                s(&issue["detail"], "cause").to_owned(),
+                s(&issue["detail"], "side").to_owned(),
+            ))
     });
     let retained = issues.len();
-    report["coverage"]["issue_examples_omitted"] = json!(report["coverage"]["issue_count"].as_u64().unwrap() as usize - retained);
+    report["coverage"]["issue_examples_omitted"] =
+        json!(report["coverage"]["issue_count"].as_u64().unwrap() as usize - retained);
     for (_, entry, cost) in candidates.iter_mut().filter(|(_, e, _)| is_head_change(e)) {
-        let Some(reasons) = entry["reasons"].as_array() else { continue };
-        let retained: Vec<_> = reasons.iter().filter(|r| r["reason"] == "change_seed" || r["uncertain_scope"] == true).cloned().collect();
-        if retained.len() == reasons.len() { continue; }
+        let Some(reasons) = entry["reasons"].as_array() else {
+            continue;
+        };
+        let retained: Vec<_> = reasons
+            .iter()
+            .filter(|r| r["reason"] == "change_seed" || r["uncertain_scope"] == true)
+            .cloned()
+            .collect();
+        if retained.len() == reasons.len() {
+            continue;
+        }
         entry["reason_examples"] = json!({"count":reasons.len(),"omitted":reasons.len()-retained.len(),"digest":crate::digest(&json!(reasons))});
         entry["reasons"] = json!(retained);
         entry.as_object_mut().unwrap().remove("revision");
@@ -1379,14 +1520,25 @@ fn compact_required_metadata(report: &mut Value, candidates: &mut [(&str, Value,
 // Rank within semantic priority classes by shortest proven graph distance.
 // Conservative scope and history-only suggestions have no measured distance.
 fn entry_distance(entry: &Value) -> usize {
-    entry["reasons"].as_array().into_iter().flatten()
+    entry["reasons"]
+        .as_array()
+        .into_iter()
+        .flatten()
         .filter(|r| r["uncertain_scope"] != true)
         .filter_map(|r| {
-            if r["reason"] == "change_seed" { Some(0) }
-            else if matches!(s(r, "reason"), "dependency" | "potential_consumer") {
-                r["path"].as_array().filter(|p| !p.is_empty()).map(|p| p.len() - 1)
-            } else { None }
-        }).min().unwrap_or(usize::MAX)
+            if r["reason"] == "change_seed" {
+                Some(0)
+            } else if matches!(s(r, "reason"), "dependency" | "potential_consumer") {
+                r["path"]
+                    .as_array()
+                    .filter(|p| !p.is_empty())
+                    .map(|p| p.len() - 1)
+            } else {
+                None
+            }
+        })
+        .min()
+        .unwrap_or(usize::MAX)
 }
 
 fn pack(
@@ -1395,21 +1547,32 @@ fn pack(
     previous: Option<&Value>,
     scopes: Option<&reuse::Scopes>,
 ) -> Result<(Value, Value)> {
-    let compact = report.as_object_mut().unwrap().remove("_compact_provenance") == Some(json!(true));
-    let has_service_steps = compact && report["entries"].as_array().into_iter().flatten().any(|e| {
-        e["reasons"].as_array().into_iter().flatten().any(|r| {
-            r["steps"].as_array().into_iter().flatten().any(|step| step.get("provenance").is_some() && step["evidence"] == "configured_static")
-        })
-    });
+    let compact = report
+        .as_object_mut()
+        .unwrap()
+        .remove("_compact_provenance")
+        == Some(json!(true));
+    let has_service_steps = compact
+        && report["entries"].as_array().into_iter().flatten().any(|e| {
+            e["reasons"].as_array().into_iter().flatten().any(|r| {
+                r["steps"].as_array().into_iter().flatten().any(|step| {
+                    step.get("provenance").is_some() && step["evidence"] == "configured_static"
+                })
+            })
+        });
     if !compact || !has_service_steps {
         return pack_encoding(report, max_tokens, previous, scopes, false).map(|(p, r, _)| (p, r));
     }
     let shared = crate::phase::phase("review_pack_compact", || {
         pack_encoding(report.clone(), max_tokens, None, scopes, true)
     });
-    if shared.as_ref().is_ok_and(|(packet, _, _)| packet.get("service_provenance").is_none()) {
+    if shared
+        .as_ref()
+        .is_ok_and(|(packet, _, _)| packet.get("service_provenance").is_none())
+    {
         if previous.is_some() {
-            return pack_encoding(report, max_tokens, previous, scopes, false).map(|(p, r, _)| (p, r));
+            return pack_encoding(report, max_tokens, previous, scopes, false)
+                .map(|(p, r, _)| (p, r));
         }
         return shared.map(|(p, r, _)| (p, r));
     }
@@ -1419,18 +1582,32 @@ fn pack(
     let inline = crate::phase::phase("review_pack_inline", || {
         pack_encoding(report.clone(), max_tokens, None, scopes, false)
     });
-    let quality = |packet: &Value, receipt: &Value| (
-        packet["coverage"]["provided_diff"]["selected_outside_entries"].as_u64().unwrap_or(0),
-        packet["coverage"]["current_head"]["selected"].as_u64().unwrap_or(0),
-        packet["coverage"]["call_contracts"]["selected"].as_u64().unwrap_or(0),
-        packet["coverage"]["callers"]["selected"].as_u64().unwrap_or(0),
-        receipt["entries"].as_array().unwrap().len(),
-    );
+    let quality = |packet: &Value, receipt: &Value| {
+        (
+            packet["coverage"]["provided_diff"]["selected_outside_entries"]
+                .as_u64()
+                .unwrap_or(0),
+            packet["coverage"]["current_head"]["selected"]
+                .as_u64()
+                .unwrap_or(0),
+            packet["coverage"]["call_contracts"]["selected"]
+                .as_u64()
+                .unwrap_or(0),
+            packet["coverage"]["callers"]["selected"]
+                .as_u64()
+                .unwrap_or(0),
+            receipt["entries"].as_array().unwrap().len(),
+        )
+    };
     let (chosen, shared_encoding) = match (shared, inline) {
         (Ok(shared), Ok(inline)) => {
             let a = quality(&shared.0, &shared.1);
             let b = quality(&inline.0, &inline.1);
-            if a > b || (a == b && shared.2 < inline.2) { (shared, true) } else { (inline, false) }
+            if a > b || (a == b && shared.2 < inline.2) {
+                (shared, true)
+            } else {
+                (inline, false)
+            }
         }
         (Ok(shared), Err(_)) => (shared, true),
         (_, Ok(inline)) => (inline, false),
@@ -1459,7 +1636,12 @@ fn pack_encoding(
     let supplemental = report["coverage"].get("provided_diff").is_some();
     let mut overlapping = BTreeSet::new();
     for entry in &mut entries {
-        if entry.as_object_mut().unwrap().remove("_provided_diff_overlap") == Some(json!(true)) {
+        if entry
+            .as_object_mut()
+            .unwrap()
+            .remove("_provided_diff_overlap")
+            == Some(json!(true))
+        {
             overlapping.insert(s(entry, "id").to_owned());
         }
     }
@@ -1469,8 +1651,12 @@ fn pack_encoding(
         report["coverage"]["provided_diff"]["selected_overlapping_entries"] = json!(0);
     }
     let provenance = if compact {
-        crate::phase::phase("review_compact_provenance", || provenance::Catalog::prepare(&mut entries))
-    } else { provenance::Catalog::default() };
+        crate::phase::phase("review_compact_provenance", || {
+            provenance::Catalog::prepare(&mut entries)
+        })
+    } else {
+        provenance::Catalog::default()
+    };
     provenance.emit(&mut report, &BTreeSet::new());
     // Optional annotations are upgrades to code, never part of the cost that
     // decides whether a required current declaration fits.
@@ -1506,7 +1692,9 @@ fn pack_encoding(
     }
     let scope_requirements = scopes.map(|s| {
         s.counts(
-            entries.iter().map(|e| ("entries", e))
+            entries
+                .iter()
+                .map(|e| ("entries", e))
                 .chain(diffs.iter().map(|e| ("diffs", e))),
         )
     });
@@ -1518,7 +1706,10 @@ fn pack_encoding(
     // Count requirements before exclusions so caller-provided context cannot
     // manufacture complete scope/reuse proofs. Budget omissions count only
     // candidates still eligible for this supplemental packet.
-    let provided_head = entries.iter().filter(|e| is_head_change(e) && e["_provided_diff"] == true).count();
+    let provided_head = entries
+        .iter()
+        .filter(|e| is_head_change(e) && e["_provided_diff"] == true)
+        .count();
     entries.retain(|e| e["_provided_diff"] != true);
     diffs.retain(|e| e["_provided_diff"] != true);
     let eligible_entries = entries.len();
@@ -1565,10 +1756,18 @@ fn pack_encoding(
         std::array::from_fn(|_| std::collections::VecDeque::new());
     let mut contracts = vec![];
     let mut callers = vec![];
-    entries.sort_by_key(|e| (entry_distance(e), s(e, "file").to_owned(),
-        e["line"].as_u64().unwrap_or(0), s(e, "side").to_owned(),
-        s(e, "name").to_owned(), e["byte_start"].as_u64().unwrap_or(0),
-        s(&e["package_binding"], "consumer_build").to_owned(), s(e, "symbol_id").to_owned()));
+    entries.sort_by_key(|e| {
+        (
+            entry_distance(e),
+            s(e, "file").to_owned(),
+            e["line"].as_u64().unwrap_or(0),
+            s(e, "side").to_owned(),
+            s(e, "name").to_owned(),
+            e["byte_start"].as_u64().unwrap_or(0),
+            s(&e["package_binding"], "consumer_build").to_owned(),
+            s(e, "symbol_id").to_owned(),
+        )
+    });
     for entry in entries {
         if is_call_contract(&entry) {
             contracts.push(entry);
@@ -1630,10 +1829,15 @@ fn pack_encoding(
         // Uncertain scope alone must not outrank known graph-linked context
         // merely because it lies outside a supplied hunk.
         candidates.sort_by_key(|(collection, entry)| {
-            if *collection == "diffs" { 1 }
-            else if entry_distance(entry) == usize::MAX { 2 }
-            else if overlapping.contains(s(entry, "id")) { 1 }
-            else { 0 }
+            if *collection == "diffs" {
+                1
+            } else if entry_distance(entry) == usize::MAX {
+                2
+            } else if overlapping.contains(s(entry, "id")) {
+                1
+            } else {
+                0
+            }
         });
     }
     let mut candidates: Vec<_> = candidates
@@ -1641,30 +1845,56 @@ fn pack_encoding(
         .map(|(collection, entry)| {
             let cost = if collection == "diffs" || is_required_code(&entry) {
                 PackingCost::measured(&entry)
-            } else { PackingCost::default() };
+            } else {
+                PackingCost::default()
+            };
             (collection, entry, cost)
         })
         .collect();
     report["execution_flows"] = json!({"paths":[],"coverage":{"complete":false,"observed_execution_available":false,"selection":"selected_invocation_segments","omitted":0,"max_paths":16}});
-    let required_cost = |entries: &[(&str, Value, PackingCost)]| entries.iter().filter(|(_, e, _)| is_required_code(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
-    let required_refs = |entries: &[(&str, Value, PackingCost)]| entries.iter()
-        .filter(|(_, e, _)| is_required_code(e))
-        .flat_map(|(_, e, _)| provenance.references(e, flow_annotations.get(s(e, "id"))))
-        .collect::<BTreeSet<_>>();
+    let required_cost = |entries: &[(&str, Value, PackingCost)]| {
+        entries
+            .iter()
+            .filter(|(_, e, _)| is_required_code(e))
+            .map(|(_, _, cost)| cost.exact.unwrap())
+            .sum::<usize>()
+    };
+    let required_refs = |entries: &[(&str, Value, PackingCost)]| {
+        entries
+            .iter()
+            .filter(|(_, e, _)| is_required_code(e))
+            .flat_map(|(_, e, _)| provenance.references(e, flow_annotations.get(s(e, "id"))))
+            .collect::<BTreeSet<_>>()
+    };
     let metadata_cost = packing::count(&report.to_string()) + 384;
     // Reserve room for whole history blocks when requested, before spending
     // tokens on repeated change/path examples. This never removes source text.
-    let history_reserve = if business.is_empty() || supplemental { 0 } else { max_tokens / 8 };
-    if metadata_cost + required_cost(&candidates) + provenance.cost(&required_refs(&candidates)) + history_reserve > max_tokens {
+    let history_reserve = if business.is_empty() || supplemental {
+        0
+    } else {
+        max_tokens / 8
+    };
+    if metadata_cost
+        + required_cost(&candidates)
+        + provenance.cost(&required_refs(&candidates))
+        + history_reserve
+        > max_tokens
+    {
         compact_required_metadata(&mut report, &mut candidates);
     }
-    let ranks: BTreeMap<_, _> = candidates.iter().enumerate()
-        .map(|(i, (_, e, _))| (s(e, "id").to_owned(), i + 1)).collect();
+    let ranks: BTreeMap<_, _> = candidates
+        .iter()
+        .enumerate()
+        .map(|(i, (_, e, _))| (s(e, "id").to_owned(), i + 1))
+        .collect();
     if let Some((_, entry, cost)) = candidates.iter_mut().find(|(c, _, _)| *c == "entries") {
         report["coverage"]["packing"]["first_entry_tokens"] = json!(cost.exact(entry));
     }
-    let minimum_entry_cost = candidates.iter().filter(|(c, _, _)| *c == "entries")
-        .filter_map(|(_, _, cost)| cost.exact).min();
+    let minimum_entry_cost = candidates
+        .iter()
+        .filter(|(c, _, _)| *c == "entries")
+        .filter_map(|(_, _, cost)| cost.exact)
+        .min();
     if let Some(cost) = minimum_entry_cost
         && cost < max_tokens
         && packing::count(&report.to_string()) + 384 + cost > max_tokens
@@ -1674,33 +1904,69 @@ fn pack_encoding(
     let metadata_tokens = packing::count(&report.to_string());
     report["coverage"]["packing"]["metadata_tokens"] = json!(metadata_tokens);
     let mut used = packing::count(&report.to_string()) + 384;
-    let requested_diff_reserve = if supplemental { 0 } else { candidates.iter().filter(|(c, _, _)| *c == "diffs").map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>().min(max_tokens / 4) };
-    let head_cost = candidates.iter().filter(|(_, e, _)| is_head_change(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
-    let contract_cost = candidates.iter().filter(|(_, e, _)| is_call_contract(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
-    let caller_cost = candidates.iter().filter(|(_, e, _)| is_call_consumer(e)).map(|(_, _, cost)| cost.exact.unwrap()).sum::<usize>();
+    let requested_diff_reserve = if supplemental {
+        0
+    } else {
+        candidates
+            .iter()
+            .filter(|(c, _, _)| *c == "diffs")
+            .map(|(_, _, cost)| cost.exact.unwrap())
+            .sum::<usize>()
+            .min(max_tokens / 4)
+    };
+    let head_cost = candidates
+        .iter()
+        .filter(|(_, e, _)| is_head_change(e))
+        .map(|(_, _, cost)| cost.exact.unwrap())
+        .sum::<usize>();
+    let contract_cost = candidates
+        .iter()
+        .filter(|(_, e, _)| is_call_contract(e))
+        .map(|(_, _, cost)| cost.exact.unwrap())
+        .sum::<usize>();
+    let caller_cost = candidates
+        .iter()
+        .filter(|(_, e, _)| is_call_consumer(e))
+        .map(|(_, _, cost)| cost.exact.unwrap())
+        .sum::<usize>();
     let required_provenance_cost = provenance.cost(&required_refs(&candidates));
-    let optional_capacity = max_tokens.saturating_sub(used).saturating_sub(head_cost).saturating_sub(contract_cost).saturating_sub(caller_cost).saturating_sub(required_provenance_cost);
+    let optional_capacity = max_tokens
+        .saturating_sub(used)
+        .saturating_sub(head_cost)
+        .saturating_sub(contract_cost)
+        .saturating_sub(caller_cost)
+        .saturating_sub(required_provenance_cost);
     // Required declarations and call contracts are reserved first. Preserve an
     // affordable complete hunk before spending optional capacity on history.
     // A fixed half-budget split needlessly excludes whole history blocks; no
     // reservation is useful when even the smallest hunk cannot fit.
-    let minimum_hunk = candidates.iter().filter(|(c, _, _)| *c == "diffs")
+    let minimum_hunk = candidates
+        .iter()
+        .filter(|(c, _, _)| *c == "diffs")
         .map(|(_, _, cost)| cost.exact.unwrap())
         .filter(|cost| *cost <= optional_capacity && *cost <= requested_diff_reserve)
-        .min().unwrap_or(0);
-    let business_allowance = if supplemental { 0 } else { optional_capacity.saturating_sub(minimum_hunk).min(max_tokens / 4) };
+        .min()
+        .unwrap_or(0);
+    let business_allowance = if supplemental {
+        0
+    } else {
+        optional_capacity
+            .saturating_sub(minimum_hunk)
+            .min(max_tokens / 4)
+    };
     let business_costs = fit_business_context(&mut candidates, &business, business_allowance, true);
     let business_used: usize = business_costs.values().sum();
     let diff_reserve = requested_diff_reserve.min(optional_capacity.saturating_sub(business_used));
     let minimum_head_tokens = used + head_cost + diff_reserve;
-    let flow_reserve = if !supplemental && (!flow_annotations.is_empty()
-        || candidates.iter().any(|(_, entry, _)| {
-            entry["reasons"].as_array().is_some_and(|reasons| {
-                reasons
-                    .iter()
-                    .any(|reason| reason.get("execution_flow").is_some())
-            })
-        })) {
+    let flow_reserve = if !supplemental
+        && (!flow_annotations.is_empty()
+            || candidates.iter().any(|(_, entry, _)| {
+                entry["reasons"].as_array().is_some_and(|reasons| {
+                    reasons
+                        .iter()
+                        .any(|reason| reason.get("execution_flow").is_some())
+                })
+            })) {
         max_tokens
             .saturating_sub(minimum_head_tokens)
             .saturating_sub(contract_cost)
@@ -1729,9 +1995,13 @@ fn pack_encoding(
         } else {
             max_tokens.saturating_sub(flow_reserve)
         };
-        let allowance = limit.saturating_sub(used).min(if collection == "diffs" && !supplemental {
-            diff_reserve.saturating_sub(diff_used)
-        } else { usize::MAX });
+        let allowance = limit
+            .saturating_sub(used)
+            .min(if collection == "diffs" && !supplemental {
+                diff_reserve.saturating_sub(diff_used)
+            } else {
+                usize::MAX
+            });
         let Some(measured) = cost.within(&entry, allowance.saturating_sub(shared_cost)) else {
             deferred.push((collection, entry, cost));
             continue;
@@ -1754,7 +2024,10 @@ fn pack_encoding(
         } else {
             max_tokens.saturating_sub(flow_reserve)
         };
-        if let Some(cost) = cost.within(&entry, limit.saturating_sub(used).saturating_sub(shared_cost)) {
+        if let Some(cost) = cost.within(
+            &entry,
+            limit.saturating_sub(used).saturating_sub(shared_cost),
+        ) {
             used += cost + shared_cost;
             selected_refs.extend(refs);
             selected.push((collection, entry));
@@ -1770,7 +2043,8 @@ fn pack_encoding(
     }
     let contracts_selected = selected.iter().filter(|(_, e)| is_call_contract(e)).count();
     report["coverage"]["call_contracts"]["selected"] = json!(contracts_selected);
-    report["coverage"]["call_contracts"]["complete"] = json!(contracts_selected == required_contracts);
+    report["coverage"]["call_contracts"]["complete"] =
+        json!(contracts_selected == required_contracts);
     if required_callers > 0 {
         let selected_callers = selected.iter().filter(|(_, e)| is_call_consumer(e)).count();
         report["coverage"]["callers"]["selected"] = json!(selected_callers);
@@ -1779,14 +2053,21 @@ fn pack_encoding(
     report["coverage"]["budget_omitted"] = json!(total - selected.len());
     let selected_entries = selected.iter().filter(|(c, _)| *c == "entries").count();
     if supplemental {
-        let selected_overlapping = selected.iter().filter(|(c, e)| *c == "entries" && overlapping.contains(s(e, "id"))).count();
-        report["coverage"]["provided_diff"]["selected_overlapping_entries"] = json!(selected_overlapping);
-        report["coverage"]["provided_diff"]["selected_outside_entries"] = json!(selected_entries - selected_overlapping);
+        let selected_overlapping = selected
+            .iter()
+            .filter(|(c, e)| *c == "entries" && overlapping.contains(s(e, "id")))
+            .count();
+        report["coverage"]["provided_diff"]["selected_overlapping_entries"] =
+            json!(selected_overlapping);
+        report["coverage"]["provided_diff"]["selected_outside_entries"] =
+            json!(selected_entries - selected_overlapping);
     }
     report["coverage"]["budget_omitted_entries"] = json!(eligible_entries - selected_entries);
-    report["coverage"]["budget_omitted_diffs"] = json!(eligible_diffs - (selected.len() - selected_entries));
+    report["coverage"]["budget_omitted_diffs"] =
+        json!(eligible_diffs - (selected.len() - selected_entries));
     let selected_ranks: BTreeSet<_> = selected.iter().map(|(_, e)| ranks[s(e, "id")]).collect();
-    report["coverage"]["packing"]["first_omitted_rank"] = json!((1..=total).find(|rank| !selected_ranks.contains(rank)));
+    report["coverage"]["packing"]["first_omitted_rank"] =
+        json!((1..=total).find(|rank| !selected_ranks.contains(rank)));
     report["coverage"]["packing"]["last_selected_rank"] = json!(selected_ranks.last());
     if total != selected.len() {
         // Packet coverage and reuse proofs depend on what fits. Impact was
@@ -1800,7 +2081,11 @@ fn pack_encoding(
         &mut report,
         &mut selected,
         &flow_annotations,
-        max_tokens.saturating_sub(used).min(if supplemental { max_tokens / 16 } else { flow_reserve }),
+        max_tokens.saturating_sub(used).min(if supplemental {
+            max_tokens / 16
+        } else {
+            flow_reserve
+        }),
     );
     // Reclaim reservations that could not fit a complete cited path. Upgrade
     // selected code only; never spend a history allowance on omitted entries.
@@ -1821,9 +2106,10 @@ fn pack_encoding(
                     (collection, entry, cost)
                 })
                 .collect();
-            let refilled: usize = fit_business_context(&mut upgrades, &business, refill_allowance, false)
-                .values()
-                .sum();
+            let refilled: usize =
+                fit_business_context(&mut upgrades, &business, refill_allowance, false)
+                    .values()
+                    .sum();
             selected = upgrades
                 .into_iter()
                 .map(|(collection, entry, _)| (collection, entry))
@@ -1844,7 +2130,10 @@ fn pack_encoding(
     }
     // Include the complete table for this bounded view, including unchanged
     // delta entries. No definition depends on a prior packet's hidden state.
-    let actual_refs = selected.iter().flat_map(|(_, e)| provenance.references(e, None)).collect();
+    let actual_refs = selected
+        .iter()
+        .flat_map(|(_, e)| provenance.references(e, None))
+        .collect();
     provenance.emit(&mut report, &actual_refs);
     report["context_order"] = json!(
         selected
@@ -1902,9 +2191,17 @@ fn pack_encoding(
             "unchanged_from_previous_packet"
         } else if eligible_entries > 0 {
             "budget_omitted"
-        } else if report["coverage"]["provided_diff"]["entries"].as_u64().unwrap_or(0) > 0 {
+        } else if report["coverage"]["provided_diff"]["entries"]
+            .as_u64()
+            .unwrap_or(0)
+            > 0
+        {
             "already_provided_in_diff"
-        } else if report["coverage"]["issue_histogram"]["unsupported_count"].as_u64().unwrap_or(0) > 0 {
+        } else if report["coverage"]["issue_histogram"]["unsupported_count"]
+            .as_u64()
+            .unwrap_or(0)
+            > 0
+        {
             "unsupported_source_language_or_contract"
         } else if report["impact"] == "no_changes_in_scope" {
             "no_changes_in_scope"
@@ -1929,21 +2226,37 @@ fn pack_encoding(
 }
 
 fn is_call_contract(entry: &Value) -> bool {
-    entry["side"] == "head" && !is_head_change(entry) && entry["reasons"].as_array().is_some_and(|reasons| {
-        reasons.iter().any(|r| r["reason"] == "dependency"
-            && r["path"].as_array().is_some_and(|p| p.len() == 2)
-            && r["steps"].as_array().is_some_and(|steps| steps.iter().any(|s| s["discarded_error"] == true && matches!(s["relation"].as_str(), Some("calls" | "may_call")))))
-    })
+    entry["side"] == "head"
+        && !is_head_change(entry)
+        && entry["reasons"].as_array().is_some_and(|reasons| {
+            reasons.iter().any(|r| {
+                r["reason"] == "dependency"
+                    && r["path"].as_array().is_some_and(|p| p.len() == 2)
+                    && r["steps"].as_array().is_some_and(|steps| {
+                        steps.iter().any(|s| {
+                            s["discarded_error"] == true
+                                && matches!(s["relation"].as_str(), Some("calls" | "may_call"))
+                        })
+                    })
+            })
+        })
 }
 
 fn is_call_consumer(entry: &Value) -> bool {
-    entry["side"] == "head" && !is_head_change(entry) && !is_call_contract(entry)
-        && entry["reasons"].as_array().is_some_and(|reasons| reasons.iter().any(|r| {
-            r["reason"] == "potential_consumer" && r["uncertain_scope"] != true
-                && r["path"].as_array().is_some_and(|p| p.len() == 2)
-                && r["steps"].as_array().is_some_and(|steps| steps.len() == 1
-                    && matches!(steps[0]["relation"].as_str(), Some("calls" | "may_call")))
-        }))
+    entry["side"] == "head"
+        && !is_head_change(entry)
+        && !is_call_contract(entry)
+        && entry["reasons"].as_array().is_some_and(|reasons| {
+            reasons.iter().any(|r| {
+                r["reason"] == "potential_consumer"
+                    && r["uncertain_scope"] != true
+                    && r["path"].as_array().is_some_and(|p| p.len() == 2)
+                    && r["steps"].as_array().is_some_and(|steps| {
+                        steps.len() == 1
+                            && matches!(steps[0]["relation"].as_str(), Some("calls" | "may_call"))
+                    })
+            })
+        })
 }
 
 fn is_required_code(entry: &Value) -> bool {
@@ -1976,13 +2289,23 @@ fn fit_business_context(
         .filter(|i| {
             candidates[*i].1.get("business_context").is_none()
                 && contexts.contains_key(s(&candidates[*i].1, "id"))
-                && (!required_only || is_head_change(&candidates[*i].1) || is_call_contract(&candidates[*i].1))
+                && (!required_only
+                    || is_head_change(&candidates[*i].1)
+                    || is_call_contract(&candidates[*i].1))
         })
         .collect();
     // Within the same evidence/side priority, prefer affordable complete
     // blocks. This covers more changed declarations without clipping patches
     // or dropping the history sample's continuity and omission metadata.
-    let costs: BTreeMap<_, _> = order.iter().map(|i| (*i, packing::count(&contexts[s(&candidates[*i].1, "id")].to_string()))).collect();
+    let costs: BTreeMap<_, _> = order
+        .iter()
+        .map(|i| {
+            (
+                *i,
+                packing::count(&contexts[s(&candidates[*i].1, "id")].to_string()),
+            )
+        })
+        .collect();
     order.sort_by_key(|i| {
         let entry = &candidates[*i].1;
         let history = analyzed(&contexts[s(entry, "id")]);
@@ -2003,14 +2326,18 @@ fn fit_business_context(
         enriched["business_context"] = contexts[s(entry, "id")].clone();
         enriched.as_object_mut().unwrap().remove("revision");
         enriched["revision"] = json!(crate::digest(&enriched));
-        let enriched_cost =
-            packing::count(&enriched.to_string()) + packing::count(&enriched["id"].to_string()) + 24;
+        let enriched_cost = packing::count(&enriched.to_string())
+            + packing::count(&enriched["id"].to_string())
+            + 24;
         let extra = enriched_cost.saturating_sub(base_cost);
         if used + extra <= allowance {
             used += extra;
             allocations.insert(s(entry, "id").to_owned(), extra);
             *entry = enriched;
-            *cost = PackingCost { exact: Some(enriched_cost), exceeds: 0 };
+            *cost = PackingCost {
+                exact: Some(enriched_cost),
+                exceeds: 0,
+            };
         }
     }
     allocations
@@ -2112,13 +2439,18 @@ fn check_receipt_access(
 /// Captured before HTTP blocking-pool admission; invalid values are rejected by
 /// normal request validation, after authorization.
 pub(crate) fn request_deadline(operation: &str, args: &Value) -> Option<std::time::Instant> {
-    if !cfg!(unix) || !matches!(operation, "graph.impact" | "impact.report") { return None; }
-    args["timeout_ms"].as_u64().filter(|ms| (1..=600_000).contains(ms))
+    if !cfg!(unix) || !matches!(operation, "graph.impact" | "impact.report") {
+        return None;
+    }
+    args["timeout_ms"]
+        .as_u64()
+        .filter(|ms| (1..=600_000).contains(ms))
         .map(|ms| std::time::Instant::now() + std::time::Duration::from_millis(ms))
 }
 
 fn checkpoint() -> Result<()> {
-    graphicle::process::check_deadline().map_err(|_| Error::timeout("Review request deadline exceeded"))
+    graphicle::process::check_deadline()
+        .map_err(|_| Error::timeout("Review request deadline exceeded"))
 }
 
 fn review_phase<T>(name: &str, f: impl FnOnce() -> Result<T>) -> Result<T> {
@@ -2182,15 +2514,36 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
         })?;
     }
     let has_go_roots = !go::scope(&base)?.roots.is_empty() || !go::scope(&head)?.roots.is_empty();
-    let identity = has_go_roots.then(graphicle::extractors::go_types::review_identity).and_then(std::result::Result::ok)
+    let identity = has_go_roots
+        .then(graphicle::extractors::go_types::review_identity)
+        .and_then(std::result::Result::ok)
         .map(|v| crate::digest(&v));
     checkpoint()?;
-    crate::phase::note("review_cache_identity", if identity.is_some() { "status=available" } else if has_go_roots { "status=unavailable" } else { "status=no_go_roots" });
-    let fact_key = |input: &Input| identity.as_ref().map(|identity| go::fact_key(input, &r.profile, identity));
+    crate::phase::note(
+        "review_cache_identity",
+        if identity.is_some() {
+            "status=available"
+        } else if has_go_roots {
+            "status=unavailable"
+        } else {
+            "status=no_go_roots"
+        },
+    );
+    let fact_key = |input: &Input| {
+        identity
+            .as_ref()
+            .map(|identity| go::fact_key(input, &r.profile, identity))
+    };
     let key_a = fact_key(&base);
     let key_b = fact_key(&head);
     let read_cache = |side: &str, key: &Option<String>| -> Result<Option<(Value, String)>> {
-        crate::phase::note("review_cache_side", &format!("side={side} key={}", key.as_deref().unwrap_or("unavailable")));
+        crate::phase::note(
+            "review_cache_side",
+            &format!(
+                "side={side} key={}",
+                key.as_deref().unwrap_or("unavailable")
+            ),
+        );
         match key {
             Some(key) => crate::review_cache::load(store, workspace, token, anchor, key),
             None => Ok(None),
@@ -2200,12 +2553,24 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     let hit_a = cached_a.is_some();
     let namespace_a = go::package_pool_key(&base, &r.profile, identity.as_deref().unwrap_or(""));
     let namespace_b = go::package_pool_key(&head, &r.profile, identity.as_deref().unwrap_or(""));
-    let load_packages = |key: &Option<String>, namespace: &str, needed: bool| -> Result<crate::review_cache::PackagePool> {
+    let load_packages = |key: &Option<String>,
+                         namespace: &str,
+                         needed: bool|
+     -> Result<crate::review_cache::PackagePool> {
         let mut pool = if identity.is_some() && needed {
             review_phase("review_load_package_cache", || {
-                crate::review_cache::load_packages(store,workspace,token,anchor,key.as_deref().unwrap_or("unavailable"),namespace)
+                crate::review_cache::load_packages(
+                    store,
+                    workspace,
+                    token,
+                    anchor,
+                    key.as_deref().unwrap_or("unavailable"),
+                    namespace,
+                )
             })?
-        } else { crate::review_cache::PackagePool::default() };
+        } else {
+            crate::review_cache::PackagePool::default()
+        };
         pool.namespace = namespace.to_owned();
         pool.identity = identity.clone().unwrap_or_default();
         Ok(pool)
@@ -2214,10 +2579,23 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     // retain their bounded working set instead of competing for one pool.
     let mut package_pool = load_packages(&key_a, &namespace_a, !hit_a)?;
     let mut a = review_phase("review_analyze_base", || {
-        analyze(&base, &r.profile, cached_a, &mut package_pool, key_a.as_deref().unwrap_or("unavailable"))
+        analyze(
+            &base,
+            &r.profile,
+            cached_a,
+            &mut package_pool,
+            key_a.as_deref().unwrap_or("unavailable"),
+        )
     })?;
     let (cached_b, checksum_b) = if key_a.is_some() && key_a == key_b {
-        crate::phase::note("review_cache_side", &format!("side=head key={} shared_base={}", key_b.as_deref().unwrap_or("unavailable"), a.raw.is_some()));
+        crate::phase::note(
+            "review_cache_side",
+            &format!(
+                "side=head key={} shared_base={}",
+                key_b.as_deref().unwrap_or("unavailable"),
+                a.raw.is_some()
+            ),
+        );
         (a.raw.clone(), checksum_a.clone())
     } else {
         read_cache("head", &key_b)?.unzip()
@@ -2225,31 +2603,45 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     let hit_b = cached_b.is_some();
     let mut head_pool = if namespace_a != namespace_b {
         Some(load_packages(&key_b, &namespace_b, !hit_b)?)
-    } else { None };
+    } else {
+        None
+    };
     if head_pool.is_none() && hit_a && !hit_b {
         package_pool = load_packages(&key_b, &namespace_b, true)?;
     }
     let mut b = review_phase("review_analyze_head", || {
-        analyze(&head, &r.profile, cached_b, head_pool.as_mut().unwrap_or(&mut package_pool), key_b.as_deref().unwrap_or("unavailable"))
-    })?;
-    review_phase("review_service_links_base", || services::attach(&base, &mut a))?;
-    review_phase("review_service_links_head", || services::attach(&head, &mut b))?;
-    let mut report = review_phase("review_compare", || compare(&base, &head, &a, &b, &r))?;
-    let coverage_ids = review_phase("review_execution_coverage", || store.authorized_read(workspace, token, "read", |db, p| {
-        let visible = |pins: &[Pin]| {
-            pins.iter()
-                .filter(|pin| store::repo(db, p, &pin.repository_id).is_ok())
-                .cloned()
-                .collect::<Vec<_>>()
-        };
-        crate::coverage::annotate(
-            db,
-            &mut report,
-            &visible(&r.base),
-            &visible(&r.head),
+        analyze(
+            &head,
             &r.profile,
+            cached_b,
+            head_pool.as_mut().unwrap_or(&mut package_pool),
+            key_b.as_deref().unwrap_or("unavailable"),
         )
-    }))?;
+    })?;
+    review_phase("review_service_links_base", || {
+        services::attach(&base, &mut a)
+    })?;
+    review_phase("review_service_links_head", || {
+        services::attach(&head, &mut b)
+    })?;
+    let mut report = review_phase("review_compare", || compare(&base, &head, &a, &b, &r))?;
+    let coverage_ids = review_phase("review_execution_coverage", || {
+        store.authorized_read(workspace, token, "read", |db, p| {
+            let visible = |pins: &[Pin]| {
+                pins.iter()
+                    .filter(|pin| store::repo(db, p, &pin.repository_id).is_ok())
+                    .cloned()
+                    .collect::<Vec<_>>()
+            };
+            crate::coverage::annotate(
+                db,
+                &mut report,
+                &visible(&r.base),
+                &visible(&r.head),
+                &r.profile,
+            )
+        })
+    })?;
     if let Some(options) = &r.business_context {
         let (suggestions, omitted) = crate::phase::phase("review_history_candidates", || {
             crate::business_context::suggestions(&report, options, &r.base, &r.head)
@@ -2304,7 +2696,9 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     }
     let mut context = json!({"business_context":r.business_context,"execution_coverage":coverage_ids,"source_admission":report["coverage"]["source_admission"],
             "service_graph":{"base":a.services.summary(),"head":b.services.summary()}});
-    if let Some(identity) = provided_diff.identity() { context["provided_diff"] = json!(identity); }
+    if let Some(identity) = provided_diff.identity() {
+        context["provided_diff"] = json!(identity);
+    }
     let context_sha = crate::digest(&context);
     let components = review_phase("review_components", || {
         Ok(components::Components::new(&a, &b))
@@ -2321,7 +2715,9 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     crate::phase::phase("review_provided_diff_annotate", || {
         provided_diff.annotate(&mut report)
     });
-    if r.compact_provenance { report["_compact_provenance"] = json!(true); }
+    if r.compact_provenance {
+        report["_compact_provenance"] = json!(true);
+    }
     let (mut report, receipt) = review_phase("review_pack", || {
         pack(report, r.max_tokens, previous.as_ref(), Some(&scopes))
     })?;
@@ -2384,7 +2780,14 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
         Ok(report)
     });
     if result.is_ok() {
-        crate::phase::note("review_cache_commit", &format!("anchor={anchor} base_key={} head_key={} status=committed", key_a.as_deref().unwrap_or("unavailable"), key_b.as_deref().unwrap_or("unavailable")));
+        crate::phase::note(
+            "review_cache_commit",
+            &format!(
+                "anchor={anchor} base_key={} head_key={} status=committed",
+                key_a.as_deref().unwrap_or("unavailable"),
+                key_b.as_deref().unwrap_or("unavailable")
+            ),
+        );
     }
     result
 }
@@ -2409,7 +2812,9 @@ pub(crate) fn bind_snapshot(
     snapshot: &str,
     metadata: &Value,
 ) -> Result<()> {
-    let withheld = admission::withheld_paths(metadata)?.map(|paths| serde_json::to_string(&paths)).transpose()?;
+    let withheld = admission::withheld_paths(metadata)?
+        .map(|paths| serde_json::to_string(&paths))
+        .transpose()?;
     let commit = s(metadata, "commit");
     let policy = s(metadata, "policy_sha256");
     if ![40, 64].contains(&commit.len())
@@ -2459,17 +2864,32 @@ mod tests {
         for budget in [2500, 3500, 5000, 8000] {
             let (left, lr) = pack(a.clone(), budget, None, None).unwrap();
             let (right, rr) = pack(b.clone(), budget, None, None).unwrap();
-            let selected = |v: &Value| v["entries"].as_array().unwrap().iter()
-                .map(|e| json!([e["name"],e["text"]])).collect::<Vec<_>>();
+            let selected = |v: &Value| {
+                v["entries"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|e| json!([e["name"], e["text"]]))
+                    .collect::<Vec<_>>()
+            };
             assert!(!selected(&left).is_empty());
             assert_eq!(selected(&left), selected(&right));
             assert_eq!(left["coverage"]["packing"], right["coverage"]["packing"]);
-            assert_eq!(left["coverage"]["current_head"], right["coverage"]["current_head"]);
+            assert_eq!(
+                left["coverage"]["current_head"],
+                right["coverage"]["current_head"]
+            );
             omitted |= selected(&left).len() < 12;
-            for (input, packet, receipt) in [(&a,&left,&lr),(&b,&right,&rr)] {
+            for (input, packet, receipt) in [(&a, &left, &lr), (&b, &right, &rr)] {
                 assert!(text::count(&packet.to_string()) <= budget);
-                assert_eq!(packet["entries"][0]["repository_id"], input["entries"][0]["repository_id"]);
-                assert_eq!(packet["entries"][0]["package_binding"], input["entries"][0]["package_binding"]);
+                assert_eq!(
+                    packet["entries"][0]["repository_id"],
+                    input["entries"][0]["repository_id"]
+                );
+                assert_eq!(
+                    packet["entries"][0]["package_binding"],
+                    input["entries"][0]["package_binding"]
+                );
                 let (delta, next) = pack(input.clone(), budget, Some(receipt), None).unwrap();
                 assert_eq!(receipt["entries"], next["entries"]);
                 assert_eq!(packet["context_order"], delta["context_order"]);
@@ -2491,7 +2911,12 @@ mod tests {
             assert_eq!(packet["coverage"]["issue_histogram"]["counted"], 20);
             assert_eq!(packet["coverage"]["issue_examples_omitted"], 20);
             assert_eq!(packet["impact"], "incomplete");
-            assert!(packet["coverage"]["packing"]["metadata_tokens"].as_u64().unwrap() > 0);
+            assert!(
+                packet["coverage"]["packing"]["metadata_tokens"]
+                    .as_u64()
+                    .unwrap()
+                    > 0
+            );
             assert!(text::count(&packet.to_string()) <= budget);
             let (delta, next) = pack(report.clone(), budget, Some(&receipt), None).unwrap();
             assert_eq!(receipt["entries"], next["entries"]);
@@ -2508,7 +2933,8 @@ mod tests {
             "analysis_diagnostics":{"head":{"go":{"package_failures":failures}}}},"impact":"incomplete"});
         let (packet, receipt) = pack(report.clone(), 3325, None, None).unwrap();
         assert_eq!(packet["entries"].as_array().unwrap().len(), 1);
-        let failures = &packet["coverage"]["analysis_diagnostics"]["head"]["go"]["package_failures"];
+        let failures =
+            &packet["coverage"]["analysis_diagnostics"]["head"]["go"]["package_failures"];
         assert_eq!(failures["count"], 8);
         assert_eq!(failures["digest"], "full-inventory");
         assert_eq!(failures["packages_by_cause"]["type_error"], 8);
@@ -2530,27 +2956,41 @@ mod tests {
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, receipt) = pack(report.clone(), 3500, None, None).unwrap();
-        assert_eq!(packet["context_order"], json!(["outside","seed","scope"]));
-        assert_eq!(packet["coverage"]["provided_diff"]["selected_outside_entries"], 2);
-        assert_eq!(packet["coverage"]["provided_diff"]["selected_overlapping_entries"], 1);
+        assert_eq!(packet["context_order"], json!(["outside", "seed", "scope"]));
+        assert_eq!(
+            packet["coverage"]["provided_diff"]["selected_outside_entries"],
+            2
+        );
+        assert_eq!(
+            packet["coverage"]["provided_diff"]["selected_overlapping_entries"],
+            1
+        );
         assert!(!packet.to_string().contains("_provided_diff"));
         let (delta, next) = pack(report, 3500, Some(&receipt), None).unwrap();
         assert_eq!(packet["context_order"], delta["context_order"]);
-        assert_eq!(packet["coverage"]["provided_diff"], delta["coverage"]["provided_diff"]);
+        assert_eq!(
+            packet["coverage"]["provided_diff"],
+            delta["coverage"]["provided_diff"]
+        );
         assert_eq!(receipt["entries"], next["entries"]);
         assert_eq!(delta["entries"], json!([]));
     }
 
     #[test]
     fn nearest_context_precedes_distant_context_and_oversize_skips_have_no_single_cutoff() {
-        let mut entries = vec![json!({"id":"seed","revision":"r","side":"head","text":"changed()","reasons":[{"reason":"change_seed"}]})];
+        let mut entries = vec![
+            json!({"id":"seed","revision":"r","side":"head","text":"changed()","reasons":[{"reason":"change_seed"}]}),
+        ];
         entries.push(json!({"id":"oversized","revision":"r","side":"head","text":"large body ".repeat(8000),"reasons":[{"reason":"dependency","path":["seed","oversized"]}]}));
-        for (id, path) in [("a-far", vec!["seed","one","two","far"]), ("z-near", vec!["seed","one","near"])] {
+        for (id, path) in [
+            ("a-far", vec!["seed", "one", "two", "far"]),
+            ("z-near", vec!["seed", "one", "near"]),
+        ] {
             entries.push(json!({"id":id,"revision":"r","side":"head","text":"small context","reasons":[{"reason":"dependency","path":path}]}));
         }
         let report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]}});
         let (packet, receipt) = pack(report.clone(), 2048, None, None).unwrap();
-        assert_eq!(packet["context_order"], json!(["seed","z-near","a-far"]));
+        assert_eq!(packet["context_order"], json!(["seed", "z-near", "a-far"]));
         assert_eq!(packet["coverage"]["packing"]["first_omitted_rank"], 2);
         assert_eq!(packet["coverage"]["packing"]["last_selected_rank"], 4);
         assert_eq!(packet["coverage"]["budget_omitted_entries"], 1);
@@ -2584,7 +3024,13 @@ mod tests {
         let (packet, _) = pack(report.clone(), 2048, None, None).unwrap();
         assert_eq!(packet["coverage"]["current_head"]["complete"], true);
         assert_eq!(packet["coverage"]["callers"]["complete"], true);
-        assert!(packet["entries"].as_array().unwrap().iter().any(|e| e["id"] == "caller"));
+        assert!(
+            packet["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|e| e["id"] == "caller")
+        );
         let mut huge = report;
         huge["entries"][1]["text"] = json!("large body ".repeat(8000));
         let (packet, _) = pack(huge, 2048, None, None).unwrap();
@@ -2597,15 +3043,33 @@ mod tests {
         let entry = |id: &str, required: bool| json!({"id":id,"side":"head","text":"fn f() {}","reasons":[{"reason":if required {"change_seed"} else {"dependency"}}]});
         let context = |subject: String| json!({"evolution":{"function_history":[{"subject":subject,"patch_excerpt":"entire patch","patch_truncated":false}],"sample":{"complete":false,"omissions":{"unavailable_or_withheld_unit":1}}}});
         let short = context("Earlier fix".into());
-        let contexts = BTreeMap::from([("large".into(),context("long history ".repeat(500))), ("first".into(),short.clone()), ("second".into(),short.clone()), ("optional".into(),short.clone())]);
-        let mut candidates: Vec<_> = [("large",true),("optional",false),("first",true),("second",true)].into_iter().map(|(id,required)| ("entries",entry(id,required),PackingCost::default())).collect();
+        let contexts = BTreeMap::from([
+            ("large".into(), context("long history ".repeat(500))),
+            ("first".into(), short.clone()),
+            ("second".into(), short.clone()),
+            ("optional".into(), short.clone()),
+        ]);
+        let mut candidates: Vec<_> = [
+            ("large", true),
+            ("optional", false),
+            ("first", true),
+            ("second", true),
+        ]
+        .into_iter()
+        .map(|(id, required)| ("entries", entry(id, required), PackingCost::default()))
+        .collect();
         let costs = fit_business_context(&mut candidates, &contexts, 500, true);
-        assert_eq!(costs.len(),2);
+        assert_eq!(costs.len(), 2);
         assert!(costs.contains_key("first") && costs.contains_key("second"));
-        for (_, entry, _) in &candidates[2..] { assert_eq!(entry["business_context"], short); }
+        for (_, entry, _) in &candidates[2..] {
+            assert_eq!(entry["business_context"], short);
+        }
         assert!(candidates[1].1.get("business_context").is_none());
         // Optional context is considered only after code selection.
-        assert_eq!(fit_business_context(&mut candidates[1..2], &contexts, 500, false).len(), 1);
+        assert_eq!(
+            fit_business_context(&mut candidates[1..2], &contexts, 500, false).len(),
+            1
+        );
     }
 
     #[test]
@@ -2613,18 +3077,22 @@ mod tests {
         let entries: Vec<_> = (0..8).map(|i| json!({"id":format!("head{i}"),"side":"head","revision":"r","text":"work(); ".repeat(180),"reasons":[{"reason":"change_seed"}]})).collect();
         let plain = json!({"entries":entries,"diffs":[{"file":"f.go","before":"old(); ".repeat(60),"after":"new(); ".repeat(60)}],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]}});
         let mut checked = 0;
-        for budget in [6000,6500,7000,7500] {
-            let (baseline, _) = pack(plain.clone(),budget,None,None).unwrap();
-            if baseline["coverage"]["current_head"]["complete"] != true || baseline["diffs"].as_array().unwrap().is_empty() { continue; }
+        for budget in [6000, 6500, 7000, 7500] {
+            let (baseline, _) = pack(plain.clone(), budget, None, None).unwrap();
+            if baseline["coverage"]["current_head"]["complete"] != true
+                || baseline["diffs"].as_array().unwrap().is_empty()
+            {
+                continue;
+            }
             checked += 1;
             let mut enriched = plain.clone();
             enriched["business_context"] = json!({"complete":false});
             for entry in enriched["entries"].as_array_mut().unwrap() {
                 entry["business_context"] = json!({"evolution":{"function_history":[{"subject":"Earlier behavior ".repeat(100),"patch_excerpt":"complete patch","patch_truncated":false}]}});
             }
-            let (packet, _) = pack(enriched,budget,None,None).unwrap();
-            assert_eq!(packet["coverage"]["current_head"]["complete"],true);
-            assert_eq!(packet["diffs"],baseline["diffs"]);
+            let (packet, _) = pack(enriched, budget, None, None).unwrap();
+            assert_eq!(packet["coverage"]["current_head"]["complete"], true);
+            assert_eq!(packet["diffs"], baseline["diffs"]);
         }
         assert!(checked > 0);
     }
@@ -2641,11 +3109,20 @@ mod tests {
             let (delta, next) = pack(report.clone(), budget, Some(&receipt), None).unwrap();
             assert_eq!(full["coverage"]["current_head"]["complete"], true);
             assert_eq!(full["coverage"]["call_contracts"]["selected"], 1);
-            assert!(full["entries"].as_array().unwrap().iter().any(|e| e["id"] == "supplier" && e["text"].as_str().unwrap().contains("return nil, err")));
+            assert!(
+                full["entries"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|e| e["id"] == "supplier"
+                        && e["text"].as_str().unwrap().contains("return nil, err"))
+            );
             assert_eq!(receipt["entries"], next["entries"]);
             assert_eq!(full["context_order"], delta["context_order"]);
             assert_eq!(full["coverage"]["complete"], false);
-            for packet in [&full, &delta] { assert!(text::count(&packet.to_string()) <= budget); }
+            for packet in [&full, &delta] {
+                assert!(text::count(&packet.to_string()) <= budget);
+            }
         }
         let mut huge = report;
         huge["entries"][1]["text"] = json!("a large supplier body; ".repeat(4000));
@@ -2656,10 +3133,26 @@ mod tests {
 
     #[test]
     fn graph_bound_counts_unique_links_and_preserves_call_site_evidence() {
-        let mut analysis = Analysis { package_diagnostics:BTreeMap::new(),diagnostics:vec![],diagnostic_count:0,symbols:BTreeMap::new(),calls:vec![],packages:vec![],issues:vec![],analyzer:String::new(),toolchain:String::new(),inputs:vec![],raw:None,package_cache:crate::review_cache::PackageResult::default(),services:services::Links::default() };
+        let mut analysis = Analysis {
+            package_diagnostics: BTreeMap::new(),
+            diagnostics: vec![],
+            diagnostic_count: 0,
+            symbols: BTreeMap::new(),
+            calls: vec![],
+            packages: vec![],
+            issues: vec![],
+            analyzer: String::new(),
+            toolchain: String::new(),
+            inputs: vec![],
+            raw: None,
+            package_cache: crate::review_cache::PackageResult::default(),
+            services: services::Links::default(),
+        };
         for name in ["caller", "supplier", "other"] {
             let symbol: Symbol = serde_json::from_value(json!({"key":name,"file":"app/main.go","package":"app","name":name,"kind":"function","parent":"","start":0,"end":1,"body_start":0,"line":1,"end_line":1,"revision":"r","signature":"s","implementation":"i","correspondence":"c"})).unwrap();
-            analysis.symbols.insert(key("world", name), ("world".into(), symbol));
+            analysis
+                .symbols
+                .insert(key("world", name), ("world".into(), symbol));
         }
         for n in 0..5 {
             let call: Call = serde_json::from_value(json!({"caller":"caller","target":"supplier","target_offset":0,"spelling":"s.Load","file":"app/main.go","start":n,"end":n+1,"line":n+1,"relation":"calls","discarded_error":n==3})).unwrap();
@@ -2669,28 +3162,47 @@ mod tests {
         assert_eq!(links.len(), 1);
         assert_eq!(links[0].2, 3);
         assert_eq!(analysis.calls.len(), 5);
-        assert_eq!(call_evidence(&analysis.calls[3].0, &analysis.calls[3].1)["byte_start"], 3);
+        assert_eq!(
+            call_evidence(&analysis.calls[3].0, &analysis.calls[3].1)["byte_start"],
+            3
+        );
         let mut distinct = analysis.calls[0].clone();
         distinct.1.target = "other".into();
         analysis.calls.push(distinct);
         assert!(call_links(&analysis, 1).is_err());
         assert_eq!(call_links(&analysis, 2).unwrap().len(), 2);
         analysis.calls.clear();
-        analysis.services.edges.push(services::Edge { from: "caller".into(), to: "supplier".into(), relation: "http_calls", evidence: json!({}) });
+        analysis.services.edges.push(services::Edge {
+            from: "caller".into(),
+            to: "supplier".into(),
+            relation: "http_calls",
+            evidence: json!({}),
+        });
         assert!(call_links(&analysis, 0).is_err());
     }
 
     #[test]
     fn only_inventory_backed_type_failures_are_cacheable() {
         let sample = json!({"analyzer":"fixture","toolchain":"go","worlds":[{"root":"app","symbols":[],"calls":[],"packages":[{"path":"app","files":["app/main.go"]}],"inputs":[{"file":"app/main.go","package":"app","role":"selected"}],"issues":["incomplete_package:app","type_check_failed:app"]}]});
-        let check = |value| fact_cache_status(&serde_json::from_value(value).unwrap()) == "cacheable";
+        let check =
+            |value| fact_cache_status(&serde_json::from_value(value).unwrap()) == "cacheable";
         assert!(check(sample.clone()));
-        for reason in ["incomplete_discovery:app","invalid_package_metadata","type_check_failed:other","unreadable_source"] {
-            let mut bad = sample.clone(); bad["worlds"][0]["issues"][0] = json!(reason);
+        for reason in [
+            "incomplete_discovery:app",
+            "invalid_package_metadata",
+            "type_check_failed:other",
+            "unreadable_source",
+        ] {
+            let mut bad = sample.clone();
+            bad["worlds"][0]["issues"][0] = json!(reason);
             assert!(!check(bad));
         }
-        let mut absent = sample.clone(); absent["worlds"][0]["inputs"] = json!([]); assert!(!check(absent));
-        let mut missing = sample; missing["worlds"][0]["packages"][0]["files"] = json!([]); assert!(!check(missing));
+        let mut absent = sample.clone();
+        absent["worlds"][0]["inputs"] = json!([]);
+        assert!(!check(absent));
+        let mut missing = sample;
+        missing["worlds"][0]["packages"][0]["files"] = json!([]);
+        assert!(!check(missing));
     }
 
     #[test]
@@ -2698,15 +3210,25 @@ mod tests {
         let sample = json!({"analyzer":"fixture","toolchain":"go","worlds":[{"root":"app","symbols":[],"calls":[],"packages":[{"path":"app","files":["app/main.go"]}],"inputs":[{"file":"app/main.go","package":"app","role":"selected"}],"issues":["incomplete_package:app","type_check_failed:app"]}]});
         let status = |v| fact_cache_status(&serde_json::from_value(v).unwrap());
         assert_eq!(status(sample.clone()), "cacheable");
-        let mut empty = sample.clone(); empty["worlds"] = json!([]);
+        let mut empty = sample.clone();
+        empty["worlds"] = json!([]);
         assert_eq!(status(empty), "empty_worlds");
         for (field, value, expected) in [
             ("packages", json!([]), "missing_packages"),
             ("inputs", json!([]), "missing_selected_inputs"),
-            ("issues", json!(["incomplete_discovery:app"]), "non_cacheable_world_issue"),
-            ("inputs", json!([{"file":"app/missing.go","package":"app","role":"selected"}]), "selected_input_not_in_package"),
+            (
+                "issues",
+                json!(["incomplete_discovery:app"]),
+                "non_cacheable_world_issue",
+            ),
+            (
+                "inputs",
+                json!([{"file":"app/missing.go","package":"app","role":"selected"}]),
+                "selected_input_not_in_package",
+            ),
         ] {
-            let mut input = sample.clone(); input["worlds"][0][field] = value;
+            let mut input = sample.clone();
+            input["worlds"][0][field] = value;
             assert_eq!(status(input), expected);
         }
         let mut unresolved = sample;
@@ -2717,14 +3239,30 @@ mod tests {
 
     #[test]
     fn affordable_complete_flow_uses_the_fractional_reservation() {
-        let nodes: Vec<_> = (0..25).map(|i| crate::digest(&json!(["node",i]))).collect();
-        let steps: Vec<_> = nodes.windows(2).map(|n| json!({"caller":n[0],"callee":n[1],"relation":"calls"})).collect();
+        let nodes: Vec<_> = (0..25)
+            .map(|i| crate::digest(&json!(["node", i])))
+            .collect();
+        let steps: Vec<_> = nodes
+            .windows(2)
+            .map(|n| json!({"caller":n[0],"callee":n[1],"relation":"calls"}))
+            .collect();
         let entry = json!({"id":crate::digest(&json!("entry")),"side":"head","revision":"r","text":"func Changed() {}","reasons":[{"reason":"change_seed"},{"reason":"dependency","path":nodes,"steps":steps,"execution_flow":{"kind":"potential_static"}}]});
         let report = json!({"entries":[entry],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[],"max_depth":32}});
-        let (packet,_) = pack(report,64000,None,None).unwrap();
-        assert_eq!(packet["execution_flows"]["paths"][0]["steps"].as_array().unwrap().len(),24);
-        assert!(packet["execution_flows"]["coverage"]["used_tokens"].as_u64().unwrap()>2048);
-        assert!(text::count(&packet.to_string())<=64000);
+        let (packet, _) = pack(report, 64000, None, None).unwrap();
+        assert_eq!(
+            packet["execution_flows"]["paths"][0]["steps"]
+                .as_array()
+                .unwrap()
+                .len(),
+            24
+        );
+        assert!(
+            packet["execution_flows"]["coverage"]["used_tokens"]
+                .as_u64()
+                .unwrap()
+                > 2048
+        );
+        assert!(text::count(&packet.to_string()) <= 64000);
     }
 
     #[test]
@@ -2732,19 +3270,34 @@ mod tests {
         let history = json!({"evolution":{"function_history":[{"subject":"A complete earlier constraint ".repeat(70),"commit":"a".repeat(40)}]}});
         let entries: Vec<_> = (0..8).map(|i| json!({"id":format!("head{i}"),"revision":"r","side":"head","text":"perform_work(); ".repeat(40),"reasons":[{"reason":"change_seed","path":[format!("head{i}")]},{"reason":"dependency","path":["caller","callee"],"steps":[{"spelling":"additional explanation ".repeat(100)}]},{"reason":"potential_consumer","uncertain_scope":true}],"business_context":history})).collect();
         let report = json!({"entries":entries,"diffs":[],"changes":(0..20).map(|i|json!({"kind":"modified","head":i,"explanation":"optional detail ".repeat(300)})).collect::<Vec<_>>(),"file_changes":[{"file":"changed.go","classification":"declaration_change"}],"package_instances":{"base":[],"head":[]},"business_context":{"complete":false},"coverage":{"complete":false,"issues":[{"reason":"unresolved_call"}]}});
-        let (full, receipt) = pack(report.clone(),8000,None,None).unwrap();
-        assert_eq!(full["coverage"]["current_head"]["selected"],8);
-        assert_eq!(full["changes"]["count"],20);
-        assert_eq!(full["changes"]["examples"],json!([]));
-        assert!(full["entries"].as_array().unwrap().iter().any(|e| e.get("business_context")==Some(&history)));
+        let (full, receipt) = pack(report.clone(), 8000, None, None).unwrap();
+        assert_eq!(full["coverage"]["current_head"]["selected"], 8);
+        assert_eq!(full["changes"]["count"], 20);
+        assert_eq!(full["changes"]["examples"], json!([]));
+        assert!(
+            full["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|e| e.get("business_context") == Some(&history))
+        );
         for entry in full["entries"].as_array().unwrap() {
-            assert_eq!(entry["reason_examples"]["omitted"],1);
-            assert!(entry["reasons"].as_array().unwrap().iter().any(|r| r["uncertain_scope"]==true));
+            assert_eq!(entry["reason_examples"]["omitted"], 1);
+            assert!(
+                entry["reasons"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|r| r["uncertain_scope"] == true)
+            );
         }
-        let (delta, next) = pack(report,8000,Some(&receipt),None).unwrap();
-        assert_eq!(receipt["entries"],next["entries"]);
-        assert_eq!(full["context_order"],delta["context_order"]);
-        for packet in [full,delta] { assert!(text::count(&packet.to_string())<=8000); assert_eq!(packet["coverage"]["complete"],false); }
+        let (delta, next) = pack(report, 8000, Some(&receipt), None).unwrap();
+        assert_eq!(receipt["entries"], next["entries"]);
+        assert_eq!(full["context_order"], delta["context_order"]);
+        for packet in [full, delta] {
+            assert!(text::count(&packet.to_string()) <= 8000);
+            assert_eq!(packet["coverage"]["complete"], false);
+        }
     }
 
     #[test]
@@ -2755,7 +3308,11 @@ mod tests {
             let report = json!({"entries":[{"id":"changed","revision":"r","side":"head","repository_id":"repo","text":"return quote(); ".repeat(1400),"reasons":[{"reason":"change_seed"}],"business_context":history}],"diffs":diffs,"changes":[],"package_instances":{"base":[],"head":[]},"business_context":{"complete":false},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
             let (full, receipt) = pack(report.clone(), budget, None, None).unwrap();
             assert_eq!(full["coverage"]["current_head"]["selected"], 1);
-            assert_eq!(full["entries"][0]["business_context"], history, "budget={budget}: {:?}", full["business_context"]);
+            assert_eq!(
+                full["entries"][0]["business_context"], history,
+                "budget={budget}: {:?}",
+                full["business_context"]
+            );
             assert!(!full["diffs"].as_array().unwrap().is_empty());
             let (delta, delta_receipt) = pack(report, budget, Some(&receipt), None).unwrap();
             assert_eq!(receipt["entries"], delta_receipt["entries"]);
@@ -2770,13 +3327,20 @@ mod tests {
         let entries: Vec<_> = (0..12).map(|i| json!({"id":format!("head{i}"),"revision":"r","repository_id":"repo","side":"head","text":"perform_work(); ".repeat(80),"reasons":[{"reason":"change_seed"}]})).collect();
         let mut report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
         let (code_only, _) = pack(report.clone(), 64000, None, None).unwrap();
-        let budget = code_only["coverage"]["current_head"]["minimum_tokens_with_hunk_reserve"].as_u64().unwrap() as usize + 512;
+        let budget = code_only["coverage"]["current_head"]["minimum_tokens_with_hunk_reserve"]
+            .as_u64()
+            .unwrap() as usize
+            + 512;
         assert!(budget < 64000);
         report["diffs"] = json!((0..32).map(|i| json!({"file":"main.go","hunk":i,"before":"old_call(); ".repeat(20),"after":"new_call(); ".repeat(20)})).collect::<Vec<_>>());
         let (full, receipt) = pack(report.clone(), budget, None, None).unwrap();
         let (delta, _) = pack(report, budget, Some(&receipt), None).unwrap();
         for packet in [&full, &delta] {
-            assert_eq!(packet["coverage"]["current_head"]["selected"], 12, "required code fits; diffs may be omitted: {}", packet["coverage"]);
+            assert_eq!(
+                packet["coverage"]["current_head"]["selected"], 12,
+                "required code fits; diffs may be omitted: {}",
+                packet["coverage"]
+            );
             assert!(text::count(&packet.to_string()) <= budget);
             assert!(packet["coverage"]["budget_omitted"].as_u64().unwrap() > 0);
             assert_eq!(packet["coverage"]["complete"], false);
@@ -2803,16 +3367,25 @@ mod tests {
             };
             let report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":complete,"issues":issues},"impact":impact});
             let mut report = report;
-            let analysis_coverage = analysis_coverage::assess(&report, &components::Components {
-                component: BTreeMap::new(), files: BTreeMap::new(),
-                owned_files: BTreeMap::new(), hashes: vec![] });
+            let analysis_coverage = analysis_coverage::assess(
+                &report,
+                &components::Components {
+                    component: BTreeMap::new(),
+                    files: BTreeMap::new(),
+                    owned_files: BTreeMap::new(),
+                    hashes: vec![],
+                },
+            );
             report["analysis_coverage"] = analysis_coverage.clone();
             for budget in [2000, 8000, 64000] {
                 let (full, receipt) = pack(report.clone(), budget, None, None).unwrap();
                 let (delta, delta_receipt) =
                     pack(report.clone(), budget, Some(&receipt), None).unwrap();
                 for packet in [&full, &delta] {
-                    assert_eq!(packet["analysis_coverage"], analysis_coverage, "budget={budget}");
+                    assert_eq!(
+                        packet["analysis_coverage"], analysis_coverage,
+                        "budget={budget}"
+                    );
                     assert_eq!(packet["impact"], impact, "budget={budget}");
                     assert_eq!(packet["risk_schema"], "graphicle.review-risk.v2");
                     assert!(text::count(&packet.to_string()) <= budget);
@@ -2871,7 +3444,10 @@ mod tests {
         );
         assert_eq!(reasons.len(), 2);
         assert!(reasons.iter().any(|r| r["reason"] == "change_seed"));
-        super::add_reason(&mut reasons, json!({"reason":"change_seed","path":["changed"]}));
+        super::add_reason(
+            &mut reasons,
+            json!({"reason":"change_seed","path":["changed"]}),
+        );
         assert_eq!(reasons.len(), 2);
     }
 
@@ -2891,16 +3467,21 @@ mod tests {
     fn optional_entries_cannot_starve_selected_execution_flow_references() {
         let mut entries: Vec<_> = (0..100).map(|i| json!({"id":format!("optional{i}"),"revision":"r","repository_id":"repo","side":"head","text":"optional dependency; ".repeat(8),"reasons":[{"reason":"conservative_scope","uncertain_scope":true}]})).collect();
         entries.insert(0,json!({"id":"changed","revision":"r","repository_id":"repo","side":"head","text":"func F() { G() }","reasons":[{"reason":"change_seed"},{"reason":"dependency","path":["f","g"],"steps":[{"caller":"f","callee":"g","relation":"calls"}],"execution_flow":{"kind":"potential_static"}}]}));
-        let report=json!({"entries":entries,"diffs":[{"file":"f.go","before":"old()","after":"new()"}],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[],"max_depth":8},"impact":"potential_impact"});
-        for budget in [4096,8000] {
-            let (packet,receipt)=pack(report.clone(),budget,None,None).unwrap();
-            assert_eq!(packet["coverage"]["current_head"]["selected"],1);
-            assert_eq!(packet["diffs"].as_array().unwrap().len(),1);
-            assert_eq!(packet["execution_flows"]["paths"].as_array().unwrap().len(),1);
-            assert!(packet["coverage"]["budget_omitted"].as_u64().unwrap()>0);
-            let (delta,_)=pack(report.clone(),budget,Some(&receipt),None).unwrap();
-            assert_eq!(delta["execution_flows"],packet["execution_flows"]);
-            for p in [&packet,&delta] { assert!(text::count(&p.to_string())<=budget); }
+        let report = json!({"entries":entries,"diffs":[{"file":"f.go","before":"old()","after":"new()"}],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[],"max_depth":8},"impact":"potential_impact"});
+        for budget in [4096, 8000] {
+            let (packet, receipt) = pack(report.clone(), budget, None, None).unwrap();
+            assert_eq!(packet["coverage"]["current_head"]["selected"], 1);
+            assert_eq!(packet["diffs"].as_array().unwrap().len(), 1);
+            assert_eq!(
+                packet["execution_flows"]["paths"].as_array().unwrap().len(),
+                1
+            );
+            assert!(packet["coverage"]["budget_omitted"].as_u64().unwrap() > 0);
+            let (delta, _) = pack(report.clone(), budget, Some(&receipt), None).unwrap();
+            assert_eq!(delta["execution_flows"], packet["execution_flows"]);
+            for p in [&packet, &delta] {
+                assert!(text::count(&p.to_string()) <= budget);
+            }
         }
     }
 
@@ -2920,16 +3501,31 @@ mod tests {
         let (full, full_receipt) = pack(make_report(23), 8000, None, None).unwrap();
         let (delta, delta_receipt) = pack(make_report(23), 8000, Some(&receipt), None).unwrap();
         for (packet, count) in [(&first, 21), (&full, 23)] {
-            assert_eq!(packet["coverage"]["current_head"]["selected"], count, "{packet}");
+            assert_eq!(
+                packet["coverage"]["current_head"]["selected"], count,
+                "{packet}"
+            );
             assert_eq!(packet["diffs"].as_array().unwrap().len(), 1);
-            assert!(packet["entries"].as_array().unwrap().iter().any(|e| is_head_change(e) && e["business_context"]["evolution"]["function_history"].as_array().is_some_and(|h| !h.is_empty())), "{packet}");
+            assert!(
+                packet["entries"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|e| is_head_change(e)
+                        && e["business_context"]["evolution"]["function_history"]
+                            .as_array()
+                            .is_some_and(|h| !h.is_empty())),
+                "{packet}"
+            );
             assert!(!packet.to_string().contains("_execution_flow_reasons"));
         }
         assert_eq!(full_receipt["entries"], delta_receipt["entries"]);
         for key in ["context_order", "execution_flows", "business_context"] {
             assert_eq!(full[key], delta[key]);
         }
-        for packet in [&first, &full, &delta] { assert!(text::count(&packet.to_string()) <= 8000); }
+        for packet in [&first, &full, &delta] {
+            assert!(text::count(&packet.to_string()) <= 8000);
+        }
     }
 
     #[test]
@@ -2937,7 +3533,8 @@ mod tests {
         let reason = json!({"reason":"dependency","path":["f","g"],"steps":[{"caller":"f","callee":"g","relation":"calls"}]});
         let mut cited = reason.clone();
         cited["execution_flow"] = json!({"kind":"potential_static","observed":false});
-        cited["steps"][0]["citation"] = json!({"file":"nested/".repeat(2000),"sha256":"a".repeat(64)});
+        cited["steps"][0]["citation"] =
+            json!({"file":"nested/".repeat(2000),"sha256":"a".repeat(64)});
         // A whole history block fits after the overlarge hunk is omitted, but
         // not while reserving a quarter of the packet for that hunk. The flow
         // citation cannot fit either; its unused reservation must be released.
@@ -2945,8 +3542,18 @@ mod tests {
         let report = json!({"entries":[{"id":"changed","revision":"r","side":"head","repository_id":"repo","text":"return quote(); ".repeat(1400),"reasons":[{"reason":"change_seed"},reason],"_execution_flow_reasons":[{"reason":"change_seed"},cited],"business_context":history}],"diffs":[{"file":"f.go","before":"old text ".repeat(3000),"after":"new text ".repeat(3000)}],"changes":[],"package_instances":{"base":[],"head":[]},"business_context":{"complete":false},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
         let (packet, _) = pack(report, 8000, None, None).unwrap();
         assert_eq!(packet["coverage"]["current_head"]["selected"], 1);
-        assert_eq!(packet["entries"][0]["business_context"], history, "{packet}");
-        assert!(packet["business_context"]["packing"]["used_tokens"].as_u64().unwrap() > 0, "{:?}", packet["business_context"]["packing"]);
+        assert_eq!(
+            packet["entries"][0]["business_context"], history,
+            "{packet}"
+        );
+        assert!(
+            packet["business_context"]["packing"]["used_tokens"]
+                .as_u64()
+                .unwrap()
+                > 0,
+            "{:?}",
+            packet["business_context"]["packing"]
+        );
         assert_eq!(packet["execution_flows"]["paths"], json!([]));
         assert_eq!(packet["execution_flows"]["coverage"]["used_tokens"], 0);
         assert_eq!(packet["execution_flows"]["coverage"]["omitted"], 1);
@@ -2967,26 +3574,39 @@ mod tests {
 
     #[test]
     fn optional_history_cannot_displace_required_head_code_or_hunks() {
-        let make_entry=|i|json!({"id":format!("{i:064x}"),"revision":"a".repeat(64),"side":"head","repository_id":"repo","name":format!("F{i}"),"text":"return quote(); ".repeat(10),"reasons":[{"reason":"change_seed"}]});
-        let plain=json!({"entries":(0..23).map(make_entry).collect::<Vec<_>>(),"diffs":[{"file":"app.go","before":"return 1","after":"return 2"}],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
-        let (baseline,_)=pack(plain.clone(),8000,None,None).unwrap();
-        assert_eq!(baseline["coverage"]["current_head"]["selected"],23);
-        let mut enriched=plain;
-        enriched["business_context"]=json!({"complete":false});
-        for (i,entry) in enriched["entries"].as_array_mut().unwrap().iter_mut().enumerate() {
-            entry["business_context"]=if i==1 {
+        let make_entry = |i| json!({"id":format!("{i:064x}"),"revision":"a".repeat(64),"side":"head","repository_id":"repo","name":format!("F{i}"),"text":"return quote(); ".repeat(10),"reasons":[{"reason":"change_seed"}]});
+        let plain = json!({"entries":(0..23).map(make_entry).collect::<Vec<_>>(),"diffs":[{"file":"app.go","before":"return 1","after":"return 2"}],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
+        let (baseline, _) = pack(plain.clone(), 8000, None, None).unwrap();
+        assert_eq!(baseline["coverage"]["current_head"]["selected"], 23);
+        let mut enriched = plain;
+        enriched["business_context"] = json!({"complete":false});
+        for (i, entry) in enriched["entries"]
+            .as_array_mut()
+            .unwrap()
+            .iter_mut()
+            .enumerate()
+        {
+            entry["business_context"] = if i == 1 {
                 json!({"evolution":{"function_history":[{"subject":"Fix tenant isolation","commit":"b".repeat(40)}]}})
-            } else {json!({"historical_assertions":[{"subject":"optional detail ".repeat(4000)}]})};
+            } else {
+                json!({"historical_assertions":[{"subject":"optional detail ".repeat(4000)}]})
+            };
         }
-        let (full,previous)=pack(enriched.clone(),8000,None,None).unwrap();
-        assert_eq!(full["coverage"]["current_head"]["selected"],23);
-        assert_eq!(full["diffs"].as_array().unwrap().len(),1);
-        assert!(full["entries"].as_array().unwrap().iter().any(|e|e["business_context"]["evolution"]["function_history"].as_array().is_some_and(|h|!h.is_empty())));
-        assert_eq!(full["business_context"]["packing"]["omitted_entries"],22);
-        let (delta,_)=pack(enriched,8000,Some(&previous),None).unwrap();
-        assert_eq!(delta["context_order"],full["context_order"]);
-        assert_eq!(delta["unchanged"].as_array().unwrap().len(),24);
-        for packet in [&full,&delta] {assert!(text::count(&packet.to_string())<=8000);}
+        let (full, previous) = pack(enriched.clone(), 8000, None, None).unwrap();
+        assert_eq!(full["coverage"]["current_head"]["selected"], 23);
+        assert_eq!(full["diffs"].as_array().unwrap().len(), 1);
+        assert!(full["entries"].as_array().unwrap().iter().any(|e| {
+            e["business_context"]["evolution"]["function_history"]
+                .as_array()
+                .is_some_and(|h| !h.is_empty())
+        }));
+        assert_eq!(full["business_context"]["packing"]["omitted_entries"], 22);
+        let (delta, _) = pack(enriched, 8000, Some(&previous), None).unwrap();
+        assert_eq!(delta["context_order"], full["context_order"]);
+        assert_eq!(delta["unchanged"].as_array().unwrap().len(), 24);
+        for packet in [&full, &delta] {
+            assert!(text::count(&packet.to_string()) <= 8000);
+        }
     }
 
     #[test]
@@ -3076,11 +3696,18 @@ mod tests {
             ("Makefile", "#!/usr/bin/make", "build_filename"),
             ("entrypoint", "#!/usr/bin/custom", "shebang"),
         ] {
-            assert_eq!(super::unsupported_source_cause(path, content), Some(cause), "{path}");
+            assert_eq!(
+                super::unsupported_source_cause(path, content),
+                Some(cause),
+                "{path}"
+            );
         }
         // Classification is instrumentation, not an expansion of support or
         // the unsupported-input set (including its existing case semantics).
         assert_eq!(super::unsupported_source_cause("service.PROTO", ""), None);
-        assert_eq!(super::unsupported_source_cause("source.go", "#!/usr/bin/custom"), None);
+        assert_eq!(
+            super::unsupported_source_cause("source.go", "#!/usr/bin/custom"),
+            None
+        );
     }
 }
