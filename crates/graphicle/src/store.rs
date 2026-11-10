@@ -14,6 +14,8 @@ use std::{
 };
 use subtle::ConstantTimeEq;
 
+pub(crate) mod wal;
+
 /// A write transaction held longer than this is logged with its call site:
 /// every other writer waits for it, up to the 10-second busy timeout.
 const SLOW_HOLD: Duration = Duration::from_secs(2);
@@ -28,6 +30,10 @@ struct LockStats {
     longest_at: String,
     slow: u64,
     recent: VecDeque<(String, f64)>,
+    /// Write transactions that waited [`SLOW_HOLD`] or more for the lock.
+    slow_waits: u64,
+    longest_wait: Duration,
+    longest_wait_at: String,
 }
 static LOCKS: Mutex<LockStats> = Mutex::new(LockStats {
     transactions: 0,
@@ -36,6 +42,9 @@ static LOCKS: Mutex<LockStats> = Mutex::new(LockStats {
     longest_at: String::new(),
     slow: 0,
     recent: VecDeque::new(),
+    slow_waits: 0,
+    longest_wait: Duration::ZERO,
+    longest_wait_at: String::new(),
 });
 
 /// A call site's file relative to its crate (`src/jobs.rs`). Cargo gives
@@ -84,13 +93,38 @@ fn record_hold(at: &Location<'_>, held: Duration) {
     }
 }
 
+/// A write transaction at `at` waited `waited` for the write lock (another
+/// writer, in this process or another, held it).
+fn record_wait(at: &Location<'_>, waited: Duration) {
+    if waited < SLOW_HOLD {
+        return;
+    }
+    let site = format!("{}:{}", crate_relative(at.file()), at.line());
+    let mut stats = LOCKS.lock().unwrap_or_else(PoisonError::into_inner);
+    stats.slow_waits += 1;
+    if waited > stats.longest_wait {
+        stats.longest_wait = waited;
+        stats.longest_wait_at = site.clone();
+    }
+    drop(stats);
+    if crate::phase::enabled() {
+        eprintln!(
+            "graphicle: waited {:.1} s for the write lock at {site}",
+            waited.as_secs_f64()
+        );
+    }
+}
+
 /// Write-lock use by this process: how many write transactions ran, how long
-/// they held the lock, the longest hold and recent slow holds by call site.
+/// they held the lock, the longest hold, recent slow holds by call site, and
+/// how often and where a transaction waited long for it.
 pub fn lock_report() -> Value {
     let stats = LOCKS.lock().unwrap_or_else(PoisonError::into_inner);
     json!({"write_transactions":stats.transactions,"held_seconds":stats.held.as_secs_f64(),
         "longest_seconds":stats.longest.as_secs_f64(),"longest_at":stats.longest_at,
         "slow_threshold_seconds":SLOW_HOLD.as_secs_f64(),"slow_holds":stats.slow,
+        "slow_waits":stats.slow_waits,"longest_wait_seconds":stats.longest_wait.as_secs_f64(),
+        "longest_wait_at":stats.longest_wait_at,
         "recent_slow":stats.recent.iter().map(|(at,s)|json!({"at":at,"seconds":s})).collect::<Vec<_>>()})
 }
 
@@ -98,6 +132,7 @@ pub fn lock_report() -> Value {
 pub struct Store {
     pub directory: Arc<PathBuf>,
     pub database: Arc<PathBuf>,
+    checkpoint: Arc<wal::CheckpointGate>,
     /// Signalled when a job is queued, so an idle worker in this process
     /// starts it at once instead of at its next poll.
     pub wake: Arc<tokio::sync::Notify>,
@@ -157,19 +192,17 @@ mod json_value_tests {
         .unwrap();
         assert_eq!(
             result,
-            vec![serde_json::json!({"absent":null,"integer_value":-42,"real_value":1.25,
-                "text_value":"hello","blob_value":null,"lossy_text":"f\u{fffd}","nonfinite":null})]
+            vec![
+                serde_json::json!({"absent":null,"integer_value":-42,"real_value":1.25,
+                "text_value":"hello","blob_value":null,"lossy_text":"f\u{fffd}","nonfinite":null})
+            ]
         );
     }
 }
 
 pub fn rows(db: &Connection, sql: &str, arguments: impl Params) -> Result<Vec<Value>> {
     let mut statement = db.prepare(sql)?;
-    let names: Vec<String> = statement
-        .column_names()
-        .iter()
-        .map(|x| x.to_string())
-        .collect();
+    let names: Vec<String> = statement.column_names().map(|x| x.to_string()).collect();
     let mapped = statement.query_map(arguments, |row| {
         let mut value = Map::new();
         for (i, name) in names.iter().enumerate() {
@@ -374,6 +407,7 @@ impl Store {
         }
         let store = Self {
             directory: Arc::new(directory.to_path_buf()),
+            checkpoint: wal::checkpoint_gate(&database),
             database: Arc::new(database),
             wake: Arc::new(tokio::sync::Notify::new()),
             limits: None,
@@ -389,7 +423,12 @@ impl Store {
         db.execute_batch(include_str!("expansion_schema.sql"))?;
         db.execute_batch(include_str!("projection_schema.sql"))?;
         crate::review::admission::migrate(&db)?;
-        ensure_column(&db, "repo_review_package_facts", "pool_key", "TEXT NOT NULL DEFAULT ''")?;
+        ensure_column(
+            &db,
+            "repo_review_package_facts",
+            "pool_key",
+            "TEXT NOT NULL DEFAULT ''",
+        )?;
         db.execute_batch("CREATE INDEX IF NOT EXISTS review_package_pool ON repo_review_package_facts(repository_id,pool_key,used_at)")?;
         ensure_column(&db, "gf_episodes", "parent_episode", "TEXT")?;
         db.execute_batch(include_str!("temporal_schema.sql"))?;
@@ -461,6 +500,7 @@ impl Store {
         db.busy_timeout(timeout.saturating_add(Duration::from_nanos(999_999)))?;
         db.pragma_update(None, "foreign_keys", true)?;
         db.pragma_update(None, "secure_delete", true)?;
+        db.pragma_update(None, "journal_size_limit", wal::WAL_LIMIT as i64)?;
         Ok(db)
     }
     /// A write transaction (`BEGIN IMMEDIATE`): it takes SQLite's single write
@@ -470,15 +510,27 @@ impl Store {
     pub fn transaction<T>(&self, f: impl FnOnce(&Transaction<'_>) -> Result<T>) -> Result<T> {
         let at = Location::caller();
         let mut db = self.connect()?;
-        let transaction = db.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let asked = Instant::now();
+        let transaction = db.transaction_with_behavior(TransactionBehavior::Immediate);
+        record_wait(at, asked.elapsed());
+        let transaction = transaction?;
         let started = Instant::now();
-        let outcome = (move || {
+        let outcome = (|| {
             let value = f(&transaction)?;
             transaction.commit()?;
             Ok(value)
         })();
         record_hold(at, started.elapsed());
+        if outcome.is_ok() {
+            // A checkpoint failure cannot undo an already committed write.
+            let _ = self.bound_wal(&db);
+        }
         outcome
+    }
+    /// After committing, reclaim the WAL when short concurrent reads keep
+    /// SQLite's passive checkpoints from restarting it.
+    pub(crate) fn bound_wal(&self, db: &Connection) -> Result<Option<bool>> {
+        self.checkpoint.bound(db, &self.database, wal::WAL_LIMIT)
     }
     /// A read-only snapshot (`BEGIN DEFERRED` with `query_only`). In WAL mode
     /// it neither takes nor waits for the write lock, so long reads run beside
@@ -1393,6 +1445,47 @@ mod analysis_row_tests {
 #[cfg(test)]
 mod lock_site_tests {
     use super::crate_relative;
+
+    #[test]
+    fn slow_lock_waits_include_successes_and_timeouts() {
+        use std::time::{Duration, Instant};
+        let dir = tempfile::tempdir().unwrap();
+        let store = super::Store::open(dir.path()).unwrap();
+        let mut writer = store.connect().unwrap();
+        let held = writer
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .unwrap();
+        let before = super::lock_report()["slow_waits"].as_u64().unwrap();
+        std::thread::scope(|scope| {
+            let (starting, ready) = std::sync::mpsc::channel();
+            let waiting_store = &store;
+            let reader = scope.spawn(move || {
+                starting.send(()).unwrap();
+                waiting_store.transaction(|_| Ok(())).unwrap();
+            });
+            ready.recv().unwrap();
+            std::thread::sleep(Duration::from_millis(2200));
+            held.commit().unwrap();
+            reader.join().unwrap();
+        });
+        let after = super::lock_report()["slow_waits"].as_u64().unwrap();
+        assert!(after > before, "a successful wait is recorded");
+
+        let _held = writer
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)
+            .unwrap();
+        let _deadline =
+            graphicle::process::deadline_scope(Some(Instant::now() + Duration::from_millis(2200)));
+        let error = store.transaction(|_| Ok(())).unwrap_err();
+        assert!(crate::jobs::busy(&error), "{error:?}");
+        let report = super::lock_report();
+        assert!(report["slow_waits"].as_u64().unwrap() > after, "{report}");
+        assert!(
+            report["longest_wait_seconds"].as_f64().unwrap() >= 2.0,
+            "{report}"
+        );
+        assert!(!report["longest_wait_at"].as_str().unwrap().is_empty());
+    }
 
     #[test]
     fn lock_report_sites_are_relative_to_their_crate() {

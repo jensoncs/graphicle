@@ -408,9 +408,15 @@ pub(crate) fn annotate(
         // Absence of historical/domain evidence is already described by the
         // report's limitations. Do not attach and hash an empty annotation on
         // every conservative dependency candidate.
-        if candidates.is_empty() && assertions.is_empty() && evolution_evidence.is_none()
-            && entry["reasons"].as_array().is_some_and(|reasons| !reasons.is_empty()
-                && reasons.iter().all(|reason| reason["uncertain_scope"] == true))
+        if candidates.is_empty()
+            && assertions.is_empty()
+            && evolution_evidence.is_none()
+            && entry["reasons"].as_array().is_some_and(|reasons| {
+                !reasons.is_empty()
+                    && reasons
+                        .iter()
+                        .all(|reason| reason["uncertain_scope"] == true)
+            })
         {
             continue;
         }
@@ -623,7 +629,12 @@ fn commit_subjects(
     let ids: Vec<_> = commits.iter().cloned().collect();
     let mut records = BTreeMap::new();
     for chunk in ids.chunks(MAX_RANGES) {
-        records.extend(commit_subject_batch(root, &chunk.iter().cloned().collect(), repository, deadline)?);
+        records.extend(commit_subject_batch(
+            root,
+            &chunk.iter().cloned().collect(),
+            repository,
+            deadline,
+        )?);
     }
     Ok(records)
 }
@@ -642,7 +653,13 @@ fn commit_subject_batch(
     if commits.is_empty() {
         return Ok(BTreeMap::new());
     }
-    let mut args = vec!["show", "-s", "--no-walk=unsorted", "--no-show-signature", "--format=%H%x00%ct%x00%ae%x00%s%x00"];
+    let mut args = vec![
+        "show",
+        "-s",
+        "--no-walk=unsorted",
+        "--no-show-signature",
+        "--format=%H%x00%ct%x00%ae%x00%s%x00",
+    ];
     args.extend(commits.iter().map(String::as_str));
     args.push("--");
     let bytes = git(root, &args, deadline, commits.len() * (64 * 1024 + 66))?;
@@ -661,11 +678,15 @@ fn commit_subject_batch(
         if record[1..].iter().map(|field| field.len()).sum::<usize>() + 3 > 64 * 1024 {
             return Err(Error::bad("Commit metadata exceeds its byte bound"));
         }
-        let timestamp = record[1].parse().map_err(|_| Error::bad("Invalid commit time"))?;
+        let timestamp = record[1]
+            .parse()
+            .map_err(|_| Error::bad("Invalid commit time"))?;
         let author = crate::digest(&json!([repository, record[2].to_lowercase()]));
         let mut cleaned = String::new();
         for ch in record[3].trim().chars().filter(|c| !c.is_control()) {
-            if cleaned.len() + ch.len_utf8() > 512 { break; }
+            if cleaned.len() + ch.len_utf8() > 512 {
+                break;
+            }
             cleaned.push(ch);
         }
         ensure_safe(&cleaned)?;
@@ -1031,19 +1052,52 @@ mod tests {
         fixture_git(dir.path(), &["commit", "-qam", "Second subject"]);
         let second = fixture_git(dir.path(), &["rev-parse", "HEAD"]);
         let commits = BTreeSet::from([first.clone(), second.clone()]);
-        let records = commit_subjects(dir.path(), &commits, "repo", Instant::now() + Duration::from_secs(5)).unwrap();
+        let records = commit_subjects(
+            dir.path(),
+            &commits,
+            "repo",
+            Instant::now() + Duration::from_secs(5),
+        )
+        .unwrap();
         assert_eq!(records.len(), 2);
         assert_eq!(records[&first].0, "First subject");
         assert_eq!(records[&second].0, "Second subject");
         assert_eq!(records[&first].1, records[&second].1);
         assert!(records[&first].2 > 0);
         assert!(commit_subjects(dir.path(), &commits, "repo", Instant::now()).is_err());
-        assert!(commit_subjects(dir.path(), &BTreeSet::from(["-bad".into()]), "repo", Instant::now() + Duration::from_secs(5)).is_err());
-        assert!(commit_subjects(dir.path(), &BTreeSet::from(["0".repeat(40)]), "repo", Instant::now() + Duration::from_secs(5)).is_err());
+        assert!(
+            commit_subjects(
+                dir.path(),
+                &BTreeSet::from(["-bad".into()]),
+                "repo",
+                Instant::now() + Duration::from_secs(5)
+            )
+            .is_err()
+        );
+        assert!(
+            commit_subjects(
+                dir.path(),
+                &BTreeSet::from(["0".repeat(40)]),
+                "repo",
+                Instant::now() + Duration::from_secs(5)
+            )
+            .is_err()
+        );
         let large_subject = "x".repeat(70_000);
-        fixture_git(dir.path(), &["commit", "--allow-empty", "-qm", &large_subject]);
+        fixture_git(
+            dir.path(),
+            &["commit", "--allow-empty", "-qm", &large_subject],
+        );
         let oversized = fixture_git(dir.path(), &["rev-parse", "HEAD"]);
-        assert!(commit_subjects(dir.path(), &BTreeSet::from([first, oversized]), "repo", Instant::now() + Duration::from_secs(5)).is_err());
+        assert!(
+            commit_subjects(
+                dir.path(),
+                &BTreeSet::from([first, oversized]),
+                "repo",
+                Instant::now() + Duration::from_secs(5)
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -1051,11 +1105,25 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         fixture_git(dir.path(), &["init", "-q"]);
         for i in 0..130 {
-            fixture_git(dir.path(), &["commit", "--allow-empty", "-qm", &format!("Retained record {i}")]);
+            fixture_git(
+                dir.path(),
+                &[
+                    "commit",
+                    "--allow-empty",
+                    "-qm",
+                    &format!("Retained record {i}"),
+                ],
+            );
         }
         let ids = fixture_git(dir.path(), &["log", "--format=%H"]);
         let commits = ids.lines().map(str::to_owned).collect();
-        let records = commit_subjects(dir.path(), &commits, "repo", Instant::now() + Duration::from_secs(5)).unwrap();
+        let records = commit_subjects(
+            dir.path(),
+            &commits,
+            "repo",
+            Instant::now() + Duration::from_secs(5),
+        )
+        .unwrap();
         assert_eq!(records.len(), 130);
         assert!(records.values().any(|v| v.0 == "Retained record 0"));
         assert!(records.values().any(|v| v.0 == "Retained record 129"));

@@ -89,7 +89,9 @@ pub fn names_code(question: &str) -> bool {
     });
     CODE.is_match(question)
         || crate::identifier_arm::explicit_names(question)
-            .names.iter().any(|name| crate::identifier_arm::configuration_address(name))
+            .names
+            .iter()
+            .any(|name| crate::identifier_arm::configuration_address(name))
 }
 
 /// A note or document by its file name: Markdown, plain text,

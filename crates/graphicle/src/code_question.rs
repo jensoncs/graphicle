@@ -286,9 +286,17 @@ pub(crate) fn literal_call_target(question: &str) -> Option<String> {
         regex::Regex::new(r"'([^'\\\n]*)'").expect("the simple quoted literal rule")
     });
     let (value, arguments, target) = if let Some(found) = CALL.captures(question) {
-        (found["value"].to_string(), true, found["target"].to_string())
+        (
+            found["value"].to_string(),
+            true,
+            found["target"].to_string(),
+        )
     } else if let Some(found) = INPUT.captures(question) {
-        (found["value"].to_string(), false, found["target"].to_string())
+        (
+            found["value"].to_string(),
+            false,
+            found["target"].to_string(),
+        )
     } else {
         return None;
     };
@@ -300,7 +308,9 @@ pub(crate) fn literal_call_target(question: &str) -> Option<String> {
     } else {
         value.into_owned()
     };
-    serde_json::from_str::<Value>(&value).is_ok().then_some(target)
+    serde_json::from_str::<Value>(&value)
+        .is_ok()
+        .then_some(target)
 }
 
 /// A narrow request to read a setting or apply a stated last-file override.
@@ -313,57 +323,82 @@ pub(crate) fn configuration_value_request(question: &str) -> Option<(String, Str
             r"(?P<path>[a-z0-9_./-]+\.(?:tf|tfvars|hcl|yaml|yml))`?\s+",
             r"(?:assign\s+to|set\s+for|specify\s+for)\s+`?",
             r"(?P<key>[a-z_][a-z0-9_.]*)`?\s*\??\s*$"
-        )).expect("configuration value question")
+        ))
+        .expect("configuration value question")
     });
     static OVERRIDE: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(concat!(
             r"(?i)^\s*with\s+`?(?P<path>[a-z0-9_./-]+\.(?:tfvars|yaml|yml))`?\s+",
             r"(?:supplied|loaded|applied)\s+last,?\s+what\s+`?",
             r"(?P<key>[a-z_][a-z0-9_.]*)`?\s+value\s+(?:wins|is\s+used)\s*\??\s*$"
-        )).expect("configuration override question")
+        ))
+        .expect("configuration override question")
     });
-    let captures = VALUE.captures(question).or_else(|| OVERRIDE.captures(question))?;
+    let captures = VALUE
+        .captures(question)
+        .or_else(|| OVERRIDE.captures(question))?;
     Some((captures["path"].to_string(), captures["key"].to_string()))
 }
 
 /// A request for the constraint owned by one configuration input, not its
 /// consumers or the impact of changing it. An explicit file disambiguates it.
 pub(crate) fn configuration_owner_request(question: &str) -> Option<(String, String)> {
-    static OWNER: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(concat!(
-        r"(?i)^\s*(?:what|which)\s+constraints?\s+(?:governs?|appl(?:y|ies)\s+to)\s+`?",
-        r"(?P<name>var\.[a-z_][a-z0-9_]*)`?\s+in\s+`?",
-        r"(?P<path>[a-z0-9_./-]+\.(?:tf|hcl))`?\s*\??\s*$"
-    )).expect("configuration input owner question"));
+    static OWNER: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+            r"(?i)^\s*(?:what|which)\s+constraints?\s+(?:governs?|appl(?:y|ies)\s+to)\s+`?",
+            r"(?P<name>var\.[a-z_][a-z0-9_]*)`?\s+in\s+`?",
+            r"(?P<path>[a-z0-9_./-]+\.(?:tf|hcl))`?\s*\??\s*$"
+        ))
+        .expect("configuration input owner question")
+    });
     let c = OWNER.captures(question)?;
     Some((c["path"].into(), c["name"].into()))
 }
 
 /// Named HCL block counts need AST evidence, not a shared word in a comment,
 /// another block, or a variable expression.
-pub(crate) fn configuration_count_request(question: &str, path: &str, source: &str) -> Option<(String, String)> {
-    static COUNT: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(concat!(
-        r"(?i)^\s*what\s+count\s+is\s+(?:assigned|set)\s+to\s+(?:the\s+)?`?",
-        r"(?P<label>[a-z0-9_-]+)`?\s+(?P<block>group|job|task)\s+in\s+`?",
-        r"(?P<path>[a-z0-9_./-]+\.hcl)`?\s*\??\s*$"
-    )).expect("literal configuration count question"));
+pub(crate) fn configuration_count_request(
+    question: &str,
+    path: &str,
+    source: &str,
+) -> Option<(String, String)> {
+    static COUNT: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+            r"(?i)^\s*what\s+count\s+is\s+(?:assigned|set)\s+to\s+(?:the\s+)?`?",
+            r"(?P<label>[a-z0-9_-]+)`?\s+(?P<block>group|job|task)\s+in\s+`?",
+            r"(?P<path>[a-z0-9_./-]+\.hcl)`?\s*\??\s*$"
+        ))
+        .expect("literal configuration count question")
+    });
     let c = COUNT.captures(question)?;
-    if path != &c["path"] && !path.ends_with(&format!("/{}", &c["path"])) { return None; }
+    if path != &c["path"] && !path.ends_with(&format!("/{}", &c["path"])) {
+        return None;
+    }
     graphicle::extractors::terraform::has_literal_block_count(source, &c["block"], &c["label"])
         .then(|| (c["path"].into(), "count".into()))
 }
 
 /// A source-backed shell cap read. The parser must prove the matching literal
 /// branch; a variable assignment somewhere in the file is insufficient.
-pub(crate) fn shell_cap_request(question: &str, path: &str, source: &str) -> Option<(String, String)> {
-    static CAP: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(concat!(
-        r"(?i)^\s*what\s+cap\s+value\s+does\s+`?",
-        r"(?P<path>[a-z0-9_./-]+\.(?:sh|bash))`?\s+assign\s+to\s+`?",
-        r"(?P<key>[a-z_][a-z0-9_]*)`?\s*\??\s*$"
-    )).expect("shell literal cap question"));
+pub(crate) fn shell_cap_request(
+    question: &str,
+    path: &str,
+    source: &str,
+) -> Option<(String, String)> {
+    static CAP: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
+            r"(?i)^\s*what\s+cap\s+value\s+does\s+`?",
+            r"(?P<path>[a-z0-9_./-]+\.(?:sh|bash))`?\s+assign\s+to\s+`?",
+            r"(?P<key>[a-z_][a-z0-9_]*)`?\s*\??\s*$"
+        ))
+        .expect("shell literal cap question")
+    });
     let c = CAP.captures(question)?;
-    if path != &c["path"] && !path.ends_with(&format!("/{}", &c["path"])) { return None; }
-    graphicle::extractors::bash::has_literal_cap(source,&c["key"])
-        .then(|| (c["path"].into(),c["key"].into()))
+    if path != &c["path"] && !path.ends_with(&format!("/{}", &c["path"])) {
+        return None;
+    }
+    graphicle::extractors::bash::has_literal_cap(source, &c["key"])
+        .then(|| (c["path"].into(), c["key"].into()))
 }
 
 /// The attribute in a narrowly phrased factual question about an explicit code
@@ -384,23 +419,32 @@ pub(crate) fn requested_memory_topic(question: &str) -> Option<BTreeSet<String>>
     // Kubernetes resource names are prose (often DNS-style hyphenated names),
     // rather than code identifiers. Keep the requested attribute separate from
     // that resource, just as for the existing explicit-code question shape.
-    static RESOURCE: LazyLock<regex::Regex> = LazyLock::new(|| regex::Regex::new(concat!(
+    static RESOURCE: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(concat!(
         r"(?i)^\s*(?:what|which)\s+(?P<topic>[a-z][a-z -]*?)\s+",
         r"(?:is|are)\s+(?:required|mandatory|approved)\s+for\s+(?:the\s+)?",
         r"(?P<target>[a-z0-9][a-z0-9.-]*\s+(?:deployment|statefulset|daemonset|service|job|cronjob|configmap))\s*\??\s*$"
-    )).expect("named Kubernetes resource attribute"));
+    )).expect("named Kubernetes resource attribute")
+    });
     let resource = RESOURCE.captures(question);
     let ordinary = ATTRIBUTE.captures(question);
     let captures = resource.as_ref().or(ordinary.as_ref())?;
     let topic = &captures["topic"];
     let target = &captures["target"];
-    if resource.is_some() && target.split_whitespace().next().is_some_and(|name|
-        matches!(name.to_ascii_lowercase().as_str(), "the" | "a" | "an" | "this" | "that" | "our")) {
+    if resource.is_some()
+        && target.split_whitespace().next().is_some_and(|name| {
+            matches!(
+                name.to_ascii_lowercase().as_str(),
+                "the" | "a" | "an" | "this" | "that" | "our"
+            )
+        })
+    {
         return None;
     }
-    if (resource.is_none() && crate::identifier_arm::explicit_names(target)
-        .names
-        .is_empty())
+    if (resource.is_none()
+        && crate::identifier_arm::explicit_names(target)
+            .names
+            .is_empty())
         || !crate::identifier_arm::explicit_names(topic)
             .names
             .is_empty()
@@ -1364,56 +1408,120 @@ mod tests {
     #[test]
     fn named_resource_attributes_keep_the_subject_out_of_topic_support() {
         let q = "Which backup storage region is required for the parcel-worker deployment?";
-        assert_eq!(requested_memory_topic(q),Some(crate::notes_first::stems("backup storage region")));
+        assert_eq!(
+            requested_memory_topic(q),
+            Some(crate::notes_first::stems("backup storage region"))
+        );
         for q in [
             "Which constraints are required for the parcel-worker deployment?",
             "Which backup storage region and retention are required for the parcel-worker deployment?",
             "Which backup storage region is required for the deployment?",
             "Why is a backup region required for the parcel-worker deployment?",
-        ] { assert!(requested_memory_topic(q).is_none(),"{q}"); }
+        ] {
+            assert!(requested_memory_topic(q).is_none(), "{q}");
+        }
     }
 
     #[test]
     fn shell_cap_reads_need_one_real_literal_clamp() {
         let q = "What cap value does lib/policy.sh assign to delay?";
         let source = "retry_delay() {\n local delay=$((1 << attempt))\n if (( delay > 45 )); then\n delay=45\n fi\n}\n";
-        assert!(shell_cap_request(q,"lib/policy.sh",source).is_some());
-        for bad in [source.replace("delay > 45","delay > cap"), source.replace("delay=45","delay=$cap"),
-            source.replace("delay=45","delay=44"), source.replace("45","045"),
-            source.replace("delay > 45","delay > 045"), source.replace("delay", "other"),
-            source.lines().map(|line| format!("# {line}\n")).collect::<String>(),
-            format!("{source}{source}"), format!("{source}\nif (( delay > cap )); then delay=$cap; fi"),
+        assert!(shell_cap_request(q, "lib/policy.sh", source).is_some());
+        for bad in [
+            source.replace("delay > 45", "delay > cap"),
+            source.replace("delay=45", "delay=$cap"),
+            source.replace("delay=45", "delay=44"),
+            source.replace("45", "045"),
+            source.replace("delay > 45", "delay > 045"),
+            source.replace("delay", "other"),
+            source
+                .lines()
+                .map(|line| format!("# {line}\n"))
+                .collect::<String>(),
+            format!("{source}{source}"),
+            format!("{source}\nif (( delay > cap )); then delay=$cap; fi"),
             "echo 'if (( delay > 45 )); then delay=45; fi'".into(),
-            "if (( delay > 45 )); then delay=45".into()] {
-            assert!(shell_cap_request(q,"lib/policy.sh",&bad).is_none(),"{bad}");
+            "if (( delay > 45 )); then delay=45".into(),
+        ] {
+            assert!(
+                shell_cap_request(q, "lib/policy.sh", &bad).is_none(),
+                "{bad}"
+            );
         }
-        assert!(shell_cap_request(q,"missing.sh",source).is_none());
-        assert!(shell_cap_request("What cap value does lib/policy.sh assign to delay and why?","lib/policy.sh",source).is_none());
+        assert!(shell_cap_request(q, "missing.sh", source).is_none());
+        assert!(
+            shell_cap_request(
+                "What cap value does lib/policy.sh assign to delay and why?",
+                "lib/policy.sh",
+                source
+            )
+            .is_none()
+        );
     }
 
     #[test]
     fn literal_counts_require_the_named_block_and_a_literal() {
         let q = "What count is assigned to the processors group in worker.hcl?";
         let good = "job \"worker\" {\n group \"processors\" {\n count = 2\n }\n}\n";
-        assert!(configuration_count_request(q,"worker.hcl",good).is_some());
-        for source in [good.replace("processors","other"), good.replace("count = 2","count = var.size"),
-            good.replace("count = 2","# count = 2"), format!("{good}{good}"), good.replace("count = 2","count = 2\n count = 3")] {
-            assert!(configuration_count_request(q,"worker.hcl",&source).is_none(), "{source}");
+        assert!(configuration_count_request(q, "worker.hcl", good).is_some());
+        for source in [
+            good.replace("processors", "other"),
+            good.replace("count = 2", "count = var.size"),
+            good.replace("count = 2", "# count = 2"),
+            format!("{good}{good}"),
+            good.replace("count = 2", "count = 2\n count = 3"),
+        ] {
+            assert!(
+                configuration_count_request(q, "worker.hcl", &source).is_none(),
+                "{source}"
+            );
         }
-        assert!(configuration_count_request(q,"missing.hcl",good).is_none());
-        assert!(configuration_count_request(&format!("{} and why?",q.trim_end_matches('?')),"worker.hcl",good).is_none());
-        assert!(configuration_owner_request("Which constraints must a change to var.size in settings.tf preserve?").is_none());
+        assert!(configuration_count_request(q, "missing.hcl", good).is_none());
+        assert!(
+            configuration_count_request(
+                &format!("{} and why?", q.trim_end_matches('?')),
+                "worker.hcl",
+                good
+            )
+            .is_none()
+        );
+        assert!(
+            configuration_owner_request(
+                "Which constraints must a change to var.size in settings.tf preserve?"
+            )
+            .is_none()
+        );
     }
 
     #[test]
     fn configuration_values_leave_rationale_and_compound_questions_broad() {
         for (question, path, key) in [
-            ("What default value does variables.tf assign to retention_seconds?", "variables.tf", "retention_seconds"),
-            ("What value does settings.hcl set for timeout?", "settings.hcl", "timeout"),
-            ("With values-production.yaml supplied last, what replicaCount value wins?", "values-production.yaml", "replicaCount"),
-            ("With prod.yml loaded last, what cpu value is used?", "prod.yml", "cpu"),
+            (
+                "What default value does variables.tf assign to retention_seconds?",
+                "variables.tf",
+                "retention_seconds",
+            ),
+            (
+                "What value does settings.hcl set for timeout?",
+                "settings.hcl",
+                "timeout",
+            ),
+            (
+                "With values-production.yaml supplied last, what replicaCount value wins?",
+                "values-production.yaml",
+                "replicaCount",
+            ),
+            (
+                "With prod.yml loaded last, what cpu value is used?",
+                "prod.yml",
+                "cpu",
+            ),
         ] {
-            assert_eq!(configuration_value_request(question), Some((path.into(), key.into())), "{question}");
+            assert_eq!(
+                configuration_value_request(question),
+                Some((path.into(), key.into())),
+                "{question}"
+            );
         }
         for question in [
             "Why does variables.tf assign retention_seconds?",
@@ -1423,7 +1531,10 @@ mod tests {
             "With prod.yml supplied last, what cpu value wins and why?",
             "What default value does policy.md assign to retention_seconds?",
         ] {
-            assert!(configuration_value_request(question).is_none(), "{question}");
+            assert!(
+                configuration_value_request(question).is_none(),
+                "{question}"
+            );
         }
     }
 

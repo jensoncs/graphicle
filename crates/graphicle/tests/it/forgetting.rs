@@ -202,7 +202,11 @@ impl Fixture {
         self.store
             .connect()
             .unwrap()
-            .backup(rusqlite::MAIN_DB, dir.path().join("reviews.sqlite3"), None)
+            .backup(
+                rusqlite::MAIN_DB,
+                dir.path().join("reviews.sqlite3"),
+                None::<fn(rusqlite::backup::Progress)>,
+            )
             .unwrap();
         let key = self._dir.path().join("vault.key");
         if key.exists() {
@@ -353,11 +357,7 @@ fn differing(a: &Value, b: &Value) -> BTreeMap<String, (Value, Value)> {
 fn dump(f: &Fixture, table: &str) -> Vec<String> {
     let db = f.store.connect().unwrap();
     let mut statement = db.prepare(&format!("SELECT * FROM {table}")).unwrap();
-    let names: Vec<String> = statement
-        .column_names()
-        .iter()
-        .map(|c| c.to_string())
-        .collect();
+    let names: Vec<String> = statement.column_names().map(|c| c.to_string()).collect();
     let mut out: Vec<String> = statement
         .query_map([], |row| {
             let mut map = serde_json::Map::new();

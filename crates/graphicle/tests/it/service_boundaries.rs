@@ -102,10 +102,15 @@ fn mixed_protocol_review_and_delta_invalidation(compact: bool) {
     let mut args = request(&repos[2], base.clone(), head.clone());
     args["max_depth"] = json!(16);
     args["max_tokens"] = json!(64000);
-    if compact { args["compact_provenance"] = json!(true); }
+    if compact {
+        args["compact_provenance"] = json!(true);
+    }
     let first = f.run(&args);
     if compact {
-        assert_eq!(first["service_provenance"]["format"], "graphicle.service-provenance.v1");
+        assert_eq!(
+            first["service_provenance"]["format"],
+            "graphicle.service-provenance.v1"
+        );
         let mut repeated = args.clone();
         repeated["previous_packet_id"] = first["packet_id"].clone();
         let delta = f.run(&repeated);
@@ -133,27 +138,55 @@ fn mixed_protocol_review_and_delta_invalidation(compact: bool) {
         )
         .unwrap();
     }
-    let flows=first["execution_flows"]["paths"].as_array().unwrap();
+    let flows = first["execution_flows"]["paths"].as_array().unwrap();
     let composed = flows.iter().any(|flow| {
-        let relations: std::collections::BTreeSet<_> = flow["steps"].as_array().unwrap().iter().map(|step| {
-            let entry=first["entries"].as_array().unwrap().iter().find(|e|e["id"]==step["entry_id"]).unwrap();
-            entry["reasons"][step["reason_index"].as_u64().unwrap() as usize]["steps"][step["step_index"].as_u64().unwrap() as usize]["relation"].as_str().unwrap()
-        }).collect();
-        relations.contains("http_calls") && relations.contains("grpc_calls") && relations.contains("event_delivers") && flow["observed"]==false
+        let relations: std::collections::BTreeSet<_> = flow["steps"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|step| {
+                let entry = first["entries"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|e| e["id"] == step["entry_id"])
+                    .unwrap();
+                entry["reasons"][step["reason_index"].as_u64().unwrap() as usize]["steps"]
+                    [step["step_index"].as_u64().unwrap() as usize]["relation"]
+                    .as_str()
+                    .unwrap()
+            })
+            .collect();
+        relations.contains("http_calls")
+            && relations.contains("grpc_calls")
+            && relations.contains("event_delivers")
+            && flow["observed"] == false
     });
     // Inline citation upgrades can exceed the fixed flow allowance as fixture
     // identities change their token cost. Compact provenance must retain the
     // composed path; inline omission must be explicit rather than claiming
     // complete coverage. Relationship resolution is asserted separately below.
     if compact {
-        assert!(composed,"expected a composed HTTP → gRPC → event path: {}",first["execution_flows"]);
+        assert!(
+            composed,
+            "expected a composed HTTP → gRPC → event path: {}",
+            first["execution_flows"]
+        );
     } else if !composed {
-        assert_eq!(first["execution_flows"]["coverage"]["complete"],false);
-        assert!(first["execution_flows"]["coverage"]["omitted"].as_u64().unwrap()>0);
+        assert_eq!(first["execution_flows"]["coverage"]["complete"], false);
+        assert!(
+            first["execution_flows"]["coverage"]["omitted"]
+                .as_u64()
+                .unwrap()
+                > 0
+        );
     }
     assert_eq!(first["service_graph"]["head"]["resolved_relationships"], 3);
     for repo in &repos {
-        let included = first["entries"].as_array().unwrap().iter()
+        let included = first["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
             .any(|e| e["side"] == "head" && e["repository_id"] == *repo);
         if compact {
             assert!(included, "compact packet omitted a repository");
@@ -162,8 +195,10 @@ fn mixed_protocol_review_and_delta_invalidation(compact: bool) {
             // budget. The full graph above must still resolve every relation;
             // the wire packet must explicitly account for omitted entries.
             assert_eq!(first["coverage"]["complete"], false);
-            assert!(first["coverage"]["required_entries"].as_u64().unwrap()
-                > first["entries"].as_array().unwrap().len() as u64);
+            assert!(
+                first["coverage"]["required_entries"].as_u64().unwrap()
+                    > first["entries"].as_array().unwrap().len() as u64
+            );
             assert!(first["coverage"]["budget_omitted"].as_u64().unwrap() > 0);
         }
     }
@@ -172,19 +207,19 @@ fn mixed_protocol_review_and_delta_invalidation(compact: bool) {
         entries
             .iter()
             .filter(|e| e.get("service_boundary").is_some())
-            .all(
-                |e| {
-                    let boundary = &e["service_boundary"];
-                    let assertion = boundary["provenance_ref"].as_str()
-                        .map(|id| &first["service_provenance"]["definitions"][id]).unwrap_or(boundary);
-                    boundary["authority"] == "pinned_configuration_assertion"
+            .all(|e| {
+                let boundary = &e["service_boundary"];
+                let assertion = boundary["provenance_ref"]
+                    .as_str()
+                    .map(|id| &first["service_provenance"]["definitions"][id])
+                    .unwrap_or(boundary);
+                boundary["authority"] == "pinned_configuration_assertion"
                     && assertion["citations"]
                         .as_array()
                         .unwrap()
                         .iter()
                         .all(|c| c["snapshot"].is_string() && c["commit"].is_string())
-                }
-            )
+            })
     );
     assert!(
         entries

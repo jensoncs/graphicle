@@ -180,7 +180,9 @@ fn warm_review_cache_benchmark() {
             assert_eq!(packet["analysis_cache"]["base_hit"], true);
             assert_eq!(packet["analysis_cache"]["head_hit"], true);
             assert_eq!(comparable(packet), expected);
-            if n > 0 { elapsed.push(ms); }
+            if n > 0 {
+                elapsed.push(ms);
+            }
         }
         eprintln!("warm_review_cache_benchmark dependency_pool_mib={mib} samples_ms={elapsed:?}");
     }

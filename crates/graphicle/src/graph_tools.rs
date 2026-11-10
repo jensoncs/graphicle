@@ -62,13 +62,13 @@ use std::{
     sync::{Arc, Mutex, PoisonError},
 };
 
+#[path = "statement_analysis.rs"]
+mod statement_analysis;
 /// The engine's navigation tools the unified server publishes, Graphify's
 /// names (installed rules name `query_graph`, `shortest_path` and
 /// `get_node`).
 #[path = "graph_navigation.rs"]
 mod structured;
-#[path = "statement_analysis.rs"]
-mod statement_analysis;
 
 pub const NAVIGATION: [&str; 12] = [
     "query_graph",
@@ -120,10 +120,18 @@ pub fn is_graph_tool(tool: &McpTool) -> bool {
 /// tools, and with `pull_requests` the pull-request tools, in the engine's
 /// order. Navigation tools take `repo` through `repo_arg`.
 pub fn tools(pull_requests: bool) -> Vec<McpTool> {
-    let mut specs = graphicle::serve::tools_list().as_array().cloned().unwrap_or_default();
-    let before = specs.iter().position(|s| PULL_REQUESTS.contains(&s["name"].as_str().unwrap_or(""))).unwrap_or(specs.len());
+    let mut specs = graphicle::serve::tools_list()
+        .as_array()
+        .cloned()
+        .unwrap_or_default();
+    let before = specs
+        .iter()
+        .position(|s| PULL_REQUESTS.contains(&s["name"].as_str().unwrap_or("")))
+        .unwrap_or(specs.len());
     specs.splice(before..before, structured::specs());
-    specs.iter().filter_map(|spec| {
+    specs
+        .iter()
+        .filter_map(|spec| {
             let name = spec["name"].as_str()?;
             if NAVIGATION.contains(&name) {
                 Some(McpTool::new(published(spec, false), NAVIGATE, true))
@@ -422,7 +430,9 @@ pub fn call(store: &Store, workspace: &str, token: &str, args: &Value) -> Result
             NAVIGATION.join(", ")
         )));
     }
-    if tool == "statement_flow" { return statement_analysis::call(store, workspace, token, args); }
+    if tool == "statement_flow" {
+        return statement_analysis::call(store, workspace, token, args);
+    }
     let engine = engine_arguments(args);
     store.authorized_read(workspace, token, "read", |db, p| {
         let repository = repo(db, p, string(args, "repository_id", 100)?)?;

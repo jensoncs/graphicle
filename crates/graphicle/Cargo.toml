@@ -27,7 +27,9 @@ graphicle-memory = { path = "../graphicle-memory" }
 graphicle = { path = "../graphicle-graph" }
 axum = "0.8"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "time", "sync", "fs", "io-util", "io-std"] }
-rusqlite = { version = "0.37", features = ["bundled", "backup"] }
+# 0.41 bundles SQLite >=3.54, fixing RUSTSEC-2026-0459 for database/WAL files.
+# Keep checked u64/usize conversions, now opt-in upstream.
+rusqlite = { version = "0.41", features = ["bundled", "backup", "fallible_uint"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "json", "gzip"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }

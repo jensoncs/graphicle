@@ -555,7 +555,14 @@ mod tests {
         }
     }
     fn analysis(input: &Input) -> Analysis {
-        analyze(input, &profile(), None, &mut crate::review_cache::PackagePool::default(), "test").unwrap()
+        analyze(
+            input,
+            &profile(),
+            None,
+            &mut crate::review_cache::PackagePool::default(),
+            "test",
+        )
+        .unwrap()
     }
     fn report(base: &Input, head: &Input) -> Value {
         let request = Request {

@@ -41,11 +41,17 @@ fn unsupported_entries_are_distinct_from_omitted_raw_diffs() {
     let mut args = request(&repo, vec![base], vec![head]);
     args["max_tokens"] = json!(3825);
     let packet = f.run(&args);
-    assert_eq!(packet["empty_reason"], "unsupported_source_language_or_contract");
+    assert_eq!(
+        packet["empty_reason"],
+        "unsupported_source_language_or_contract"
+    );
     assert_eq!(packet["coverage"]["required_entries"], 0);
     assert_eq!(packet["coverage"]["budget_omitted_entries"], 0);
     assert!(packet["coverage"]["budget_omitted_diffs"].as_u64().unwrap() > 0);
-    assert_eq!(packet["coverage"]["budget_omitted"], packet["coverage"]["budget_omitted_diffs"]);
+    assert_eq!(
+        packet["coverage"]["budget_omitted"],
+        packet["coverage"]["budget_omitted_diffs"]
+    );
     assert!(text::count(&packet.to_string()) <= 3825);
 }
 

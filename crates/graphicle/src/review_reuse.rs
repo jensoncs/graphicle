@@ -27,7 +27,10 @@ impl Scopes {
                 .collect()
         }
     }
-    pub(super) fn counts<'a>(&self, entries: impl IntoIterator<Item = (&'a str, &'a Value)>) -> BTreeMap<String, usize> {
+    pub(super) fn counts<'a>(
+        &self,
+        entries: impl IntoIterator<Item = (&'a str, &'a Value)>,
+    ) -> BTreeMap<String, usize> {
         let mut counts = BTreeMap::new();
         for (collection, entry) in entries {
             for scope in self.keys(collection, entry) {
@@ -42,7 +45,11 @@ impl Scopes {
         selected: &mut [(&str, Value)],
         report: &mut Value,
     ) {
-        let actual = self.counts(selected.iter().map(|(collection, entry)| (*collection, entry)));
+        let actual = self.counts(
+            selected
+                .iter()
+                .map(|(collection, entry)| (*collection, entry)),
+        );
         let mut supplied_files: BTreeMap<&str, usize> = BTreeMap::new();
         for (collection, entry) in selected.iter().filter(|(_, e)| e["side"] == "head") {
             if *collection == "entries"
@@ -83,8 +90,18 @@ impl Scopes {
     }
 }
 
-pub(super) fn annotate(report: &mut Value, a: &Analysis, b: &Analysis, components: &components::Components) -> Scopes {
-    let components::Components { component, files, hashes, .. } = components;
+pub(super) fn annotate(
+    report: &mut Value,
+    a: &Analysis,
+    b: &Analysis,
+    components: &components::Components,
+) -> Scopes {
+    let components::Components {
+        component,
+        files,
+        hashes,
+        ..
+    } = components;
     let mut blocked: BTreeSet<usize> = BTreeSet::new();
     // Native package equivalence does not prove equivalent deployment wiring.
     // Boundary paths still participate in impact; review reuse stays disabled

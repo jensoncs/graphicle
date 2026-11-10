@@ -45,7 +45,10 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Go statement flow and validated, local-only semantic edits.
-    Semantic { #[command(subcommand)] action: crate::semantic_edit::Command },
+    Semantic {
+        #[command(subcommand)]
+        action: crate::semantic_edit::Command,
+    },
     /// Collect request-local Git assertions for explicitly selected pinned files.
     ReviewHistory {
         #[arg(long)]
@@ -1008,6 +1011,9 @@ pub fn main_with(extensions: Extensions) -> i32 {
             // at most a second for the store: a capture hook must not hold
             // up its client.
             crate::metering::flush_all(std::time::Duration::from_secs(1));
+            // Request counts a server held while its SQLite store was busy
+            // (`crate::request_tally`); only a server holds any.
+            crate::request_tally::flush_all(std::time::Duration::from_secs(5));
             crate::local_inference::exit_if_loaded(code);
             if code != 0 {
                 std::process::exit(code);
@@ -1191,7 +1197,9 @@ where
         let directory = cli.data_dir.unwrap_or_else(local::data_dir);
         return crate::terminal::home(&directory, cli.config.as_deref());
     };
-    if let Command::Semantic { action } = command { return print(&crate::semantic_edit::run(action)?); }
+    if let Command::Semantic { action } = command {
+        return print(&crate::semantic_edit::run(action)?);
+    }
     if let Command::Help { all, command } = &command {
         return crate::terminal::help_command(interface, *all, command);
     }
@@ -3087,18 +3095,27 @@ fn bind_unix_socket(path: &std::path::Path) -> Result<(tokio::net::UnixListener,
     if !path.is_absolute() {
         return Err(Error::bad("--socket requires an absolute path"));
     }
-    let parent = path.parent().ok_or_else(|| Error::bad("Socket needs a parent directory"))?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| Error::bad("Socket needs a parent directory"))?;
     let metadata = std::fs::symlink_metadata(parent)?;
     // The private parent closes the interval between bind and chmod. Socket
     // permissions alone are not an access boundary on every Unix platform.
-    if !metadata.is_dir() || metadata.uid() != unsafe { libc::geteuid() }
+    if !metadata.is_dir()
+        || metadata.uid() != unsafe { libc::geteuid() }
         || metadata.mode() & 0o077 != 0
     {
-        return Err(Error::bad("Socket parent must be an owned, private directory (mode 0700), not a symlink"));
+        return Err(Error::bad(
+            "Socket parent must be an owned, private directory (mode 0700), not a symlink",
+        ));
     }
     let listener = tokio::net::UnixListener::bind(path)?;
     let metadata = std::fs::symlink_metadata(path)?;
-    let guard = SocketFile { path: path.to_path_buf(), device: metadata.dev(), inode: metadata.ino() };
+    let guard = SocketFile {
+        path: path.to_path_buf(),
+        device: metadata.dev(),
+        inode: metadata.ino(),
+    };
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))?;
     Ok((listener, guard))
 }
@@ -3148,16 +3165,29 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
         return Err(Error::bad("--socket requires Unix domain sockets"));
     }
     let listener = if socket.is_none() {
-        Some(tokio::net::TcpListener::bind(SocketAddr::new(listen, port))
-            .await.map_err(|error| crate::terminal::bind_error(port, error))?)
-    } else { None };
+        Some(
+            tokio::net::TcpListener::bind(SocketAddr::new(listen, port))
+                .await
+                .map_err(|error| crate::terminal::bind_error(port, error))?,
+        )
+    } else {
+        None
+    };
     #[cfg(unix)]
     let (unix_listener, _socket_file) = match &socket {
-        Some(path) => { let (listener, guard) = bind_unix_socket(path)?; (Some(listener), Some(guard)) }
+        Some(path) => {
+            let (listener, guard) = bind_unix_socket(path)?;
+            (Some(listener), Some(guard))
+        }
         None => (None, None),
     };
-    let actual = listener.as_ref().map(|listener| listener.local_addr()).transpose()?;
-    let hosts = actual.map(serve_hosts).unwrap_or_else(|| vec!["localhost".to_owned()]);
+    let actual = listener
+        .as_ref()
+        .map(|listener| listener.local_addr())
+        .transpose()?;
+    let hosts = actual
+        .map(serve_hosts)
+        .unwrap_or_else(|| vec!["localhost".to_owned()]);
     let mut app = App::new(store, config, hosts)?;
     if let Some(origin) = public_origin {
         app = app.hosted(&origin)?;
@@ -3168,7 +3198,8 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
     app.instance_secret = Some(std::sync::Arc::new(secret.clone()));
     let directory = app.worker.store.directory.to_path_buf();
     if let Some(actual) = actual
-        && let Err(error) = crate::terminal::record_server(&directory, actual.port(), &secret) {
+        && let Err(error) = crate::terminal::record_server(&directory, actual.port(), &secret)
+    {
         eprintln!("graphicle: could not record the server ({})", error.message);
     }
     let mut extension_context = ServeContext {
@@ -3188,7 +3219,8 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
         Some(actual) => format!("http://{actual}"),
         None => url::Url::from_file_path(socket.as_ref().unwrap())
             .map_err(|_| Error::bad("Invalid absolute socket path"))?
-            .to_string().replacen("file:", "unix:", 1),
+            .to_string()
+            .replacen("file:", "unix:", 1),
     };
     eprintln!("Graphicle is ready at {url}");
     if open {
@@ -3209,12 +3241,20 @@ async fn serve(store: Store, config: model::Config, options: ServeOptions) -> Re
     }
     let router = api::router(app);
     let result = if let Some(listener) = listener {
-        axum::serve(listener, router).with_graceful_shutdown(shutdown).await
+        axum::serve(listener, router)
+            .with_graceful_shutdown(shutdown)
+            .await
     } else {
         #[cfg(unix)]
-        { axum::serve(unix_listener.unwrap(), router).with_graceful_shutdown(shutdown).await }
+        {
+            axum::serve(unix_listener.unwrap(), router)
+                .with_graceful_shutdown(shutdown)
+                .await
+        }
         #[cfg(not(unix))]
-        { unreachable!("Unix sockets refused above") }
+        {
+            unreachable!("Unix sockets refused above")
+        }
     };
     for worker in workers {
         worker.abort();

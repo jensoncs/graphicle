@@ -406,9 +406,8 @@ pub(super) fn attach(input: &Input, a: &mut Analysis) -> Result<()> {
             .then(|| serde_json::from_slice::<Manifest>(source.content.bytes()).ok())
             .flatten();
         let Some(m) = manifest.filter(|m| {
-            (m.format == FORMAT || m.format == "graphicle.service-boundaries.v2")
-                && (m.environment_scopes.is_empty()
-                    || m.format == "graphicle.service-boundaries.v2")
+            (m.format == "graphicle.service-boundaries.v2"
+                || m.format == FORMAT && m.environment_scopes.is_empty())
                 && m.bindings.len() <= MAX_BOUNDARIES
                 && m.environment_scopes.len() <= 128
         }) else {

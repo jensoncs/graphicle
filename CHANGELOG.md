@@ -8,6 +8,39 @@ library (`graphicle-memory`) and the `graphicle` program.
 The program, graph engine, memory library, and Python and TypeScript SDKs are
 versioned together at 0.2.0.
 
+### SQLite under indexing load
+
+- Update bundled SQLite to 3.54.1 (rusqlite 0.41.1), fixing
+  RUSTSEC-2026-0459 when opening crafted database/WAL file pairs.
+- Defer request-counter checkpoints until after releasing the budget tally
+  lock, so a small counter commit cannot make every reader wait while it
+  checkpoints a large indexing WAL. Keep the existing 64 MiB checkpoint trigger.
+- Share in-flight folder freshness checks between concurrent requests for
+  the same project. Keep the two-second cache window, check other projects
+  independently, and report a stale note when another check outlasts the
+  answer's wait budget.
+- Release the graph build's SQLite snapshot after materializing its sources,
+  before parsing and identity analysis. Keep the source-tree lock through
+  extraction and recheck authority and the head set before publication, so
+  long builds no longer pin the WAL for their CPU work.
+- Report slow write-lock acquisition separately from lock hold time,
+  including waits that time out. Add `bench/store-load` for measuring MCP
+  reads during indexing, with fresh benchmark folders and Linux/macOS metrics.
+
+- Backport 0.1.14's SQLite fixes while retaining the existing store and schema:
+  checkpoint WAL files above 64 MiB, wait at most two seconds for readers,
+  and pause eight seconds after a busy checkpoint. Repeated opens of one
+  store share the checkpoint gate. Long reads and large transactions can
+  still grow the WAL past the threshold.
+- Serve HTTP reads while indexing holds the write lock. Request counters
+  wait 50 ms, then hold counts in memory and flush them on the next write or
+  normal shutdown. Usage reports expose `unrecorded_requests`. Budgets are
+  enforced within one server process; separate processes do not see each
+  other's pending counts, and a killed process loses its pending counts.
+- Use read snapshots for MCP project checks, graph history and cross-project
+  edge listings. Lease renewals wait up to five seconds and retry after five
+  seconds when the store is busy.
+
 ### Review correctness and performance
 
 - Analyze Kubernetes literal env values and Go/Python reads by default for

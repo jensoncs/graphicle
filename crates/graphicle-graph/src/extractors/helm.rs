@@ -300,6 +300,262 @@ impl Output {
     }
 }
 
+struct Frame {
+    path: Option<String>,
+    mapping: bool,
+    key: Option<(String, usize)>,
+}
+struct Values<'a> {
+    output: &'a mut Output,
+    stack: Vec<Frame>,
+    events: usize,
+    documents: usize,
+    incomplete: bool,
+}
+impl Values<'_> {
+    fn value(&mut self) -> Option<(String, usize)> {
+        let frame = self.stack.last_mut()?;
+        let (key, line) = frame.key.take()?;
+        if !identifier(&key) {
+            return None;
+        }
+        Some((format!("{}.{}", frame.path.as_ref()?, key), line))
+    }
+}
+impl MarkedEventReceiver for Values<'_> {
+    fn on_event(&mut self, event: Event, marker: Marker) {
+        self.events += 1;
+        if self.events > MAX_ITEMS || self.stack.len() > 64 {
+            self.incomplete = true;
+            return;
+        }
+        // Inspect syntax only: never construct values or expand YAML aliases.
+        // Explicit tags can change collection/key semantics, so leave them to
+        // textual retrieval rather than interpreting them here.
+        if matches!(
+            &event,
+            Event::Scalar(_, _, _, Some(_))
+                | Event::MappingStart(_, Some(_))
+                | Event::SequenceStart(_, Some(_))
+        ) {
+            self.incomplete = true;
+            return;
+        }
+        match event {
+            Event::DocumentStart => {
+                self.documents += 1;
+                self.incomplete |= self.documents > 1;
+            }
+            Event::MappingStart(_, _) | Event::SequenceStart(_, _) => {
+                if self
+                    .stack
+                    .last()
+                    .is_some_and(|frame| frame.mapping && frame.key.is_none())
+                {
+                    self.incomplete = true; // A complex mapping key is not a dot-addressable field.
+                }
+                let mapping = matches!(event, Event::MappingStart(_, _));
+                let path = if self.stack.is_empty() {
+                    Some("Values".into())
+                } else {
+                    self.value().map(|(path, line)| {
+                        self.output.node(&path, "value", line);
+                        path
+                    })
+                };
+                self.stack.push(Frame {
+                    path: if mapping { path } else { None },
+                    mapping,
+                    key: None,
+                });
+            }
+            Event::MappingEnd | Event::SequenceEnd => {
+                self.stack.pop();
+            }
+            Event::Scalar(key, _, _, _) => {
+                if let Some(frame) = self.stack.last_mut().filter(|f| f.mapping) {
+                    if frame.key.is_none() {
+                        // Non-identifier keys cannot be accessed by `.Values.x`.
+                        frame.key = Some((key, marker.line()));
+                    } else if let Some((path, line)) = self.value()
+                        && path.split('.').all(identifier)
+                    {
+                        self.output.node(&path, "value", line);
+                    }
+                }
+            }
+            Event::Alias(_) => {
+                if self
+                    .stack
+                    .last()
+                    .is_some_and(|frame| frame.mapping && frame.key.is_none())
+                {
+                    self.incomplete = true;
+                }
+                self.value();
+                self.output.issues.insert("aliased_value".into());
+            }
+            _ => {}
+        }
+    }
+}
+
+pub fn extract(path: &Path) -> Result<Value> {
+    let Some(chart) = chart_root(path) else {
+        return Ok(json!({"nodes":[],"edges":[]}));
+    };
+    let bytes = super::base::read_source_bytes(path, true)?;
+    let mut output = Output {
+        path: fsutil::path_string(path),
+        chart: fsutil::path_string(&chart),
+        nodes: vec![],
+        refs: vec![],
+        issues: BTreeSet::new(),
+    };
+    let parsed = (|| -> Result<()> {
+        if bytes.len() > MAX_BYTES {
+            return Err("Helm file size limit exceeded".into());
+        }
+        let source = std::str::from_utf8(&bytes).map_err(|e| e.to_string())?;
+        if path.parent() == Some(chart.as_path()) {
+            // Event positions identify keys without constructing values or
+            // expanding aliases; malformed streams publish no partial graph.
+            let mut values = Values {
+                output: &mut output,
+                stack: vec![],
+                events: 0,
+                documents: 0,
+                incomplete: false,
+            };
+            Parser::new_from_str(source).load(&mut values, true)?;
+            if values.incomplete {
+                return Err("Helm values limit or unsupported key/tag".into());
+            }
+        } else {
+            output.template(source)?;
+        }
+        Ok(())
+    })();
+    if let Err(error) = parsed {
+        // Unsupported static analysis must not fail a project sync or publish
+        // partial declarations. Text retrieval remains available for this file.
+        return Ok(
+            json!({"nodes":[],"edges":[],"skipped":"unsupported Helm structure",
+            "issues":[error.to_string()]}),
+        );
+    }
+    let mut names = BTreeSet::new();
+    if output
+        .nodes
+        .iter()
+        .filter(|node| node["_helm_kind"] == "value")
+        .any(|node| !names.insert(node["label"].clone().to_string()))
+    {
+        output.issues.insert("duplicate_value".into());
+    }
+    // References belong to the source owner, so incremental assembly can resolve
+    // them from fresh and unchanged nodes without consulting the host filesystem.
+    for node in &mut output.nodes {
+        node["_helm_references"] = json!(
+            output
+                .refs
+                .iter()
+                .filter(|r| r["owner"] == node["id"])
+                .collect::<Vec<_>>()
+        );
+        node["_helm_issues"] = json!(output.issues);
+    }
+    Ok(json!({"nodes":output.nodes,"edges":[],"issues":output.issues}))
+}
+
+pub fn resolve(_per_file: &[Value], nodes: &mut [Value], edges: &mut Vec<Value>) {
+    let mut definitions: BTreeMap<(String, String, String), Vec<String>> = BTreeMap::new();
+    for node in nodes.iter() {
+        let (Some(chart), Some(kind), Some(name), Some(id)) = (
+            node["_helm_chart"].as_str(),
+            node["_helm_kind"].as_str(),
+            node["label"].as_str(),
+            node["id"].as_str(),
+        ) else {
+            continue;
+        };
+        // Override files are declarations, not unconditional effective defaults.
+        let file = Path::new(node["source_file"].as_str().unwrap_or(""))
+            .file_name()
+            .and_then(|p| p.to_str());
+        if kind == "value" && !matches!(file, Some("values.yaml" | "values.yml")) {
+            continue;
+        }
+        definitions
+            .entry((chart.into(), kind.into(), name.into()))
+            .or_default()
+            .push(id.into());
+    }
+    // A map-valued reference (for example toYaml .Values.service) depends on
+    // its addressable descendants, while a leaf never pulls in sibling fields.
+    let mut fields: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
+    for node in nodes.iter().filter(|node| node["_helm_kind"] == "value") {
+        fields
+            .entry((
+                node["source_file"].as_str().unwrap_or("").into(),
+                node["label"].as_str().unwrap_or("").into(),
+            ))
+            .or_default()
+            .push(node["id"].as_str().unwrap_or("").into());
+    }
+    let mut seen = BTreeSet::new();
+    for node in nodes.iter().filter(|node| node["_helm_kind"] == "value") {
+        let name = node["label"].as_str().unwrap_or("");
+        let Some((parent, _)) = name.rsplit_once('.') else {
+            continue;
+        };
+        let file = node["source_file"].as_str().unwrap_or("");
+        if let Some(parents) = fields
+            .get(&(file.into(), parent.into()))
+            .filter(|ids| ids.len() == 1)
+        {
+            let target = node["id"].as_str().unwrap_or("");
+            let source = &parents[0];
+            if seen.insert((source.clone(), target.to_string())) {
+                edges.push(
+                    json!({"source":source,"target":target,"relation":"references",
+                    "confidence":"EXTRACTED","weight":1.0,"source_file":node["source_file"],
+                    "source_location":node["source_location"],"_helm_reference":name}),
+                );
+            }
+        }
+    }
+    for node in nodes.iter_mut() {
+        let Some(chart) = node["_helm_chart"].as_str().map(str::to_string) else {
+            continue;
+        };
+        let refs = node["_helm_references"]
+            .as_array()
+            .cloned()
+            .unwrap_or_default();
+        let mut unresolved = Vec::new();
+        for reference in refs {
+            let key = (
+                chart.clone(),
+                reference["kind"].as_str().unwrap_or("").into(),
+                reference["name"].as_str().unwrap_or("").into(),
+            );
+            if let Some(targets) = definitions.get(&key).filter(|targets| targets.len() == 1) {
+                let target = &targets[0];
+                let source = node["id"].as_str().unwrap_or("");
+                if source != target && seen.insert((source.to_string(), target.clone())) {
+                    edges.push(json!({"source":source,"target":target,"relation":"references",
+                        "confidence":"EXTRACTED","weight":1.0,"source_file":node["source_file"],
+                        "source_location":format!("L{}", reference["line"]),"_helm_reference":reference["name"]}));
+                }
+            } else {
+                unresolved.push(reference);
+            }
+        }
+        node["_helm_unresolved"] = json!(unresolved);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -607,261 +863,5 @@ mod tests {
             names,
             ["Values.items", "Values.service", "Values.service.port"]
         );
-    }
-}
-
-struct Frame {
-    path: Option<String>,
-    mapping: bool,
-    key: Option<(String, usize)>,
-}
-struct Values<'a> {
-    output: &'a mut Output,
-    stack: Vec<Frame>,
-    events: usize,
-    documents: usize,
-    incomplete: bool,
-}
-impl Values<'_> {
-    fn value(&mut self) -> Option<(String, usize)> {
-        let frame = self.stack.last_mut()?;
-        let (key, line) = frame.key.take()?;
-        if !identifier(&key) {
-            return None;
-        }
-        Some((format!("{}.{}", frame.path.as_ref()?, key), line))
-    }
-}
-impl MarkedEventReceiver for Values<'_> {
-    fn on_event(&mut self, event: Event, marker: Marker) {
-        self.events += 1;
-        if self.events > MAX_ITEMS || self.stack.len() > 64 {
-            self.incomplete = true;
-            return;
-        }
-        // Inspect syntax only: never construct values or expand YAML aliases.
-        // Explicit tags can change collection/key semantics, so leave them to
-        // textual retrieval rather than interpreting them here.
-        if matches!(
-            &event,
-            Event::Scalar(_, _, _, Some(_))
-                | Event::MappingStart(_, Some(_))
-                | Event::SequenceStart(_, Some(_))
-        ) {
-            self.incomplete = true;
-            return;
-        }
-        match event {
-            Event::DocumentStart => {
-                self.documents += 1;
-                self.incomplete |= self.documents > 1;
-            }
-            Event::MappingStart(_, _) | Event::SequenceStart(_, _) => {
-                if self
-                    .stack
-                    .last()
-                    .is_some_and(|frame| frame.mapping && frame.key.is_none())
-                {
-                    self.incomplete = true; // A complex mapping key is not a dot-addressable field.
-                }
-                let mapping = matches!(event, Event::MappingStart(_, _));
-                let path = if self.stack.is_empty() {
-                    Some("Values".into())
-                } else {
-                    self.value().map(|(path, line)| {
-                        self.output.node(&path, "value", line);
-                        path
-                    })
-                };
-                self.stack.push(Frame {
-                    path: if mapping { path } else { None },
-                    mapping,
-                    key: None,
-                });
-            }
-            Event::MappingEnd | Event::SequenceEnd => {
-                self.stack.pop();
-            }
-            Event::Scalar(key, _, _, _) => {
-                if let Some(frame) = self.stack.last_mut().filter(|f| f.mapping) {
-                    if frame.key.is_none() {
-                        // Non-identifier keys cannot be accessed by `.Values.x`.
-                        frame.key = Some((key, marker.line()));
-                    } else if let Some((path, line)) = self.value() {
-                        if path.split('.').all(identifier) {
-                            self.output.node(&path, "value", line);
-                        }
-                    }
-                }
-            }
-            Event::Alias(_) => {
-                if self
-                    .stack
-                    .last()
-                    .is_some_and(|frame| frame.mapping && frame.key.is_none())
-                {
-                    self.incomplete = true;
-                }
-                self.value();
-                self.output.issues.insert("aliased_value".into());
-            }
-            _ => {}
-        }
-    }
-}
-
-pub fn extract(path: &Path) -> Result<Value> {
-    let Some(chart) = chart_root(path) else {
-        return Ok(json!({"nodes":[],"edges":[]}));
-    };
-    let bytes = super::base::read_source_bytes(path, true)?;
-    let mut output = Output {
-        path: fsutil::path_string(path),
-        chart: fsutil::path_string(&chart),
-        nodes: vec![],
-        refs: vec![],
-        issues: BTreeSet::new(),
-    };
-    let parsed = (|| -> Result<()> {
-        if bytes.len() > MAX_BYTES {
-            return Err("Helm file size limit exceeded".into());
-        }
-        let source = std::str::from_utf8(&bytes).map_err(|e| e.to_string())?;
-        if path.parent() == Some(chart.as_path()) {
-            // Event positions identify keys without constructing values or
-            // expanding aliases; malformed streams publish no partial graph.
-            let mut values = Values {
-                output: &mut output,
-                stack: vec![],
-                events: 0,
-                documents: 0,
-                incomplete: false,
-            };
-            Parser::new_from_str(source).load(&mut values, true)?;
-            if values.incomplete {
-                return Err("Helm values limit or unsupported key/tag".into());
-            }
-        } else {
-            output.template(source)?;
-        }
-        Ok(())
-    })();
-    if let Err(error) = parsed {
-        // Unsupported static analysis must not fail a project sync or publish
-        // partial declarations. Text retrieval remains available for this file.
-        return Ok(
-            json!({"nodes":[],"edges":[],"skipped":"unsupported Helm structure",
-            "issues":[error.to_string()]}),
-        );
-    }
-    let mut names = BTreeSet::new();
-    if output
-        .nodes
-        .iter()
-        .filter(|node| node["_helm_kind"] == "value")
-        .any(|node| !names.insert(node["label"].clone().to_string()))
-    {
-        output.issues.insert("duplicate_value".into());
-    }
-    // References belong to the source owner, so incremental assembly can resolve
-    // them from fresh and unchanged nodes without consulting the host filesystem.
-    for node in &mut output.nodes {
-        node["_helm_references"] = json!(
-            output
-                .refs
-                .iter()
-                .filter(|r| r["owner"] == node["id"])
-                .collect::<Vec<_>>()
-        );
-        node["_helm_issues"] = json!(output.issues);
-    }
-    Ok(json!({"nodes":output.nodes,"edges":[],"issues":output.issues}))
-}
-
-pub fn resolve(_per_file: &[Value], nodes: &mut Vec<Value>, edges: &mut Vec<Value>) {
-    let mut definitions: BTreeMap<(String, String, String), Vec<String>> = BTreeMap::new();
-    for node in nodes.iter() {
-        let (Some(chart), Some(kind), Some(name), Some(id)) = (
-            node["_helm_chart"].as_str(),
-            node["_helm_kind"].as_str(),
-            node["label"].as_str(),
-            node["id"].as_str(),
-        ) else {
-            continue;
-        };
-        // Override files are declarations, not unconditional effective defaults.
-        let file = Path::new(node["source_file"].as_str().unwrap_or(""))
-            .file_name()
-            .and_then(|p| p.to_str());
-        if kind == "value" && !matches!(file, Some("values.yaml" | "values.yml")) {
-            continue;
-        }
-        definitions
-            .entry((chart.into(), kind.into(), name.into()))
-            .or_default()
-            .push(id.into());
-    }
-    // A map-valued reference (for example toYaml .Values.service) depends on
-    // its addressable descendants, while a leaf never pulls in sibling fields.
-    let mut fields: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
-    for node in nodes.iter().filter(|node| node["_helm_kind"] == "value") {
-        fields
-            .entry((
-                node["source_file"].as_str().unwrap_or("").into(),
-                node["label"].as_str().unwrap_or("").into(),
-            ))
-            .or_default()
-            .push(node["id"].as_str().unwrap_or("").into());
-    }
-    let mut seen = BTreeSet::new();
-    for node in nodes.iter().filter(|node| node["_helm_kind"] == "value") {
-        let name = node["label"].as_str().unwrap_or("");
-        let Some((parent, _)) = name.rsplit_once('.') else {
-            continue;
-        };
-        let file = node["source_file"].as_str().unwrap_or("");
-        if let Some(parents) = fields
-            .get(&(file.into(), parent.into()))
-            .filter(|ids| ids.len() == 1)
-        {
-            let target = node["id"].as_str().unwrap_or("");
-            let source = &parents[0];
-            if seen.insert((source.clone(), target.to_string())) {
-                edges.push(
-                    json!({"source":source,"target":target,"relation":"references",
-                    "confidence":"EXTRACTED","weight":1.0,"source_file":node["source_file"],
-                    "source_location":node["source_location"],"_helm_reference":name}),
-                );
-            }
-        }
-    }
-    for node in nodes.iter_mut() {
-        let Some(chart) = node["_helm_chart"].as_str().map(str::to_string) else {
-            continue;
-        };
-        let refs = node["_helm_references"]
-            .as_array()
-            .cloned()
-            .unwrap_or_default();
-        let mut unresolved = Vec::new();
-        for reference in refs {
-            let key = (
-                chart.clone(),
-                reference["kind"].as_str().unwrap_or("").into(),
-                reference["name"].as_str().unwrap_or("").into(),
-            );
-            if let Some(targets) = definitions.get(&key).filter(|targets| targets.len() == 1) {
-                let target = &targets[0];
-                let source = node["id"].as_str().unwrap_or("");
-                if source != target && seen.insert((source.to_string(), target.clone())) {
-                    edges.push(json!({"source":source,"target":target,"relation":"references",
-                        "confidence":"EXTRACTED","weight":1.0,"source_file":node["source_file"],
-                        "source_location":format!("L{}", reference["line"]),"_helm_reference":reference["name"]}));
-                }
-            } else {
-                unresolved.push(reference);
-            }
-        }
-        node["_helm_unresolved"] = json!(unresolved);
     }
 }

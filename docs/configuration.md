@@ -39,6 +39,46 @@ from the backups in `backups/`, with a hash-chained receipt; without
 restores into a new folder and never overwrites existing data. A backup leaves
 out provider secrets and the vault key, so reconnect providers after a restore.
 
+### SQLite during indexing
+
+After a write commits, Graphicle tries to truncate a write-ahead log larger
+than 64 MiB, waiting at most two seconds for readers. Opens of the same store
+in one process share a checkpoint gate, with an eight-second pause after a
+busy checkpoint so other writers can proceed. A long read, including a
+backup, or a single large transaction can still grow the log past 64 MiB.
+Graph builds release their read snapshot after copying out the sources;
+parsing continues against the locked source copy. Publishing the graph still
+uses one atomic write transaction and verifies that the source head set and
+the caller's authority remain valid.
+
+HTTP request counters wait at most 50 ms for the write lock. While indexing
+holds it, the server checks the workspace budget against a read snapshot plus
+its pending counts, serves the request and keeps the count in memory. It
+flushes pending counts on the next successful counter write, a usage report
+or normal shutdown. Usage includes `unrecorded_requests` for pending counts.
+One server process enforces the budget across its concurrent requests;
+multiple processes serving the same folder do not see each other's pending
+counts and can exceed the budget by those counts. A killed process loses its
+pending counts. Use one serving process per data folder for this budget bound.
+
+Counter connections defer automatic checkpoints until after releasing the
+budget tally lock, so a small counter commit does not copy a large indexing
+WAL while blocking every request's accounting. The explicit 64 MiB checkpoint
+still runs after commit; transaction durability is unchanged. The request
+performing that checkpoint can still wait for its disk I/O, which is outside
+the two-second lock-wait timeout.
+
+The running process's `runtime.status` response includes `write_lock.slow_waits`,
+`longest_wait_seconds` and `longest_wait_at` for write transactions that wait
+at least two seconds. Failed lock acquisitions are included. These fields
+measure acquisition separately from existing lock-hold timings, and cover
+`Store::transaction` calls rather than direct writes such as request counters.
+Set `GRAPHICLE_PHASE_TIMINGS=1` to log the slow waits and the
+`request_tally_lock`, `request_tally_commit` and `request_tally_checkpoint`
+phase timings. The
+[store-load harness](../bench/store-load/README.md) measures concurrent reads
+and indexing with disposable stores.
+
 ## Models
 
 These features need a model:
@@ -766,6 +806,12 @@ how many files changed since the last sync. To turn the check off, run
 turns it back on (the default). The check applies to projects synced from a
 folder. The environment variable `GRAPHICLE_FRESHNESS=auto|off` overrides
 the setting for one command or shell.
+
+Within one server process, concurrent calls for the same project share its
+freshness check and reuse the result for two seconds. Other projects check
+independently. A call waiting for another check waits at most two seconds
+(less when its request deadline is nearer), then includes a stale note with
+`folder_freshness.reason: "checking"` if the check is still running.
 
 In JSON output, a sync before the answer, or a stale project, is reported in
 the `folder_freshness` field (the `freshness` field is the reviewed memory's).

@@ -650,11 +650,7 @@ fn link_rows(db: &rusqlite::Connection) -> Vec<String> {
     let mut out = Vec::new();
     for table in ["gf_cross_edges", "gf_cross_unresolved", "gf_cross_packages"] {
         let mut statement = db.prepare(&format!("SELECT * FROM {table}")).unwrap();
-        let columns: Vec<String> = statement
-            .column_names()
-            .iter()
-            .map(|c| c.to_string())
-            .collect();
+        let columns: Vec<String> = statement.column_names().map(|c| c.to_string()).collect();
         let mut rows = statement.query([]).unwrap();
         while let Some(row) = rows.next().unwrap() {
             let mut fields = vec![table.to_string()];

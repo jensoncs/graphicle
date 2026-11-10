@@ -56,6 +56,14 @@ jobs:
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component rustfmt,clippy
           rustup default "$RUST_TOOLCHAIN"
+      # Go helpers compile offline during engine/runtime tests. Hosted images
+      # may cache Go without putting it on PATH (notably macOS arm64).
+      - name: Go toolchain
+        if: matrix.crate != 'graphicle-memory'
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: '1.26.10'
+          cache: false
       # The memory library (and the graphicle program through it) compiles its
       # grammars from the checksum-pinned parser sources in .tslp-root; see
       # crates/graphicle/.cargo/config.toml. The engine does not use them.
@@ -109,6 +117,9 @@ jobs:
         run: |
           python -m pip install -r bench/memory/requirements-test.txt
           python -m pytest bench/memory/tests -q
+      - name: Test store-load harness
+        if: matrix.crate == 'graphicle' && runner.os == 'Linux'
+        run: python -I -m unittest discover -s bench/store-load -p 'test_*.py' -v
       - name: Quality regression gate
         if: matrix.crate == 'graphicle' && runner.os == 'Linux'
         run: >-
@@ -168,6 +179,12 @@ jobs:
         run: |
           rustup toolchain install "$RUST_TOOLCHAIN" --profile minimal --component clippy
           rustup default "$RUST_TOOLCHAIN"
+      - name: Go toolchain
+        if: matrix.crate != 'graphicle-memory'
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
+        with:
+          go-version: '1.26.10'
+          cache: false
       # Python 3.14 unpacks the parser sources itself (compression.zstd).
       - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:

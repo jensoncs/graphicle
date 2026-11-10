@@ -11,61 +11,6 @@ pub(super) struct Components {
     pub hashes: Vec<String>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn analysis(packages: Vec<Value>) -> Analysis {
-        Analysis {
-            package_diagnostics: BTreeMap::new(),
-            diagnostics: vec![],
-            diagnostic_count: 0,
-            symbols: BTreeMap::new(),
-            calls: vec![],
-            packages,
-            issues: vec![],
-            analyzer: String::new(),
-            toolchain: String::new(),
-            inputs: vec![],
-            raw: None,
-            package_cache: crate::review_cache::PackageResult::default(),
-            services: services::Links::default(),
-        }
-    }
-    fn package(world: &str, path: &str, dependencies: &[&str], role: &str) -> Value {
-        json!({"consumer_build":world,"path":path,"dependencies":dependencies,
-            "analysis_role":role,"content_instance":path,
-            "selected_sources":[{"file":format!("{world}/{path}.go")}]})
-    }
-
-    #[test]
-    fn components_preserve_old_edges_build_worlds_and_owned_sources() {
-        let base = analysis(vec![
-            package("app", "consumer", &["supplier"], "owned"),
-            package("app", "supplier", &[], "owned"),
-            package("app", "vendor", &[], "dependency"),
-            package("other", "supplier", &[], "owned"),
-        ]);
-        let mut head = analysis(base.packages.clone());
-        head.packages[0]["dependencies"] = json!([]);
-        // The removed file remains owned via the base side.
-        head.packages[1]["selected_sources"] = json!([]);
-        let c = Components::new(&base, &head);
-        assert_eq!(
-            c.owned_files["app/consumer.go"],
-            c.owned_files["app/supplier.go"]
-        );
-        assert!(c.owned_files["app/supplier.go"].is_disjoint(&c.owned_files["other/supplier.go"]));
-        assert!(!c.owned_files.contains_key("app/vendor.go"));
-        assert!(
-            c.files
-                .contains_key(&("app".into(), "app/vendor.go".into()))
-        );
-        head.packages.reverse();
-        assert_eq!(c.hashes, Components::new(&base, &head).hashes);
-    }
-}
-
 impl Components {
     pub fn new(a: &Analysis, b: &Analysis) -> Self {
         let mut neighbors: BTreeMap<Package, BTreeSet<Package>> = a
@@ -145,5 +90,60 @@ impl Components {
             owned_files,
             hashes,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn analysis(packages: Vec<Value>) -> Analysis {
+        Analysis {
+            package_diagnostics: BTreeMap::new(),
+            diagnostics: vec![],
+            diagnostic_count: 0,
+            symbols: BTreeMap::new(),
+            calls: vec![],
+            packages,
+            issues: vec![],
+            analyzer: String::new(),
+            toolchain: String::new(),
+            inputs: vec![],
+            raw: None,
+            package_cache: crate::review_cache::PackageResult::default(),
+            services: services::Links::default(),
+        }
+    }
+    fn package(world: &str, path: &str, dependencies: &[&str], role: &str) -> Value {
+        json!({"consumer_build":world,"path":path,"dependencies":dependencies,
+            "analysis_role":role,"content_instance":path,
+            "selected_sources":[{"file":format!("{world}/{path}.go")}]})
+    }
+
+    #[test]
+    fn components_preserve_old_edges_build_worlds_and_owned_sources() {
+        let base = analysis(vec![
+            package("app", "consumer", &["supplier"], "owned"),
+            package("app", "supplier", &[], "owned"),
+            package("app", "vendor", &[], "dependency"),
+            package("other", "supplier", &[], "owned"),
+        ]);
+        let mut head = analysis(base.packages.clone());
+        head.packages[0]["dependencies"] = json!([]);
+        // The removed file remains owned via the base side.
+        head.packages[1]["selected_sources"] = json!([]);
+        let c = Components::new(&base, &head);
+        assert_eq!(
+            c.owned_files["app/consumer.go"],
+            c.owned_files["app/supplier.go"]
+        );
+        assert!(c.owned_files["app/supplier.go"].is_disjoint(&c.owned_files["other/supplier.go"]));
+        assert!(!c.owned_files.contains_key("app/vendor.go"));
+        assert!(
+            c.files
+                .contains_key(&("app".into(), "app/vendor.go".into()))
+        );
+        head.packages.reverse();
+        assert_eq!(c.hashes, Components::new(&base, &head).hashes);
     }
 }

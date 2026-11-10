@@ -19,7 +19,7 @@ use serde_json::{Map, Value, json};
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap},
     path::{Path, PathBuf},
-    sync::{Mutex, OnceLock, PoisonError},
+    sync::{Mutex, MutexGuard, OnceLock, PoisonError},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -163,110 +163,154 @@ pub fn build_graph_with_report(
     db: &Connection,
     repository: &str,
 ) -> Result<(String, Graph, Value)> {
+    prepare_graph(db, repository)?.build()
+}
+
+/// Serialize the root-sensitive language/resolver work. Store projections
+/// acquire this only after closing their source snapshot, so waiting for a
+/// different build cannot pin the WAL or block already-recorded graphs.
+fn lock_build() -> MutexGuard<'static, ()> {
+    static EXTRACTION: Mutex<()> = Mutex::new(());
+    EXTRACTION.lock().unwrap_or_else(PoisonError::into_inner)
+}
+
+/// Everything extraction needs, owned independently of the SQLite snapshot.
+/// The source-tree file lock survives until extraction ends, so releasing
+/// SQLite cannot expose changing files. A competing materializer uses the
+/// existing isolated fallback instead of changing this tree.
+pub(crate) struct PreparedGraph {
+    dir: crate::graph_materialize::SourceTree,
+    cache: Option<PathBuf>,
+    heads: BTreeMap<String, String>,
+    episode: String,
+    repository: String,
+    identity_scope: String,
+}
+
+fn prepare_graph(db: &Connection, repository: &str) -> Result<PreparedGraph> {
     let heads = crate::store::heads(db, repository)?;
     let episode = episode_of(&heads);
     // Keep the materialization root stable so the file-description and
-    // root-sensitive resolver caches can actually be reused. Serialize before
-    // preparing it: another build must not mutate files during extraction.
-    static EXTRACTION: Mutex<()> = Mutex::new(());
-    let _serial = EXTRACTION.lock().unwrap_or_else(PoisonError::into_inner);
+    // root-sensitive resolver caches can actually be reused. SourceTree owns
+    // the file lock from preparation through extraction.
     let cache = cache_root(db, repository);
     let dir = crate::phase::phase("graph_materialize", || {
         crate::graph_materialize::prepare(db, repository, &heads, cache.as_deref())
     })?;
-    // Canonical root: node identities derive from paths relative to it, and a
-    // root that crosses a symlink would make cached and fresh records diverge.
-    let root = dir.path().canonical()?;
-    // The project's extension declarations (`.graphiclerc`), which the
-    // extraction below activates as well, decide a file's extractor.
-    graphicle::rcfile::activate_language_overrides(&root);
-    let files: Vec<PathBuf> = heads
-        .keys()
-        .map(|p| root.join(p))
-        .filter(|p| projected(p))
-        .collect();
-    // A contended cross-process cache gets an isolated uncached tree.
-    let cache = cache.filter(|_| dir.report.cached);
-    if let Some(cache) = &cache {
-        std::fs::create_dir_all(cache)?;
-    }
-    let (extraction, report) = crate::phase::phase("graph_extract", || {
-        graphicle::incremental::extract(
-            &files,
-            &ExtractOptions {
-                root: Some(root.clone()),
-                use_cache: cache.is_some(),
-                cache_root: cache.clone(),
-                // Receiver-aware method resolution: additive `calls`
-                // edges labelled `derivation: inferred` + `receiver_evidence`;
-                // ambiguous receivers land in `attributes.unresolved_calls`.
-                receiver_resolution: true,
-                test_identities: true,
-                ..Default::default()
-            },
-            cache
-                .as_ref()
-                .filter(|_| engine_fingerprint().is_some())
-                .map(|p| p.join("resolution"))
-                .as_deref(),
-            engine_fingerprint().unwrap_or("uncached"),
-        )
-    })?;
-    let extraction_summary = json!({
-        "cached": cache.is_some(),
-        "materialization": dir.report,
-        "changed": report.parsing.changed.len(),
-        "unchanged": report.parsing.unchanged + report.skipped_parsing,
-        "unsupported": report.parsing.unsupported,
-        "resolution": {"dirty_files":report.dirty_files,"resolved_files":report.resolved_files,
-            "context_files":report.context_files,"reused_files":report.reused_files,
-            "skipped_parsing":report.skipped_parsing,
-            "components":report.components,"largest_component":report.largest_component,
-            "fallback":report.fallback},
-    });
-    drop(report);
-    drop(files);
-    // Multigraph keyed by relation: the extractors emit parallel edges with
-    // distinct relations between one pair (`calls`+`contains` for a nested
-    // function, `inherits`+`uses`, `imports`+`imports_from`); the parity
-    // non-multigraph build folds them into one edge with mixed attributes.
-    // `build_owned` consumes the extraction so the records are moved into the
-    // graph instead of being copied (the borrowing `build` holds both).
-    let mut graph = crate::phase::phase("graph_assemble", || {
-        build_owned(
-            vec![extraction],
-            &BuildOptions {
-                directed: true,
-                root: Some(root.clone()),
-                multigraph: true,
-                ..Default::default()
-            },
-            &mut Diagnostics::default(),
-            None,
-        )
-    })?;
-    // Durable identity: every persisted node carries a content-independent
-    // `stable_id` and a content `revision`; every edge its `derivation`.
-    // A PR scratch project's ids are scoped by its folder project, so a symbol has one `stable_id` in both; its nodes still name the
-    // scratch project as their `repo`, where their episode is recorded.
-    let scope = identity_scope(db, repository)?;
-    crate::phase::phase("graph_identity", || {
-        identity::annotate(
-            &mut graph,
-            &IdentityOptions {
-                repo: scope.clone(),
-                root: Some(root.clone()),
-                strip_prefix: Some(root.to_string_lossy().into_owned()),
-                sources: BTreeMap::new(),
-            },
-        )
-    })?;
-    if scope != repository {
-        for node in graph.nodes_mut() {
-            node.attributes.insert("repo".into(), json!(repository));
+    Ok(PreparedGraph {
+        dir,
+        cache,
+        heads,
+        episode,
+        repository: repository.to_string(),
+        identity_scope: identity_scope(db, repository)?,
+    })
+}
+
+impl PreparedGraph {
+    pub(crate) fn build(self) -> Result<Built> {
+        let _serial = lock_build();
+        let Self {
+            dir,
+            cache,
+            heads,
+            episode,
+            repository,
+            identity_scope: scope,
+        } = self;
+        // Canonical root: node identities derive from paths relative to it, and a
+        // root that crosses a symlink would make cached and fresh records diverge.
+        let root = dir.path().canonical()?;
+        // The project's extension declarations (`.graphiclerc`), which the
+        // extraction below activates as well, decide a file's extractor.
+        graphicle::rcfile::activate_language_overrides(&root);
+        let files: Vec<PathBuf> = heads
+            .keys()
+            .map(|p| root.join(p))
+            .filter(|p| projected(p))
+            .collect();
+        // A contended cross-process cache gets an isolated uncached tree.
+        let cache = cache.filter(|_| dir.report.cached);
+        if let Some(cache) = &cache {
+            std::fs::create_dir_all(cache)?;
         }
+        let (extraction, report) = crate::phase::phase("graph_extract", || {
+            graphicle::incremental::extract(
+                &files,
+                &ExtractOptions {
+                    root: Some(root.clone()),
+                    use_cache: cache.is_some(),
+                    cache_root: cache.clone(),
+                    // Receiver-aware method resolution: additive `calls`
+                    // edges labelled `derivation: inferred` + `receiver_evidence`;
+                    // ambiguous receivers land in `attributes.unresolved_calls`.
+                    receiver_resolution: true,
+                    test_identities: true,
+                    ..Default::default()
+                },
+                cache
+                    .as_ref()
+                    .filter(|_| engine_fingerprint().is_some())
+                    .map(|p| p.join("resolution"))
+                    .as_deref(),
+                engine_fingerprint().unwrap_or("uncached"),
+            )
+        })?;
+        let extraction_summary = json!({
+            "cached": cache.is_some(),
+            "materialization": dir.report,
+            "changed": report.parsing.changed.len(),
+            "unchanged": report.parsing.unchanged + report.skipped_parsing,
+            "unsupported": report.parsing.unsupported,
+            "resolution": {"dirty_files":report.dirty_files,"resolved_files":report.resolved_files,
+                "context_files":report.context_files,"reused_files":report.reused_files,
+                "skipped_parsing":report.skipped_parsing,
+                "components":report.components,"largest_component":report.largest_component,
+                "fallback":report.fallback},
+        });
+        drop(report);
+        drop(files);
+        // Multigraph keyed by relation: the extractors emit parallel edges with
+        // distinct relations between one pair (`calls`+`contains` for a nested
+        // function, `inherits`+`uses`, `imports`+`imports_from`); the parity
+        // non-multigraph build folds them into one edge with mixed attributes.
+        // `build_owned` consumes the extraction so the records are moved into the
+        // graph instead of being copied (the borrowing `build` holds both).
+        let mut graph = crate::phase::phase("graph_assemble", || {
+            build_owned(
+                vec![extraction],
+                &BuildOptions {
+                    directed: true,
+                    root: Some(root.clone()),
+                    multigraph: true,
+                    ..Default::default()
+                },
+                &mut Diagnostics::default(),
+                None,
+            )
+        })?;
+        // Durable identity: every persisted node carries a content-independent
+        // `stable_id` and a content `revision`; every edge its `derivation`.
+        // A PR scratch project's ids are scoped by its folder project, so a symbol has one `stable_id` in both; its nodes still name the
+        // scratch project as their `repo`, where their episode is recorded.
+        crate::phase::phase("graph_identity", || {
+            identity::annotate(
+                &mut graph,
+                &IdentityOptions {
+                    repo: scope.clone(),
+                    root: Some(root.clone()),
+                    strip_prefix: Some(root.to_string_lossy().into_owned()),
+                    sources: BTreeMap::new(),
+                },
+            )
+        })?;
+        if scope != repository {
+            for node in graph.nodes_mut() {
+                node.attributes.insert("repo".into(), json!(repository));
+            }
+        }
+        Ok((episode, graph, extraction_summary))
     }
-    Ok((episode, graph, extraction_summary))
 }
 
 /// The identity scope of `repository`'s `stable_id`s: its own
@@ -1275,14 +1319,20 @@ pub type Built = (String, Graph, Value);
 /// so it must not run while holding the write lock: a large repository takes
 /// longer than the store's busy timeout.
 pub fn prebuild(db: &Connection, repository: &str) -> Result<Option<Built>> {
+    prepare_prebuild(db, repository)?
+        .map(|prepared| crate::phase::phase("graph_build", || prepared.build()))
+        .transpose()
+}
+
+/// Capture source bytes and identity in one snapshot, then let its owner
+/// close the transaction before running `PreparedGraph::build`.
+pub(crate) fn prepare_prebuild(db: &Connection, repository: &str) -> Result<Option<PreparedGraph>> {
     let episode = current_episode(db, repository)?;
     if episode_row(db, repository, &episode)?.is_some() {
         resident(db, repository, &episode)?;
         return Ok(None);
     }
-    Ok(Some(crate::phase::phase("graph_build", || {
-        build_graph_with_report(db, repository)
-    })?))
+    prepare_graph(db, repository).map(Some)
 }
 
 /// Phase two, inside the write transaction: record a graph from `prebuild`
@@ -1325,18 +1375,15 @@ pub fn project_store(
     token: &str,
     repository: &str,
 ) -> Result<ProjectionInfo> {
-    let (identifier, built) = store.authorized_read(workspace, token, "read", |db, p| {
+    let (identifier, prepared) = store.authorized_read(workspace, token, "read", |db, p| {
         let repository = repo(db, p, repository)?;
         let identifier = s(&repository, "id").to_string();
-        let episode = current_episode(db, &identifier)?;
-        if episode_row(db, &identifier, &episode)?.is_some() {
-            resident(db, &identifier, &episode)?;
-            return Ok((identifier, None));
-        }
-        let built =
-            crate::phase::phase("graph_build", || build_graph_with_report(db, &identifier))?;
-        Ok((identifier, Some(built)))
+        let prepared = prepare_prebuild(db, &identifier)?;
+        Ok((identifier, prepared))
     })?;
+    let built = prepared
+        .map(|prepared| crate::phase::phase("graph_build", || prepared.build()))
+        .transpose()?;
     store.authorized(workspace, token, "read", |db, p| {
         let repository = repo(db, p, &identifier)?;
         let identifier = s(&repository, "id");
@@ -1371,7 +1418,7 @@ impl Store {
     /// Episodes and labels of a repository, for the `graph_episodes` MCP tool.
     pub fn episode_listing(&self, workspace: &str, token: &str, repository: &str) -> Result<Value> {
         let mut listing = self.graph_episodes(workspace, token, repository)?;
-        self.authorized(workspace, token, "read", |db, p| {
+        self.authorized_read(workspace, token, "read", |db, p| {
             let repository = repo(db, p, repository)?;
             listing["repo"] = json!(s(&repository, "name"));
             listing["count"] = json!(episodes(db, s(&repository, "id"))?.len());
@@ -1384,7 +1431,7 @@ impl Store {
         Ok(json!(project_store(self, workspace, token, repository)?))
     }
     pub fn graph_episodes(&self, workspace: &str, token: &str, repository: &str) -> Result<Value> {
-        self.authorized(workspace, token, "read", |db, p| {
+        self.authorized_read(workspace, token, "read", |db, p| {
             let repository = repo(db, p, repository)?;
             let identifier = s(&repository, "id");
             let mut listed = episodes(db, identifier)?;
@@ -1456,7 +1503,7 @@ impl Store {
                     .ok_or_else(|| Error::bad("Expected relation names"))?,
             ),
         };
-        self.authorized(workspace, token, "read", |db, p| {
+        self.authorized_read(workspace, token, "read", |db, p| {
             let repository = repo(db, p, repository)?;
             let identifier = s(&repository, "id");
             let view = crate::temporal_graph::select(db, workspace, identifier, args)?;
@@ -2697,7 +2744,7 @@ impl Store {
         token: &str,
         repository: &str,
     ) -> Result<Value> {
-        self.authorized(workspace, token, "read", |db, p| {
+        self.authorized_read(workspace, token, "read", |db, p| {
             let repository = repo(db, p, repository)?;
             let identifier = s(&repository, "id");
             Ok(json!({
@@ -2712,6 +2759,138 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn prepared_sources_release_sqlite_but_keep_the_source_tree_locked() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let workspace = store.create_workspace("Prepared graph").unwrap();
+        let (workspace, key) = (s(&workspace, "id"), s(&workspace, "capability"));
+        let registered = store
+            .register(
+                workspace,
+                key,
+                &json!({"project_key":"prepared", "name":"Prepared graph"}),
+            )
+            .unwrap();
+        let repository = s(&registered, "id");
+        let sync = |source: &str| {
+            let state = store
+                .project_status(workspace, key, &json!({"repository_id":repository}))
+                .unwrap();
+            let begin = store
+                .sync_prepare(
+                    workspace,
+                    key,
+                    &json!({
+                        "repository_id":repository,
+                        "expected_snapshot":state["repository"]["snapshot"],
+                        "manifest":[{"path":"code.py", "bytes":source.len(),
+                            "sha256":graphicle_memory::text::sha256(source.as_bytes())}]
+                    }),
+                )
+                .unwrap();
+            store
+                .sync_upload(
+                    workspace,
+                    key,
+                    &json!({
+                        "repository_id":repository, "sync_id":begin["sync_id"],
+                        "files":[{"path":"code.py", "content":source}]
+                    }),
+                )
+                .unwrap();
+            store
+                .sync_commit(
+                    workspace,
+                    key,
+                    &json!({
+                        "repository_id":repository, "sync_id":begin["sync_id"]
+                    }),
+                )
+                .unwrap();
+        };
+        sync("def alpha():\n    return 1\n");
+        // Keep the database open so closing the last connection cannot hide
+        // a pinned read snapshot by doing SQLite's shutdown checkpoint.
+        let observer = store.connect().unwrap();
+        let prepared = store
+            .authorized_read(workspace, key, "read", |db, _| {
+                prepare_prebuild(db, repository)
+            })
+            .unwrap()
+            .unwrap();
+        let original_episode = prepared.episode.clone();
+        sync("def beta():\n    return 2\n");
+        observer.busy_timeout(std::time::Duration::ZERO).unwrap();
+        let checkpoint: (i64, i64, i64) = observer
+            .query_row("PRAGMA wal_checkpoint(TRUNCATE)", [], |row| {
+                Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+            })
+            .unwrap();
+        assert_eq!(
+            checkpoint,
+            (0, 0, 0),
+            "prepared inputs must not pin the WAL"
+        );
+
+        // A competing materializer must use its isolated fallback; it cannot
+        // replace the files our pending extraction is about to read.
+        let heads = crate::store::heads(&observer, repository).unwrap();
+        let competing = crate::graph_materialize::prepare(
+            &observer,
+            repository,
+            &heads,
+            cache_root(&observer, repository).as_deref(),
+        )
+        .unwrap();
+        assert!(!competing.report.cached);
+        assert!(
+            std::fs::read_to_string(competing.path().join("code.py"))
+                .unwrap()
+                .contains("beta")
+        );
+        let (episode, graph, _) = prepared.build().unwrap();
+        assert_eq!(episode, original_episode);
+        assert_ne!(episode, current_episode(&observer, repository).unwrap());
+        assert!(
+            graph
+                .nodes()
+                .iter()
+                .any(|node| node.attributes.get("label").and_then(Value::as_str) == Some("alpha()"))
+        );
+        assert!(
+            !graph
+                .nodes()
+                .iter()
+                .any(|node| node.attributes.get("label").and_then(Value::as_str) == Some("beta()"))
+        );
+        assert!(!is_recorded(&observer, repository, &episode).unwrap());
+        let current = store.graph_project(workspace, key, repository).unwrap();
+        assert_eq!(
+            current["episode"],
+            current_episode(&observer, repository).unwrap()
+        );
+        assert_ne!(current["episode"], original_episode);
+        // A different repository's extraction must not make an already
+        // recorded graph wait for the global extraction guard.
+        let serial = lock_build();
+        let (sent, received) = std::sync::mpsc::channel();
+        std::thread::scope(|scope| {
+            let request = scope.spawn(|| {
+                sent.send(store.graph_project(workspace, key, repository))
+                    .unwrap();
+            });
+            let result = received.recv_timeout(std::time::Duration::from_secs(5));
+            drop(serial);
+            request.join().unwrap();
+            assert!(
+                result
+                    .expect("cached graph waited for an unrelated build")
+                    .is_ok()
+            );
+        });
+    }
 
     #[test]
     fn canonical_serializer_matches_text_canonical() {

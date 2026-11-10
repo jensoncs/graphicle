@@ -3,8 +3,8 @@
 //! Native extractor modules; unported languages are listed in the migration ledger.
 pub mod apex;
 pub mod base;
-pub mod basic_dependencies;
 pub mod bash;
+pub mod basic_dependencies;
 pub mod blade;
 mod builtins_data;
 pub mod cobol;
@@ -24,10 +24,10 @@ mod engine_ruby;
 pub mod engine_scope;
 pub mod engine_semantics;
 pub mod engine_types;
+pub mod environment;
 pub mod erlang;
 /// Opt-in `--precise` evidence levels on call edges.
 pub mod evidence;
-pub mod environment;
 pub mod fortran;
 pub mod go;
 pub mod go_types;
@@ -59,8 +59,8 @@ pub mod razor;
 pub mod receiver_bindings;
 pub mod receiver_resolution;
 mod registry;
-pub mod test_identities;
 pub mod symbol_metadata;
+pub mod test_identities;
 pub use registry::{Extractor, LANGUAGE_EXTRACTORS, extract, registered_languages};
 pub mod resolution;
 pub mod resolution_facts;

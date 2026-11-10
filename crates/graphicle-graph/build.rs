@@ -60,11 +60,22 @@ fn main() {
     bundled.sort();
     let mut bundle = String::from("const GO_EXPORT_SOURCES: &[(&str, &str)] = &[\n");
     for path in bundled {
-        let name = path.strip_prefix(&helper).unwrap().to_string_lossy().replace('\\', "/");
-        bundle.push_str(&format!("({name:?}, include_str!({:?})),\n", path.to_str().unwrap()));
+        let name = path
+            .strip_prefix(&helper)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
+        bundle.push_str(&format!(
+            "({name:?}, include_str!({:?})),\n",
+            path.to_str().unwrap()
+        ));
     }
     bundle.push_str("];\n");
-    fs::write(PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("go_export_sources.rs"), bundle).unwrap();
+    fs::write(
+        PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("go_export_sources.rs"),
+        bundle,
+    )
+    .unwrap();
     // Query snapshots (src/snapshot.rs) are only valid for the source that
     // wrote them: hash every file under src/ with the package version.
     let mut all = Vec::new();

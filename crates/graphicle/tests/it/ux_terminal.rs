@@ -915,7 +915,10 @@ fn update_without_a_feed_says_how_to_update_and_sync_defaults_to_this_folder() {
         "{again}"
     );
     let nodes = synced["graph"]["nodes"].as_u64().unwrap();
-    assert!(again.contains(&format!("Code graph: {nodes} nodes")), "{again}");
+    assert!(
+        again.contains(&format!("Code graph: {nodes} nodes")),
+        "{again}"
+    );
 }
 
 #[test]

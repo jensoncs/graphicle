@@ -314,7 +314,11 @@ impl<'tree> Extractor<'_, 'tree> {
         line: usize,
         type_params: &HashSet<String>,
     ) {
-        super::symbol_metadata::attach(&mut self.nodes, function, super::symbol_metadata::declaration(node, self.source, "go"));
+        super::symbol_metadata::attach(
+            &mut self.nodes,
+            function,
+            super::symbol_metadata::declaration(node, self.source, "go"),
+        );
         let mut skip = type_param_names(node, self.source);
         skip.extend(type_params.iter().cloned());
         if let Some(params) = node.child_by_field_name("parameters") {

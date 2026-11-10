@@ -15,11 +15,17 @@ pub(super) struct Scope {
 /// to the helper, not crash durability: the authoritative bytes remain in SQLite.
 pub(super) fn materialize(input: &Input) -> Result<tempfile::TempDir> {
     let tree = {
-        #[cfg(unix)] {
+        #[cfg(unix)]
+        {
             use std::os::unix::fs::PermissionsExt;
-            tempfile::Builder::new().permissions(std::fs::Permissions::from_mode(0o700)).tempdir()?
+            tempfile::Builder::new()
+                .permissions(std::fs::Permissions::from_mode(0o700))
+                .tempdir()?
         }
-        #[cfg(not(unix))] { tempfile::tempdir()? }
+        #[cfg(not(unix))]
+        {
+            tempfile::tempdir()?
+        }
     };
     materialize_sources(input, tree.path())?;
     Ok(tree)
@@ -39,7 +45,8 @@ fn materialize_sources(input: &Input, root: &Path) -> Result<()> {
     }
     let mut options = std::fs::OpenOptions::new();
     options.write(true).create_new(true);
-    #[cfg(unix)] {
+    #[cfg(unix)]
+    {
         use std::os::unix::fs::OpenOptionsExt;
         options.mode(0o600);
     }
@@ -69,20 +76,32 @@ pub(super) fn with_exclusions(mut identity: Value, input: &Input) -> Value {
 
 /// Shared native identity: build profile and admitted trust/scope boundaries.
 pub(super) fn package_identity(input: &Input, profile: &Profile, identity: &str) -> String {
-    crate::digest(&with_exclusions(json!({"identity":identity,"profile":profile,
-        "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.policy_sha256])).collect::<Vec<_>>()}),input))
+    crate::digest(&with_exclusions(
+        json!({"identity":identity,"profile":profile,
+        "roots":input.pins.iter().map(|p|json!([p.repository_id,p.directory,p.modules,p.policy_sha256])).collect::<Vec<_>>()}),
+        input,
+    ))
 }
 
 /// Select a bounded working set, not a correctness key. The native helper still
 /// fingerprints every package and transitive import before using any export.
 /// Keep discovery configurations apart, but reuse across ordinary source edits.
 pub(super) fn package_pool_key(input: &Input, profile: &Profile, identity: &str) -> String {
-    let configuration: Vec<_> = input.sources.iter().filter(|(path, _)| {
-        matches!(Path::new(path).file_name().and_then(|name| name.to_str()),
-            Some("go.mod" | "go.sum" | "go.work" | "go.work.sum" | "modules.txt"))
-            || *path == &profile.workspace
-    }).map(|(path, source)| (path, &source.sha)).collect();
-    crate::digest(&json!([package_identity(input, profile, identity), configuration]))
+    let configuration: Vec<_> = input
+        .sources
+        .iter()
+        .filter(|(path, _)| {
+            matches!(
+                Path::new(path).file_name().and_then(|name| name.to_str()),
+                Some("go.mod" | "go.sum" | "go.work" | "go.work.sum" | "modules.txt")
+            ) || *path == &profile.workspace
+        })
+        .map(|(path, source)| (path, &source.sha))
+        .collect();
+    crate::digest(&json!([
+        package_identity(input, profile, identity),
+        configuration
+    ]))
 }
 
 /// Reuse only native Go facts, never the report or its snapshot bindings.
@@ -309,23 +328,35 @@ mod tests {
             let sha = graphicle_memory::text::sha256(text.as_bytes());
             for i in 0..size {
                 let path = format!("pkg/{:04}/file_{i:06}.go", i / 100);
-                sources.sources.insert(format!("app/{path}"), Source {
-                    repository:"repo".into(),path,sha:sha.clone(),content:Content::Text(text.clone()).into(),
-                });
+                sources.sources.insert(
+                    format!("app/{path}"),
+                    Source {
+                        repository: "repo".into(),
+                        path,
+                        sha: sha.clone(),
+                        content: Content::Text(text.clone()).into(),
+                    },
+                );
             }
             let start = std::time::Instant::now();
             let tree = materialize(&sources).unwrap();
             let materialize_ms = start.elapsed().as_secs_f64() * 1000.0;
             let root = tree.path().to_owned();
             // Verify every file outside the timed write/cleanup intervals.
-            for (path,source) in &sources.sources {
-                assert_eq!(std::fs::read(root.join(path)).unwrap(),source.content.bytes());
+            for (path, source) in &sources.sources {
+                assert_eq!(
+                    std::fs::read(root.join(path)).unwrap(),
+                    source.content.bytes()
+                );
             }
             let start = std::time::Instant::now();
             drop(tree);
             let cleanup_ms = start.elapsed().as_secs_f64() * 1000.0;
             assert!(!root.exists());
-            eprintln!("MATERIALIZATION_BENCH={}", json!({"files":size,"bytes_per_file":text.len(),"leaf_directories":size/100,"materialize_ms":materialize_ms,"cleanup_ms":cleanup_ms}));
+            eprintln!(
+                "MATERIALIZATION_BENCH={}",
+                json!({"files":size,"bytes_per_file":text.len(),"leaf_directories":size/100,"materialize_ms":materialize_ms,"cleanup_ms":cleanup_ms})
+            );
         }
     }
 
@@ -333,20 +364,28 @@ mod tests {
     fn compiler_scratch_preserves_exact_bytes_permissions_and_cleanup() {
         let mut sources = input(&[("main.go", "package app\n"), ("vendor/dep/asset", "")]);
         let asset = sources.sources.get_mut("app/vendor/dep/asset").unwrap();
-        asset.content = Content::Binary(vec![0,255,128,10]).into();
+        asset.content = Content::Binary(vec![0, 255, 128, 10]).into();
         asset.sha = graphicle_memory::text::sha256(asset.content.bytes());
         let tree = materialize(&sources).unwrap();
         let root = tree.path().to_owned();
-        #[cfg(unix)] {
+        #[cfg(unix)]
+        {
             use std::os::unix::fs::PermissionsExt;
-            assert_eq!(std::fs::metadata(&root).unwrap().permissions().mode() & 0o777, 0o700);
+            assert_eq!(
+                std::fs::metadata(&root).unwrap().permissions().mode() & 0o777,
+                0o700
+            );
         }
         for (path, source) in &sources.sources {
             let file = root.join(path);
             assert_eq!(std::fs::read(&file).unwrap(), source.content.bytes());
-            #[cfg(unix)] {
+            #[cfg(unix)]
+            {
                 use std::os::unix::fs::PermissionsExt;
-                assert_eq!(std::fs::metadata(file).unwrap().permissions().mode() & 0o777, 0o600);
+                assert_eq!(
+                    std::fs::metadata(file).unwrap().permissions().mode() & 0o777,
+                    0o600
+                );
             }
         }
         drop(tree);
@@ -358,19 +397,28 @@ mod tests {
         let tree = tempfile::tempdir().unwrap();
         let root = tree.path();
         // This path sorts before its descendant, so it becomes a file first.
-        let sources = input(&[("collision", "original"), ("collision/nested.go", "replacement")]);
-        assert!(materialize_sources(&sources,root).is_err());
-        assert_eq!(std::fs::read(root.join("app/collision")).unwrap(), b"original");
+        let sources = input(&[
+            ("collision", "original"),
+            ("collision/nested.go", "replacement"),
+        ]);
+        assert!(materialize_sources(&sources, root).is_err());
+        assert_eq!(
+            std::fs::read(root.join("app/collision")).unwrap(),
+            b"original"
+        );
         assert!(materialize(&sources).is_err());
         // Existing files and directories must survive failed exclusive opens.
         let mut sources = input(&[("existing", "replacement")]);
         sources.pins.clear();
-        std::fs::write(root.join("app/existing"),b"original").unwrap();
-        assert!(materialize_sources(&sources,root).is_err());
-        assert_eq!(std::fs::read(root.join("app/existing")).unwrap(),b"original");
+        std::fs::write(root.join("app/existing"), b"original").unwrap();
+        assert!(materialize_sources(&sources, root).is_err());
+        assert_eq!(
+            std::fs::read(root.join("app/existing")).unwrap(),
+            b"original"
+        );
         std::fs::remove_file(root.join("app/existing")).unwrap();
         std::fs::create_dir(root.join("app/existing")).unwrap();
-        assert!(materialize_sources(&sources,root).is_err());
+        assert!(materialize_sources(&sources, root).is_err());
         assert!(root.join("app/existing").is_dir());
     }
 
@@ -381,32 +429,46 @@ mod tests {
         let tree = tempfile::tempdir().unwrap();
         let outside = tempfile::tempdir().unwrap();
         let target = outside.path().join("target");
-        std::fs::write(&target,b"original").unwrap();
+        std::fs::write(&target, b"original").unwrap();
         let mut sources = input(&[("link", "replacement")]);
         sources.pins.clear(); // Prepopulate the otherwise fresh tree for this race/collision check.
         std::fs::create_dir(tree.path().join("app")).unwrap();
-        symlink(&target,tree.path().join("app/link")).unwrap();
-        assert!(materialize_sources(&sources,tree.path()).is_err());
-        assert_eq!(std::fs::read(&target).unwrap(),b"original");
+        symlink(&target, tree.path().join("app/link")).unwrap();
+        assert!(materialize_sources(&sources, tree.path()).is_err());
+        assert_eq!(std::fs::read(&target).unwrap(), b"original");
     }
 
     #[test]
     fn compiler_scratch_matches_previous_materialization_facts() {
         use std::io::Write;
         let mut sources = input(&[
-            ("go.mod", "module example/app\ngo 1.23\nrequire example/dep v1.0.0\n"),
-            ("vendor/modules.txt", "# example/dep v1.0.0\n## explicit; go 1.23\nexample/dep\n"),
-            ("vendor/example/dep/dep.go", "package dep\nfunc Value() int {return 7}\n"),
-            ("main.go", "package app\nimport (\"embed\"; \"example/dep\")\n//go:embed assets/data.bin\nvar data embed.FS\nfunc Value() int {return dep.Value()}\n"),
+            (
+                "go.mod",
+                "module example/app\ngo 1.23\nrequire example/dep v1.0.0\n",
+            ),
+            (
+                "vendor/modules.txt",
+                "# example/dep v1.0.0\n## explicit; go 1.23\nexample/dep\n",
+            ),
+            (
+                "vendor/example/dep/dep.go",
+                "package dep\nfunc Value() int {return 7}\n",
+            ),
+            (
+                "main.go",
+                "package app\nimport (\"embed\"; \"example/dep\")\n//go:embed assets/data.bin\nvar data embed.FS\nfunc Value() int {return dep.Value()}\n",
+            ),
             ("assets/data.bin", ""),
         ]);
         let asset = sources.sources.get_mut("app/assets/data.bin").unwrap();
-        asset.content = Content::Binary(vec![0,255,128,10]).into();
+        asset.content = Content::Binary(vec![0, 255, 128, 10]).into();
         asset.sha = graphicle_memory::text::sha256(asset.content.bytes());
         // Previous algorithm: temporary file plus no-clobber publication.
         let before = tempfile::tempdir().unwrap();
-        for pin in &sources.pins { std::fs::create_dir(before.path().join(&pin.directory)).unwrap(); }
-        for (path,source) in &sources.sources {
+        for pin in &sources.pins {
+            std::fs::create_dir(before.path().join(&pin.directory)).unwrap();
+        }
+        for (path, source) in &sources.sources {
             let target = before.path().join(path);
             std::fs::create_dir_all(target.parent().unwrap()).unwrap();
             let mut file = tempfile::NamedTempFile::new_in(target.parent().unwrap()).unwrap();
@@ -415,27 +477,42 @@ mod tests {
         }
         let after = materialize(&sources).unwrap();
         let request = json!({"roots":[{"directory":"app","module":"."}],"goos":"linux","goarch":"amd64","tests":false});
-        let old = graphicle::extractors::go_types::review(before.path(),&request).unwrap();
-        let new = graphicle::extractors::go_types::review(after.path(),&request).unwrap();
-        assert_eq!(old,new);
-        assert!(new["worlds"][0]["symbols"].as_array().is_some_and(|symbols| !symbols.is_empty()),"{new}");
+        let old = graphicle::extractors::go_types::review(before.path(), &request).unwrap();
+        let new = graphicle::extractors::go_types::review(after.path(), &request).unwrap();
+        assert_eq!(old, new);
+        assert!(
+            new["worlds"][0]["symbols"]
+                .as_array()
+                .is_some_and(|symbols| !symbols.is_empty()),
+            "{new}"
+        );
     }
 
     #[test]
     fn package_pools_follow_configuration_not_source_or_snapshot_changes() {
-        let profile: Profile = serde_json::from_value(json!({"goos":"linux","goarch":"amd64"})).unwrap();
-        let original = input(&[("code.go","before"),("go.mod","module app")]);
-        let key = package_pool_key(&original,&profile,"helper");
-        let mut changed = input(&[("code.go","after"),("go.mod","module app")]);
+        let profile: Profile =
+            serde_json::from_value(json!({"goos":"linux","goarch":"amd64"})).unwrap();
+        let original = input(&[("code.go", "before"), ("go.mod", "module app")]);
+        let key = package_pool_key(&original, &profile, "helper");
+        let mut changed = input(&[("code.go", "after"), ("go.mod", "module app")]);
         changed.pins[0].snapshot.push('x');
         changed.pins[0].commit.push('x');
-        assert_eq!(key,package_pool_key(&changed,&profile,"helper"));
-        for path in ["go.mod","go.sum","go.work","go.work.sum","vendor/modules.txt"] {
-            assert_ne!(package_pool_key(&input(&[(path,"before")]),&profile,"helper"),
-                package_pool_key(&input(&[(path,"after")]),&profile,"helper"),"{path}");
+        assert_eq!(key, package_pool_key(&changed, &profile, "helper"));
+        for path in [
+            "go.mod",
+            "go.sum",
+            "go.work",
+            "go.work.sum",
+            "vendor/modules.txt",
+        ] {
+            assert_ne!(
+                package_pool_key(&input(&[(path, "before")]), &profile, "helper"),
+                package_pool_key(&input(&[(path, "after")]), &profile, "helper"),
+                "{path}"
+            );
         }
-        for mutation in ["policy","repository","directory","modules","exclusions"] {
-            let mut changed = input(&[("code.go","before"),("go.mod","module app")]);
+        for mutation in ["policy", "repository", "directory", "modules", "exclusions"] {
+            let mut changed = input(&[("code.go", "before"), ("go.mod", "module app")]);
             let pin = &mut changed.pins[0];
             match mutation {
                 "policy" => pin.policy_sha256.push('x'),
@@ -444,15 +521,29 @@ mod tests {
                 "modules" => pin.modules.push("sub".into()),
                 _ => pin.excluded_modules.push("sub".into()),
             }
-            assert_ne!(key,package_pool_key(&changed,&profile,"helper"),"{mutation}");
+            assert_ne!(
+                key,
+                package_pool_key(&changed, &profile, "helper"),
+                "{mutation}"
+            );
         }
-        assert_ne!(key,package_pool_key(&original,&profile,"new-helper"));
+        assert_ne!(key, package_pool_key(&original, &profile, "new-helper"));
         let mut changed_profile = profile.clone();
         changed_profile.tests = true;
-        assert_ne!(key,package_pool_key(&original,&changed_profile,"helper"));
+        assert_ne!(key, package_pool_key(&original, &changed_profile, "helper"));
         changed_profile.workspace = "app/custom.json".into();
-        assert_ne!(package_pool_key(&input(&[("custom.json","before")]),&changed_profile,"helper"),
-            package_pool_key(&input(&[("custom.json","after")]),&changed_profile,"helper"));
+        assert_ne!(
+            package_pool_key(
+                &input(&[("custom.json", "before")]),
+                &changed_profile,
+                "helper"
+            ),
+            package_pool_key(
+                &input(&[("custom.json", "after")]),
+                &changed_profile,
+                "helper"
+            )
+        );
     }
 
     #[test]

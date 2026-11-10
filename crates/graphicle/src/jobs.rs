@@ -370,11 +370,20 @@ pub fn enqueue_projection(
 /// neither failed by its own lease check nor taken over by another process.
 pub const LEASE_HEARTBEAT: std::time::Duration = std::time::Duration::from_secs(60);
 
+/// How long a lease beat waits for the store's write lock: longer than a
+/// SQLite checkpoint holds it ([`crate::store::wal::CHECKPOINT_WAIT`]).
+const BEAT_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+/// How soon a beat that could not renew the lease tries again.
+const BEAT_RETRY: std::time::Duration = std::time::Duration::from_secs(5);
+
 /// Run `work` while a thread renews `job`'s lease every `every` ([`renew`]:
 /// only while the job is still `running` under this lease, so a job that was
-/// cancelled or taken over is left alone). A beat that finds the store busy
-/// for a second is skipped; the next one tries again. Returns once `work`
-/// has returned and the heartbeat has stopped.
+/// cancelled or taken over is left alone). A beat waits up to [`BEAT_WAIT`]
+/// for the write lock; one that still finds the store busy is tried again
+/// after [`BEAT_RETRY`], so a store that is busy at a few beats does not let
+/// the lease expire and another process build the same graph again.
+/// Returns once `work` has returned and the heartbeat has stopped (after at
+/// most [`BEAT_WAIT`] more, when a beat is waiting for the lock).
 pub fn with_lease_heartbeat<T>(
     store: &Store,
     job: &Job,
@@ -384,11 +393,20 @@ pub fn with_lease_heartbeat<T>(
     let (done, beats) = std::sync::mpsc::channel::<()>();
     std::thread::scope(|scope| {
         scope.spawn(move || {
-            while let Err(std::sync::mpsc::RecvTimeoutError::Timeout) = beats.recv_timeout(every) {
-                if let Ok(db) = store.connect() {
-                    let _ = db.busy_timeout(std::time::Duration::from_secs(1));
-                    let _ = renew(&db, job);
-                }
+            let mut wait = every;
+            while let Err(std::sync::mpsc::RecvTimeoutError::Timeout) = beats.recv_timeout(wait) {
+                let renewed = store
+                    .connect()
+                    .and_then(|db| {
+                        db.busy_timeout(BEAT_WAIT)?;
+                        renew(&db, job)
+                    })
+                    .is_ok();
+                wait = if renewed {
+                    every
+                } else {
+                    every.min(BEAT_RETRY)
+                };
             }
         });
         let value = work();
@@ -434,17 +452,24 @@ fn project_job(store: &Store, job: &Job) -> Result<Value> {
         Ok((p, identifier, current))
     };
     let skipped = |current: &str| json!({"skipped":true,"reason":"head set changed before projection","episode":expected,"current_episode":current});
-    // Build on a read-only snapshot: extraction never holds the write lock,
-    // so other writers are not kept waiting while a large repository parses.
-    let built = store.read(|db| {
+    // Copy sources under a snapshot, then release it before parsing. Keeping
+    // the snapshot through CPU work pins the WAL even though extraction no
+    // longer reads SQLite. Waiting for the extraction guard happens after
+    // the snapshot closes as well; the source-tree file lock stays held.
+    let prepared = store.read(|db| {
         let (_, identifier, current) = scope(db)?;
         if current != expected {
             return Ok(Err(current));
         }
-        Ok(Ok(crate::graph_projection::prebuild(db, &identifier)?))
+        Ok(Ok(crate::graph_projection::prepare_prebuild(
+            db,
+            &identifier,
+        )?))
     })?;
-    let built = match built {
-        Ok(built) => built,
+    let built = match prepared {
+        Ok(prepared) => prepared
+            .map(|prepared| crate::phase::phase("graph_build", || prepared.build()))
+            .transpose()?,
         Err(current) => return Ok(skipped(&current)),
     };
     store.transaction(|db| {

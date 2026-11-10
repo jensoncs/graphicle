@@ -544,24 +544,50 @@ impl<'tree> Extractor<'tree, '_> {
 /// Dynamic command names, eval, and computed source paths cannot establish a
 /// static dependency boundary. Variable arguments to ordinary commands are fine.
 pub fn has_static_dispatch(source: &str) -> bool {
-    if source.len() > 1_048_576 { return false; }
+    if source.len() > 1_048_576 {
+        return false;
+    }
     let mut parser = tree_sitter::Parser::new();
-    if parser.set_language(&tree_sitter_bash::LANGUAGE.into()).is_err() { return false; }
-    let Some(tree) = parser.parse(source,None) else { return false; };
-    if tree.root_node().has_error() { return false; }
+    if parser
+        .set_language(&tree_sitter_bash::LANGUAGE.into())
+        .is_err()
+    {
+        return false;
+    }
+    let Some(tree) = parser.parse(source, None) else {
+        return false;
+    };
+    if tree.root_node().has_error() {
+        return false;
+    }
     let mut pending = vec![tree.root_node()];
     let mut visits = 0;
     while let Some(node) = pending.pop() {
         visits += 1;
-        if visits > 4096 { return false; }
+        if visits > 4096 {
+            return false;
+        }
         if node.kind() == "command" {
-            let Some(name) = node.child_by_field_name("name").or_else(||node.child(0)) else { return false; };
-            let raw = read_text(name,source.as_bytes());
-            let command = raw.trim_matches(['\'','"']);
-            if command.contains(['$','`','\\']) || command == "eval" { return false; }
+            let Some(name) = node.child_by_field_name("name").or_else(|| node.child(0)) else {
+                return false;
+            };
+            let raw = read_text(name, source.as_bytes());
+            let command = raw.trim_matches(['\'', '"']);
+            if command.contains(['$', '`', '\\']) || command == "eval" {
+                return false;
+            }
             if SOURCE_COMMANDS.contains(&command) {
-                let args: Vec<_> = children(node).filter(|n| matches!(n.kind(),"word"|"string"|"raw_string"|"concatenation") && *n != name).collect();
-                if args.len() != 1 || read_text(args[0],source.as_bytes()).contains(['$','`','\\']) { return false; }
+                let args: Vec<_> = children(node)
+                    .filter(|n| {
+                        matches!(n.kind(), "word" | "string" | "raw_string" | "concatenation")
+                            && *n != name
+                    })
+                    .collect();
+                if args.len() != 1
+                    || read_text(args[0], source.as_bytes()).contains(['$', '`', '\\'])
+                {
+                    return false;
+                }
             }
         }
         pending.extend(children(node));
@@ -573,28 +599,44 @@ pub fn has_static_dispatch(source: &str) -> bool {
 /// shell code. Ambiguous caps, comments, malformed excerpts and computed bounds
 /// keep ordinary retrieval. This proves a source literal, not a runtime result.
 pub fn has_literal_cap(source: &str, variable: &str) -> bool {
-    static CAP: LazyLock<Regex> = LazyLock::new(|| Regex::new(concat!(
+    static CAP: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(concat!(
         r"(?s)^if\s+\(\(\s*(?P<test>[a-zA-Z_][a-zA-Z0-9_]*)\s*>\s*(?P<bound>[0-9]+)\s*\)\)\s*;?\s*then\s+",
         r"(?P<target>[a-zA-Z_][a-zA-Z0-9_]*)=(?P<value>[0-9]+)\s*;?\s*fi$"
-    )).expect("literal shell clamp"));
-    if source.len() > 1_048_576 { return false; }
+    )).expect("literal shell clamp")
+    });
+    if source.len() > 1_048_576 {
+        return false;
+    }
     let mut parser = tree_sitter::Parser::new();
-    if parser.set_language(&tree_sitter_bash::LANGUAGE.into()).is_err() { return false; }
-    let Some(tree) = parser.parse(source,None) else { return false; };
-    if tree.root_node().has_error() { return false; }
+    if parser
+        .set_language(&tree_sitter_bash::LANGUAGE.into())
+        .is_err()
+    {
+        return false;
+    }
+    let Some(tree) = parser.parse(source, None) else {
+        return false;
+    };
+    if tree.root_node().has_error() {
+        return false;
+    }
     let mut pending = vec![tree.root_node()];
     let mut matches = 0;
     let mut visits = 0;
     while let Some(node) = pending.pop() {
         visits += 1;
-        if visits > 4096 { return false; }
+        if visits > 4096 {
+            return false;
+        }
         if node.kind() == "if_statement" {
-            let text = read_text(node,source.as_bytes());
+            let text = read_text(node, source.as_bytes());
             if let Some(c) = CAP.captures(text.trim())
                 && &c["test"] == variable && &c["target"] == variable
                 && c["bound"] == c["value"] && c["bound"].parse::<u64>().is_ok()
                 // Leading-zero arithmetic literals may be octal (or invalid).
-                && (c["bound"].len() == 1 || !c["bound"].starts_with('0')) {
+                && (c["bound"].len() == 1 || !c["bound"].starts_with('0'))
+            {
                 matches += 1;
             } else {
                 // A second conditional assignment may represent another or a
@@ -602,10 +644,15 @@ pub fn has_literal_cap(source: &str, variable: &str) -> bool {
                 let mut branch = vec![node];
                 while let Some(child) = branch.pop() {
                     visits += 1;
-                    if visits > 4096 { return false; }
+                    if visits > 4096 {
+                        return false;
+                    }
                     if child.kind() == "variable_assignment"
-                        && child.child_by_field_name("name").or_else(|| child.named_child(0))
-                            .is_some_and(|name| read_text(name,source.as_bytes()) == variable) {
+                        && child
+                            .child_by_field_name("name")
+                            .or_else(|| child.named_child(0))
+                            .is_some_and(|name| read_text(name, source.as_bytes()) == variable)
+                    {
                         return false;
                     }
                     branch.extend(children(child));

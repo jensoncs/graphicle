@@ -442,8 +442,9 @@ fn over_budget_graph_uses_saved_relationships_and_keeps_fallbacks() {
         "file:notes/2","file:notes/3","file:notes/4"]}));
     assert_eq!(filtered["coverage"]["source_documents"], total - 1);
     assert_eq!(filtered["mechanisms"]["graph_local_status"], "searched");
+    // Assert what this request loaded, not continued registry residency:
+    // parallel tests can evict the handle from the process-wide eight-entry LRU.
     assert_eq!(snap.graph["graph_nodes"], 2);
-    assert!(registry().get(&reference).is_ok());
     for damage in ["missing", "truncated", "corrupt"] {
         registry().close(&reference);
         match damage {
@@ -458,7 +459,6 @@ fn over_budget_graph_uses_saved_relationships_and_keeps_fallbacks() {
         }
         let (snap, actual) = run(json!({}));
         assert_eq!(snap.graph["graph_nodes"], 2, "{damage}");
-        assert!(registry().get(&reference).is_ok(), "{damage}");
         assert_eq!(actual, expected, "{damage}");
         std::fs::write(&edges, &saved).unwrap();
     }

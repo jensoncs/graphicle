@@ -5,26 +5,26 @@ use graphicle_runtime::{
 };
 use serde_json::{Value, json};
 
-#[path = "service_boundaries.rs"]
-mod service_boundaries;
-#[path = "python_environment_impact.rs"]
-mod python_environment_impact;
-#[path = "environment_impact.rs"]
-mod environment_impact;
 #[path = "basic_impact.rs"]
 mod basic_impact;
-#[path = "source_admission.rs"]
-mod source_admission;
-#[path = "go_admission.rs"]
-mod go_admission;
-#[path = "unsupported_inputs.rs"]
-mod unsupported_inputs;
-#[path = "sync_diagnostics.rs"]
-mod sync_diagnostics;
 #[path = "compiler_cache.rs"]
 mod compiler_cache;
+#[path = "environment_impact.rs"]
+mod environment_impact;
+#[path = "go_admission.rs"]
+mod go_admission;
 #[path = "provided_diff.rs"]
 mod provided_diff;
+#[path = "python_environment_impact.rs"]
+mod python_environment_impact;
+#[path = "service_boundaries.rs"]
+mod service_boundaries;
+#[path = "source_admission.rs"]
+mod source_admission;
+#[path = "sync_diagnostics.rs"]
+mod sync_diagnostics;
+#[path = "unsupported_inputs.rs"]
+mod unsupported_inputs;
 
 struct Fixture {
     _dir: tempfile::TempDir,
@@ -400,27 +400,73 @@ fn compiler_cache_reuses_exact_inputs_and_forgets_removed_snapshots() {
 fn cached_type_failures_stay_incomplete_and_source_repairs_invalidate_them() {
     let f = Fixture::new();
     let repo = f.repo("qualified-facts");
-    let a = f.pin(&repo,"app",'a', &[("go.mod",MOD),("code.go","package tax\nfunc F() int { return omitted() }\n")]);
-    let b = f.pin(&repo,"app",'b', &[("go.mod",MOD),("code.go","package tax\nfunc F() int { return omitted()+1 }\n")]);
-    let args = request(&repo,vec![a.clone()],vec![b.clone()]);
+    let a = f.pin(
+        &repo,
+        "app",
+        'a',
+        &[
+            ("go.mod", MOD),
+            (
+                "code.go",
+                "package tax\nfunc F() int { return omitted() }\n",
+            ),
+        ],
+    );
+    let b = f.pin(
+        &repo,
+        "app",
+        'b',
+        &[
+            ("go.mod", MOD),
+            (
+                "code.go",
+                "package tax\nfunc F() int { return omitted()+1 }\n",
+            ),
+        ],
+    );
+    let args = request(&repo, vec![a.clone()], vec![b.clone()]);
     let cold = f.run(&args);
     let warm = f.run(&args);
-    assert_eq!(warm["analysis_cache"]["base_hit"],true);
-    assert_eq!(warm["analysis_cache"]["head_hit"],true);
-    assert_eq!(cold["packet_id"],warm["packet_id"]);
-    assert_eq!(warm["impact"],"incomplete");
-    assert_eq!(warm["coverage"]["complete"],false);
-    assert!(warm["coverage"]["issues"].to_string().contains("incomplete_package"));
-    let fixed = f.pin(&repo,"app",'c', &[("go.mod",MOD),("code.go","package tax\nfunc F() int { return omitted()+1 }\n"),("restored.go","package tax\nfunc omitted() int { return 3 }\n")]);
-    let repaired = f.run(&request(&repo,vec![a],vec![fixed]));
-    assert_eq!(repaired["analysis_cache"]["base_hit"],true);
-    assert_eq!(repaired["analysis_cache"]["head_hit"],false);
-    let malformed = f.pin(&repo,"app",'d', &[("go.mod",MOD),("code.go","package tax\nfunc broken(\n")]);
-    let bad_args = request(&repo,vec![b],vec![malformed]);
+    assert_eq!(warm["analysis_cache"]["base_hit"], true);
+    assert_eq!(warm["analysis_cache"]["head_hit"], true);
+    assert_eq!(cold["packet_id"], warm["packet_id"]);
+    assert_eq!(warm["impact"], "incomplete");
+    assert_eq!(warm["coverage"]["complete"], false);
+    assert!(
+        warm["coverage"]["issues"]
+            .to_string()
+            .contains("incomplete_package")
+    );
+    let fixed = f.pin(
+        &repo,
+        "app",
+        'c',
+        &[
+            ("go.mod", MOD),
+            (
+                "code.go",
+                "package tax\nfunc F() int { return omitted()+1 }\n",
+            ),
+            (
+                "restored.go",
+                "package tax\nfunc omitted() int { return 3 }\n",
+            ),
+        ],
+    );
+    let repaired = f.run(&request(&repo, vec![a], vec![fixed]));
+    assert_eq!(repaired["analysis_cache"]["base_hit"], true);
+    assert_eq!(repaired["analysis_cache"]["head_hit"], false);
+    let malformed = f.pin(
+        &repo,
+        "app",
+        'd',
+        &[("go.mod", MOD), ("code.go", "package tax\nfunc broken(\n")],
+    );
+    let bad_args = request(&repo, vec![b], vec![malformed]);
     f.run(&bad_args);
     let again = f.run(&bad_args);
-    assert_eq!(again["analysis_cache"]["head_hit"],false);
-    assert_eq!(again["coverage"]["complete"],false);
+    assert_eq!(again["analysis_cache"]["head_hit"], false);
+    assert_eq!(again["coverage"]["complete"], false);
 }
 
 #[test]
@@ -1214,8 +1260,12 @@ fn review_api_and_mcp_preserve_project_confinement() {
     args["business_context"] = json!({});
     args["compact_provenance"] = json!(true);
     let app = api::App::new(f.store.clone(), model::Config::default(), vec![]).unwrap();
-    let capabilities = api::command(&app, &f.workspace, &f.token, "build.info", &json!({})).unwrap();
-    assert_eq!(capabilities["review_compact_provenance"], "graphicle.service-provenance.v1");
+    let capabilities =
+        api::command(&app, &f.workspace, &f.token, "build.info", &json!({})).unwrap();
+    assert_eq!(
+        capabilities["review_compact_provenance"],
+        "graphicle.service-provenance.v1"
+    );
     let packet = api::command(&app, &f.workspace, &f.token, "graph.impact", &args).unwrap();
     assert_eq!(packet["impact"], "no_changes_in_scope");
     let mut mcp_args = args;
@@ -2105,16 +2155,39 @@ fn historical_coupling_adds_exact_context_and_explains_review_priority() {
 
 #[test]
 fn callback_candidates_expand_impact_but_never_claim_complete_dispatch() {
-    let f=Fixture::new();let repo=f.repo("callback-impact");
-    let code="package tax\nfunc A() int {return 1}\nfunc invoke(cb func() int) int {return cb()}\nfunc Handle() int {return invoke(A)}\n";
-    let base=f.pin(&repo,"app",'a',&[("go.mod",MOD),("main.go",code)]);
-    let changed=code.replace("return 1","return 2");let head=f.pin(&repo,"app",'b',&[("go.mod",MOD),("main.go",&changed)]);
-    let mut args=request(&repo,vec![base],vec![head]);
-    let full=f.run(&args);assert!(has(&full,"head",".invoke"));assert!(has(&full,"head",".Handle"));assert_eq!(full["coverage"]["complete"],false);
-    assert!(full["coverage"]["issues"].to_string().contains("unresolved_dynamic_target"));
-    let entry=full["entries"].as_array().unwrap().iter().find(|e|e["side"]=="head" && s(e,"name").ends_with(".invoke")).unwrap();
-    let reason=entry["reasons"].as_array().unwrap().iter().find(|r|r.get("execution_flow").is_some()).unwrap();
-    assert_eq!(reason["steps"][0]["relation"],"may_call");assert_eq!(reason["steps"][0]["citation"]["commit"],"b".repeat(40));assert_eq!(reason["execution_flow"]["observed"],false);
-    args["previous_packet_id"]=full["packet_id"].clone();let delta=f.run(&args);
-    assert_eq!(full["execution_flows"],delta["execution_flows"]);assert_eq!(full["context_order"],delta["context_order"]);
+    let f = Fixture::new();
+    let repo = f.repo("callback-impact");
+    let code = "package tax\nfunc A() int {return 1}\nfunc invoke(cb func() int) int {return cb()}\nfunc Handle() int {return invoke(A)}\n";
+    let base = f.pin(&repo, "app", 'a', &[("go.mod", MOD), ("main.go", code)]);
+    let changed = code.replace("return 1", "return 2");
+    let head = f.pin(&repo, "app", 'b', &[("go.mod", MOD), ("main.go", &changed)]);
+    let mut args = request(&repo, vec![base], vec![head]);
+    let full = f.run(&args);
+    assert!(has(&full, "head", ".invoke"));
+    assert!(has(&full, "head", ".Handle"));
+    assert_eq!(full["coverage"]["complete"], false);
+    assert!(
+        full["coverage"]["issues"]
+            .to_string()
+            .contains("unresolved_dynamic_target")
+    );
+    let entry = full["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["side"] == "head" && s(e, "name").ends_with(".invoke"))
+        .unwrap();
+    let reason = entry["reasons"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r.get("execution_flow").is_some())
+        .unwrap();
+    assert_eq!(reason["steps"][0]["relation"], "may_call");
+    assert_eq!(reason["steps"][0]["citation"]["commit"], "b".repeat(40));
+    assert_eq!(reason["execution_flow"]["observed"], false);
+    args["previous_packet_id"] = full["packet_id"].clone();
+    let delta = f.run(&args);
+    assert_eq!(full["execution_flows"], delta["execution_flows"]);
+    assert_eq!(full["context_order"], delta["context_order"]);
 }

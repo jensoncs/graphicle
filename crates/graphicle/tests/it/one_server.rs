@@ -296,10 +296,17 @@ fn every_flag_combination_lists_each_tool_once() {
         .collect();
     assert_eq!(core.len(), 29, "{core:?}");
     let navigation_end = 15 + graph_tools::NAVIGATION.len();
-    assert_eq!(core[15..navigation_end], graph_tools::NAVIGATION.map(String::from));
+    assert_eq!(
+        core[15..navigation_end],
+        graph_tools::NAVIGATION.map(String::from)
+    );
     assert_eq!(core[navigation_end], "review_changes");
     assert_eq!(core[navigation_end + 1], "pack");
-    assert_eq!(listed[..core.len()], core[..], "the core tools lead the list");
+    assert_eq!(
+        listed[..core.len()],
+        core[..],
+        "the core tools lead the list"
+    );
     assert!(!listed.contains(&"list_projects".to_string()));
     let pull = api::mcp_tools_for(
         false,
@@ -2542,28 +2549,66 @@ fn the_identifier_route_keeps_to_the_budget() {
 
 #[test]
 fn structured_symbols_and_flows_are_cited_authorized_and_revision_bound() {
-    let source="@route.post('/orders')\ndef handle(tenant: Tenant):\n    return validate(tenant)\n\ndef validate(tenant):\n    return tenant\n";
-    let f=Fixture::new(&[("app.py",source)]);
-    let run=|tool:&str,mut args:Value| {args["tool"]=json!(tool);args["repository_id"]=json!(f.repo);graph_tools::call(&f.store,&f.workspace,&f.key,&args).unwrap()};
-    let found=run("search_symbols",json!({"parameter_name":"tenant","parameter_type":"Tenant","decorator":"route.post"}));
-    assert_eq!(found["matches"].as_array().unwrap().len(),1,"{found}");
-    assert_eq!(found["nodes"][0]["checked"],true);
-    let id=found["matches"][0]["node_id"].clone();
-    let flows=run("execution_flows",json!({"node_id":id}));
-    assert!(!flows["flows"].as_array().unwrap().is_empty(),"{flows}");assert_eq!(flows["flows"][0]["observed"],false);
-    let old=found["episode"].clone();
-    f.sync(&f.repo,&[("app.py","def handle(account):\n    return account\n")]);
-    jobs::drain_projection(&f.store,&f.repo).unwrap();
-    let current=run("search_symbols",json!({"parameter_name":"tenant"}));assert_eq!(current["matches"],json!([]));
-    let earlier=run("search_symbols",json!({"parameter_name":"tenant","as_of":old}));assert_eq!(earlier["nodes"][0]["checked"],false);assert_eq!(earlier["coverage"]["complete"],false);
-    assert!(graph_tools::call(&f.store,&f.workspace,"invalid-capability",&json!({"tool":"search_symbols","repository_id":f.repo,"parameter_name":"tenant"})).is_err());
-    let app=f.app();let spec=rpc(&f,&app,&f.key,"tools/list",json!({}));
-    for name in ["search_symbols","execution_flows"] {assert!(spec["result"]["tools"].as_array().unwrap().iter().any(|t|t["name"]==name),"{spec}");}
+    let source = "@route.post('/orders')\ndef handle(tenant: Tenant):\n    return validate(tenant)\n\ndef validate(tenant):\n    return tenant\n";
+    let f = Fixture::new(&[("app.py", source)]);
+    let run = |tool: &str, mut args: Value| {
+        args["tool"] = json!(tool);
+        args["repository_id"] = json!(f.repo);
+        graph_tools::call(&f.store, &f.workspace, &f.key, &args).unwrap()
+    };
+    let found = run(
+        "search_symbols",
+        json!({"parameter_name":"tenant","parameter_type":"Tenant","decorator":"route.post"}),
+    );
+    assert_eq!(found["matches"].as_array().unwrap().len(), 1, "{found}");
+    assert_eq!(found["nodes"][0]["checked"], true);
+    let id = found["matches"][0]["node_id"].clone();
+    let flows = run("execution_flows", json!({"node_id":id}));
+    assert!(!flows["flows"].as_array().unwrap().is_empty(), "{flows}");
+    assert_eq!(flows["flows"][0]["observed"], false);
+    let old = found["episode"].clone();
+    f.sync(
+        &f.repo,
+        &[("app.py", "def handle(account):\n    return account\n")],
+    );
+    jobs::drain_projection(&f.store, &f.repo).unwrap();
+    let current = run("search_symbols", json!({"parameter_name":"tenant"}));
+    assert_eq!(current["matches"], json!([]));
+    let earlier = run(
+        "search_symbols",
+        json!({"parameter_name":"tenant","as_of":old}),
+    );
+    assert_eq!(earlier["nodes"][0]["checked"], false);
+    assert_eq!(earlier["coverage"]["complete"], false);
+    assert!(
+        graph_tools::call(
+            &f.store,
+            &f.workspace,
+            "invalid-capability",
+            &json!({"tool":"search_symbols","repository_id":f.repo,"parameter_name":"tenant"})
+        )
+        .is_err()
+    );
+    let app = f.app();
+    let spec = rpc(&f, &app, &f.key, "tools/list", json!({}));
+    for name in ["search_symbols", "execution_flows"] {
+        assert!(
+            spec["result"]["tools"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|t| t["name"] == name),
+            "{spec}"
+        );
+    }
 }
 
 #[test]
 fn entry_points_are_authorized_paged_and_snapshot_bound() {
-    let f = Fixture::new(&[("app.py", "def handle():\n    return helper()\n\ndef helper():\n    return 1\n")]);
+    let f = Fixture::new(&[(
+        "app.py",
+        "def handle():\n    return helper()\n\ndef helper():\n    return 1\n",
+    )]);
     let run = |args: Value| {
         let mut args = args;
         args["tool"] = json!("entry_points");
@@ -2584,30 +2629,95 @@ fn entry_points_are_authorized_paged_and_snapshot_bound() {
     assert_eq!(historic["entries"][0]["label"], "handle()");
     assert_eq!(historic["nodes"][0]["checked"], false);
     let other = f.store.create_workspace("Other viewer").unwrap();
-    assert!(graph_tools::call(&f.store, &f.workspace, s(&other,"capability"),
-        &json!({"tool":"entry_points","repository_id":f.repo})).is_err());
-    assert!(graph_tools::call(&f.store, &f.workspace, &f.key,
-        &json!({"tool":"entry_points","repository_id":"missing-repository"})).is_err());
+    assert!(
+        graph_tools::call(
+            &f.store,
+            &f.workspace,
+            s(&other, "capability"),
+            &json!({"tool":"entry_points","repository_id":f.repo})
+        )
+        .is_err()
+    );
+    assert!(
+        graph_tools::call(
+            &f.store,
+            &f.workspace,
+            &f.key,
+            &json!({"tool":"entry_points","repository_id":"missing-repository"})
+        )
+        .is_err()
+    );
 }
 
 #[test]
 fn statement_and_architecture_previews_preserve_permissions_sources_and_episodes() {
-    let source="package app\nfunc Other() {}; func Check(value int, allowed bool) int { if !allowed { return 0 }; return value+1 }\n";
-    let f=Fixture::new(&[("go.mod","module example/app\ngo 1.23\n"),("main.go",source)]);
-    let run=|tool:&str,mut args:Value| {args["tool"]=json!(tool);args["repository_id"]=json!(f.repo);graph_tools::call(&f.store,&f.workspace,&f.key,&args).unwrap()};
-    let found=run("search_symbols",json!({"parameter_name":"value"}));
-    let id=found["matches"][0]["node_id"].clone();assert!(id.is_string(),"{found}");
-    let flow=run("statement_flow",json!({"node_id":id,"goos":"linux","goarch":"amd64"}));
-    assert_eq!(flow["function"],"Check","same-line declarations must use exact AST spans");
-    assert_eq!(flow["coverage"]["complete"],true,"{flow}");assert_eq!(flow["coverage"]["current_sources_match"],true);
+    let source = "package app\nfunc Other() {}; func Check(value int, allowed bool) int { if !allowed { return 0 }; return value+1 }\n";
+    let f = Fixture::new(&[
+        ("go.mod", "module example/app\ngo 1.23\n"),
+        ("main.go", source),
+    ]);
+    let run = |tool: &str, mut args: Value| {
+        args["tool"] = json!(tool);
+        args["repository_id"] = json!(f.repo);
+        graph_tools::call(&f.store, &f.workspace, &f.key, &args).unwrap()
+    };
+    let found = run("search_symbols", json!({"parameter_name":"value"}));
+    let id = found["matches"][0]["node_id"].clone();
+    assert!(id.is_string(), "{found}");
+    let flow = run(
+        "statement_flow",
+        json!({"node_id":id,"goos":"linux","goarch":"amd64"}),
+    );
+    assert_eq!(
+        flow["function"], "Check",
+        "same-line declarations must use exact AST spans"
+    );
+    assert_eq!(flow["coverage"]["complete"], true, "{flow}");
+    assert_eq!(flow["coverage"]["current_sources_match"], true);
     assert!(!flow["gates"].as_array().unwrap().is_empty());
-    for node in flow["statements"].as_array().unwrap() {assert_eq!(node["citation"]["repository_id"],f.repo);assert_eq!(node["citation"]["episode"],found["episode"]);assert!(node["citation"]["sha256"].is_string());}
-    let before=run("get_node",json!({"node_id":id}));
-    let what_if=run("architecture_preview",json!({"modules":{id.as_str().unwrap():"new-module"}}));
-    assert_eq!(what_if["applied"],false);assert_eq!(what_if["nodes"][0]["checked"],true);
-    assert_eq!(run("get_node",json!({"node_id":id})),before);
-    for tool in ["statement_flow","architecture_preview"] {assert!(graph_tools::call(&f.store,&f.workspace,"wrong-capability",&json!({"tool":tool,"repository_id":f.repo,"node_id":id})).is_err());}
-    f.sync(&f.repo,&[("go.mod","module example/app\ngo 1.23\n"),("main.go",&source.replace("value+1","value+2"))]);jobs::drain_projection(&f.store,&f.repo).unwrap();
-    let historical=run("statement_flow",json!({"node_id":id,"as_of":found["episode"]}));assert_eq!(historical["coverage"]["current_sources_match"],false);assert_eq!(historical["coverage"]["complete"],false);
-    assert!(historical["statements"].as_array().unwrap().iter().any(|n|n["text"].as_str().is_some_and(|t|t.contains("value+1"))));
+    for node in flow["statements"].as_array().unwrap() {
+        assert_eq!(node["citation"]["repository_id"], f.repo);
+        assert_eq!(node["citation"]["episode"], found["episode"]);
+        assert!(node["citation"]["sha256"].is_string());
+    }
+    let before = run("get_node", json!({"node_id":id}));
+    let what_if = run(
+        "architecture_preview",
+        json!({"modules":{id.as_str().unwrap():"new-module"}}),
+    );
+    assert_eq!(what_if["applied"], false);
+    assert_eq!(what_if["nodes"][0]["checked"], true);
+    assert_eq!(run("get_node", json!({"node_id":id})), before);
+    for tool in ["statement_flow", "architecture_preview"] {
+        assert!(
+            graph_tools::call(
+                &f.store,
+                &f.workspace,
+                "wrong-capability",
+                &json!({"tool":tool,"repository_id":f.repo,"node_id":id})
+            )
+            .is_err()
+        );
+    }
+    f.sync(
+        &f.repo,
+        &[
+            ("go.mod", "module example/app\ngo 1.23\n"),
+            ("main.go", &source.replace("value+1", "value+2")),
+        ],
+    );
+    jobs::drain_projection(&f.store, &f.repo).unwrap();
+    let historical = run(
+        "statement_flow",
+        json!({"node_id":id,"as_of":found["episode"]}),
+    );
+    assert_eq!(historical["coverage"]["current_sources_match"], false);
+    assert_eq!(historical["coverage"]["complete"], false);
+    assert!(
+        historical["statements"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|n| n["text"].as_str().is_some_and(|t| t.contains("value+1")))
+    );
 }

@@ -1455,8 +1455,8 @@ impl QueryFile {
             }
             previous = Some(index);
             let attributes = self.attributes(index)?;
-            if !crate::code_graph_arm::symbol_location(&attributes)
-                .is_some_and(|(file, _)| file == path)
+            if crate::code_graph_arm::symbol_location(&attributes)
+                .is_none_or(|(file, _)| file != path)
             {
                 return Err(self.mark());
             }

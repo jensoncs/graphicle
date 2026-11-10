@@ -1,6 +1,6 @@
 //! Explain analysis failures without confusing reference counts with packages.
-use super::{Analysis, s};
 use super::packing;
+use super::{Analysis, s};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -26,18 +26,43 @@ pub(super) fn compact_examples(coverage: &mut Value) {
             value[omitted] = value[total].clone();
         }
     }
-    clear(&mut coverage["issue_histogram"], "unsupported_examples", "unsupported_examples_omitted", "unsupported_count");
+    clear(
+        &mut coverage["issue_histogram"],
+        "unsupported_examples",
+        "unsupported_examples_omitted",
+        "unsupported_count",
+    );
     for side in ["base", "head"] {
-        let Some(diagnostics) = coverage.get_mut("analysis_diagnostics").and_then(|v| v.get_mut(side)) else { continue; };
+        let Some(diagnostics) = coverage
+            .get_mut("analysis_diagnostics")
+            .and_then(|v| v.get_mut(side))
+        else {
+            continue;
+        };
         if let Some(go) = diagnostics.get_mut("go") {
-            clear(go, "examples", "diagnostic_examples_omitted", "diagnostic_count");
-            clear(go, "dependency_boundary_examples", "dependency_boundary_examples_omitted", "resolved_dependency_references");
+            clear(
+                go,
+                "examples",
+                "diagnostic_examples_omitted",
+                "diagnostic_count",
+            );
+            clear(
+                go,
+                "dependency_boundary_examples",
+                "dependency_boundary_examples_omitted",
+                "resolved_dependency_references",
+            );
             if let Some(failures) = go.get_mut("package_failures") {
                 clear(failures, "examples", "examples_omitted", "count");
             }
         }
         if let Some(python) = diagnostics.get_mut("python_environment") {
-            clear(python, "examples", "file_examples_omitted", "incomplete_files");
+            clear(
+                python,
+                "examples",
+                "file_examples_omitted",
+                "incomplete_files",
+            );
         }
         if let Some(imports) = diagnostics.get_mut("python_imports") {
             clear(imports, "modules", "module_groups_omitted", "module_groups");
@@ -138,10 +163,18 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
     let mut package_failures = BTreeMap::<(&str, &str), BTreeSet<&str>>::new();
     for issue in &analysis.issues {
         if let Some((status, package)) = s(issue, "reason").split_once(':')
-            && matches!(status, "incomplete_package" | "incomplete_discovery" | "type_check_failed" | "unavailable_external_package")
+            && matches!(
+                status,
+                "incomplete_package"
+                    | "incomplete_discovery"
+                    | "type_check_failed"
+                    | "unavailable_external_package"
+            )
         {
-            package_failures.entry((issue["detail"].as_str().unwrap_or(""), package))
-                .or_default().insert(status);
+            package_failures
+                .entry((issue["detail"].as_str().unwrap_or(""), package))
+                .or_default()
+                .insert(status);
         }
     }
     let failures: Vec<_> = package_failures.into_iter().map(|((world, package), status)| {
