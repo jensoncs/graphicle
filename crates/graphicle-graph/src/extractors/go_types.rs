@@ -253,9 +253,9 @@ fn native_review_cache(line: &str) -> Option<Value> {
     }
     for field in ["key", "identity", "configuration_sha256"] {
         let text = object.get(field)?.as_str()?;
-        if !text.is_empty()
-            && !(field == "key" && text == "unavailable")
-            && !(text.len() == 64
+        if !(text.is_empty()
+            || field == "key" && text == "unavailable"
+            || text.len() == 64
                 && text
                     .bytes()
                     .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b)))

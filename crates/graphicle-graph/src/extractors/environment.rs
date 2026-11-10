@@ -62,14 +62,13 @@ impl MarkedEventReceiver for Guard {
                 });
             }
             Event::MappingEnd | Event::SequenceEnd => {
-                if let Some(frame) = self.frames.pop() {
-                    if frame.mapping
-                        && frame.path.len() > 1
-                        && frame.path[frame.path.len() - 2] == "env"
-                    {
-                        self.spans
-                            .insert(frame.path, (frame.start.unwrap(), marker));
-                    }
+                if let Some(frame) = self.frames.pop()
+                    && frame.mapping
+                    && frame.path.len() > 1
+                    && frame.path[frame.path.len() - 2] == "env"
+                {
+                    self.spans
+                        .insert(frame.path, (frame.start.unwrap(), marker));
                 }
             }
             Event::Scalar(text, _, anchor, tag) => {

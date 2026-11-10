@@ -112,33 +112,33 @@ fn walk(
                 group
                     .middleware
                     .extend(args.iter().filter_map(|n| handler(*n, src)));
-            } else if VERBS.iter().any(|v| v.to_uppercase() == method) {
-                if let Some(path) = args.first().and_then(|n| string(*n, src)) {
-                    let Some(last) = args
-                        .last()
-                        .filter(|_| args.len() > 1)
-                        .and_then(|n| handler(*n, src))
-                    else {
-                        return;
-                    };
-                    let mut middleware = group.middleware.clone();
-                    middleware.extend(
-                        args[1..args.len() - 1]
-                            .iter()
-                            .filter_map(|n| handler(*n, src)),
-                    );
-                    routes.push(Route {
-                        file: file.into(),
-                        line: n.start_position().row + 1,
-                        end_line: n.end_position().row + 1,
-                        method: method.into(),
-                        path: express_join(&group.path, &path),
-                        router: group.app.clone(),
-                        kind: Kind::Express,
-                        handler: Some((last, 0)),
-                        middleware,
-                    });
-                }
+            } else if VERBS.iter().any(|v| v.to_uppercase() == method)
+                && let Some(path) = args.first().and_then(|n| string(*n, src))
+            {
+                let Some(last) = args
+                    .last()
+                    .filter(|_| args.len() > 1)
+                    .and_then(|n| handler(*n, src))
+                else {
+                    return;
+                };
+                let mut middleware = group.middleware.clone();
+                middleware.extend(
+                    args[1..args.len() - 1]
+                        .iter()
+                        .filter_map(|n| handler(*n, src)),
+                );
+                routes.push(Route {
+                    file: file.into(),
+                    line: n.start_position().row + 1,
+                    end_line: n.end_position().row + 1,
+                    method: method.into(),
+                    path: express_join(&group.path, &path),
+                    router: group.app.clone(),
+                    kind: Kind::Express,
+                    handler: Some((last, 0)),
+                    middleware,
+                });
             }
         }
         return;

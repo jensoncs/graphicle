@@ -145,10 +145,10 @@ fn atom(token: &Token, context: &Context) -> Evaluation {
     out
 }
 fn string(value: &Value) -> Option<&str> {
-    if let Value::Strings(values) = value {
-        if values.len() == 1 {
-            return values.first().map(String::as_str);
-        }
+    if let Value::Strings(values) = value
+        && values.len() == 1
+    {
+        return values.first().map(String::as_str);
     }
     None
 }
