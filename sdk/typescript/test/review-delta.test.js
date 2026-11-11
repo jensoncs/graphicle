@@ -61,3 +61,15 @@ test("body reuse keeps fresh bindings and requires the exact prior receipt", asy
   const removed = await applyReviewDelta(materialized, {...next, packet_id: "three", previous_packet_id: "two", entries: [], context_order: [], invalidated: [{id: "a"}]});
   assert.deepEqual(removed.entries, []);
 });
+
+test("a delta's profile and base compare by value, not key order", async () => {
+  const first = {packet_id: "one", previous_packet_id: null, base: [{repo: "r", commit: "c"}],
+    profile: {goos: "linux", tags: ["a"], tests: true}, entries: [{id: "a"}], diffs: [],
+    unchanged: [], invalidated: [], context_order: ["a"]};
+  const previous = await applyReviewDelta(null, first);
+  const delta = {...first, packet_id: "two", previous_packet_id: "one", entries: [], unchanged: ["a"],
+    base: [{commit: "c", repo: "r"}], profile: {tests: true, tags: ["a"], goos: "linux"}};
+  assert.deepEqual((await applyReviewDelta(previous, delta)).entries, [{id: "a"}]);
+  await assert.rejects(applyReviewDelta(previous, {...delta, profile: {...delta.profile, goos: "darwin"}}), /Invalid review delta/);
+  await assert.rejects(applyReviewDelta(previous, {...delta, profile: {...delta.profile, tags: ["b"]}}), /Invalid review delta/);
+});

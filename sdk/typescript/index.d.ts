@@ -21,6 +21,8 @@ export interface ReviewProfile {
 }
 export interface ReviewOptions {
   profile: ReviewProfile; max_depth?: number; max_tokens?: number; previous_packet_id?: string;
+  /** Cooperative server deadline, 1 to 600000 ms. */
+  timeout_ms?: number;
   business_context?: BusinessContextOptions;
   reuse_text?: boolean;
   /** Share repeated pinned service assertions automatically when beneficial. */

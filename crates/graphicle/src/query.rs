@@ -491,6 +491,8 @@ pub fn source_graph(db: &Connection, repository: &Value, p: &Principal) -> Resul
         }
     }
 }
+/// The largest token budget (`max_tokens`) a context packet takes.
+pub const MAX_CONTEXT_TOKENS: usize = 16_000;
 pub fn snapshot(db: &Connection, repository: &Value, p: &Principal) -> Result<Snapshot> {
     let documents = crate::phase::phase("snapshot_documents", || {
         memory::documents(db, repository, p)
@@ -1215,7 +1217,7 @@ fn context_impl(
     // A code question ranks source files ahead of documentation, tests and
     // vendored code (crate::code_question), in `rank` itself.
     let code_first = crate::code_question::decide(args, question, query)?;
-    let max_tokens = integer(args, "max_tokens", 3000, 16000)?.max(256);
+    let max_tokens = integer(args, "max_tokens", 3000, MAX_CONTEXT_TOKENS)?.max(256);
     let max_chars = integer(args, "max_chars", 12000, 64000)?.max(2000);
     let limit = integer(args, "limit", 8, 40)?.max(1);
     let rerank_depth = integer(args, "rerank_depth", 32, MAX_RERANK_DEPTH)?.max(limit.min(32));
@@ -2820,7 +2822,7 @@ pub fn fit_response(args: &Value, mut run: impl FnMut(&Value) -> Result<Value>) 
     let Some(cap) = cap else {
         return Ok(packet);
     };
-    let asked = integer(args, "max_tokens", 3000, 16000)?.max(256);
+    let asked = integer(args, "max_tokens", 3000, MAX_CONTEXT_TOKENS)?.max(256);
     let mut budget = asked;
     let mut sized = args.clone();
     for _ in 0..FIT_ROUNDS {

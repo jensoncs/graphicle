@@ -194,10 +194,14 @@ impl Bundle {
         max_tokens: usize,
     ) -> Result<Value> {
         self.validate(expected, engine, Utc::now().timestamp())?;
-        if question.is_empty() || question.len() > 64 * 1024 || !(1..=32000).contains(&max_tokens) {
-            return Err(Error::bad(
-                "Expected a question and a token budget of 1–32000",
-            ));
+        if question.is_empty()
+            || question.len() > 64 * 1024
+            || !(1..=query::MAX_CONTEXT_TOKENS).contains(&max_tokens)
+        {
+            return Err(Error::bad(format!(
+                "Expected a question and a token budget of 1–{}",
+                query::MAX_CONTEXT_TOKENS
+            )));
         }
         let repository = json!({"id":sha256(expected.repository.as_bytes()),"name":expected.repository,"snapshot":expected.source_snapshot});
         let documents = self.sources.iter().filter(|source| source.content_base64.is_none()).map(|source| json!({
@@ -716,6 +720,15 @@ mod tests {
             .context(&bundle.identity, &bundle.engine_sha256, "billing", 4000)
             .unwrap();
         assert!(!packet.to_string().contains("content_base64"));
+        // The bundle's budget is the packer's: 16,000 tokens at most.
+        restored
+            .context(&bundle.identity, &bundle.engine_sha256, "billing", 16_000)
+            .unwrap();
+        let refused = restored
+            .context(&bundle.identity, &bundle.engine_sha256, "billing", 20_000)
+            .unwrap_err()
+            .to_string();
+        assert!(refused.contains("1–16000"), "{refused}");
         let dir = tempfile::tempdir().unwrap();
         let store = Store::open(dir.path()).unwrap();
         let workspace = store.create_workspace("binary import").unwrap();

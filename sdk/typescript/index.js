@@ -1,10 +1,12 @@
 /** Dependency-free client. Requests never follow redirects or retry mutations. */
+const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
+/** JSON text with object keys sorted: equal values give equal text whatever their key order. */
+const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(",")}]`
+  : object(value) ? `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${canonical(value[k])}`).join(",")}}` : JSON.stringify(value);
+
 /** Expand packet-local configured assertions, verifying content hashes. */
 export async function materializeServiceProvenance(packet) {
   const refuse = () => {throw new TypeError("Invalid service provenance; request a full packet");};
-  const object = value => value !== null && typeof value === "object" && !Array.isArray(value);
-  const canonical = value => Array.isArray(value) ? `[${value.map(canonical).join(",")}]`
-    : object(value) ? `{${Object.keys(value).sort().map(k => `${JSON.stringify(k)}:${canonical(value[k])}`).join(",")}}` : JSON.stringify(value);
   const table = packet.service_provenance;
   let definitions = {};
   if (table != null) {
@@ -62,7 +64,7 @@ export async function applyReviewDelta(previous, packet) {
   const hash = async text => Array.from(new Uint8Array(await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))), b => b.toString(16).padStart(2, "0")).join("");
   const prior = new Map();
   if (packet.previous_packet_id != null) {
-    if (!previous || previous.packet_id !== packet.previous_packet_id || JSON.stringify(previous.base) !== JSON.stringify(packet.base) || JSON.stringify(previous.profile) !== JSON.stringify(packet.profile)) refuse();
+    if (!previous || previous.packet_id !== packet.previous_packet_id || canonical(previous.base) !== canonical(packet.base) || canonical(previous.profile) !== canonical(packet.profile)) refuse();
     for (const c of ["entries", "diffs"]) for (const e of previous[c]) {
       if (prior.has(e.id)) refuse();
       prior.set(e.id, [c, e]);
@@ -242,7 +244,7 @@ export class Project {
     if (!enabled) return result;
     if (typeof expectedSnapshot !== "string" || !/^[0-9a-f]{64}$/.test(expectedSnapshot)) throw new TypeError("Enabled secondary context requires an exact snapshot hash");
     try {
-      const packet = await this.context(question, {max_tokens: Math.min(8000, maxBytes), max_chars: maxBytes, memory_retrieval: false}, {timeoutMs});
+      const packet = await this.context(question, {max_tokens: Math.min(8000, maxBytes), max_chars: maxBytes, memory_retrieval: false, include: ["file:"]}, {timeoutMs});
       const refuse = status => {result.secondary = {status, evidence: []}; return result;};
       if (!packet || packet.repository_id !== this.id) return refuse("invalid_repository");
       if (packet.snapshot !== expectedSnapshot) return refuse("stale_snapshot");

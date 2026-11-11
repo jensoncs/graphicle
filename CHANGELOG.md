@@ -66,6 +66,13 @@ versioned together at 0.2.0.
   out paths that differ only in case, or a file that shares its name with a
   folder, and lists them under `materialization.case_collisions`; previously
   one overwrote the other, or the projection failed.
+- `shared-context context` takes the same token budget as other context
+  calls, 1 to 16,000; a budget of 16,001 to 32,000 passed its own check and
+  then failed inside with "Invalid max_tokens".
+- TypeScript SDK: `applyReviewDelta` compares the profile and base by value,
+  so the same profile with its keys in another order no longer refuses the
+  delta; `secondaryContext` asks for project files only (`include:
+  ["file:"]`), as the Python client does; `ReviewOptions` gains `timeout_ms`.
 
 ### SQLite under indexing load
 

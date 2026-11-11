@@ -7,7 +7,7 @@ void boundaries; void event; void invalidBoundary;
 declare const project: Project;
 const pin: SnapshotPin = {repository_id: "repo", directory: "service", commit: "a".repeat(40), snapshot: "b".repeat(64), policy_sha256: "c".repeat(64)};
 const scopedPin: SnapshotPin = {...pin, excluded_modules: ["evals/copy"]};
-project.impact([scopedPin], [scopedPin], {profile: {goos: "linux", goarch: "amd64"}});
+project.impact([scopedPin], [scopedPin], {profile: {goos: "linux", goarch: "amd64"}, timeout_ms: 30000});
 const profile: ReviewProfile = {goos: "linux", goarch: "amd64", tests: true};
 project.impact([pin], [pin], {profile, provided_diff: [{side:"head", repository_id:pin.repository_id,
   file:"main.go", file_sha256:"e".repeat(64), line_start:1, line_end:10}]});

@@ -167,6 +167,13 @@ test("secondary context is disabled by default and pinned without weakening prim
   assert.equal((await project.secondaryContext(primary,"question",options)).secondary.status,"stale_snapshot");
 });
 
+test("secondary context asks for project files only, as the Python client does", async () => {
+  const bodies=[];const packet={repository_id:"repo",snapshot:"a".repeat(64),evidence:[]};
+  const project=client("http://127.0.0.1:1",{fetch:async(_url,req)=>{bodies.push(JSON.parse(req.body));return new Response(JSON.stringify(packet));}}).project("repo");
+  await project.secondaryContext("primary","question",{enabled:true,expectedSnapshot:"a".repeat(64)});
+  assert.deepEqual(bodies[0].arguments.include,["file:"]);assert.equal(bodies[0].arguments.memory_retrieval,false);
+});
+
 test("secondary failures and forged evidence leave primary untouched", async () => {
   const primary="primary",options={enabled:true,expectedSnapshot:"a".repeat(64)};
   const project=client("http://127.0.0.1:1",{fetch:async()=>{throw new Error("private diagnostic");}}).project("repo");
