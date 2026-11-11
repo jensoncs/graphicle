@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/build"
 	"go/format"
 	"go/importer"
 	"go/token"
@@ -1243,7 +1244,23 @@ func reviewCommand(dir string, env []string, args ...string) ([]byte, error) {
 	cmd.Env = env
 	return cmd.Output()
 }
-func (r *reviewCollector) preflight(env []string) error {
+
+// preflight refuses module configuration that reaches outside the pinned
+// roots. workspace is the profile's GOWORK file (empty for none): it is named
+// by the request, so it is checked whatever its name, not only by the walk.
+func (r *reviewCollector) preflight(env []string, workspace string) error {
+	if workspace != "" {
+		info, e := os.Lstat(workspace)
+		if e != nil {
+			return e
+		}
+		if !info.Mode().IsRegular() || !r.allowed(workspace) {
+			return fmt.Errorf("workspace outside pinned roots")
+		}
+		if e = r.checkModuleConfig(env, workspace, true); e != nil {
+			return e
+		}
+	}
 	for _, root := range r.allowedRoots {
 		err := filepath.WalkDir(root, func(path string, entry os.DirEntry, e error) error {
 			if e != nil {
@@ -1252,50 +1269,53 @@ func (r *reviewCollector) preflight(env []string) error {
 			if entry.Type()&os.ModeSymlink != 0 {
 				return fmt.Errorf("symlink")
 			}
-			if entry.IsDir() {
+			if entry.IsDir() || (entry.Name() != "go.mod" && entry.Name() != "go.work") {
 				return nil
 			}
-			if entry.Name() != "go.mod" && entry.Name() != "go.work" {
-				return nil
-			}
-			args := []string{"mod", "edit", "-json"}
-			if entry.Name() == "go.work" {
-				args = []string{"work", "edit", "-json", path}
-			}
-			data, e := reviewCommand(filepath.Dir(path), env, args...)
-			if e != nil {
-				return e
-			}
-			var config struct {
-				Replace []struct {
-					New struct{ Path, Version string }
-				}
-				Use []struct{ DiskPath string }
-			}
-			if e = json.Unmarshal(data, &config); e != nil {
-				return e
-			}
-			paths := []string{}
-			for _, replace := range config.Replace {
-				if replace.New.Version == "" {
-					paths = append(paths, replace.New.Path)
-				}
-			}
-			for _, use := range config.Use {
-				paths = append(paths, use.DiskPath)
-			}
-			for _, p := range paths {
-				if !filepath.IsAbs(p) {
-					p = filepath.Join(filepath.Dir(path), p)
-				}
-				if !r.allowed(filepath.Clean(p)) {
-					return fmt.Errorf("dependency outside pinned roots")
-				}
-			}
-			return nil
+			return r.checkModuleConfig(env, path, entry.Name() == "go.work")
 		})
 		if err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// checkModuleConfig requires every local replace and workspace use of one
+// go.mod or workspace file to resolve inside the pinned roots.
+func (r *reviewCollector) checkModuleConfig(env []string, path string, work bool) error {
+	args := []string{"mod", "edit", "-json"}
+	if work {
+		args = []string{"work", "edit", "-json", path}
+	}
+	data, e := reviewCommand(filepath.Dir(path), env, args...)
+	if e != nil {
+		return e
+	}
+	var config struct {
+		Replace []struct {
+			New struct{ Path, Version string }
+		}
+		Use []struct{ DiskPath string }
+	}
+	if e = json.Unmarshal(data, &config); e != nil {
+		return e
+	}
+	paths := []string{}
+	for _, replace := range config.Replace {
+		if replace.New.Version == "" {
+			paths = append(paths, replace.New.Path)
+		}
+	}
+	for _, use := range config.Use {
+		paths = append(paths, use.DiskPath)
+	}
+	for _, p := range paths {
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(filepath.Dir(path), p)
+		}
+		if !r.allowed(filepath.Clean(p)) {
+			return fmt.Errorf("dependency outside pinned roots")
 		}
 	}
 	return nil
@@ -1374,7 +1394,7 @@ func runReview(req reviewRequest) {
 		Version   string        `json:"analyzer"`
 		Toolchain string        `json:"toolchain"`
 		Worlds    []reviewWorld `json:"worlds"`
-	}{Version: "graphicle-go-review-v15"}
+	}{Version: "graphicle-go-review-v16"}
 	version, _ := exec.Command("go", "version").Output()
 	result.Toolchain = strings.TrimSpace(string(version))
 	var allowed []string
@@ -1387,14 +1407,16 @@ func runReview(req reviewRequest) {
 		}
 	}
 	env := append(os.Environ(), "GOOS="+req.GOOS, "GOARCH="+req.GOARCH)
+	workspace := ""
 	if req.Workspace != "" {
-		env = append(env, "GOWORK="+filepath.Join(root, req.Workspace))
+		workspace = filepath.Join(root, req.Workspace)
+		env = append(env, "GOWORK="+workspace)
 	}
 	// All compiler worlds share this immutable materialized tree and environment.
 	// Check the complete pin set once, retaining the same fail-closed behavior for
 	// every world. A multi-module repository must not rescan every pin per module.
 	donePreflight := reviewPhase("preflight")
-	preflight := (&reviewCollector{root: root, allowedRoots: allowed}).preflight(env)
+	preflight := (&reviewCollector{root: root, allowedRoots: allowed}).preflight(env, workspace)
 	cacheRequest := req
 	if preflight != nil {
 		cacheRequest.CacheIdentity = ""
@@ -1490,8 +1512,11 @@ func runReview(req reviewRequest) {
 			if m.Error != nil {
 				collector.diagnostic(path, "discovery_error", "", 0, m.Error.Err)
 			}
-			if len(m.CgoFiles) > 0 {
+			// The helper lists with CGO_ENABLED=0, so a snapshot package's cgo files
+			// arrive as IgnoredGoFiles. Their code is never analyzed: fail closed.
+			if len(m.CgoFiles) > 0 || (!m.Standard && collector.allowed(m.Dir) && cgoGated(m.Dir, m.IgnoredGoFiles, req.GOOS, req.GOARCH, req.Tags)) {
 				collector.diagnostic(path, "unsupported_cgo", "", 0, "Selected package requires cgo")
+				world.Issues = append(world.Issues, "unsupported_cgo:"+path)
 			}
 			if !m.Standard && !collector.allowed(m.Dir) && !reviewLocalPackage(path, l.meta, collector.allowed) {
 				world.Issues = append(world.Issues, "unavailable_external_package:"+path)
@@ -1895,4 +1920,25 @@ func (w *countingWriter) Write(p []byte) (int, error) {
 	n, err := w.writer.Write(p)
 	w.bytes += int64(n)
 	return n, err
+}
+
+// cgoGated reports whether any ignored file would be selected for this build
+// with cgo enabled: an import "C" file or a file constrained by the cgo tag.
+// An unreadable header also counts, because its selection cannot be proved.
+func cgoGated(dir string, ignored []string, goos, goarch string, tags []string) bool {
+	ctxt := build.Default
+	ctxt.CgoEnabled = true
+	ctxt.BuildTags = tags
+	if goos != "" {
+		ctxt.GOOS = goos
+	}
+	if goarch != "" {
+		ctxt.GOARCH = goarch
+	}
+	for _, name := range ignored {
+		if match, err := ctxt.MatchFile(dir, name); err != nil || match {
+			return true
+		}
+	}
+	return false
 }

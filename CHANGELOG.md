@@ -8,6 +8,16 @@ library (`graphicle-memory`) and the `graphicle` program.
 The program, graph engine, memory library, and Python and TypeScript SDKs are
 versioned together at 0.2.0.
 
+### Review and revocation fixes
+
+- Pinned review no longer reports a cgo package as complete. Review runs Go
+  with cgo disabled, which hid `import "C"` files from analysis; packages whose
+  files depend on cgo now fail closed with `unsupported_cgo`.
+- Check a profile's `workspace` file whatever its name: it must be a regular
+  file inside a pinned checkout, and its `use` and `replace` paths must stay
+  there. A custom-named file could previously send `go list` outside the
+  snapshot.
+
 ### SQLite under indexing load
 
 - Update bundled SQLite to 3.54.1 (rusqlite 0.41.1), fixing

@@ -139,7 +139,6 @@ fn scope_uses_compiler_profile_and_does_not_expand_documentation_edits() {
         ("code.go", code.as_str()),
         ("code_test.go", test),
         ("tag.go", tagged),
-        ("native.go", native),
         ("README.md", "readme one\n"),
     ];
     let base = f.pin(&repo, "app", 'a', &old);
@@ -148,7 +147,6 @@ fn scope_uses_compiler_profile_and_does_not_expand_documentation_edits() {
         ('c', "code_test.go", test.replace("return 1", "return 2"), 0),
         ('d', "README.md", "readme two\n".into(), 0),
         ('e', "tag.go", tagged.replace("return 1", "return 2"), 0),
-        ('f', "native.go", native.replace("return 1", "return 2"), 0),
     ] {
         let changed: Vec<_> = old
             .iter()
@@ -172,6 +170,22 @@ fn scope_uses_compiler_profile_and_does_not_expand_documentation_edits() {
             assert_eq!(f.run(&args)["entries"].as_array().unwrap().len(), 2);
         }
     }
+    // A cgo file is not a profile choice: review cannot enable cgo, so the
+    // package fails closed instead of treating the file as excluded.
+    let with_native = |source: &'static str| {
+        let mut files = old.to_vec();
+        files.push(("native.go", source));
+        files
+    };
+    let native_base = f.pin(&repo, "app", '1', &with_native(native));
+    let native_head = f.pin(
+        &repo,
+        "app",
+        '2',
+        &with_native("package tax\nimport \"C\"\nfunc Native() int { return 2 }\n"),
+    );
+    let packet = f.run(&request(&repo, vec![native_base], vec![native_head]));
+    assert_eq!(packet["coverage"]["complete"], false, "{packet}");
 }
 
 #[test]
@@ -2190,4 +2204,45 @@ fn callback_candidates_expand_impact_but_never_claim_complete_dispatch() {
     let delta = f.run(&args);
     assert_eq!(full["execution_flows"], delta["execution_flows"]);
     assert_eq!(full["context_order"], delta["context_order"]);
+}
+
+#[test]
+fn cgo_files_hidden_by_disabled_cgo_never_claim_complete() {
+    let f = Fixture::new();
+    let tax = f.repo("tax");
+    let caller = "package tax\n\nimport \"C\"\n\nfunc Native() int { return Exported() }\n";
+    let a = f.pin(
+        &tax,
+        "tax",
+        'a',
+        &[
+            ("go.mod", MOD),
+            ("lib.go", "package tax\nfunc Exported() int { return 1 }\n"),
+            ("cgo_caller.go", caller),
+        ],
+    );
+    let b = f.pin(
+        &tax,
+        "tax",
+        'b',
+        &[
+            ("go.mod", MOD),
+            ("lib.go", "package tax\nfunc Exported() int { return 2 }\n"),
+            ("cgo_caller.go", caller),
+        ],
+    );
+    let report = f.run(&request(&tax, vec![a], vec![b]));
+    assert_eq!(report["coverage"]["complete"], false, "{report}");
+    assert_ne!(
+        report["analysis_coverage"]["status"], "complete",
+        "{report}"
+    );
+    assert!(
+        report["coverage"]["issues"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|i| s(i, "reason") == "unsupported_cgo:example/tax"),
+        "{report}"
+    );
 }

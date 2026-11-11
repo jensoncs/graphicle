@@ -368,7 +368,9 @@ Include unchanged consumer/dependency repositories on both sides. `directory`
 is a stable, single-component checkout name; local `replace` directives must
 resolve within the admitted layout. `modules` lists module roots within each
 checkout. A workspace file can be selected with, for example,
-`"workspace":"checkout/go.work"`. Otherwise workspace discovery is off.
+`"workspace":"checkout/go.work"`. The file, whatever its name, must be a regular
+file inside a pinned checkout, and its `use` and `replace` paths must resolve
+there too. Otherwise workspace discovery is off.
 
 Optionally set `"business_context": {}` to attach conservative domain candidates,
 or supply its `history` array from the local `review-history` collector. Historical
@@ -424,7 +426,9 @@ A local Go toolchain must be installed. Each consumer gets its own native
 `go list`/`go/types` resolution world. Build tags, platform, module versions,
 workspace/local replacements, and test variants determine the selected source
 and target declaration. Modules and toolchains are **never downloaded during
-review**; CGO is disabled. Provide pinned local replacements, a workspace, or
+review**; CGO is disabled. A pinned package whose file selection depends on cgo
+(an `import "C"` file or a `cgo` build constraint) fails closed with
+`unsupported_cgo`, because its cgo files are never analyzed. Provide pinned local replacements, a workspace, or
 a vendor tree for the dependency source. An arbitrary compatible checkout is never substituted
 for an installed version. Missing dependencies remain unresolved.
 

@@ -169,6 +169,7 @@ pub(super) fn summary(analysis: &Analysis, example_tokens: usize) -> Value {
                     | "incomplete_discovery"
                     | "type_check_failed"
                     | "unavailable_external_package"
+                    | "unsupported_cgo"
             )
         {
             package_failures
