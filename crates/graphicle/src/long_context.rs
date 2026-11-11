@@ -14,7 +14,7 @@ use crate::{Error, Result, model};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::LazyLock;
 
 /// What `ask --pack` tells the model: the same words for every question
@@ -299,11 +299,10 @@ impl Tree {
             return *hit;
         }
         let count = self.folder.as_ref().and_then(|folder| {
-            let relative = Path::new(path);
-            if relative.is_absolute() || path.split('/').any(|part| part == "..") {
-                return None;
-            }
-            let text = std::fs::read(folder.join(relative)).ok()?;
+            // A source path as the store accepts it: relative, no traversal,
+            // and on Windows no drive that `join` would switch to.
+            crate::store::path(path).ok()?;
+            let text = std::fs::read(folder.join(path)).ok()?;
             Some(String::from_utf8_lossy(&text).lines().count())
         });
         self.lines.insert(path.to_string(), count);
@@ -1006,6 +1005,10 @@ mod tests {
                 .contains("no such file")
         );
         assert!(tree.problem("../etc/passwd", 1, 1).is_some());
+        // Only the store's source paths name files of the tree.
+        for odd in ["pkg//x.go", "./pkg/x.go", "pkg/./x.go"] {
+            assert!(tree.problem(odd, 1, 1).is_some(), "{odd}");
+        }
         assert!(tree.problem("pkg/x.go", 3, 2).is_some());
         assert!(Tree::new(None).problem("pkg/x.go", 1, 1).is_some());
         std::fs::remove_dir_all(dir).unwrap();

@@ -126,9 +126,7 @@ impl Files<'_> {
     /// changed since is never read, so never sent to a model.
     pub fn read(&self, path: &str) -> Option<String> {
         let folder = self.folder?;
-        if Path::new(path).is_absolute() || path.split('/').any(|part| part == "..") {
-            return None;
-        }
+        crate::store::path(path).ok()?;
         let synced = self.heads.get(path)?;
         let bytes = std::fs::read(folder.join(path)).ok()?;
         (&graphicle_memory::text::sha256(&bytes) == synced)
@@ -1127,6 +1125,7 @@ mod tests {
         // Not synced.
         assert_eq!(files.read(".env"), None);
         assert_eq!(files.read("../a.py"), None);
+        assert_eq!(files.read("./a.py"), None);
         // Changed since the sync.
         std::fs::write(dir.path().join("a.py"), "x = 2\n").unwrap();
         assert_eq!(files.read("a.py"), None);
