@@ -229,19 +229,23 @@ impl Store {
                     for value in values {let mut data=value.get("data").cloned().unwrap_or(json!({}));if !data.is_object(){return Err(Error::bad("Invalid memory data"));}
                         if let Some(value)=data.get("recall") { data["recall"]=serde_json::to_value(crate::structured_memory::metadata(value)?)?; }
                         data["authority"]=json!("unreviewed_import");data["notes"]=json!({});data.as_object_mut().unwrap().remove("refresh_target");data.as_object_mut().unwrap().remove("target_revision");
-                        // Grounds are the sources of the quotes found here, as on
-                        // memory.import_pack: a source no such quote cites is dropped.
-                        // A recorded hash is kept, as what the memory was written
-                        // against; differing here leaves it to the staleness check.
+                        // Grounds are rebuilt as on memory.import_pack: the quotes
+                        // found here, plus the recorded entry of every source a quote
+                        // or symbol link cites, found here or not, so that an edited or
+                        // missing source leaves the draft stale. A source nothing
+                        // cites is dropped.
                         let quotes=data["evidence"].as_array().cloned().unwrap_or_default();
                         let found:Vec<Value>=quotes.iter().filter_map(|c|{let (id,quote)=(c["id"].as_str()?,c["quote"].as_str()?);
                             (!quote.trim().is_empty()&&id.len()<=1500&&quote.len()<=12000&&docs.iter().any(|d|s(d,"id")==id&&s(d,"content").contains(quote))).then(||json!({"id":id,"quote":quote}))}).collect();
                         kept+=found.len();dropped+=quotes.len()-found.len();
                         let grounds=memory::dependencies(db,identifier,&found,&docs)?;
+                        let cited:std::collections::BTreeSet<String>=quotes.iter().filter_map(|c|c["id"].as_str().map(str::to_string))
+                            .chain(data["symbols"].as_array().into_iter().flatten().flat_map(|l|[&l["identity"]["relpath"],&l["relpath"]]).filter_map(|p|Some(format!("file:{}",p.as_str()?)))).collect();
                         for key in ["dependencies","evidence_links","native_sources"]{
                             let mut rebuilt=grounds[key].clone();
-                            for (source,hash) in rebuilt.as_object_mut().into_iter().flatten(){
-                                if let Some(recorded)=data[key].get(source).filter(|v|v.is_string()||v["sha256"].is_string()){*hash=recorded.clone();}
+                            for (source,recorded) in data[key].as_object().into_iter().flatten(){
+                                let id=if key=="dependencies"{format!("file:{source}")}else{source.clone()};
+                                if cited.contains(&id)&&(recorded.is_string()||recorded["sha256"].is_string()){rebuilt[source.as_str()]=recorded.clone();}
                             }
                             data[key]=rebuilt;
                         }

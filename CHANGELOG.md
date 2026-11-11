@@ -81,9 +81,10 @@ versioned together at 0.2.0.
 - Offboarding refuses a backup with a non-empty `-wal` or `-journal` beside
   it: the backup is read immutable, which misses pages held in the log.
 - `memory.import` keeps a memory's dependencies, workspace links and connector
-  sources only for the evidence quotes found in this project, drops quotes it
-  cannot find, and reports `evidence.kept` and `evidence.dropped`. Before, any
-  caller-supplied entry was kept.
+  sources only for sources its evidence quotes or symbol links cite, at their
+  recorded hashes, so an edited or missing source still leaves the draft
+  stale. Quotes not found here are dropped and counted in `evidence.kept` and
+  `evidence.dropped`. Before, any caller-supplied entry was kept.
 
 ### SQLite under indexing load
 

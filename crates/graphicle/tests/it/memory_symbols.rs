@@ -2074,3 +2074,52 @@ fn import_rebuilds_grounds_from_the_quotes_found_here() {
     );
     assert_eq!(imported["evidence"], json!({"kept":1,"dropped":1}));
 }
+
+/// An import whose quoted line was edited, or whose file is gone, is stale
+/// here: the quote is dropped, but the source it cited stays a dependency
+/// at its recorded hash, so review cannot approve it unrefreshed.
+#[test]
+fn import_of_a_memory_whose_quoted_line_changed_is_stale() {
+    let f = Fixture::new(&[("a.py", A)]);
+    let memory = f.note(&[("file:a.py", "    return 1")]);
+    let exported = f
+        .store
+        .project_read(&f.workspace, &f.key, "memory.export", &f.args(json!({})))
+        .unwrap();
+    let export: Vec<Value> = exported["memories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["id"] == memory["id"])
+        .cloned()
+        .collect();
+    for (name, files) in [
+        ("edited", vec![("a.py", A.replace("return 1", "return 9"))]),
+        ("gone", vec![("b.py", B.to_string())]),
+    ] {
+        let target = f.project(name, name);
+        let files: Vec<(&str, &str)> = files.iter().map(|(p, c)| (*p, c.as_str())).collect();
+        f.sync_in(&target, &files);
+        f.drain_in(&target);
+        let imported = f
+            .store
+            .project_mutate(
+                &f.workspace,
+                &f.key,
+                "memory.import",
+                &json!({"repository_id":target,"memories":export}),
+            )
+            .unwrap();
+        assert_eq!(
+            imported["evidence"],
+            json!({"kept":0,"dropped":1}),
+            "{name}"
+        );
+        let draft = f
+            .memories_in(&target)
+            .into_iter()
+            .find(|m| m["id"] == imported["imported"][0]["id"])
+            .unwrap();
+        assert_eq!(draft["stale"], true, "{name}: {draft:#}");
+    }
+}
