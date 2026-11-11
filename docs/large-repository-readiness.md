@@ -385,6 +385,12 @@ to meet the targets.
   supported catalogue, with explicit limits, and a combined million-file and
   large-note workload passes relevance, source/symbol freshness, permission,
   latency and memory gates. Evidence: [E11](evidence/large-repository-e11-2026-11-06.json)
+  **Status:** past 20,000 eligible notes, recall now ranks the 20,000 sharing
+  the most terms with the question (newest first among equals), so an old
+  matching note is reachable; integration test
+  `memories_past_the_recall_bound_recall_those_matching_the_question`. On
+  25,000 synthetic notes (release build, local macOS), context median rose
+  from 382 to 405 ms. The combined-scale gates remain open.
   and [E12](evidence/large-repository-e12-2026-11-06.json).
 
 - [ ] **Qualify representative repositories and independent retrieval quality.**

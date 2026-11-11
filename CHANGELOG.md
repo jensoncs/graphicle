@@ -85,6 +85,11 @@ versioned together at 0.2.0.
   own stale check. A memory that also cites workspace links or connector
   documents, or is current only through its symbol links, keeps its marker
   (E11-F1).
+- Recall past 20,000 eligible reviewed memories ranks the 20,000 that share
+  the most terms with the question, newest first among equals, instead of
+  only the newest 20,000; an old matching memory is no longer left out.
+  `coverage.omitted_reviewed_memories` counts the rest. On 25,000 memories a
+  context call took about 6% longer (382 to 405 ms median).
 - `memory.import` keeps a memory's dependencies, workspace links and connector
   sources only for sources its evidence quotes or symbol links cite, at their
   recorded hashes, so an edited or missing source still leaves the draft

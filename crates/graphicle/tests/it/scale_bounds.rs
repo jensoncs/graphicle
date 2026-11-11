@@ -465,8 +465,10 @@ fn over_budget_graph_uses_saved_relationships_and_keeps_fallbacks() {
     registry().close(&reference);
 }
 
+/// Past the recall bound the memories sharing the question's terms are
+/// ranked, old or new; the others, oldest first, are omitted (E11).
 #[test]
-fn memories_past_the_recall_bound_list_and_recall_the_newest() {
+fn memories_past_the_recall_bound_recall_those_matching_the_question() {
     let f = Fixture::new();
     let extra = 50;
     let total = graphicle_memory::retrieval::MAX_RECALL_MEMORIES + extra;
@@ -523,7 +525,8 @@ fn memories_past_the_recall_bound_list_and_recall_the_newest() {
         packet["memories"]
     );
     assert!(
-        !text.contains("nine guppies"),
-        "an omitted (oldest) memory was recalled"
+        text.contains("nine guppies"),
+        "recall missed the oldest memory matching the question: {}",
+        packet["memories"]
     );
 }

@@ -603,7 +603,7 @@ pub fn restrict(snapshot: &mut Snapshot, filter: &Filter) -> Value {
 }
 
 pub fn candidates(snapshot: &Snapshot) -> Result<(Vec<Value>, Value)> {
-    candidates_from(snapshot, passages(snapshot)?, snapshot.memories.iter())
+    candidates_from(snapshot, passages(snapshot)?, snapshot.memories.iter(), "")
 }
 
 /// One chunking of a snapshot's documents: its passage rows and what the
@@ -792,37 +792,68 @@ fn order_by_question(documents: &mut Vec<Value>, question: &str) -> bool {
     true
 }
 
+/// The memories recall ranks out of `eligible` (reviewed and current, newest
+/// updated first): all of them within the recall bound. Past it, those that
+/// share the most of `query`'s terms in their title or body, newest first
+/// among equals, so a relevant old memory stays reachable; returns them in
+/// catalogue order with how many were left out.
+/// ponytail: one term-overlap pass over the catalogue per question; a stored
+/// term index if catalogues near the 100,000 listing bound make it slow.
+pub(crate) fn recall_bound<'a>(eligible: Vec<&'a Value>, query: &str) -> (Vec<&'a Value>, usize) {
+    let cap = graphicle_memory::retrieval::MAX_RECALL_MEMORIES;
+    if eligible.len() <= cap {
+        return (eligible, 0);
+    }
+    let omitted = eligible.len() - cap;
+    let wanted = graphicle_memory::retrieval::terms(query);
+    if wanted.is_empty() {
+        return (eligible.into_iter().take(cap).collect(), omitted);
+    }
+    let mut order: Vec<(usize, usize)> = eligible
+        .iter()
+        .enumerate()
+        .map(|(at, memory)| {
+            let text = format!("{} {}", s(memory, "title"), s(memory, "body"));
+            let shared = graphicle_memory::retrieval::terms(&text)
+                .intersection(&wanted)
+                .count();
+            (shared, at)
+        })
+        .collect();
+    order.sort_unstable_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    let mut keep: Vec<usize> = order[..cap].iter().map(|&(_, at)| at).collect();
+    keep.sort_unstable();
+    (keep.into_iter().map(|at| eligible[at]).collect(), omitted)
+}
+
 fn candidates_from<'a>(
     snapshot: &Snapshot,
     passages: Passages,
     memories: impl IntoIterator<Item = &'a Value>,
+    query: &str,
 ) -> Result<(Vec<Value>, Value)> {
     let Passages { mut rows, report } = passages;
     let source_passages = rows.len();
     let mut stale = 0;
     let mut draft = 0;
-    let mut recalled = 0;
-    let mut omitted_memories = 0;
-    // `snapshot.memories` is newest-updated first, so past the recall bound
-    // the oldest reviewed memories are the ones left out (and counted).
+    let mut eligible = Vec::new();
     for memory in memories {
         if memory["stale"] == true {
             stale += 1;
-            continue;
-        }
-        if memory["state"] != "reviewed" {
+        } else if memory["state"] != "reviewed" {
             draft += 1;
-            continue;
+        } else {
+            eligible.push(memory);
         }
-        if recalled >= graphicle_memory::retrieval::MAX_RECALL_MEMORIES {
-            omitted_memories += 1;
-            continue;
-        }
+    }
+    // Past the recall bound the memories the question matches least are left
+    // out (and counted).
+    let (recalled, omitted_memories) = recall_bound(eligible, query);
+    for memory in recalled {
         // Unreachable within bounds: passages plus recall memories fit `rank`.
         if rows.len() >= graphicle_memory::retrieval::MAX_ROWS {
             return Err(Error::bad("Too many recall candidates"));
         }
-        recalled += 1;
         rows.push(json!({"identity":format!("memory:{}",s(memory,"id")),"kind":"memory","origin":format!("memory:{}",s(memory,"id")),
             "title":memory["title"],"text":memory["body"],"source_sha":digest(memory),"memory":memory}));
     }
@@ -1313,7 +1344,8 @@ fn context_impl(
         Some(passages) => passages,
         None => self::passages(snapshot)?,
     };
-    let (mut rows, mut coverage) = candidates_from(snapshot, passages, memories.iter().copied())?;
+    let (mut rows, mut coverage) =
+        candidates_from(snapshot, passages, memories.iter().copied(), query)?;
     if let Some(indexed) = &indexed
         && let (Some(fields), Some(catalogue)) =
             (coverage.as_object_mut(), indexed.coverage.as_object())
@@ -2993,8 +3025,10 @@ pub fn project_packet(
     let mut dense_calls = 0;
     if let Some(profile) = embedding {
         let (candidates, _) = match &shared {
-            Some(passages) => candidates_from(&snap, passages.clone(), snap.memories.iter())?,
-            None => candidates(&snap)?,
+            Some(passages) => {
+                candidates_from(&snap, passages.clone(), snap.memories.iter(), query)?
+            }
+            None => candidates_from(&snap, passages(&snap)?, snap.memories.iter(), query)?,
         };
         let valid = candidates
             .iter()

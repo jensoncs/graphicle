@@ -756,16 +756,16 @@ fn packet_on(
     let mut memory_rows = Vec::new();
     if args["memory_retrieval"] != false {
         let at = graphicle_memory::temporal::instant(&crate::now()).map_err(Error::bad)?;
-        let mut recalled = 0usize;
+        let mut eligible = Vec::new();
         for memory in &prepared.memories {
-            if !crate::structured_memory::context_allows(memory, args, at)?
-                || memory["stale"] == true
-                || memory["state"] != "reviewed"
-                || recalled >= graphicle_memory::retrieval::MAX_RECALL_MEMORIES
+            if crate::structured_memory::context_allows(memory, args, at)?
+                && memory["stale"] != true
+                && memory["state"] == "reviewed"
             {
-                continue;
+                eligible.push(memory);
             }
-            recalled += 1;
+        }
+        for memory in query::recall_bound(eligible, query).0 {
             memory_rows.push(json!({"identity":format!("memory:{}",s(memory,"id")),"title":memory["title"],"text":memory["body"]}));
         }
     }
