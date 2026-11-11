@@ -97,8 +97,13 @@ impl Store {
             match operation {
                 "files"=>{
                     let prefix=args["prefix"].as_str().unwrap_or("");let offset=integer(args,"offset",0,100000)?;let limit=integer(args,"limit",100,500)?.max(1);
-                    let docs=memory::documents(db,&repository,p)?;let matching:Vec<_>=docs.iter().filter(|d|s(d,"path").starts_with(prefix)).collect();
-                    let files:Vec<_>=matching.iter().skip(offset).take(limit).map(|d|json!({"id":d["id"],"path":d["path"],"title":d["title"],"sha256":d["sha256"],"source_kind":d["source_kind"],"bytes":s(d,"content").len()})).collect();
+                    // A listing reads no file's text: SQLite gives each
+                    // project file's size (octet_length reads no content).
+                    let sizes:std::collections::HashMap<String,i64>=rows(db,"SELECT h.path,octet_length(o.content) AS bytes FROM repo_heads h JOIN repo_objects o ON o.repository_id=h.repository_id AND o.sha256=h.sha256 WHERE h.repository_id=?",[identifier])?.iter().map(|r|(s(r,"path").to_string(),r["bytes"].as_i64().unwrap_or(0))).collect();
+                    let mut docs=memory::repository_documents(db,&repository,false)?;docs.extend(memory::connector_documents(db,&repository,p)?);
+                    let bytes=|d:&Value|if d["source_kind"]=="repository_file"{sizes.get(s(d,"path")).copied().unwrap_or(0) as usize}else{s(d,"content").len()};
+                    let matching:Vec<_>=docs.iter().filter(|d|s(d,"path").starts_with(prefix)).collect();
+                    let files:Vec<_>=matching.iter().skip(offset).take(limit).map(|d|json!({"id":d["id"],"path":d["path"],"title":d["title"],"sha256":d["sha256"],"source_kind":d["source_kind"],"bytes":bytes(d)})).collect();
                     Ok(json!({"files":files,"total":matching.len(),"next_offset":if offset+limit<matching.len(){Some(offset+limit)}else{None},"snapshot":repository["snapshot"]}))
                 },
                 "memories"=>Ok(json!(memory::list(db,&repository,p,args["include_retired"]==true)?)),
