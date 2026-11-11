@@ -22,6 +22,19 @@ impl Store {
             return key;
         }
         let path = self.directory.join("vault.key");
+        if let Some(key) = read_key(&path)? {
+            return Ok(key);
+        }
+        // A new key cannot open secrets sealed with a lost one: fail closed
+        // instead of orphaning them (an unmounted or deleted key file).
+        let sealed: bool =
+            self.connect()?
+                .query_row("SELECT EXISTS(SELECT 1 FROM am_secrets)", [], |r| r.get(0))?;
+        if sealed {
+            return Err(Error::bad(
+                "vault.key is missing but stored credentials were sealed with it; restore the key file",
+            ));
+        }
         let mut temporary = tempfile::NamedTempFile::new_in(&*self.directory)?;
         let mut new_key = [0u8; 32];
         OsRng.fill_bytes(&mut new_key);
@@ -29,29 +42,9 @@ impl Store {
         temporary.as_file().sync_all()?;
         match temporary.persist_noclobber(&path) {
             Ok(_) => Ok(new_key),
+            // Another process created it first.
             Err(e) if e.error.kind() == std::io::ErrorKind::AlreadyExists => {
-                let mut options = std::fs::OpenOptions::new();
-                options.read(true);
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::OpenOptionsExt;
-                    options.custom_flags(libc::O_NOFOLLOW);
-                }
-                let mut file = options.open(&path)?;
-                let metadata = file.metadata()?;
-                if !metadata.is_file() || metadata.len() != 32 {
-                    return Err(Error::bad("Invalid local vault key"));
-                }
-                #[cfg(unix)]
-                {
-                    use std::os::unix::fs::PermissionsExt;
-                    if metadata.permissions().mode() & 0o077 != 0 {
-                        return Err(Error::bad("Vault key permissions must be owner-only"));
-                    }
-                }
-                let mut key = [0u8; 32];
-                file.read_exact(&mut key)?;
-                Ok(key)
+                read_key(&path)?.ok_or_else(|| Error::bad("Invalid local vault key"))
             }
             Err(e) => Err(e.error.into()),
         }
@@ -191,5 +184,60 @@ impl Store {
             .ok()
             .filter(|v| !v.is_empty())
             .ok_or_else(|| Error::bad("Credential is unavailable; add it in Connections"))
+    }
+}
+
+/// The device key at `path`; `None` when there is no key file yet.
+fn read_key(path: &std::path::Path) -> Result<Option<[u8; 32]>> {
+    let mut options = std::fs::OpenOptions::new();
+    options.read(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::OpenOptionsExt;
+        options.custom_flags(libc::O_NOFOLLOW);
+    }
+    let mut file = match options.open(path) {
+        Ok(file) => file,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e.into()),
+    };
+    let metadata = file.metadata()?;
+    if !metadata.is_file() || metadata.len() != 32 {
+        return Err(Error::bad("Invalid local vault key"));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        if metadata.permissions().mode() & 0o077 != 0 {
+            return Err(Error::bad("Vault key permissions must be owner-only"));
+        }
+    }
+    let mut key = [0u8; 32];
+    file.read_exact(&mut key)?;
+    Ok(Some(key))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_key_fails_closed_once_secrets_are_sealed() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let ws = store.create_workspace("Vault").unwrap();
+        let workspace = s(&ws, "id");
+        let first = store.save_secret(workspace, "api", "one").unwrap();
+        assert_eq!(store.secret(workspace, &first).unwrap(), "one");
+
+        let key = dir.path().join("vault.key");
+        std::fs::remove_file(&key).unwrap();
+        let error = store.secret(workspace, &first).unwrap_err().to_string();
+        assert!(error.contains("vault.key"), "{error}");
+        assert!(store.save_secret(workspace, "api", "two").is_err());
+        assert!(
+            !key.exists(),
+            "a replacement key would orphan sealed secrets"
+        );
     }
 }

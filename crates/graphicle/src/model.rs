@@ -753,18 +753,15 @@ fn provider_reason(body: &[u8], credential: Option<&str>) -> Option<String> {
         Err(_) if !text.trim_start().starts_with('<') => text.into_owned(),
         Err(_) => return None,
     };
-    let mut words = Vec::new();
-    for word in reason.split_whitespace() {
-        let keylike = ["sk-", "sk_", "AIza", "xai-", "gsk_"].iter().any(|prefix| {
-            word.trim_start_matches(['"', '\'', '('])
-                .starts_with(prefix)
-        });
-        words.push(if keylike {
-            "[redacted]".to_string()
-        } else {
-            word.to_string()
-        });
-    }
+    // Key-like tokens are redacted wherever a word starts, including inside
+    // compact JSON details that have no whitespace around them.
+    static KEYS: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
+    let keys = KEYS
+        .get_or_init(|| regex::Regex::new(r#"\b(?:sk-|sk_|AIza|xai-|gsk_)[^\s"',}\]]*"#).unwrap());
+    let words: Vec<_> = reason
+        .split_whitespace()
+        .map(|word| keys.replace_all(word, "[redacted]"))
+        .collect();
     let mut line = words.join(" ");
     if let Some(secret) = credential.filter(|secret| secret.len() >= 4) {
         line = line.replace(secret, "[redacted]");
@@ -1967,6 +1964,18 @@ mod tests {
     };
     use serde_json::{Value, json};
     use std::time::Instant;
+
+    #[test]
+    fn provider_reason_redacts_keys_inside_compact_json() {
+        let reason = super::provider_reason(
+            br#"{"detail":{"key":"sk-abcdefghijklmnop","other":"AIzaSyAbcdefghijklmnop"}}"#,
+            None,
+        )
+        .unwrap();
+        assert!(!reason.contains("abcdefghijklmnop"), "{reason}");
+        let reason = super::provider_reason(br#"{"message":"use ask_question"}"#, None).unwrap();
+        assert_eq!(reason, "use ask_question");
+    }
 
     fn profile(protocol: &str, structured: bool) -> Profile {
         serde_json::from_value(

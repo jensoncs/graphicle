@@ -608,3 +608,54 @@ fn revocation_matches_credential_ids_exactly_not_as_substrings() {
         StatusCode::FORBIDDEN
     );
 }
+
+/// A provider-side `domain` grant is readable by any verified identity whose
+/// email is in that domain (`permissions::allows`), so revoking such a
+/// credential must invalidate it too. `evilcorp.com` is not `corp.com`.
+#[test]
+fn revocation_includes_documents_shared_with_the_credential_domain() {
+    let f = Fixture::new();
+    let db = f.store.connect().unwrap();
+    let generation: i64 = db
+        .query_row(
+            "SELECT generation FROM am_connector_docs WHERE connector_id=? AND id='plan'",
+            [&f.connector],
+            |r| r.get(0),
+        )
+        .unwrap();
+    db.execute(
+        "INSERT INTO am_source_permissions VALUES(?,?,?,?,1,?)",
+        rusqlite::params![
+            f.connector,
+            "plan",
+            json!([{"type":"domain","domain":"Corp.com"}]).to_string(),
+            graphicle_runtime::now(),
+            generation
+        ],
+    )
+    .unwrap();
+    for (external, credential, email) in [
+        ("U-D", "cred-d", "dana@corp.COM"),
+        ("U-E", "cred-e", "eve@evilcorp.com"),
+    ] {
+        db.execute(
+            "INSERT INTO am_provider_identities VALUES(?,'jsonl',?,?,?)",
+            rusqlite::params![f.workspace, external, credential, graphicle_runtime::now()],
+        )
+        .unwrap();
+        db.execute(
+            "INSERT INTO am_provider_emails VALUES(?,'jsonl',?,?,?)",
+            rusqlite::params![f.workspace, external, email, graphicle_runtime::now()],
+        )
+        .unwrap();
+    }
+    assert_eq!(
+        graphicle_runtime::store::credential_sources(&db, &f.workspace, "cred-d").unwrap(),
+        vec![format!("connector:{}:plan", f.connector)]
+    );
+    assert!(
+        graphicle_runtime::store::credential_sources(&db, &f.workspace, "cred-e")
+            .unwrap()
+            .is_empty()
+    );
+}

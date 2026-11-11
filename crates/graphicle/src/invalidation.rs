@@ -23,7 +23,6 @@ pub const DOCUMENT: &str = "document";
 pub const MEMORY: &str = "memory";
 pub const ANSWER: &str = "answer";
 pub const PRINCIPAL: &str = "principal";
-pub const SOURCE: &str = "source";
 /// One anchored document chunk of the semantic overlay (`gf_anchor_edges`).
 pub const ANCHOR: &str = "anchor";
 
@@ -441,8 +440,8 @@ pub fn document_changed(
 }
 
 /// A principal's permissions changed: invalidate cached answers/context recorded
-/// against that principal and mark every artifact scoped to the revoked
-/// sources stale.
+/// against that principal and mark every artifact derived from the revoked
+/// connector documents (`connector:<id>:<doc>`, recorded as [`DOCUMENT`]) stale.
 pub fn permissions_changed(
     db: &Connection,
     workspace: &str,
@@ -455,7 +454,12 @@ pub fn permissions_changed(
         None => Vec::new(),
     };
     for source in revoked_sources {
-        marked.extend(invalidate_source(db, workspace, (SOURCE, source), reason)?);
+        marked.extend(invalidate_source(
+            db,
+            workspace,
+            (DOCUMENT, source),
+            reason,
+        )?);
     }
     marked.sort();
     marked.dedup();
@@ -494,6 +498,19 @@ mod tests {
         assert!(clear_stale(&db, "w", SUMMARY, "s1").unwrap());
         assert_eq!(freshness(&db, "w").unwrap().stale_count, 3);
         assert!(freshness(&db, "other").unwrap().is_fresh());
+    }
+
+    #[test]
+    fn revoked_connector_documents_mark_their_dependents_stale() {
+        let db = db();
+        let doc = connector_document_id("c1", "plan");
+        let data = serde_json::json!({"native_sources": {doc.clone(): {}}});
+        record_memory(&db, "w", "r1", "m1", &data).unwrap();
+        record_dependency(&db, "w", (ANSWER, "a1"), (DOCUMENT, &doc)).unwrap();
+        let marked = permissions_changed(&db, "w", None, &[doc], "acl").unwrap();
+        assert_eq!(marked.len(), 2, "{marked:?}");
+        assert!(is_stale(&db, "w", MEMORY, "m1").unwrap());
+        assert!(is_stale(&db, "w", ANSWER, "a1").unwrap());
     }
 
     #[test]

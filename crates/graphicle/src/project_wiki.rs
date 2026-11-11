@@ -856,33 +856,48 @@ pub fn lock(dir: &Path) -> Result<Option<std::fs::File>> {
 
 /// Model text made safe to render as Markdown prose: `\\`, `[`, `]`, `(`,
 /// `)`, `<` and `>` are escaped outside code spans, so a reply cannot add
-/// Markdown links, images or HTML.
+/// Markdown links, images or HTML. As in CommonMark, a code span closes only
+/// at the next backtick run of the same length; an unclosed run is literal.
 pub fn escape_markdown(text: &str) -> String {
-    let parts: Vec<&str> = text.split('`').collect();
-    // An odd count of backticks leaves the last one unpaired: its text is
-    // prose.
-    let paired = if parts.len().is_multiple_of(2) {
-        parts.len() - 1
-    } else {
-        parts.len()
-    };
+    let run_length = |text: &str| text.len() - text.trim_start_matches('`').len();
     let mut out = String::with_capacity(text.len());
-    for (i, part) in parts.iter().enumerate() {
-        if i > 0 {
-            out.push('`');
-        }
-        if i % 2 == 1 && i < paired {
-            out.push_str(part);
-            continue;
-        }
-        for c in part.chars() {
-            if matches!(c, '\\' | '[' | ']' | '(' | ')' | '<' | '>') {
-                out.push('\\');
+    let mut rest = text;
+    while let Some(start) = rest.find('`') {
+        escape_prose(&rest[..start], &mut out);
+        let run = run_length(&rest[start..]);
+        let after = &rest[start + run..];
+        let mut close = None;
+        let mut at = 0;
+        while let Some(found) = after[at..].find('`') {
+            let length = run_length(&after[at + found..]);
+            if length == run {
+                close = Some(at + found);
+                break;
             }
-            out.push(c);
+            at += found + length;
+        }
+        match close {
+            Some(close) => {
+                out.push_str(&rest[start..start + run + close + run]);
+                rest = &after[close + run..];
+            }
+            None => {
+                out.push_str(&rest[start..start + run]);
+                rest = after;
+            }
         }
     }
+    escape_prose(rest, &mut out);
     out
+}
+
+fn escape_prose(text: &str, out: &mut String) {
+    for c in text.chars() {
+        if matches!(c, '\\' | '[' | ']' | '(' | ')' | '<' | '>') {
+            out.push('\\');
+        }
+        out.push(c);
+    }
 }
 
 /// The prompt's area part, after the pack.
@@ -2318,6 +2333,12 @@ mod tests {
         // An unpaired backtick leaves the rest as prose.
         assert_eq!(escape_markdown("a ` [b]"), "a ` \\[b\\]");
         assert_eq!(escape_markdown("back\\slash"), "back\\\\slash");
+        // A code span closes only at a backtick run of its own length.
+        assert_eq!(
+            escape_markdown("```[x](http://e.com)`"),
+            "```\\[x\\]\\(http://e.com\\)`"
+        );
+        assert_eq!(escape_markdown("``a`[b]`` [c]"), "``a`[b]`` \\[c\\]");
         let record = json!({"digest":"d","model":"m","files":[],
             "reply":{"title":"[T](javascript:x)","summary":"<script>","purpose":[
                 {"text":"![i](http://e.com/p.png)","citations":["a.py:1"]}],

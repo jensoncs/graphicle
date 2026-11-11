@@ -126,29 +126,42 @@ struct Draft {
 }
 
 /// Remove `<private>` spans and client-injected `<system-reminder>` blocks.
+/// Tags nest, and a close tag only ends a span of its own kind, so neither a
+/// nested `<private>` nor a `</system-reminder>` inside `<private>` ends it
+/// early. An unclosed span hides everything after it; a stray close is text.
 fn strip_private(text: &str, applied: &mut Applied) -> String {
     use std::sync::OnceLock;
     static TAGS: OnceLock<regex::Regex> = OnceLock::new();
-    let tags = TAGS.get_or_init(|| {
-        regex::Regex::new(
-            r"(?is)<(private|system-reminder)\b[^>]*>.*?</(?:private|system-reminder)\s*>",
-        )
-        .unwrap()
-    });
-    let mut count = 0;
-    let out = tags.replace_all(text, |_: &regex::Captures| {
-        count += 1;
-        ""
-    });
-    applied.private_spans += count;
-    // An unclosed `<private>` hides everything after it.
-    match out.to_ascii_lowercase().find("<private") {
-        Some(at) => {
-            applied.private_spans += 1;
-            out[..at].to_string()
+    let tags = TAGS
+        .get_or_init(|| regex::Regex::new(r"(?i)<(/?)(private|system-reminder)\b[^>]*>").unwrap());
+    let mut out = String::new();
+    let mut open: Vec<String> = Vec::new();
+    let mut kept = 0;
+    for tag in tags.captures_iter(text) {
+        let (whole, closing, name) = (
+            tag.get(0).unwrap(),
+            !tag[1].is_empty(),
+            tag[2].to_ascii_lowercase(),
+        );
+        if !closing {
+            if open.is_empty() {
+                out.push_str(&text[kept..whole.start()]);
+            }
+            open.push(name);
+        } else if open.last() == Some(&name) {
+            open.pop();
+            if open.is_empty() {
+                applied.private_spans += 1;
+                kept = whole.end();
+            }
         }
-        None => out.into_owned(),
     }
+    if open.is_empty() {
+        out.push_str(&text[kept..]);
+    } else {
+        applied.private_spans += 1;
+    }
+    out
 }
 
 /// Redact credentials: the service's key=value rule plus common token formats.
@@ -1445,6 +1458,37 @@ mod tests {
             "{elided}"
         );
         assert_eq!(applied.elided, 1);
+    }
+
+    #[test]
+    fn quoted_keyed_secrets_and_nested_private_spans_never_leak() {
+        let mut applied = Applied::default();
+        for text in [
+            r#"{"token":"s3cretvalue"}"#,
+            r#"password: "two words""#,
+            "api_key='s3cretvalue'",
+        ] {
+            let out = clean(text, &mut applied);
+            assert!(
+                !out.contains("s3cretvalue") && !out.contains("two words"),
+                "{out}"
+            );
+        }
+        assert_eq!(
+            clean("max_tokens=5 tokens: 3", &mut applied),
+            "max_tokens=5 tokens: 3"
+        );
+        let nested = clean(
+            "a<private>x<private>y</private>LEAK</private>b",
+            &mut applied,
+        );
+        assert_eq!(nested, "ab");
+        let mixed = clean(
+            "a<private>x</system-reminder>LEAK</private>b<system-reminder>n</private>LEAK</system-reminder>c",
+            &mut applied,
+        );
+        assert_eq!(mixed, "abc");
+        assert_eq!(clean("a</private>b", &mut applied), "a</private>b");
     }
 
     /// A Muse Code session log as its own session-evidence projection

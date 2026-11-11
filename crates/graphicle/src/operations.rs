@@ -276,7 +276,9 @@ pub fn redact(value: &str) -> String {
     SECRET
         .get_or_init(|| {
             regex::Regex::new(
-                r#"(?i)(?:bearer\s+|(?:api[_-]?key|token|password|secret)\s*[=:]\s*)[^\s'\"]+"#,
+                // A quoted key (`"token":`) and a quoted value (`"a b"`) are
+                // redacted as well as the bare `token=value` form.
+                r#"(?i)(?:bearer\s+|(?:api[_-]?key|token|password|secret)["']?\s*[=:]\s*)(?:"[^"\n]*"|'[^'\n]*'|[^\s'"]+)"#,
             )
             .unwrap()
         })

@@ -1043,8 +1043,10 @@ impl Store {
 /// entry of the document's ACL credential list, or a provider-side principal
 /// (`am_source_permissions`) that maps to one of the credential's verified
 /// provider identities (of the kind's identity provider,
-/// `connectors::identity_provider`). Both are joins on the identifier, never
-/// text search over the JSON, so `cred-a` does not match `cred-ab`.
+/// `connectors::identity_provider`) through a `user`, `email` or `domain`
+/// grant, as `permissions::allows` reads them. Both are joins on the
+/// identifier, never text search over the JSON, so `cred-a` does not match
+/// `cred-ab`.
 pub fn credential_sources(
     db: &Connection,
     workspace: &str,
@@ -1078,7 +1080,11 @@ pub fn credential_sources(
          WHERE r.workspace_id=? AND d.present=1 AND ( \
             (json_extract(grant_.value,'$.type')='user' AND json_extract(grant_.value,'$.id')=i.external_id) OR \
             (json_extract(grant_.value,'$.type')='email' AND coalesce(json_extract(grant_.value,'$.email'),'')!='' \
-             AND lower(json_extract(grant_.value,'$.email')) IN (lower(coalesce(e.email,'')),lower(coalesce(o.email,'')))))",
+             AND lower(json_extract(grant_.value,'$.email')) IN (lower(coalesce(e.email,'')),lower(coalesce(o.email,'')))) OR \
+            (json_extract(grant_.value,'$.type')='domain' AND coalesce(json_extract(grant_.value,'$.domain'),'')!='' \
+             AND '@'||lower(json_extract(grant_.value,'$.domain')) IN ( \
+               substr(lower(coalesce(e.email,'')),-length(json_extract(grant_.value,'$.domain'))-1), \
+               substr(lower(coalesce(o.email,'')),-length(json_extract(grant_.value,'$.domain'))-1))))",
         params![
             crate::connectors::identity_providers().to_string(),
             credential,

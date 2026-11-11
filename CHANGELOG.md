@@ -17,6 +17,18 @@ versioned together at 0.2.0.
   file inside a pinned checkout, and its `use` and `replace` paths must stay
   there. A custom-named file could previously send `go list` outside the
   snapshot.
+- Connector ACL changes and credential revocation now mark the memories and
+  answers derived from affected documents stale; the lookup used a dependency
+  kind that was never recorded. Revocation also covers documents shared with
+  the credential's email domain.
+- Refuse to create a new `vault.key` while stored credentials exist: a lost or
+  unmounted key file previously got silently replaced, orphaning every sealed
+  secret. Reading the key no longer writes a temporary file.
+- Capture redaction catches quoted secrets (`"token":"..."`, `password: "a b"`),
+  and `<private>` spans nest, so an inner `</private>` or a
+  `</system-reminder>` can no longer end one early. Provider error reasons
+  redact keys inside compact JSON, and wiki Markdown escaping follows
+  CommonMark's matching backtick runs.
 
 ### SQLite under indexing load
 
