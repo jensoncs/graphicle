@@ -536,6 +536,49 @@ async fn extraction_runs_a_model_then_reuses_completed_pages_and_requires_review
     assert!(bad.is_err());
 }
 #[tokio::test]
+async fn workflow_calls_honor_the_profiles_spend_caps_and_log_their_cost() {
+    let f = Fixture::new();
+    let text = "Mira prefers quiet rooms.";
+    f.sync(&[("notes.txt", text)]);
+    let mut remote = mock(vec![json!({"claims":[claim(text,"ADD",None)]})], None).await;
+    let fixture = remote.config.models.get_mut("fixture").unwrap();
+    // $1 a million tokens: the 2,048-token output limit alone is $0.002.
+    fixture.price = serde_json::from_value(json!({"input":1.0,"output":1.0})).unwrap();
+    fixture.max_cost_per_day = Some(0.001);
+    let refused = run(&f, &remote, json!({"kind":"extract"})).await;
+    assert_ne!(refused["state"], "complete", "{refused}");
+    assert!(
+        refused.to_string().contains("max_cost_per_day"),
+        "{refused}"
+    );
+    assert_eq!(remote.state.count.load(Ordering::SeqCst), 0);
+    // An identical job would replay the refused one: start afresh.
+    let f = Fixture::new();
+    f.sync(&[("notes.txt", text)]);
+    remote
+        .config
+        .models
+        .get_mut("fixture")
+        .unwrap()
+        .max_cost_per_day = Some(1.0);
+    let done = run(&f, &remote, json!({"kind":"extract"})).await;
+    assert_eq!(done["state"], "complete", "{done}");
+    assert_eq!(remote.state.count.load(Ordering::SeqCst), 1);
+    let log = std::fs::read_to_string(f.dir.path().join("usage.jsonl")).unwrap();
+    let entries: Vec<Value> = log
+        .lines()
+        .map(|l| serde_json::from_str(l).unwrap())
+        .collect();
+    assert_eq!(entries.len(), 1, "{log}");
+    assert_eq!(entries[0]["command"], "workflow");
+    assert_eq!(entries[0]["profile"], "fixture");
+    assert_eq!(entries[0]["input_tokens"], 150);
+    assert_eq!(entries[0]["output_tokens"], 80);
+    assert_eq!(entries[0]["status"], "ok");
+    let pending = f.dir.path().join("usage-pending.json");
+    assert!(!pending.exists() || std::fs::read_to_string(pending).unwrap().trim() == "{}");
+}
+#[tokio::test]
 async fn absent_quotes_and_incomplete_responses_never_become_memory() {
     let f = Fixture::new();
     f.sync(&[("notes.txt", "Mira prefers quiet rooms.")]);

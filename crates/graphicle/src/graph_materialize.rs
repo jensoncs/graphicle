@@ -25,6 +25,9 @@ pub struct Report {
     pub reused: usize,
     pub removed: usize,
     pub bytes_written: usize,
+    /// Paths left out because the tree's file system folds case and another
+    /// path is the same file or folder there (see [`collisions`]).
+    pub case_collisions: Vec<String>,
 }
 
 pub struct SourceTree {
@@ -78,12 +81,77 @@ fn file_hash(path: &Path) -> Result<String> {
     Ok(format!("{:x}", hash.finalize()))
 }
 
+/// Whether the file system of `root` folds case (macOS and Windows by
+/// default): a file made there is found under its upper-case name too.
+fn folds_case(root: &Path) -> Result<bool> {
+    let probe = tempfile::Builder::new()
+        .prefix(".case-probe-")
+        .tempfile_in(root)?;
+    let name = probe
+        .path()
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| Error::bad("Case probe has no name"))?;
+    Ok(root.join(name.to_uppercase()).exists())
+}
+
+/// The paths that are one file or folder where case folds: equal but for
+/// case, or a file whose folded path is a folder of another path.
+/// ponytail: ASCII-style lowercase only; APFS also folds Unicode
+/// normalization, which needs NFD comparison if such repositories appear.
+fn collisions(heads: &BTreeMap<String, String>) -> BTreeSet<String> {
+    let mut files: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    let mut folders: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for path in heads.keys() {
+        let folded = path.to_lowercase();
+        for (end, _) in folded.match_indices('/') {
+            folders
+                .entry(folded[..end].to_string())
+                .or_default()
+                .push(path);
+        }
+        files.entry(folded).or_default().push(path);
+    }
+    let mut out = BTreeSet::new();
+    for (folded, paths) in &files {
+        let under = folders.get(folded);
+        if paths.len() > 1 || under.is_some() {
+            out.extend(
+                paths
+                    .iter()
+                    .chain(under.into_iter().flatten())
+                    .map(|p| p.to_string()),
+            );
+        }
+    }
+    out
+}
+
 fn sync(
     db: &Connection,
     repository: &str,
     heads: &BTreeMap<String, String>,
     tree: &mut SourceTree,
 ) -> Result<()> {
+    // Colliding paths would overwrite each other (or block a folder), and
+    // the graph would read one file's text under the other's name.
+    let skipped = if folds_case(&tree.root)? {
+        collisions(heads)
+    } else {
+        BTreeSet::new()
+    };
+    let kept: BTreeMap<String, String>;
+    let heads = if skipped.is_empty() {
+        heads
+    } else {
+        kept = heads
+            .iter()
+            .filter(|(path, _)| !skipped.contains(*path))
+            .map(|(path, hash)| (path.clone(), hash.clone()))
+            .collect();
+        &kept
+    };
+    tree.report.case_collisions = skipped.into_iter().collect();
     let wanted = heads
         .keys()
         .map(|relative| {
@@ -254,6 +322,57 @@ mod tests {
                 ((*path).into(), hash)
             })
             .collect()
+    }
+
+    #[test]
+    fn paths_equal_but_for_case_collide() {
+        let paths = |list: &[&str]| -> BTreeMap<String, String> {
+            list.iter()
+                .map(|p| (p.to_string(), String::new()))
+                .collect()
+        };
+        let found = collisions(&paths(&[
+            "Foo.py",
+            "foo.py",
+            "BUILD",
+            "build/x.py",
+            "src/A.py",
+            "Src/b.py",
+            "ok.py",
+        ]));
+        let expected: BTreeSet<String> = ["Foo.py", "foo.py", "BUILD", "build/x.py"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        assert_eq!(found, expected);
+    }
+
+    #[test]
+    fn colliding_paths_are_left_out_where_the_file_system_folds_case() {
+        let _flock = crate::fork_guard::flock_sensitive();
+        let db = database();
+        let cache = TempDir::new().unwrap();
+        let files = heads(
+            &db,
+            &[
+                ("Foo.py", "upper\n"),
+                ("foo.py", "lower\n"),
+                ("ok.py", "ok\n"),
+            ],
+        );
+        let tree = prepare(&db, "repo", &files, Some(cache.path())).unwrap();
+        if folds_case(tree.path()).unwrap() {
+            assert_eq!(tree.report.case_collisions, ["Foo.py", "foo.py"]);
+            assert_eq!(tree.report.written, 1);
+            assert!(!tree.path().join("foo.py").exists());
+        } else {
+            assert!(tree.report.case_collisions.is_empty());
+            assert_eq!(tree.report.written, 3);
+            assert_eq!(
+                fs::read_to_string(tree.path().join("foo.py")).unwrap(),
+                "lower\n"
+            );
+        }
     }
 
     #[test]

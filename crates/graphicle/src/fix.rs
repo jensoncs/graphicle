@@ -119,6 +119,9 @@ const KEY_VARIABLES: &[&str] = &[
     "GEMINI_API_KEY",
     "GOOGLE_API_KEY",
     "AZURE_OPENAI_API_KEY",
+    // Graphicle's own credentials.
+    "GRAPHICLE_MCP_API_KEY",
+    "GRAPHICLE_GCS_ACCESS_TOKEN",
 ];
 
 /// What `fix` is asked for.
@@ -543,6 +546,23 @@ pub fn apply(root: &Path, reply: &Value) -> std::result::Result<Applied, Vec<Str
     write_all(staged.into_values().collect())
 }
 
+/// Put `file` back as it was before the round: its old bytes, or no file.
+/// Fine when it already is (its own write failed before changing it).
+fn put_back(file: &Staged) -> std::io::Result<()> {
+    let undone = match &file.before {
+        Some(before) => std::fs::write(&file.full, before),
+        None => std::fs::remove_file(&file.full),
+    };
+    let unchanged = match &file.before {
+        Some(before) => std::fs::read(&file.full).is_ok_and(|now| &now == before),
+        None => std::fs::symlink_metadata(&file.full).is_err(),
+    };
+    match undone {
+        Err(_) if unchanged => Ok(()),
+        other => other,
+    }
+}
+
 /// Write a round's files; on a failed write, put back every file written so
 /// far and remove the files and folders the round made.
 fn write_all(files: Vec<Staged>) -> std::result::Result<Applied, Vec<String>> {
@@ -597,22 +617,27 @@ fn write_all(files: Vec<Staged>) -> std::result::Result<Applied, Vec<String>> {
         }
     }
     if let Some(failure) = failure {
-        for file in written.iter().rev() {
-            match &file.before {
-                Some(before) => {
-                    let _ = std::fs::write(&file.full, before);
-                }
-                None => {
-                    let _ = std::fs::remove_file(&file.full);
-                }
-            }
-        }
+        let stuck: Vec<String> = written
+            .iter()
+            .rev()
+            .filter_map(|file| {
+                put_back(file)
+                    .err()
+                    .map(|error| format!("{} ({error})", file.path))
+            })
+            .collect();
+        // ponytail: a folder that cannot be removed holds nothing of the round's.
         for folder in folders.iter().rev() {
             let _ = std::fs::remove_dir(folder);
         }
-        return Err(vec![format!(
-            "{failure}; the files of this round were put back"
-        )]);
+        return Err(vec![if stuck.is_empty() {
+            format!("{failure}; the files of this round were put back")
+        } else {
+            format!(
+                "{failure}; these files could not be put back and still hold this round's change: {}",
+                stuck.join(", ")
+            )
+        }]);
     }
     let mut applied = Applied::default();
     for file in &files {
@@ -2839,6 +2864,33 @@ mod tests {
         );
     }
 
+    /// Putting a file back fails only when it does not hold its old bytes.
+    #[cfg(unix)]
+    #[test]
+    fn put_back_reports_a_file_left_changed() {
+        use std::os::unix::fs::PermissionsExt;
+        if unsafe { libc::geteuid() } == 0 {
+            return;
+        }
+        let dir = tempfile::tempdir().unwrap();
+        let full = dir.path().join("a.txt");
+        let staged = |before: &str| Staged {
+            path: "a.txt".into(),
+            full: full.clone(),
+            text: "ONE\n".into(),
+            before: Some(before.as_bytes().to_vec()),
+        };
+        std::fs::write(&full, "ONE\n").unwrap();
+        std::fs::set_permissions(&full, std::fs::Permissions::from_mode(0o444)).unwrap();
+        // Read-only and changed: it cannot be put back.
+        assert!(put_back(&staged("one\n")).is_err());
+        // Read-only but unchanged (its own write failed): nothing to undo.
+        assert!(put_back(&staged("ONE\n")).is_ok());
+        std::fs::set_permissions(&full, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(put_back(&staged("one\n")).is_ok());
+        assert_eq!(std::fs::read_to_string(&full).unwrap(), "one\n");
+    }
+
     /// A write that fails puts back what the round wrote before it.
     #[cfg(unix)]
     #[test]
@@ -2990,6 +3042,10 @@ mod tests {
         let scrub = Scrub::of(&config);
         assert!(scrub.remove.contains(&"MY_FIX_KEY".to_string()));
         assert!(scrub.remove.contains(&"MODEL_API_KEY".to_string()));
+        // Graphicle's own credentials never reach the repository's tests.
+        for name in ["GRAPHICLE_MCP_API_KEY", "GRAPHICLE_GCS_ACCESS_TOKEN"] {
+            assert!(scrub.remove.contains(&name.to_string()), "{name}");
+        }
     }
 
     #[test]

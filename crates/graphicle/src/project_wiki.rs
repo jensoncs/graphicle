@@ -253,7 +253,23 @@ pub fn folder_of(target: &Target, out: Option<&Path>) -> Result<(PathBuf, bool)>
         .ok()
         .filter(|v| !v.trim().is_empty())
         .unwrap_or_else(|| ".graphicle".into());
-    Ok((folder.join(engine).join("wiki").join(FOLDER), true))
+    Ok((default_folder(folder, &engine)?, true))
+}
+
+/// `<project>/<engine>/wiki/written`, refused when a step below the project
+/// is a symbolic link: a checkout could point it outside the project.
+fn default_folder(project: &Path, engine: &str) -> Result<PathBuf> {
+    let mut dir = project.to_path_buf();
+    for step in [engine, "wiki", FOLDER] {
+        dir.push(step);
+        if std::fs::symlink_metadata(&dir).is_ok_and(|m| m.file_type().is_symlink()) {
+            return Err(Error::bad(format!(
+                "{} is a symbolic link: the wiki is not written through it; remove it or name the wiki's folder with --out",
+                dir.display()
+            )));
+        }
+    }
+    Ok(dir)
 }
 
 /// One code symbol of an area.
@@ -2458,6 +2474,30 @@ mod tests {
         std::os::unix::fs::symlink(&elsewhere, dir.path().join(LOCK)).unwrap();
         assert!(lock(dir.path()).is_err());
         assert!(!elsewhere.exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_linked_default_folder_is_refused() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let project = dir.path().join("project");
+        let elsewhere = dir.path().join("elsewhere");
+        std::fs::create_dir_all(project.join(".graphicle")).unwrap();
+        std::fs::create_dir_all(&elsewhere).unwrap();
+        assert_eq!(
+            default_folder(&project, ".graphicle").unwrap(),
+            project.join(".graphicle/wiki/written")
+        );
+        // A checkout can hold a link at any step; none is followed.
+        std::os::unix::fs::symlink(&elsewhere, project.join(".graphicle/wiki")).unwrap();
+        let refused = default_folder(&project, ".graphicle")
+            .unwrap_err()
+            .to_string();
+        assert!(refused.contains("symbolic link"), "{refused}");
+        std::fs::remove_file(project.join(".graphicle/wiki")).unwrap();
+        std::fs::remove_dir(project.join(".graphicle")).unwrap();
+        std::os::unix::fs::symlink(&elsewhere, project.join(".graphicle")).unwrap();
+        assert!(default_folder(&project, ".graphicle").is_err());
     }
 
     #[test]

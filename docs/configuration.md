@@ -265,9 +265,11 @@ graphicle config set models.meta.price '{"input":4,"output":20,"cached_input":0.
 
 Check the pricing page before you rely on these: prices change.
 
-**The spend log.** Every model call of `ask --pack`, `plan` and `fix` adds
-one line to `usage.jsonl` in Graphicle's data folder: the time, command,
-profile, provider, model, project, commit, prompt cache key, the input,
+**The spend log.** Every model call of `ask --pack`, `plan`, `fix`, `pixel`
+and of workflow jobs (`workflow`: extraction, reflection, refresh and
+answer jobs, and the observation rounds they run) adds one line to
+`usage.jsonl` in Graphicle's data folder: the time, command, profile,
+provider, model, project, commit, prompt cache key, the input,
 cached, output and reasoning tokens from the provider's usage, the seconds,
 the cost at the profile's price (`null` without one) and the status. It never
 holds the prompt or the answer. After each answer, one line sums it up, for

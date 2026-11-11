@@ -1484,7 +1484,7 @@ impl Worker {
         capped: &[&str],
     ) -> Result<(Value, Value)> {
         let config = crate::settings::configuration(&self.store, &job.workspace, &self.config)?;
-        let (_, profile) = config.profile(job.payload["model"].as_str())?;
+        let (name, profile) = config.profile(job.payload["model"].as_str())?;
         if s(&job.payload, "model_key") != model::key(profile) {
             return Err(Error::conflict("Model configuration changed after queuing"));
         }
@@ -1570,6 +1570,29 @@ impl Worker {
             validate_output(schema, &value)?;
             return Ok((value, cut));
         }
+        // The profile's caps (max_cost_per_call, max_cost_per_day) hold for
+        // workflow calls too, in the same spend log as ask, plan and fix.
+        let held = match crate::spend::reserve(
+            &self.store.directory,
+            name,
+            profile,
+            crate::spend::worst_input(input_tokens as u64, None, None),
+            chrono::Utc::now(),
+        ) {
+            Ok(held) => held,
+            Err(error) => {
+                // Never sent: the call holds none of the job's budget.
+                self.store.transaction(|db| {
+                    db.execute("DELETE FROM am_model_calls WHERE id=?", [&reservation])?;
+                    db.execute(
+                        "DELETE FROM am_call_reservations WHERE id=?",
+                        [&reservation],
+                    )?;
+                    Ok(())
+                })?;
+                return Err(error);
+            }
+        };
         let reply = if job.payload["dispatch"] == "redis" {
             crate::distributed::generate(
                 self,
@@ -1593,6 +1616,18 @@ impl Worker {
             )
             .await
         };
+        let call = crate::spend::Call {
+            command: "workflow",
+            profile: name,
+            settings: profile,
+            project: Some(&job.repository),
+            commit: None,
+            prompt_cache_key: None,
+        };
+        let mut entry = crate::spend::entry(&call, &spent(&reply), chrono::Utc::now());
+        if let Err(error) = crate::spend::settle(&self.store.directory, &held, &mut entry) {
+            eprintln!("graphicle: could not write the spend log: {error}");
+        }
         // Record even a failed/unknown provider call independently of job access.
         self.store.transaction(|db| {
             match &reply {
@@ -1734,6 +1769,26 @@ impl Worker {
         let (vectors, _, _) = result?;
         guarded_read(&self.store, job, |_, _, _| Ok(()))?;
         Ok(vectors)
+    }
+}
+/// A workflow call's reply as the spend log reads it: usage only when the
+/// provider reported it, so a call without usage counts at its worst case.
+fn spent(reply: &Result<model::Reply>) -> Result<model::Completion> {
+    match reply {
+        Ok(reply) => Ok(model::Completion {
+            text: String::new(),
+            input_tokens: reply.usage_reported.then_some(reply.input_tokens as u64),
+            output_tokens: reply.usage_reported.then_some(reply.output_tokens as u64),
+            cached_tokens: None,
+            reasoning_tokens: None,
+            elapsed_ms: reply.elapsed_ms,
+            model: reply.model.clone(),
+        }),
+        Err(error) => Err(Error {
+            status: error.status,
+            message: error.message.clone(),
+            provider_failure: error.provider_failure.clone(),
+        }),
     }
 }
 /// How a reply that fails its output schema is reported (see `validate_output`).

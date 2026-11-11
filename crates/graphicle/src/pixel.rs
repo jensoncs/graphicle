@@ -1731,8 +1731,16 @@ async fn segment(
     data_url: &str,
     meta: &Value,
 ) -> Result<(Option<Bounds>, Value, Option<String>)> {
-    let held = crate::spend::reserve(&run.store.directory, name, profile, 0, chrono::Utc::now())?;
-    let body = sam_body(&profile.model, &sam_prompt(point, image), data_url);
+    let prompt = sam_prompt(point, image);
+    let held = crate::spend::reserve_images(
+        &run.store.directory,
+        name,
+        profile,
+        crate::spend::worst_input(prompt.len() as u64 / 3 + IMAGE_TOKENS, None, None),
+        1,
+        chrono::Utc::now(),
+    )?;
+    let body = sam_body(&profile.model, &prompt, data_url);
     let start = Instant::now();
     let result = match model::post_json(profile, "responses", &body, SAM_TIMEOUT).await {
         Ok(value) if matches!(value["status"].as_str(), None | Some("completed")) => {

@@ -1,5 +1,5 @@
-//! The spend log and caps of long-context model calls (`ask --pack`, `plan`,
-//! `fix`).
+//! The spend log and caps of model calls (`ask --pack`, `plan`, `fix`,
+//! `pixel` and workflow jobs).
 //!
 //! Every call appends one JSON line to `usage.jsonl` in Graphicle's data
 //! folder: when, which command, profile, provider and model, the project and
@@ -284,6 +284,8 @@ fn charged(entry: &Value) -> f64 {
 
 /// US dollars as a person reads them: cents, or four decimals below a cent.
 pub fn usd(amount: f64) -> String {
+    // An empty sum is -0.0, which would print as "$-0.00".
+    let amount = amount + 0.0;
     if amount >= 0.01 || amount == 0.0 {
         format!("${amount:.2}")
     } else {
@@ -335,6 +337,19 @@ pub fn reserve(
     input: u64,
     now: DateTime<Utc>,
 ) -> Result<Reservation> {
+    reserve_images(directory, name, p, input, 0, now)
+}
+
+/// [`reserve`] for a call that also sends `images` images, each at the
+/// profile's `price.per_image` when it has one.
+pub fn reserve_images(
+    directory: &Path,
+    name: &str,
+    p: &Profile,
+    input: u64,
+    images: u64,
+    now: DateTime<Utc>,
+) -> Result<Reservation> {
     let Some(price) = &p.price else {
         return Ok(Reservation {
             id: None,
@@ -342,7 +357,7 @@ pub fn reserve(
         });
     };
     let output = p.output_limit as u64;
-    let worst = price.cost(input, 0, output);
+    let worst = price.cost(input, 0, output) + price.per_image.unwrap_or(0.0) * images as f64;
     if let Some(cap) = p.max_cost_per_call
         && worst > cap
     {
@@ -814,6 +829,27 @@ mod tests {
         );
         assert!(refused.contains("$1.39"), "{refused}");
         assert!(reserve(dir.path(), "meta", &p, 500_000, at("2026-10-26T10:00:00Z")).is_ok());
+    }
+
+    #[test]
+    fn an_image_billed_call_reserves_its_per_image_price() {
+        let dir = tempfile::tempdir().unwrap();
+        let sam = json!({"input":0.0,"output":0.0,"per_image":0.5});
+        let p = profile(sam, json!({"max_cost_per_call":0.4,"max_cost_per_day":1.0}));
+        let now = at("2026-10-26T09:00:00Z");
+        let refused = reserve_images(dir.path(), "sam", &p, 2_000, 1, now)
+            .unwrap_err()
+            .to_string();
+        assert!(refused.contains("max_cost_per_call"), "{refused}");
+        let p = profile(
+            json!({"input":0.0,"output":0.0,"per_image":0.5}),
+            json!({"max_cost_per_day":1.0}),
+        );
+        let held = reserve_images(dir.path(), "sam", &p, 2_000, 1, now).unwrap();
+        assert_eq!(held.worst, Some(0.5));
+        reserve_images(dir.path(), "sam", &p, 2_000, 1, now).unwrap();
+        // Two images in flight hold the whole day cap.
+        assert!(reserve_images(dir.path(), "sam", &p, 2_000, 1, now).is_err());
     }
 
     #[test]

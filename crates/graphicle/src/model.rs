@@ -965,7 +965,7 @@ pub async fn generate(
 }
 /// Provider-reported failure metadata. Reserved token limits are never substituted
 /// for actual usage, and no partial model output is accepted as a valid result.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Failure {
     pub reason: String,
     pub input_tokens: Option<u64>,

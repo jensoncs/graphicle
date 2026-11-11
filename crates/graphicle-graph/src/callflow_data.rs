@@ -429,8 +429,17 @@ pub fn safe_mermaid(t: &str) -> String {
         false,
     )
 }
+/// Text for inside an HTML comment: it never holds "--" (which would end the
+/// comment as "-->" or "--!>"), so a space follows each dash after a dash.
 pub fn comment(t: &str) -> String {
-    t.replace("--", "- -").replace('\n', " ")
+    let mut out = String::with_capacity(t.len());
+    for c in t.chars() {
+        if c == '-' && out.ends_with('-') {
+            out.push(' ');
+        }
+        out.push(if c == '\n' { ' ' } else { c });
+    }
+    out
 }
 pub fn digest(t: &str, len: usize) -> String {
     format!("{:x}", Sha1::digest(t.as_bytes()))[..len].into()
@@ -1118,4 +1127,19 @@ pub fn classify(edges: &[Value], sections: &Value) -> Value {
         }
     }
     json!({"intra":intra,"inter":inter,"orphan":orphan,"node_section":ns})
+}
+
+#[cfg(test)]
+mod comment_tests {
+    use super::comment;
+
+    #[test]
+    fn comment_text_never_holds_a_double_dash() {
+        for raw in ["a--->b", "x---", "--!>", "<!--", "a\n--\n>", "----"] {
+            let text = comment(raw);
+            assert!(!text.contains("--"), "{raw:?} -> {text:?}");
+            assert!(!text.contains('\n'), "{raw:?} -> {text:?}");
+        }
+        assert_eq!(comment("a-b"), "a-b");
+    }
 }

@@ -50,6 +50,22 @@ versioned together at 0.2.0.
   scripts, the engine's `Cargo.lock` and the review risk schema, and a test
   checks every compile input against the Dockerfile and its ignore file. The
   runtime image includes `git`. Go is not included (see `deploy/README.md`).
+- Workflow jobs (extraction, reflection, refresh, answers and observation
+  rounds) honour the profile's `max_cost_per_call` and `max_cost_per_day`,
+  and their calls appear in the spend log and `graphicle usage` as
+  `workflow`. SAM segmentation in `pixel` reserves its per-image price, so its
+  caps apply too.
+- Exported call-flow HTML can no longer end its section comments early (a name
+  holding `--->`), and Mermaid runs in `antiscript` mode instead of `loose`.
+- `wiki build` refuses to write through a symbolic link at
+  `.graphicle/wiki/written` or any folder above it in the project; `--out`
+  names another folder. `fix` reports the files it could not put back after a
+  failed write instead of saying all were restored, and its test command no
+  longer receives `GRAPHICLE_MCP_API_KEY` or `GRAPHICLE_GCS_ACCESS_TOKEN`.
+- On a file system that folds case (macOS, Windows), graph projection leaves
+  out paths that differ only in case, or a file that shares its name with a
+  folder, and lists them under `materialization.case_collisions`; previously
+  one overwrote the other, or the projection failed.
 
 ### SQLite under indexing load
 
