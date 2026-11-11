@@ -691,7 +691,8 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
                         limits.symbols,
                         &mut symbols_full,
                         json!({"name":child_scope.join("."),"kind":definition,
-                    "line":line,"end_line":node.end_position().row+1,"byte_start":node.start_byte(),"byte_end":node.end_byte()}),
+                    "line":line,"end_line":node.end_position().row+1,"byte_start":node.start_byte(),"byte_end":node.end_byte(),
+                    "body_start":node.child_by_field_name("body").map(|body| body.start_byte())}),
                     );
                 }
             }
@@ -707,7 +708,8 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
                         limits.symbols,
                         &mut symbols_full,
                         json!({"name":child_scope.join("."),
-                            "kind":"function","line":line,"end_line":node.end_position().row+1,"byte_start":node.start_byte(),"byte_end":node.end_byte()}),
+                            "kind":"function","line":line,"end_line":node.end_position().row+1,"byte_start":node.start_byte(),"byte_end":node.end_byte(),
+                            "body_start":v.child_by_field_name("body").map(|body| body.start_byte())}),
                     );
                 }
             }

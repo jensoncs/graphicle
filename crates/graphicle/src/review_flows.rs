@@ -54,7 +54,13 @@ pub(super) fn annotate(entries: &mut [Value], base: &Input, head: &Input) {
                     continue;
                 };
                 step["citation"] = json!({"repository_id":source.repository,"commit":pin.commit,"snapshot":pin.snapshot,"policy_sha256":pin.policy_sha256,"file":source.path,"sha256":source.sha,"byte_start":step["byte_start"],"byte_end":step["byte_end"]});
-                if step["relation"] == "may_call" {
+                // A basic call keeps the binding that resolved it.
+                if step["relation"] == "may_call"
+                    && !matches!(
+                        step["evidence"].as_str(),
+                        Some("explicit_import_binding" | "unique_visible_declaration_candidate")
+                    )
+                {
                     step["evidence"] = json!("function_value_candidate");
                 }
             }

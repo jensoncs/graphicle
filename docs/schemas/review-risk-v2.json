@@ -192,7 +192,7 @@
       "type": "object", "required": ["id", "analysis_level", "review_basis", "update", "test_classification", "reasons"],
       "properties": {
         "id": {"type": "string"},
-        "analysis_level": {"enum": ["compiler_symbol", "basic_file"]},
+        "analysis_level": {"enum": ["compiler_symbol", "basic_file", "basic_symbol"]},
         "review_basis": {"$ref": "#/$defs/basis"},
         "update": {"enum": ["added", "updated"]},
         "test_classification": {"enum": ["test_file", "non_test_file", "not_analyzed"]},

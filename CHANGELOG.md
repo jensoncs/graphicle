@@ -85,6 +85,16 @@ versioned together at 0.2.0.
   own stale check. A memory that also cites workspace links or connector
   documents, or is current only through its symbol links, keeps its marker
   (E11-F1).
+- Pinned review finds the callers of a changed Python, Rust, TypeScript or
+  JavaScript function. Each uniquely named declaration is a `basic_symbol`
+  entry with its own byte range and signature/implementation revisions, and
+  calls bound through a visible declaration or an explicit import are
+  `may_call` edges, so callers are required context counted in
+  `coverage.callers`. File importers remain optional context. On a fixture
+  with 2 callers and 20 importers under a 6,000-token budget, both callers
+  reached the packet (1 before) in 4,593 tokens (4,913 before). The
+  review-risk v2 schema and the TypeScript SDK type add `basic_symbol` to
+  `analysis_level`.
 - Pinned review gives TypeScript and JavaScript the basic file-level impact
   Python and Rust have: `.ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs` importers are
   selected through relative and `tsconfig`/`jsconfig` `paths` import

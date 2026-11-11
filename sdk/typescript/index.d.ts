@@ -85,7 +85,7 @@ export interface ReviewBasis {
     "missing_file_declarations" | "complete_static_component" | "context_omitted";
 }
 export interface ReviewEntry extends Result {
-  id: string; analysis_level: "compiler_symbol" | "basic_file";
+  id: string; analysis_level: "compiler_symbol" | "basic_file" | "basic_symbol";
   review_basis: ReviewBasis; update: "added" | "updated";
   test_classification: "test_file" | "non_test_file" | "not_analyzed";
   reasons: (Result & {reason: "change_seed" | "dependency" | "potential_consumer" |

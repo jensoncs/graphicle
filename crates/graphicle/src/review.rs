@@ -1340,7 +1340,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                     .get(&(world.as_str(), symbol.package.as_str()))
                     .unwrap_or(&Value::Null),
             );
-            if symbol.kind == "basic_file" {
+            if world.starts_with("basic:") {
                 basic::annotate(&mut value, analysis, &symbol.file);
             }
             if let Some(boundary) = analysis.services.nodes.get(&id) {

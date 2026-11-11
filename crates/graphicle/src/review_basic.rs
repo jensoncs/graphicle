@@ -106,6 +106,109 @@ fn script_source(ext: &str) -> bool {
     )
 }
 
+/// The review key of a declaration, stable across base and head.
+fn symbol_key(path: &str, name: &str) -> String {
+    format!("symbol:{path}#{name}")
+}
+
+/// The bytes of line `line` (1-based) of `source`.
+fn line_span(source: &str, line: usize) -> std::ops::Range<usize> {
+    let start = source
+        .split_inclusive('\n')
+        .take(line.saturating_sub(1))
+        .map(str::len)
+        .sum();
+    let end = start
+        + source
+            .get(start..)
+            .unwrap_or("")
+            .split_inclusive('\n')
+            .next()
+            .unwrap_or("")
+            .len();
+    start..end
+}
+
+/// One review node per named declaration of a parsed source, beside its
+/// file node: exact spans, the header (`signature`) and body
+/// (`implementation`) digested apart, and `correspondence` the header with the
+/// name masked, as the Go analyzer records them. A name declared twice in one
+/// file is reported, not guessed. Returns the keys added.
+fn declaration_nodes(
+    out: &mut Analysis,
+    owner: &str,
+    path: &str,
+    content: &str,
+    parsed: &Value,
+) -> BTreeSet<String> {
+    let symbols = parsed["symbols"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    let mut seen = BTreeMap::<&str, usize>::new();
+    for d in symbols {
+        *seen.entry(s(d, "name")).or_default() += 1;
+    }
+    let mut added = BTreeSet::new();
+    for d in symbols {
+        let name = s(d, "name");
+        let (Some(start), Some(end)) = (d["byte_start"].as_u64(), d["byte_end"].as_u64()) else {
+            continue;
+        };
+        let (start, end) = (start as usize, end as usize);
+        let Some(text) = content
+            .get(start..end)
+            .filter(|_| !name.is_empty() && start < end)
+        else {
+            continue;
+        };
+        if seen[name] > 1 {
+            if !out.issues.iter().any(|i| {
+                i["reason"] == "basic_duplicate_declaration"
+                    && i["detail"]["file"] == path
+                    && i["detail"]["name"] == name
+            }) {
+                out.issues.push(issue(
+                    "basic_duplicate_declaration",
+                    json!({"file":path,"name":name}),
+                ));
+            }
+            continue;
+        }
+        let body_start = d["body_start"]
+            .as_u64()
+            .map(|b| b as usize)
+            .filter(|b| (start..=end).contains(b) && content.is_char_boundary(*b))
+            .unwrap_or(end);
+        let header = &content[start..body_start];
+        let short = name.rsplit('.').next().unwrap_or(name);
+        let symbol = Symbol {
+            key: symbol_key(path, name),
+            file: path.into(),
+            package: path.into(),
+            name: name.into(),
+            kind: s(d, "kind").into(),
+            parent: name
+                .rsplit_once('.')
+                .map_or("", |(parent, _)| parent)
+                .into(),
+            start,
+            end,
+            body_start,
+            line: d["line"].as_u64().unwrap_or(1) as usize,
+            end_line: d["end_line"].as_u64().unwrap_or(1) as usize,
+            revision: text::sha256(text.as_bytes()),
+            signature: text::sha256(header.as_bytes()),
+            implementation: text::sha256(&content.as_bytes()[body_start..end]),
+            correspondence: text::sha256(header.replacen(short, "\0", 1).as_bytes()),
+        };
+        added.insert(symbol.key.clone());
+        out.symbols
+            .insert(key(owner, &symbol.key), (owner.into(), symbol));
+    }
+    added
+}
+
 fn world(path: &str) -> String {
     format!("basic:{}", path.split('/').next().unwrap_or(""))
 }
@@ -145,6 +248,30 @@ fn link(
     if from == to {
         return;
     }
+    edge(
+        out,
+        (from, &file_key(from)),
+        (to, &file_key(to)),
+        relation,
+        evidence,
+        line,
+        span,
+    );
+}
+
+/// An edge from `caller` in file `from` to `target` in file `to`.
+fn edge(
+    out: &mut Analysis,
+    (from, caller): (&str, &str),
+    (to, target): (&str, &str),
+    relation: &str,
+    evidence: &str,
+    line: usize,
+    span: std::ops::Range<usize>,
+) {
+    if caller == target {
+        return;
+    }
     if out.calls.len() >= 200_000 {
         if !out.issues.iter().any(|i| i["reason"] == "basic_edge_limit") {
             out.issues.push(issue("basic_edge_limit", json!(200_000)));
@@ -155,8 +282,8 @@ fn link(
         world(from),
         Call {
             boundary: Value::Null,
-            caller: file_key(from),
-            target: file_key(to),
+            caller: caller.into(),
+            target: target.into(),
             target_file: to.into(),
             target_package: to.into(),
             target_offset: 0,
@@ -186,6 +313,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
     let mut counts = BTreeMap::<&str, usize>::new();
     let mut groups = BTreeMap::<String, Vec<String>>::new();
     let mut imports = BTreeMap::<String, serde_json::Map<String, Value>>::new();
+    let mut declared = BTreeSet::<String>::new();
     for (path, lang) in &files {
         checkpoint()?;
         *counts.entry(lang).or_default() += 1;
@@ -289,9 +417,14 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 parsed["imports"] = json!([]);
             }
             if matches!(*lang, "python" | "rust" | "typescript" | "javascript") {
-                // This tier only consumes imports. Do not repeat unused call
-                // resolution in structure::graph for every basic review.
-                parsed["calls"] = json!([]);
+                if !config
+                    && parsed["imports"].is_array()
+                    && structure::declaration_spans_complete(&parsed)
+                {
+                    declared.extend(declaration_nodes(out, &owner, path, content, &parsed));
+                } else {
+                    parsed["calls"] = json!([]);
+                }
                 imports
                     .entry(path.split('/').next().unwrap().into())
                     .or_default()
@@ -330,9 +463,9 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "terraform"=>"No plan, state, provider schemas, remote module resolution or expression evaluation",
                 "helm"=>"Chart source scope only; no rendering, release values, cluster capabilities or remote chart resolution",
                 "bash"=>"Literal script paths are candidates; working directory, PATH, expansions and dynamic commands are unresolved",
-                "python"=>"Local import candidates and literal environment reads only; runtime environments, dynamic imports, rebinding and runtime dispatch are not resolved",
-                "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates only; node_modules, package exports, CommonJS require, dynamic import(), bundler aliases and runtime dispatch are not resolved",
-                _=>"Local module candidates only; Cargo resolution, cfg, macros, build scripts and trait dispatch are not resolved"
+                "python"=>"Local import candidates, calls bound by name through a visible declaration or explicit import, and literal environment reads only; runtime environments, dynamic imports, rebinding, method calls and runtime dispatch are not resolved",
+                "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates, and calls bound by name through a visible declaration or explicit import, only; node_modules, package exports, CommonJS require, dynamic import(), bundler aliases, method calls, new, JSX and callbacks are not resolved",
+                _=>"Local module candidates and calls bound by name through a visible declaration or explicit import only; Cargo resolution, cfg, macros, build scripts, method calls and trait dispatch are not resolved"
             }})));
     }
     for (group, members) in groups {
@@ -427,19 +560,6 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             if files.contains_key(&from) && files.contains_key(&to) {
                 let line = edge["line"].as_u64().unwrap_or(1) as usize;
                 let source = input.sources[&from].content.text().unwrap();
-                let start = source
-                    .split_inclusive('\n')
-                    .take(line.saturating_sub(1))
-                    .map(str::len)
-                    .sum();
-                let end = start
-                    + source
-                        .get(start..)
-                        .unwrap_or("")
-                        .split_inclusive('\n')
-                        .next()
-                        .unwrap_or("")
-                        .len();
                 link(
                     out,
                     &from,
@@ -447,9 +567,45 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                     "potential_import",
                     "static_source_candidate",
                     line,
-                    start..end,
+                    line_span(source, line),
                 );
             }
+        }
+        // Calls the parser bound to one declaration through a visible
+        // declaration or an explicit import are callers of that declaration;
+        // a call at module level is its file's.
+        for call in graph["symbol_calls"].as_array().into_iter().flatten() {
+            let from = format!("{repo}/{}", s(call, "path"));
+            let to = format!("{repo}/{}", s(call, "callee_path"));
+            if !files.contains_key(&from) || !files.contains_key(&to) {
+                continue;
+            }
+            let node = |file: &str, name: &str| {
+                let key = symbol_key(file, name);
+                if declared.contains(&key) {
+                    key
+                } else {
+                    file_key(file)
+                }
+            };
+            let line = call["line"].as_u64().unwrap_or(1) as usize;
+            let source = input.sources[&from].content.text().unwrap();
+            edge(
+                out,
+                (&from, &node(&from, s(call, "caller"))),
+                (&to, &node(&to, s(call, "callee"))),
+                "may_call",
+                s(call, "basis"),
+                line,
+                line_span(source, line),
+            );
+        }
+        let unresolved_calls = graph["unresolved_calls"].as_array().map_or(0, Vec::len);
+        if unresolved_calls > 0 {
+            out.issues.push(issue(
+                "basic_unresolved_calls",
+                json!({"directory":repo,"calls":unresolved_calls}),
+            ));
         }
         for unresolved in graph["unresolved"].as_array().into_iter().flatten() {
             out.issues.push(issue(
@@ -532,6 +688,21 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
 }
 
 pub(super) fn annotate(entry: &mut Value, analysis: &Analysis, file: &str) {
+    if entry["kind"] != "basic_file" {
+        // A declaration keeps its signature and implementation revisions.
+        if let Some(input) = analysis
+            .inputs
+            .iter()
+            .find(|i| i["file"] == file && i["analysis_level"] == "basic_file")
+        {
+            entry["language"] = input["language"].clone();
+        }
+        entry["analysis_level"] = json!("basic_symbol");
+        entry["test_classification"] = json!("not_analyzed");
+        entry["test"] = Value::Null;
+        entry["revision"] = json!(crate::digest(entry));
+        return;
+    }
     if let Some(input) = analysis
         .inputs
         .iter()
@@ -666,7 +837,7 @@ mod tests {
             .as_array()
             .unwrap()
             .iter()
-            .find(|e| e["file"] == "tax.py" && e["side"] == "head")
+            .find(|e| e["file"] == "tax.py" && e["side"] == "head" && e["kind"] == "basic_file")
             .unwrap();
         assert_eq!(
             e["text"],
@@ -675,8 +846,18 @@ mod tests {
         assert_eq!(e["language"], "python");
         assert_eq!(e["declarations"][0]["name"], "calculate");
         assert!(e["signature_revision"].is_null());
-        assert_eq!(r["changes"][0]["granularity"], "file");
-        assert!(r["changes"][0]["signature_changed"].is_null());
+        let changes = r["changes"].as_array().unwrap();
+        assert!(
+            changes
+                .iter()
+                .any(|c| c["granularity"] == "file" && c["signature_changed"].is_null())
+        );
+        // The declaration's own change is classified: its body changed.
+        assert!(
+            changes
+                .iter()
+                .any(|c| c["signature_changed"] == false && c["implementation_changed"] == true)
+        );
     }
 
     #[test]
@@ -722,11 +903,8 @@ mod tests {
                 "{importer}"
             );
         }
-        assert!(
-            a.calls
-                .iter()
-                .all(|(_, c)| c.relation != "calls" && c.relation != "may_call")
-        );
+        // Resolved calls are `may_call` candidates, never compiler `calls`.
+        assert!(a.calls.iter().all(|(_, c)| c.relation != "calls"));
         let r = report(&base, &head);
         for importer in ["src/cart.tsx", "src/alias.ts", "src/legacy.mjs"] {
             assert!(selected(&r, "head", importer), "{importer}");
@@ -746,6 +924,77 @@ mod tests {
         let bumped = files("1", "{\"name\":\"shop\",\"version\":\"2\"}\n");
         let r = report(&base, &bumped);
         assert!(selected(&r, "head", "src/unrelated.js"));
+    }
+
+    #[test]
+    fn resolved_calls_select_the_changed_functions_callers() {
+        let files = |body: &str| {
+            input(&[
+                (
+                    "repo/src/price.ts",
+                    &format!(
+                        "export function price(): number {{\n  return {body};\n}}\n\nexport function tax(): number {{\n  return 7;\n}}\n"
+                    ),
+                ),
+                (
+                    "repo/src/cart.ts",
+                    "import { price } from './price';\n\nexport function total(): number {\n  return price() + 1;\n}\n",
+                ),
+                (
+                    "repo/src/report.ts",
+                    "import { tax } from './price';\n\nexport function audit(): number {\n  return tax();\n}\n",
+                ),
+            ])
+        };
+        let (base, head) = (files("1"), files("2"));
+        let a = analysis(&head);
+        assert!(
+            a.calls
+                .iter()
+                .any(|(_, c)| c.caller == symbol_key("repo/src/cart.ts", "total")
+                    && c.target == symbol_key("repo/src/price.ts", "price")
+                    && c.relation == "may_call"
+                    && c.evidence == "explicit_import_binding"),
+            "{:?}",
+            a.calls
+                .iter()
+                .map(|(_, c)| (&c.caller, &c.target, &c.relation))
+                .collect::<Vec<_>>()
+        );
+        let r = report(&base, &head);
+        let price = key(
+            &world("repo/src/price.ts"),
+            &symbol_key("repo/src/price.ts", "price"),
+        );
+        let change = r["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["head"] == json!(price))
+            .unwrap_or_else(|| panic!("{}", r["changes"]));
+        assert_eq!(change["signature_changed"], false);
+        assert_eq!(change["implementation_changed"], true);
+        let entries = r["entries"].as_array().unwrap();
+        let caller = entries
+            .iter()
+            .find(|e| e["side"] == "head" && e["file"] == "src/cart.ts" && e["name"] == "total")
+            .unwrap_or_else(|| panic!("{r:#}"));
+        assert_eq!(caller["analysis_level"], "basic_symbol");
+        assert_eq!(caller["language"], "typescript");
+        assert!(caller["reasons"].as_array().unwrap().iter().any(|reason| {
+            reason["reason"] == "potential_consumer"
+                && reason["steps"][0]["relation"] == "may_call"
+                && reason["steps"][0]["evidence"] == "explicit_import_binding"
+        }));
+        // A function calling only the unchanged `tax` is not a caller, while
+        // its file stays an importer of the changed file.
+        assert!(
+            !entries
+                .iter()
+                .any(|e| e["file"] == "src/report.ts" && e["name"] == "audit")
+        );
+        assert!(selected(&r, "head", "src/report.ts"));
+        assert_eq!(r["coverage"]["complete"], false);
     }
 
     #[test]

@@ -42,13 +42,22 @@ fn basic_languages_use_authorized_pins_and_revision_safe_packets() {
             .filter(|e| e["side"] == "head" && e["language"] == lang)
             .collect();
         assert!(!entries.is_empty(), "missing {lang}: {first}");
+        assert!(
+            entries.iter().any(|e| e["analysis_level"] == "basic_file"),
+            "{lang}"
+        );
         for entry in entries {
             assert_eq!(entry["repository_id"], repo);
-            assert_eq!(entry["analysis_level"], "basic_file");
-            assert_eq!(
-                entry["file_sha256"],
-                text::sha256(s(entry, "text").as_bytes())
-            );
+            // A file entry is the whole file; a declaration entry its span.
+            if entry["analysis_level"] == "basic_file" {
+                assert_eq!(
+                    entry["file_sha256"],
+                    text::sha256(s(entry, "text").as_bytes())
+                );
+            } else {
+                assert_eq!(entry["analysis_level"], "basic_symbol", "{entry}");
+                assert!(entry["byte_end"].as_u64() > entry["byte_start"].as_u64());
+            }
             assert_ne!(entry["review_basis"]["complete"], true);
         }
     }
@@ -164,4 +173,74 @@ fn go_compiler_facts_survive_mixed_basic_review() {
             .iter()
             .any(|e| e["side"] == "head" && e["language"] == "python")
     );
+}
+
+/// Under a tight budget the callers of a changed function reach the packet
+/// before files that only import it. Prints the counts for comparison.
+#[test]
+fn resolved_callers_reach_a_tight_packet_before_importers() {
+    let f = Fixture::new();
+    let repo = f.repo("callers");
+    let filler: String = (0..120)
+        .map(|i| format!("export const unrelated{i} = {i} * 2;\n"))
+        .collect();
+    let files = |body: &str| -> Vec<(String, String)> {
+        let mut files = vec![(
+            "src/price.ts".to_string(),
+            format!("export function price(): number {{\n  return {body};\n}}\n"),
+        )];
+        for name in ["cart", "checkout"] {
+            files.push((
+                format!("src/{name}.ts"),
+                format!("import {{ price }} from './price';\n{filler}export function {name}Total(): number {{\n  return price() + 1;\n}}\n"),
+            ));
+        }
+        for i in 0..20 {
+            files.push((
+                format!("src/view{i}.ts"),
+                format!(
+                    "import {{ price }} from './price';\n{filler}export const handler{i} = price;\n"
+                ),
+            ));
+        }
+        files
+    };
+    let pin = |rev: char, body: &str| {
+        let owned = files(body);
+        let borrowed: Vec<(&str, &str)> = owned
+            .iter()
+            .map(|(p, t)| (p.as_str(), t.as_str()))
+            .collect();
+        f.pin(&repo, "app", rev, &borrowed)
+    };
+    let (base, head) = (pin('a', "1"), pin('b', "2"));
+    let mut args = request(&repo, vec![base], vec![head]);
+    args["max_tokens"] = json!(6000);
+    let packet = f.run(&args);
+    let entries = packet["entries"].as_array().unwrap();
+    let delivered = |file: &str| {
+        entries
+            .iter()
+            .any(|e| e["side"] == "head" && e["file"] == file)
+    };
+    let callers = ["src/cart.ts", "src/checkout.ts"]
+        .iter()
+        .filter(|f| delivered(f))
+        .count();
+    let importers = (0..20)
+        .filter(|i| delivered(&format!("src/view{i}.ts")))
+        .count();
+    eprintln!(
+        "CALLERS delivered={callers}/2 importers={importers}/20 coverage.callers={} tokens={}",
+        packet["coverage"]["callers"],
+        text::count(&packet.to_string())
+    );
+    assert_eq!(callers, 2, "{}", packet["coverage"]);
+    assert_eq!(
+        packet["coverage"]["callers"]["required"], 2,
+        "{}",
+        packet["coverage"]["callers"]
+    );
+    assert_eq!(packet["coverage"]["callers"]["selected"], 2);
+    assert_eq!(packet["impact"], "incomplete");
 }

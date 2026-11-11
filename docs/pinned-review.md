@@ -177,15 +177,28 @@ only basic sources do not require a Go toolchain.
 | Rust | Changed files, declaration metadata, local module/import candidates and nearest Cargo manifest scope | No Cargo dependency resolution, feature/cfg evaluation, macros, build scripts or trait dispatch |
 | TypeScript / JavaScript | Changed `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs` files, declaration metadata, relative import candidates (extension and `index` probing, `.js` to `.ts`), `tsconfig.json`/`jsconfig.json` `paths`/`baseUrl` aliases, and nearest `package.json` (else tsconfig/jsconfig) scope, which also covers lockfiles | No `node_modules`, package `exports`, CommonJS `require`, dynamic `import()`, bundler aliases or runtime dispatch |
 
-Entries carry `analysis_level: "basic_file"`, `language`, complete file bytes and
-their existing hashes, ranges and snapshot provenance. Python/Rust/Bash/TypeScript/JavaScript entries
-also carry at most 128 declaration records with byte spans; omitted metadata is
-counted. Impact selection remains file-granular, including top-level code.
-Signature/implementation change classifications and test classification are
-unknown for this tier (`null`), rather than being reported as unchanged or false.
-Unchanged consumers may be selected through `potential_import` or
-`configuration_scope` edges. These relationships never become execution-flow
-claims. Missing or ambiguous targets and parse/analysis limits are reported.
+File entries carry `analysis_level: "basic_file"`, `language`, complete file
+bytes and their existing hashes, ranges and snapshot provenance.
+Python/Rust/Bash/TypeScript/JavaScript file entries also carry at most 128
+declaration records with byte spans; omitted metadata is counted. A file's
+signature/implementation change classification and test classification are
+unknown (`null`), rather than being reported as unchanged or false.
+
+For Python, Rust, TypeScript and JavaScript, each uniquely named declaration
+(function, method, class, arrow-function constant) is also a node with
+`analysis_level: "basic_symbol"`: its own byte range, and its header and body
+digested apart, so a change reports `signature_changed` and
+`implementation_changed`. A call the parser binds to one declaration, through a
+visible declaration or an explicit import, is a `may_call` edge with evidence
+`explicit_import_binding` or `unique_visible_declaration_candidate`. The callers
+of a changed declaration are therefore required context and are counted in
+`coverage.callers`; a call at module level is its file's. These are name
+bindings, not resolved runtime calls: method calls, `new`, JSX, callbacks and
+rebound names are not seen, so file importers are still selected through
+`potential_import` and `configuration_scope` edges as optional context. A name
+declared twice in one file is reported as `basic_duplicate_declaration` and has
+no node; unbound calls are counted in `basic_unresolved_calls`. Paths built from
+these edges are `potential_static` candidates, never observed flows. Missing or ambiguous targets and parse/analysis limits are reported.
 Basic analysis always reports `basic_analysis_limitations` and leaves
 `coverage.complete=false`; it cannot certify no impact or permit skipped-review
 coverage reuse. No scripts, project builds, Terraform plans or Helm rendering run.

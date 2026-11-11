@@ -285,7 +285,7 @@ Every delivered entry has:
 
 | Field | Values and meaning |
 | --- | --- |
-| `analysis_level` | `compiler_symbol`: compiler-backed Go symbol; `basic_file`: conservative file-level analysis. |
+| `analysis_level` | `compiler_symbol`: compiler-backed Go symbol; `basic_file`: conservative file-level analysis; `basic_symbol`: one declaration of a basic-tier file (TypeScript, JavaScript, Python, Rust), with its own byte range and signature/implementation revisions. |
 | `update` | `added`: new to this packet lineage; `updated`: changed since its prior entry revision. This is not Git file status. |
 | `test_classification` | `test_file` / `non_test_file`: Go filename classification; `not_analyzed`: no supported classification. None proves test execution. |
 | `review_basis.scope` | Opaque static component scope, or null when unscoped. |
