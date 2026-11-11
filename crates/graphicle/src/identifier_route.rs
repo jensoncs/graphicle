@@ -418,6 +418,8 @@ fn references(
 trait Lookup {
     /// The nodes that define `name` ([`definitions`]).
     fn definitions(&self, name: &str) -> Vec<usize>;
+    /// The project path of node `index` ([`code_graph_arm::relpath`]).
+    fn relpath(&self, index: usize) -> Option<String>;
     /// Node `index` located in `view` ([`code_graph_arm::locate`]).
     fn locate(&self, index: usize, view: &HashMap<&str, &Value>) -> Option<Located>;
     /// The references to node `index` ([`references`]).
@@ -464,6 +466,10 @@ impl Resident {
 impl Lookup for Resident {
     fn definitions(&self, name: &str) -> Vec<usize> {
         definitions(&self.symbols, name)
+    }
+    fn relpath(&self, index: usize) -> Option<String> {
+        let graph: &Graph = &self.handle;
+        code_graph_arm::relpath(&graph.nodes().get(index)?.attributes)
     }
     fn locate(&self, index: usize, view: &HashMap<&str, &Value>) -> Option<Located> {
         let graph: &Graph = &self.handle;
@@ -588,6 +594,9 @@ impl Lookup for Saved {
     fn definitions(&self, name: &str) -> Vec<usize> {
         self.definitions_of(name).unwrap_or_default()
     }
+    fn relpath(&self, index: usize) -> Option<String> {
+        code_graph_arm::relpath(&self.0.attributes(index).ok()?)
+    }
     fn locate(&self, index: usize, view: &HashMap<&str, &Value>) -> Option<Located> {
         self.locate_of(index, view).ok().flatten()
     }
@@ -610,7 +619,6 @@ fn lookups(
     source: &dyn Lookup,
     db: &Connection,
     repository: &Value,
-    p: &Principal,
     names: &[String],
     filter: Option<&crate::query::Filter>,
     unchanged: Option<&BTreeSet<String>>,
@@ -624,10 +632,18 @@ fn lookups(
     if candidates.iter().all(|(_, found)| found.is_empty()) {
         return Ok(None);
     }
-    let mut documents = crate::memory::documents(db, repository, p)?;
+    // Only project files are cited, and only the files the definitions sit
+    // in are read: their text is loaded and checked, not every file's.
+    let mut documents = crate::memory::repository_documents(db, repository, false)?;
     if let Some(filter) = filter {
         documents.retain(|document| filter.keeps(document));
     }
+    let wanted: BTreeSet<String> = candidates
+        .iter()
+        .flat_map(|(_, indices)| indices.iter().filter_map(|&index| source.relpath(index)))
+        .map(|path| format!("file:{path}"))
+        .collect();
+    crate::memory::load_contents(db, repository, &mut documents, &wanted)?;
     let view: HashMap<&str, &Value> = documents
         .iter()
         .map(|document| (s(document, "id"), document))
@@ -724,15 +740,7 @@ pub fn answer(db: &Connection, p: &Principal, repository: &Value, args: &Value) 
     if let Some(file) = crate::query_file::open(db, id, &episode) {
         let saved = Saved(file.clone());
         let result = crate::phase::phase("route_query_file", || {
-            lookups(
-                &saved,
-                db,
-                repository,
-                p,
-                &names,
-                filter.as_ref(),
-                unchanged,
-            )
+            lookups(&saved, db, repository, &names, filter.as_ref(), unchanged)
         })?;
         file.note("route_query_file_read");
         if !file.corrupt() {
@@ -749,7 +757,6 @@ pub fn answer(db: &Connection, p: &Principal, repository: &Value, args: &Value) 
                 &Resident::new(handle),
                 db,
                 repository,
-                p,
                 &names,
                 filter.as_ref(),
                 unchanged,
