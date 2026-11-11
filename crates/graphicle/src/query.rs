@@ -3183,7 +3183,6 @@ impl Store {
     pub fn read_project_source(&self, workspace: &str, token: &str, args: &Value) -> Result<Value> {
         self.authorized_read(workspace, token, "read", |db, p| {
             let repository = repo(db, p, string(args, "repository_id", 100)?)?;
-            let docs = memory::documents(db, &repository, p)?;
             let identifier = args["source_id"]
                 .as_str()
                 .map(str::to_string)
@@ -3200,10 +3199,23 @@ impl Store {
                 let doc=json!({"id":identifier,"path":path,"title":path,"sha256":sha,"version":sha,"snapshot":snapshot,"source_kind":"repository_file","content":original["content"],"recorded_at":null,"observed_at":saved["created_at"],"authority":"historical_original_source"});
                 return memory::read_source(&doc,args);
             }
-            let source = docs
-                .iter()
-                .find(|d| s(d, "id") == identifier)
-                .ok_or_else(|| Error::bad("Source unavailable"))?;
+            // Only the one source is read and checked: a project file's text
+            // is loaded alone, not every file's (memory::documents).
+            let source = if identifier.starts_with("file:") {
+                let mut files = memory::repository_documents(db, &repository, false)?;
+                files.retain(|d| s(d, "id") == identifier);
+                memory::load_contents(db, &repository, &mut files, &BTreeSet::from([identifier.clone()]))?;
+                files.pop()
+            } else {
+                memory::connector_documents(db, &repository, p)?
+                    .into_iter()
+                    .find(|d| s(d, "id") == identifier)
+            }
+            .ok_or_else(|| Error::bad("Source unavailable"))?;
+            if graphicle_memory::text::sha256(s(&source, "content").as_bytes()) != s(&source, "sha256") {
+                return Err(Error::bad("Source integrity check failed"));
+            }
+            let source = &source;
             if args
                 .get("sha256")
                 .is_some_and(|sha| !sha.is_null() && *sha != source["sha256"])
