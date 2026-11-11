@@ -2026,3 +2026,51 @@ fn pack_import_regrounds_moved_symbols_and_keeps_only_local_evidence() {
     assert_eq!(listed["stale"], false, "{listed}");
     assert_eq!(listed["state"], "draft");
 }
+
+/// An import's grounds are rebuilt from the quotes found here, as on
+/// `memory.import_pack`: a caller's dependencies, links and connector
+/// sources are never kept, and a quote absent here is dropped.
+#[test]
+fn import_rebuilds_grounds_from_the_quotes_found_here() {
+    let f = Fixture::queued(&[("a.py", A)]);
+    let memory = f.note(&[("file:a.py", "    return 1")]);
+    let exported = f
+        .store
+        .project_read(&f.workspace, &f.key, "memory.export", &f.args(json!({})))
+        .unwrap();
+    let mut export: Vec<Value> = exported["memories"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|m| m["id"] == memory["id"])
+        .cloned()
+        .collect();
+    let real = export[0]["data"]["dependencies"].clone();
+    export[0]["data"]["dependencies"]["b.py"] = json!("forged");
+    export[0]["data"]["evidence_links"] = json!({"link:x":{"sha256":"forged"}});
+    export[0]["data"]["native_sources"] = json!({"gdrive:x":"forged"});
+    export[0]["data"]["evidence"]
+        .as_array_mut()
+        .unwrap()
+        .push(json!({"id":"file:a.py","quote":"not in the file"}));
+    let target = f.project("target", "Target");
+    f.sync_in(&target, &[("a.py", A)]);
+    let imported = f
+        .store
+        .project_mutate(
+            &f.workspace,
+            &f.key,
+            "memory.import",
+            &json!({"repository_id":target,"memories":export}),
+        )
+        .unwrap();
+    let data = &imported["imported"][0]["data"];
+    assert_eq!(data["dependencies"], real);
+    assert_eq!(data["evidence_links"], json!({}));
+    assert_eq!(data["native_sources"], json!({}));
+    assert_eq!(
+        data["evidence"],
+        json!([{"id":"file:a.py","quote":"    return 1"}])
+    );
+    assert_eq!(imported["evidence"], json!({"kept":1,"dropped":1}));
+}

@@ -321,6 +321,16 @@ fn backups(
             refused.push(json!({"path": relative, "reason": reason}));
             continue;
         }
+        // `held` opens the file immutable, which ignores a log beside it:
+        // pages committed to a `-wal`, or a hot `-journal`, would be missed.
+        if ["-wal", "-journal"].iter().any(|suffix| {
+            std::fs::metadata(folder.join(format!("{name}{suffix}"))).is_ok_and(|m| m.len() > 0)
+        }) {
+            refused.push(
+                json!({"path": relative, "reason": "has an uncheckpointed SQLite log beside it"}),
+            );
+            continue;
+        }
         let Some(held) = held(&path, project, scope, workspace) else {
             skipped.push(json!({"path": relative, "reason": "not a readable Graphicle store"}));
             continue;

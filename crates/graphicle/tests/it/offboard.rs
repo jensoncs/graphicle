@@ -441,3 +441,24 @@ fn offboarding_a_backup_never_follows_a_link_beside_it() {
         .collect();
     assert_eq!(left, vec!["marker".to_string()]);
 }
+
+/// A backup with a write-ahead log beside it is refused: read immutable, its
+/// committed pages in the log would be missed.
+#[test]
+fn offboarding_refuses_a_backup_with_a_write_ahead_log() {
+    crate::edition_setup();
+    let mut f = Fixture::new();
+    let a = f.project("client-a", "zebracorn-alpha-7731");
+    f.drain();
+    let backup = offboard::backup_path(&f.store).unwrap();
+    f.store.backup(&backup).unwrap();
+    let name = backup.file_name().unwrap().to_str().unwrap().to_string();
+    std::fs::write(backup.with_file_name(format!("{name}-wal")), b"pages").unwrap();
+    let plan = offboard::plan(&f.store, &f.session, &a).unwrap();
+    assert_eq!(
+        paths(&plan["refused"]),
+        vec![format!("{}/{name}", offboard::BACKUPS)],
+        "{plan:#}"
+    );
+    assert!(paths(&plan["backups"]).is_empty(), "{plan:#}");
+}

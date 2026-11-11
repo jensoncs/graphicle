@@ -2087,22 +2087,16 @@ pub fn sources_below(root: &Path) -> impl Fn(&str) -> Option<String> + '_ {
     }
 }
 
-/// `root.join(relpath)` for a relpath from graph JSON. On Windows only when
-/// every component is a plain name (a leading `./` aside), so that a drive or
-/// UNC prefix (`C:/x`, `//host/share`), a rooted path or `..` (also spelt with
-/// `\`) cannot leave `root`. On Linux and macOS it is `root.join(relpath)`.
+/// `root.join(relpath)` for a relpath from graph JSON, only when every
+/// component is a plain name (a leading `./` aside), so that an absolute or
+/// rooted path, `..`, or on Windows a drive or UNC prefix (`C:/x`,
+/// `//host/share`, also spelt with `\`) cannot leave `root`.
 pub(crate) fn join_below(root: &Path, relpath: &str) -> Option<std::path::PathBuf> {
-    #[cfg(windows)]
-    {
-        use std::path::Component;
-        let below = Path::new(relpath)
-            .components()
-            .all(|part| matches!(part, Component::Normal(_) | Component::CurDir));
-        if !below {
-            return None;
-        }
-    }
-    Some(root.join(relpath))
+    use std::path::Component;
+    Path::new(relpath)
+        .components()
+        .all(|part| matches!(part, Component::Normal(_) | Component::CurDir))
+        .then(|| root.join(relpath))
 }
 
 struct Importer<'a> {
@@ -2700,9 +2694,16 @@ mod tests {
         }
     }
 
+    #[test]
+    fn relpaths_that_leave_the_root_stay_unjoined() {
+        let root = Path::new("repo");
+        for outside in ["/etc/passwd", "../a.py", "src/../../a.py", ".."] {
+            assert_eq!(join_below(root, outside), None, "{outside}");
+        }
+    }
+
     /// On Windows a relpath that could leave the root is not joined: a drive,
-    /// UNC, rooted or absolute path, or `..`. On Linux and macOS `join_below`
-    /// is `root.join`, and `sources_below` refuses `..` segments as before.
+    /// UNC, rooted or absolute path, or `..`, including `\` spellings.
     #[cfg(windows)]
     #[test]
     fn windows_prefixed_relpaths_stay_unjoined() {

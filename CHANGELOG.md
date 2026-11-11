@@ -73,6 +73,17 @@ versioned together at 0.2.0.
   so the same profile with its keys in another order no longer refuses the
   delta; `secondaryContext` asks for project files only (`include:
   ["file:"]`), as the Python client does; `ReviewOptions` gains `timeout_ms`.
+- A `graph_only` context call keeps to its `include` and `metadata` filter;
+  it read the files a question named wherever they were.
+- Graph JSON relpaths that are absolute or climb out with `..` are no longer
+  joined to the repository root on Linux and macOS; the check ran on Windows
+  only.
+- Offboarding refuses a backup with a non-empty `-wal` or `-journal` beside
+  it: the backup is read immutable, which misses pages held in the log.
+- `memory.import` keeps a memory's dependencies, workspace links and connector
+  sources only for the evidence quotes found in this project, drops quotes it
+  cannot find, and reports `evidence.kept` and `evidence.dropped`. Before, any
+  caller-supplied entry was kept.
 
 ### SQLite under indexing load
 

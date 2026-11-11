@@ -1647,3 +1647,26 @@ async fn chat_failures_preserve_reported_usage_without_committing_partial_memory
         assert!(f.memories().is_empty());
     }
 }
+
+#[test]
+fn graph_only_packets_keep_to_the_callers_include_filter() {
+    let f = Fixture::new();
+    f.sync(&[
+        ("src/billing.py", "def charge():\n    return 1\n"),
+        ("docs/guide.md", "# Guide\n"),
+    ]);
+    let ask = |include: Value| {
+        f.store
+            .project_context(
+                &f.workspace,
+                &f.key,
+                &f.args(json!({"question":"what does src/billing.py do","graph_only":true,"include":include})),
+            )
+            .unwrap()
+            .to_string()
+    };
+    assert!(ask(json!(["file:src/"])).contains("def charge"));
+    let narrowed = ask(json!(["file:docs/"]));
+    assert!(!narrowed.contains("def charge"), "{narrowed}");
+    assert!(!narrowed.contains("src/billing.py\""), "{narrowed}");
+}

@@ -1352,20 +1352,36 @@ pub fn graph_only_packet(
                 .cloned(),
         );
     }
+    let list = memory::repository_documents(db, repository, false)?;
+    let state = digest(
+        &json!({"sources":memory::state(&list),"memories":Vec::<Value>::new(),"reviewed_state":memory::reviewed_state_for(db,repository,&[])?}),
+    );
+    let mut snap = Snapshot {
+        repository: repository.clone(),
+        documents: list,
+        memories: Vec::new(),
+        graph: json!({"edges":[],"graph_source":"none"}),
+        state,
+    };
+    // The caller's include/metadata filter bounds what is read, as on the
+    // other context paths (query::restrict).
+    let filter = query::Filter::parse(args)?.map(|f| query::restrict(&mut snap, &f));
+    let kept: BTreeSet<&str> = snap.documents.iter().map(|d| s(d, "id")).collect();
     let mut seen = BTreeSet::new();
-    files.retain(|file| heads.contains_key(file) && seen.insert(file.clone()));
+    files.retain(|file| {
+        heads.contains_key(file)
+            && kept.contains(format!("file:{file}").as_str())
+            && seen.insert(file.clone())
+    });
     files.truncate(GRAPH_ONLY_FILES);
-    let mut list = memory::repository_documents(db, repository, false)?;
     let wanted: BTreeSet<String> = files.iter().map(|path| format!("file:{path}")).collect();
-    memory::load_contents(db, repository, &mut list, &wanted)?;
-    let read: Vec<Value> = list
+    memory::load_contents(db, repository, &mut snap.documents, &wanted)?;
+    let read: Vec<Value> = snap
+        .documents
         .iter()
         .filter(|d| wanted.contains(s(d, "id")))
         .cloned()
         .collect();
-    let state = digest(
-        &json!({"sources":memory::state(&list),"memories":Vec::<Value>::new(),"reviewed_state":memory::reviewed_state_for(db,repository,&[])?}),
-    );
     let passages = query::passages(&Snapshot {
         repository: repository.clone(),
         documents: read,
@@ -1373,13 +1389,6 @@ pub fn graph_only_packet(
         graph: Value::Null,
         state: String::new(),
     })?;
-    let snap = Snapshot {
-        repository: repository.clone(),
-        documents: list,
-        memories: Vec::new(),
-        graph: json!({"edges":[],"graph_source":"none"}),
-        state,
-    };
     let mut quick = args.clone();
     quick["graph_retrieval"] = json!(false);
     quick["memory_retrieval"] = json!(false);
@@ -1406,6 +1415,9 @@ pub fn graph_only_packet(
     packet["passage_index"] =
         json!({"status":"not_ready","graph_only":true,"files_read":files.len()});
     packet["local_dense"] = json!({"status":"disabled"});
+    if let Some(filter) = filter {
+        packet["filter"] = filter;
+    }
     let _ = p;
     Ok((snap, packet))
 }

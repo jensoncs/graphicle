@@ -216,7 +216,7 @@ fn source_retention_forgets_exactly_the_previewed_documents() {
     let imported = f.mutate(
         "memory.import",
         json!({"memories":[{"kind":"decision","title":"Password rotation","body":"The staging password rotates monthly.",
-            "data":{"native_sources":{source.clone(): sha}}}]}),
+            "data":{"native_sources":{source.clone(): sha},"evidence":[{"id":source,"quote":"password rotates on the first"}]}}]}),
     );
     let memory = &imported["imported"][0];
     f.store

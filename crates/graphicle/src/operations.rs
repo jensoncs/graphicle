@@ -225,17 +225,33 @@ impl Store {
                     let values=args["memories"].as_array().filter(|v|v.len()<=500).ok_or_else(||Error::bad("Import at most 500 memories"))?;let mut imported=Vec::new();
                     // Symbol links are
                     // re-grounded here through their logical identity.
-                    let docs=memory::documents(db,&repository,p)?;let mut regrounded=0;let mut unresolved=0;
+                    let docs=memory::documents(db,&repository,p)?;let mut regrounded=0;let mut unresolved=0;let (mut kept,mut dropped)=(0,0);
                     for value in values {let mut data=value.get("data").cloned().unwrap_or(json!({}));if !data.is_object(){return Err(Error::bad("Invalid memory data"));}
                         if let Some(value)=data.get("recall") { data["recall"]=serde_json::to_value(crate::structured_memory::metadata(value)?)?; }
                         data["authority"]=json!("unreviewed_import");data["notes"]=json!({});data.as_object_mut().unwrap().remove("refresh_target");data.as_object_mut().unwrap().remove("target_revision");
-                        for key in ["dependencies","evidence_links","native_sources"]{if !data[key].is_object(){data[key]=json!({});}}
+                        // Grounds are the sources of the quotes found here, as on
+                        // memory.import_pack: a source no such quote cites is dropped.
+                        // A recorded hash is kept, as what the memory was written
+                        // against; differing here leaves it to the staleness check.
+                        let quotes=data["evidence"].as_array().cloned().unwrap_or_default();
+                        let found:Vec<Value>=quotes.iter().filter_map(|c|{let (id,quote)=(c["id"].as_str()?,c["quote"].as_str()?);
+                            (!quote.trim().is_empty()&&id.len()<=1500&&quote.len()<=12000&&docs.iter().any(|d|s(d,"id")==id&&s(d,"content").contains(quote))).then(||json!({"id":id,"quote":quote}))}).collect();
+                        kept+=found.len();dropped+=quotes.len()-found.len();
+                        let grounds=memory::dependencies(db,identifier,&found,&docs)?;
+                        for key in ["dependencies","evidence_links","native_sources"]{
+                            let mut rebuilt=grounds[key].clone();
+                            for (source,hash) in rebuilt.as_object_mut().into_iter().flatten(){
+                                if let Some(recorded)=data[key].get(source).filter(|v|v.is_string()||v["sha256"].is_string()){*hash=recorded.clone();}
+                            }
+                            data[key]=rebuilt;
+                        }
+                        data["evidence"]=grounds["evidence"].clone();
                         if data.get("symbols").is_some_and(|v|!v.is_array()) || data.get("symbol_files").is_some_and(|v|!v.is_object()){return Err(Error::bad("Invalid symbol links"));}
                         let report=crate::symbols::reground(db,identifier,&mut data,&docs)?;
                         regrounded+=report["regrounded"].as_u64().unwrap_or(0);unresolved+=report["unresolved"].as_u64().unwrap_or(0);
                         imported.push(memory::save(db,identifier,None,None,string(value,"kind",100)?,string(value,"title",500)?,string(value,"body",64000)?,"draft",&data)?);
                     }
-                    let mut result=json!({"imported":imported,"approval_required":true});
+                    let mut result=json!({"imported":imported,"approval_required":true,"evidence":{"kept":kept,"dropped":dropped}});
                     // Only an import that carried symbol links reports them.
                     if regrounded+unresolved>0{result["symbol_links"]=json!({"regrounded":regrounded,"unresolved":unresolved});}
                     Ok(result)
