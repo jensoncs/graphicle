@@ -8,25 +8,27 @@ FROM rust:1.95.0-bookworm AS build
 RUN apt-get update && apt-get install -y --no-install-recommends clang cmake python3 && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
 # The engine library and its vendored crates (path dependencies of both crates).
-COPY crates/graphicle-graph/Cargo.toml crates/graphicle-graph/build.rs crates/graphicle-graph/
+COPY crates/graphicle-graph/Cargo.toml crates/graphicle-graph/Cargo.lock crates/graphicle-graph/build.rs crates/graphicle-graph/
 COPY crates/graphicle-graph/src crates/graphicle-graph/src
 COPY crates/graphicle-graph/vendor crates/graphicle-graph/vendor
-COPY crates/graphicle-memory/Cargo.toml crates/graphicle-memory/Cargo.lock crates/graphicle-memory/
+COPY crates/graphicle-memory/Cargo.toml crates/graphicle-memory/Cargo.lock crates/graphicle-memory/build.rs crates/graphicle-memory/
 COPY crates/graphicle-memory/src crates/graphicle-memory/src
 COPY crates/graphicle-memory/.cargo crates/graphicle-memory/.cargo
-COPY crates/graphicle/Cargo.toml crates/graphicle/Cargo.lock crates/graphicle/
+COPY crates/graphicle/Cargo.toml crates/graphicle/Cargo.lock crates/graphicle/build.rs crates/graphicle/
 COPY crates/graphicle/.cargo crates/graphicle/.cargo
 COPY crates/graphicle/.vendor crates/graphicle/.vendor
 COPY deploy/.offline /build/grammar-cache
 COPY crates/graphicle/src crates/graphicle/src
 COPY crates/graphicle/web crates/graphicle/web
+# Embedded by src/review.rs (RISK_SCHEMA_JSON).
+COPY docs/schemas/review-risk-v2.json docs/schemas/
 WORKDIR /build/crates/graphicle
 RUN --mount=type=cache,id=graphicle-linux-target,target=/build/crates/graphicle/target \
     PROJECT_ROOT=/build/grammar-cache TSLP_OFFLINE=1 cargo build --release --offline --locked -j 4 --bin graphicle --config 'source.crates-io.replace-with="vendored-sources"' --config 'source.vendored-sources.directory=".vendor"' \
     && install -D /build/crates/graphicle/target/release/graphicle /out/graphicle
 
 FROM debian:bookworm-slim
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 graphicle && useradd --uid 10001 --gid 10001 --home-dir /var/lib/graphicle --no-create-home graphicle \
     && install -d -m 0700 -o graphicle -g graphicle /var/lib/graphicle
 COPY --from=build /out/graphicle /usr/local/bin/graphicle

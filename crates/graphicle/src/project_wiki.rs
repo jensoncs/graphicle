@@ -857,7 +857,8 @@ pub fn lock(dir: &Path) -> Result<Option<std::fs::File>> {
 /// Model text made safe to render as Markdown prose: `\\`, `[`, `]`, `(`,
 /// `)`, `<` and `>` are escaped outside code spans, so a reply cannot add
 /// Markdown links, images or HTML. As in CommonMark, a code span closes only
-/// at the next backtick run of the same length; an unclosed run is literal.
+/// at the next backtick run of the same length, here on the same line; an
+/// unclosed run is literal.
 pub fn escape_markdown(text: &str) -> String {
     let run_length = |text: &str| text.len() - text.trim_start_matches('`').len();
     let mut out = String::with_capacity(text.len());
@@ -866,10 +867,13 @@ pub fn escape_markdown(text: &str) -> String {
         escape_prose(&rest[..start], &mut out);
         let run = run_length(&rest[start..]);
         let after = &rest[start + run..];
+        // A span must close on its own line: a blank line or a block start
+        // would end it in CommonMark, leaving the rest as live Markdown.
+        let line = &after[..after.find('\n').unwrap_or(after.len())];
         let mut close = None;
         let mut at = 0;
-        while let Some(found) = after[at..].find('`') {
-            let length = run_length(&after[at + found..]);
+        while let Some(found) = line[at..].find('`') {
+            let length = run_length(&line[at + found..]);
             if length == run {
                 close = Some(at + found);
                 break;
@@ -2339,6 +2343,12 @@ mod tests {
             "```\\[x\\]\\(http://e.com\\)`"
         );
         assert_eq!(escape_markdown("``a`[b]`` [c]"), "``a`[b]`` \\[c\\]");
+        // A code span cannot cross lines: a blank line or a block start
+        // would end it, leaving the rest as live Markdown.
+        assert_eq!(
+            escape_markdown("`a\n\n[x](y) <div>`"),
+            "`a\n\n\\[x\\]\\(y\\) \\<div\\>`"
+        );
         let record = json!({"digest":"d","model":"m","files":[],
             "reply":{"title":"[T](javascript:x)","summary":"<script>","purpose":[
                 {"text":"![i](http://e.com/p.png)","citations":["a.py:1"]}],

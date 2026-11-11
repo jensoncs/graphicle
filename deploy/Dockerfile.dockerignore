@@ -8,12 +8,14 @@
 **
 !crates/graphicle-graph/Cargo.toml
 !crates/graphicle-graph/build.rs
+!crates/graphicle-graph/Cargo.lock
 !crates/graphicle-graph/src/
 !crates/graphicle-graph/src/**
 !crates/graphicle-graph/vendor/
 !crates/graphicle-graph/vendor/**
 !crates/graphicle-memory/Cargo.toml
 !crates/graphicle-memory/Cargo.lock
+!crates/graphicle-memory/build.rs
 !crates/graphicle-graph/NOTICE
 !crates/graphicle-graph/NOTICE.md
 !crates/graphicle-graph/licenses/
@@ -25,6 +27,8 @@
 !crates/graphicle-memory/.cargo/**
 !crates/graphicle/Cargo.toml
 !crates/graphicle/Cargo.lock
+!crates/graphicle/build.rs
+!docs/schemas/review-risk-v2.json
 !crates/graphicle/.cargo/
 !crates/graphicle/.cargo/**
 !crates/graphicle/.vendor/

@@ -43,6 +43,11 @@ patches. Missing patches fail the build. `crates/graphicle/.vendor` and `deploy/
 public source dependencies and are ignored by Git; credentials are not copied.
 Docker's build context excludes research data, local stores and model weights.
 Rust, C/C++, and Python are build tools; the running image needs no Python.
+The running image includes `git`, which repository indexing and review use.
+It does not include Go: the Go helper needs Go 1.23 or later, newer than
+Debian bookworm ships. Pinned review of Go packages therefore reports
+`compiler_analysis_unavailable` and never claims complete coverage. Install Go 1.23+
+in a derived image to enable it.
 
 To create a portable Linux archive from the built image:
 

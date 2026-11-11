@@ -40,6 +40,16 @@ versioned together at 0.2.0.
 - OAuth connections finish only in the browser that started them: `oauth/start`
   sets an HttpOnly `graphicle_oauth` cookie and the callback requires it. A
   callback from another browser is refused without using up the request.
+- A `<private>` tag cut off before its `>` hides the rest of the capture, and a
+  wiki code span no longer runs past the end of its line, so neither can
+  reveal or unescape the text after it.
+- `storage prune` keeps the uploads of syncs still in progress, whose commit
+  previously failed after a prune. A sync left unfinished for a day is
+  aborted, so 20 abandoned syncs no longer block every later one.
+- The Core image builds again: the build stage receives the crates' build
+  scripts, the engine's `Cargo.lock` and the review risk schema, and a test
+  checks every compile input against the Dockerfile and its ignore file. The
+  runtime image includes `git`. Go is not included (see `deploy/README.md`).
 
 ### SQLite under indexing load
 

@@ -743,6 +743,11 @@ impl Store {
                 return Err(crate::limits::project_refusal(files.len(),bytes,false,&limits));
             }
             let unfinished=|db:&Connection|->Result<()>{
+                // A sync left unfinished for a day was abandoned (a crashed or
+                // killed client); abort it so it cannot block every later sync.
+                // ponytail: fixed 24 h from creation; no per-upload heartbeat.
+                let stale=(chrono::Utc::now()-chrono::Duration::hours(24)).to_rfc3339_opts(chrono::SecondsFormat::Micros,true);
+                db.execute("UPDATE repo_syncs SET state='aborted' WHERE repository_id=? AND state IN ('pending','preparing') AND created_at<?",params![identifier,stale])?;
                 let count:i64=db.query_row("SELECT count(*) FROM repo_syncs WHERE repository_id=? AND state IN ('pending','preparing')",[identifier],|r|r.get(0))?;
                 if count>=20{return Err(Error::conflict("Abort an unfinished sync before adding another"));}
                 Ok(())

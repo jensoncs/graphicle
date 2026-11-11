@@ -220,6 +220,12 @@ impl Store {
                             snapshots_removed.push(s(snapshot,"sha256").to_string());
                         }
                     }
+                    // An unfinished sync's uploads belong to no snapshot yet;
+                    // pruning them would make its commit fail.
+                    for sync in rows(db,"SELECT manifest FROM repo_syncs WHERE repository_id=? AND state IN ('pending','preparing')",[identifier])? {
+                        let manifest:Value=serde_json::from_str(s(&sync,"manifest"))?;
+                        for value in manifest.as_object().into_iter().flat_map(|o|o.values()) {if let Some(sha)=value["sha256"].as_str(){objects.insert(sha.to_string());}}
+                    }
                     for revision in rows(db,"SELECT r.data FROM repo_memory_revisions r JOIN repo_memories m ON m.id=r.memory_id WHERE m.repository_id=?",[identifier])? {
                         let mut memory:Value=serde_json::from_str(s(&revision,"data"))?;decode(&mut memory,"data")?;
                         for sha in memory["data"]["dependencies"].as_object().into_iter().flat_map(|o|o.values()).filter_map(Value::as_str){objects.insert(sha.to_string());}

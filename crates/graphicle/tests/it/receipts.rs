@@ -305,3 +305,68 @@ fn source_retention_forgets_exactly_the_previewed_documents() {
         .unwrap();
     assert_eq!(empty["documents"], 0, "{empty:#}");
 }
+
+/// `storage.prune` keeps what an unfinished sync already uploaded, and syncs
+/// abandoned for a day stop counting against the unfinished-sync limit.
+#[test]
+fn prune_spares_unfinished_uploads_and_stale_syncs_expire() {
+    use base64::Engine;
+    let f = Fixture::new();
+    let snapshot = |f: &Fixture| {
+        f.store
+            .project_status(&f.workspace, &f.key, &f.args(json!({})))
+            .unwrap()["repository"]["snapshot"]
+            .clone()
+    };
+    let prepare = |f: &Fixture, text: &str| {
+        let manifest = json!([{"path":"notes.md","sha256":graphicle_memory::text::sha256(text.as_bytes()),"bytes":text.len()}]);
+        f.store
+            .sync_prepare(
+                &f.workspace,
+                &f.key,
+                &f.args(json!({"expected_snapshot":snapshot(f),"manifest":manifest})),
+            )
+            .unwrap()
+    };
+    let text = "Uploaded but not yet committed.\n";
+    let begin = prepare(&f, text);
+    f.store
+        .sync_upload(
+            &f.workspace,
+            &f.key,
+            &f.args(
+                json!({"sync_id":begin["sync_id"],"files":[{"path":"notes.md",
+                "content_base64":base64::engine::general_purpose::STANDARD.encode(text)}]}),
+            ),
+        )
+        .unwrap();
+    f.store
+        .maintain(&f.workspace, &f.key, "storage.prune", &f.args(json!({})))
+        .unwrap();
+    f.store
+        .sync_commit(
+            &f.workspace,
+            &f.key,
+            &f.args(json!({"sync_id":begin["sync_id"]})),
+        )
+        .unwrap();
+
+    for i in 0..20 {
+        prepare(&f, &format!("abandoned {i}\n"));
+    }
+    let blocked = f.store.sync_prepare(
+        &f.workspace,
+        &f.key,
+        &f.args(json!({"expected_snapshot":snapshot(&f),"manifest":[{"path":"x.md","sha256":graphicle_memory::text::sha256(b"x"),"bytes":1}]})),
+    );
+    assert!(blocked.is_err());
+    f.store
+        .connect()
+        .unwrap()
+        .execute(
+            "UPDATE repo_syncs SET created_at='2020-01-01T00:00:00Z' WHERE state IN ('pending','preparing')",
+            [],
+        )
+        .unwrap();
+    prepare(&f, "after the stale ones expired\n");
+}

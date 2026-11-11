@@ -128,12 +128,14 @@ struct Draft {
 /// Remove `<private>` spans and client-injected `<system-reminder>` blocks.
 /// Tags nest, and a close tag only ends a span of its own kind, so neither a
 /// nested `<private>` nor a `</system-reminder>` inside `<private>` ends it
-/// early. An unclosed span hides everything after it; a stray close is text.
+/// early. An unclosed span, or an opening tag cut off before its `>`, hides
+/// everything after it; a stray close is text.
 fn strip_private(text: &str, applied: &mut Applied) -> String {
     use std::sync::OnceLock;
     static TAGS: OnceLock<regex::Regex> = OnceLock::new();
-    let tags = TAGS
-        .get_or_init(|| regex::Regex::new(r"(?i)<(/?)(private|system-reminder)\b[^>]*>").unwrap());
+    let tags = TAGS.get_or_init(|| {
+        regex::Regex::new(r"(?i)<(/?)(private|system-reminder)\b[^>]*(?:>|$)").unwrap()
+    });
     let mut out = String::new();
     let mut open: Vec<String> = Vec::new();
     let mut kept = 0;
@@ -1489,6 +1491,11 @@ mod tests {
         );
         assert_eq!(mixed, "abc");
         assert_eq!(clean("a</private>b", &mut applied), "a</private>b");
+        // An opening tag cut off before its `>` still hides what follows.
+        assert_eq!(
+            clean("public <private everything after", &mut applied),
+            "public "
+        );
     }
 
     /// A Muse Code session log as its own session-evidence projection
