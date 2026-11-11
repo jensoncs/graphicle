@@ -59,6 +59,9 @@ pub mod razor;
 pub mod receiver_bindings;
 pub mod receiver_resolution;
 mod registry;
+/// The files of a pinned snapshot as an oxc_resolver file system.
+#[cfg(feature = "precise-js")]
+pub mod snapshot_fs;
 pub mod symbol_metadata;
 pub mod test_identities;
 pub use registry::{Extractor, LANGUAGE_EXTRACTORS, extract, registered_languages};

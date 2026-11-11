@@ -12,11 +12,11 @@
 //! specifiers are resolved with oxc_resolver: tsconfig `paths`/`references`,
 //! package.json `exports`/`main`, extension aliases and workspace symlinks.
 //!
-//! Only callers that are graph functions or methods get edges, and a node pair
-//! that already has an edge gets no second one (the graph keeps one edge per
-//! pair). Added edges carry `resolution`: `oxc_binding` for calls bound by
-//! scope and module resolution (EXTRACTED), `oxc_type` for receivers typed by
-//! an annotation or `new` (INFERRED).
+//! Only callers that are graph functions or methods get edges, and a call the
+//! graph already has (same caller and callee) gets no second one. Added edges
+//! carry `resolution`: `oxc_binding` for calls bound by scope and module
+//! resolution (EXTRACTED), `oxc_type` for receivers typed by an annotation or
+//! `new` (INFERRED).
 use super::resolution::source_key;
 use oxc_allocator::Allocator;
 use oxc_ast::{
@@ -572,14 +572,18 @@ impl<'a> Reader<'_, 'a> {
 }
 
 fn summarize_file(path: &Path, key: String) -> Option<Summary> {
-    let source = std::fs::read_to_string(path).ok()?;
+    summarize_source(path, &std::fs::read_to_string(path).ok()?, key)
+}
+
+/// `source` is the text of `path`; module specifiers resolve from its directory.
+fn summarize_source(path: &Path, source: &str, key: String) -> Option<Summary> {
     let mut source_type = SourceType::from_path(path).ok()?;
     // JSX is common in .js sources; it is only ambiguous in TypeScript.
     if source_type.is_javascript() {
         source_type = source_type.with_jsx(true);
     }
     let allocator = Allocator::default();
-    let parsed = Parser::new(&allocator, &source, source_type).parse();
+    let parsed = Parser::new(&allocator, source, source_type).parse();
     if parsed.panicked {
         return None;
     }
@@ -637,9 +641,22 @@ fn summarize_all(files: &[(PathBuf, String)]) -> Vec<Summary> {
 }
 
 fn resolver(tsconfig: Option<PathBuf>) -> oxc_resolver::Resolver {
+    oxc_resolver::Resolver::new(resolve_options(tsconfig))
+}
+
+/// The extractor's resolution rules over any file system, such as a pinned
+/// snapshot's ([`super::snapshot_fs::SnapshotFs`]).
+pub fn resolver_with<Fs: oxc_resolver::FileSystem + 'static>(
+    file_system: Fs,
+    tsconfig: Option<PathBuf>,
+) -> oxc_resolver::ResolverGeneric<Fs> {
+    oxc_resolver::ResolverGeneric::new_with_file_system(file_system, resolve_options(tsconfig))
+}
+
+fn resolve_options(tsconfig: Option<PathBuf>) -> oxc_resolver::ResolveOptions {
     use oxc_resolver::{ResolveOptions, TsconfigDiscovery, TsconfigOptions, TsconfigReferences};
     let strings = |v: &[&str]| v.iter().map(|s| (*s).to_string()).collect::<Vec<_>>();
-    oxc_resolver::Resolver::new(ResolveOptions {
+    ResolveOptions {
         extensions: strings(&[
             ".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".json",
         ]),
@@ -660,7 +677,7 @@ fn resolver(tsconfig: Option<PathBuf>) -> oxc_resolver::Resolver {
         }),
         symlinks: true,
         ..ResolveOptions::default()
-    })
+    }
 }
 
 /// Graph nodes by file and name, and methods by class.
