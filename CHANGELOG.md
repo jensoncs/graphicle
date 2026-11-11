@@ -85,6 +85,12 @@ versioned together at 0.2.0.
   own stale check. A memory that also cites workspace links or connector
   documents, or is current only through its symbol links, keeps its marker
   (E11-F1).
+- Pinned review gives TypeScript and JavaScript the basic file-level impact
+  Python and Rust have: `.ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs` importers are
+  selected through relative and `tsconfig`/`jsconfig` `paths` import
+  candidates, and a `package.json`, tsconfig or lockfile change keeps its
+  package's sources in scope. These files were reported as an unsupported
+  language. `build.info.basic_change_impact` lists both languages.
 - Recall past 20,000 eligible reviewed memories ranks the 20,000 that share
   the most terms with the question, newest first among equals, instead of
   only the newest 20,000; an old matching memory is no longer left out.

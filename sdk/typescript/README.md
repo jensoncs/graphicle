@@ -48,8 +48,8 @@ and requires `args.profile: ReviewProfile`. It returns `Promise<ReviewPacket>`.
 For Core, `build.info.change_impact_scope` is `pinned-go-snapshot-sets-v1`.
 The capability boolean alone does not describe an extension's request format.
 
-`build.info.basic_change_impact` advertises basic Terraform, Helm, Bash, Python
-and Rust support through this same request. This tier provides source evidence
+`build.info.basic_change_impact` advertises basic Terraform, Helm, Bash, Python,
+Rust, TypeScript and JavaScript support through this same request. This tier provides source evidence
 and potential dependencies at file/module/chart granularity, with incomplete
 coverage rather than compiler-resolved calls. See
 [basic language support](../../docs/pinned-review.md#basic-language-support).

@@ -45,6 +45,8 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
             "py" | "pyi" => "python",
             "rs" => "rust",
             "sh" | "bash" => "bash",
+            "ts" | "tsx" | "mts" | "cts" => "typescript",
+            "js" | "jsx" | "mjs" | "cjs" => "javascript",
             _ if name.ends_with(".tf.json")
                 || name.ends_with(".tfvars.json")
                 || name == ".terraform.lock.hcl" =>
@@ -70,6 +72,18 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
             {
                 "python"
             }
+            _ if matches!(name, "tsconfig.json" | "jsconfig.json") => "typescript",
+            _ if matches!(
+                name,
+                "package.json"
+                    | "package-lock.json"
+                    | "npm-shrinkwrap.json"
+                    | "yarn.lock"
+                    | "pnpm-lock.yaml"
+            ) =>
+            {
+                "javascript"
+            }
             _ if content.lines().next().is_some_and(|line| {
                 line.starts_with("#!")
                     && line
@@ -81,6 +95,14 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
             }
             _ => return None,
         },
+    )
+}
+
+/// A TypeScript or JavaScript source file, as opposed to its manifests.
+fn script_source(ext: &str) -> bool {
+    matches!(
+        ext,
+        "ts" | "tsx" | "mts" | "cts" | "js" | "jsx" | "mjs" | "cjs"
     )
 }
 
@@ -196,8 +218,14 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
+        let config = matches!(
+            Path::new(path).file_name().and_then(|n| n.to_str()),
+            Some("tsconfig.json" | "jsconfig.json")
+        );
         if matches!(*lang, "python" | "rust" | "bash")
             && (matches!(ext, "py" | "rs" | "sh" | "bash") || *lang == "bash")
+            || script_source(ext)
+            || config
         {
             let parse_path = if *lang == "bash" {
                 "source.sh"
@@ -260,7 +288,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 ));
                 parsed["imports"] = json!([]);
             }
-            if matches!(*lang, "python" | "rust") {
+            if matches!(*lang, "python" | "rust" | "typescript" | "javascript") {
                 // This tier only consumes imports. Do not repeat unused call
                 // resolution in structure::graph for every basic review.
                 parsed["calls"] = json!([]);
@@ -279,6 +307,9 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             // A build/packaging configuration can affect every source in its
             // nearest project. This is conservative scope, not a call relation.
             "rust" => ancestor_file(input, path, "Cargo.toml"),
+            "typescript" | "javascript" => ancestor_file(input, path, "package.json")
+                .or_else(|| ancestor_file(input, path, "tsconfig.json"))
+                .or_else(|| ancestor_file(input, path, "jsconfig.json")),
             "python" => ancestor_file(input, path, "pyproject.toml")
                 .or_else(|| ancestor_file(input, path, "setup.py"))
                 .or_else(|| ancestor_file(input, path, "setup.cfg"))
@@ -300,6 +331,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "helm"=>"Chart source scope only; no rendering, release values, cluster capabilities or remote chart resolution",
                 "bash"=>"Literal script paths are candidates; working directory, PATH, expansions and dynamic commands are unresolved",
                 "python"=>"Local import candidates and literal environment reads only; runtime environments, dynamic imports, rebinding and runtime dispatch are not resolved",
+                "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates only; node_modules, package exports, CommonJS require, dynamic import(), bundler aliases and runtime dispatch are not resolved",
                 _=>"Local module candidates only; Cargo resolution, cfg, macros, build scripts and trait dispatch are not resolved"
             }})));
     }
@@ -326,10 +358,15 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 || Path::new(member)
                     .file_name()
                     .is_some_and(|n| n == "build.rs")
-                || !matches!(
+                || !(matches!(
                     Path::new(member).extension().and_then(|e| e.to_str()),
                     Some("py" | "pyi" | "rs")
-                )
+                ) || script_source(
+                    Path::new(member)
+                        .extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or(""),
+                ))
             {
                 link(
                     out,
@@ -640,6 +677,75 @@ mod tests {
         assert!(e["signature_revision"].is_null());
         assert_eq!(r["changes"][0]["granularity"], "file");
         assert!(r["changes"][0]["signature_changed"].is_null());
+    }
+
+    #[test]
+    fn typescript_and_javascript_imports_select_their_importers() {
+        let files = |price: &str, manifest: &str| {
+            input(&[
+                ("repo/package.json", manifest),
+                (
+                    "repo/tsconfig.json",
+                    "{\"compilerOptions\":{\"baseUrl\":\".\",\"paths\":{\"@lib/*\":[\"src/lib/*\"]}}}\n",
+                ),
+                (
+                    "repo/src/lib/price.ts",
+                    &format!("export function price(): number {{\n  return {price};\n}}\n"),
+                ),
+                (
+                    "repo/src/cart.tsx",
+                    "import { price } from './lib/price';\nexport const Cart = () => price();\n",
+                ),
+                (
+                    "repo/src/alias.ts",
+                    "import { price } from '@lib/price';\nexport const total = price();\n",
+                ),
+                (
+                    "repo/src/legacy.mjs",
+                    "import { price } from './lib/price.js';\nexport default price;\n",
+                ),
+                ("repo/src/unrelated.js", "export const other = 3;\n"),
+            ])
+        };
+        let manifest = "{\"name\":\"shop\"}\n";
+        let (base, head) = (files("1", manifest), files("2", manifest));
+        let a = analysis(&head);
+        for importer in [
+            "repo/src/cart.tsx",
+            "repo/src/alias.ts",
+            "repo/src/legacy.mjs",
+        ] {
+            assert!(
+                a.calls.iter().any(|(_, c)| c.file == importer
+                    && c.target_file == "repo/src/lib/price.ts"
+                    && c.relation == "potential_import"),
+                "{importer}"
+            );
+        }
+        assert!(
+            a.calls
+                .iter()
+                .all(|(_, c)| c.relation != "calls" && c.relation != "may_call")
+        );
+        let r = report(&base, &head);
+        for importer in ["src/cart.tsx", "src/alias.ts", "src/legacy.mjs"] {
+            assert!(selected(&r, "head", importer), "{importer}");
+        }
+        assert!(!selected(&r, "head", "src/unrelated.js"));
+        assert_eq!(r["coverage"]["complete"], false);
+        assert!(
+            !r["coverage"]["issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|i| i["reason"] == "unsupported_source_language_or_contract"),
+            "{}",
+            r["coverage"]["issues"]
+        );
+        // A manifest change keeps every source of its package in scope.
+        let bumped = files("1", "{\"name\":\"shop\",\"version\":\"2\"}\n");
+        let r = report(&base, &bumped);
+        assert!(selected(&r, "head", "src/unrelated.js"));
     }
 
     #[test]

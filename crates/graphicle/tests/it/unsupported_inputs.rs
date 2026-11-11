@@ -1,20 +1,20 @@
 use super::*;
 
 #[test]
-fn typescript_only_packet_explains_empty_entries_without_claiming_complete_impact() {
+fn java_only_packet_explains_empty_entries_without_claiming_complete_impact() {
     let f = Fixture::new();
-    let repo = f.repo("typescript-only");
+    let repo = f.repo("java-only");
     let base = f.pin(
         &repo,
         "app",
         'a',
-        &[("src/index.ts", "export const value = 1;\n")],
+        &[("src/Index.java", "class Index { int value = 1; }\n")],
     );
     let head = f.pin(
         &repo,
         "app",
         'b',
-        &[("src/index.ts", "export const value = 2;\n")],
+        &[("src/Index.java", "class Index { int value = 2; }\n")],
     );
     let packet = f.run(&request(&repo, vec![base], vec![head]));
     assert_eq!(packet["entries"], json!([]));
@@ -30,14 +30,52 @@ fn typescript_only_packet_explains_empty_entries_without_claiming_complete_impac
     );
 }
 
+/// TypeScript has basic file-level impact: its changed file is an entry and
+/// no unsupported-language issue is raised, while impact stays incomplete.
+#[test]
+fn typescript_only_packet_has_basic_entries_and_incomplete_impact() {
+    let f = Fixture::new();
+    let repo = f.repo("typescript-only");
+    let base = f.pin(
+        &repo,
+        "app",
+        'a',
+        &[("src/index.ts", "export const value = 1;\n")],
+    );
+    let head = f.pin(
+        &repo,
+        "app",
+        'b',
+        &[("src/index.ts", "export const value = 2;\n")],
+    );
+    let packet = f.run(&request(&repo, vec![base], vec![head]));
+    assert!(
+        packet["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|e| e["file"] == "src/index.ts" && e["language"] == "typescript"),
+        "{packet:#}"
+    );
+    assert_eq!(packet["impact"], "incomplete");
+    assert!(
+        packet["coverage"]["issue_histogram"]["unsupported_count"]
+            .as_u64()
+            .unwrap_or(0)
+            == 0,
+        "{}",
+        packet["coverage"]["issue_histogram"]
+    );
+}
+
 #[test]
 fn unsupported_entries_are_distinct_from_omitted_raw_diffs() {
     let f = Fixture::new();
     let repo = f.repo("unsupported-large-diff");
-    let before = "export const a = 1;\n".repeat(4000);
-    let after = "export const a = 2;\n".repeat(4000);
-    let base = f.pin(&repo, "app", 'a', &[("index.ts", &before)]);
-    let head = f.pin(&repo, "app", 'b', &[("index.ts", &after)]);
+    let before = "static int a = 1;\n".repeat(4000);
+    let after = "static int a = 2;\n".repeat(4000);
+    let base = f.pin(&repo, "app", 'a', &[("Index.java", &before)]);
+    let head = f.pin(&repo, "app", 'b', &[("Index.java", &after)]);
     let mut args = request(&repo, vec![base], vec![head]);
     args["max_tokens"] = json!(3825);
     let packet = f.run(&args);

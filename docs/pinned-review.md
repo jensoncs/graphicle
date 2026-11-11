@@ -11,8 +11,8 @@ The compiler-backed implementation analyzes **Go package calls in supplied immut
 snapshot sets**. It does not prove behavioral propagation or discover every
 consumer in an organization. Explicit pinned HTTP/gRPC/event wiring is supported
 through [service-boundary manifests](service-boundaries.md); it is not automatic
-runtime service discovery. **Terraform, Helm, Bash, Python and Rust also have
-basic file/module/chart-level impact** as described below. Other languages
+runtime service discovery. **Terraform, Helm, Bash, Python, Rust, TypeScript and
+JavaScript also have basic file/module/chart-level impact** as described below. Other languages
 remain available to ordinary graph retrieval, but their presence in a review
 scope is reported as unsupported. An incomplete result must never be
 interpreted as “no impact.”
@@ -175,9 +175,10 @@ only basic sources do not require a Go toolchain.
 | Bash | Changed scripts, declaration metadata, literal `source`, `.`, `bash` and `sh` path candidates | Working directory and PATH are not established; expansions, dynamic commands and runtime function binding remain unresolved |
 | Python | Changed files, declaration metadata, local import candidates, literal env reads and nearest project-manifest scope | No runtime environment/package resolution, runtime dispatch, dynamic imports or rebinding resolution |
 | Rust | Changed files, declaration metadata, local module/import candidates and nearest Cargo manifest scope | No Cargo dependency resolution, feature/cfg evaluation, macros, build scripts or trait dispatch |
+| TypeScript / JavaScript | Changed `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs` files, declaration metadata, relative import candidates (extension and `index` probing, `.js` to `.ts`), `tsconfig.json`/`jsconfig.json` `paths`/`baseUrl` aliases, and nearest `package.json` (else tsconfig/jsconfig) scope, which also covers lockfiles | No `node_modules`, package `exports`, CommonJS `require`, dynamic `import()`, bundler aliases or runtime dispatch |
 
 Entries carry `analysis_level: "basic_file"`, `language`, complete file bytes and
-their existing hashes, ranges and snapshot provenance. Python/Rust/Bash entries
+their existing hashes, ranges and snapshot provenance. Python/Rust/Bash/TypeScript/JavaScript entries
 also carry at most 128 declaration records with byte spans; omitted metadata is
 counted. Impact selection remains file-granular, including top-level code.
 Signature/implementation change classifications and test classification are

@@ -16,7 +16,7 @@ This design describes the implemented component boundaries, storage model, reque
 - Support a single-machine installation and a persistent team/review service without requiring an external database.
 - Keep model calls optional for ordinary retrieval and static analysis; bound model workflows by configured call, token and cost budgets.
 
-Compiler-backed pinned impact is primarily Go-based. Terraform, Helm, Bash, Python and Rust have basic impact scopes with explicit semantic limitations. Cross-service paths require pinned configuration evidence; they describe potential static dependencies. Runtime discovery, complete program behavior and automatic approval of a change are outside this contract.
+Compiler-backed pinned impact is primarily Go-based. Terraform, Helm, Bash, Python, Rust, TypeScript and JavaScript have basic impact scopes with explicit semantic limitations. Cross-service paths require pinned configuration evidence; they describe potential static dependencies. Runtime discovery, complete program behavior and automatic approval of a change are outside this contract.
 
 ## System architecture
 
