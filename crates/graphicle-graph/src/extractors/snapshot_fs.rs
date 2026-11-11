@@ -7,23 +7,26 @@ use std::io;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-#[derive(Default)]
+/// Cheap to clone: the files are shared.
+#[derive(Clone, Default)]
 pub struct SnapshotFs {
-    files: FxHashMap<PathBuf, Arc<str>>,
-    dirs: FxHashSet<PathBuf>,
+    files: Arc<FxHashMap<PathBuf, Arc<str>>>,
+    dirs: Arc<FxHashSet<PathBuf>>,
 }
 
 impl SnapshotFs {
     /// `files` by absolute path; every ancestor of a file is a directory.
     pub fn from_files(files: impl IntoIterator<Item = (PathBuf, Arc<str>)>) -> Self {
-        let mut out = Self::default();
+        let (mut by_path, mut dirs) = (FxHashMap::default(), FxHashSet::default());
         for (path, text) in files {
             let path = normalize(&path);
-            out.dirs
-                .extend(path.ancestors().skip(1).map(Path::to_path_buf));
-            out.files.insert(path, text);
+            dirs.extend(path.ancestors().skip(1).map(Path::to_path_buf));
+            by_path.insert(path, text);
         }
-        out
+        Self {
+            files: Arc::new(by_path),
+            dirs: Arc::new(dirs),
+        }
     }
     fn missing(path: &Path) -> io::Error {
         io::Error::new(

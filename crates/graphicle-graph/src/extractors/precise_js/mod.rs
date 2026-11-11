@@ -17,6 +17,10 @@
 //! carry `resolution`: `oxc_binding` for calls bound by scope and module
 //! resolution (EXTRACTED), `oxc_type` for receivers typed by an annotation or
 //! `new` (INFERRED).
+mod bind;
+use bind::Resolve;
+pub use bind::{Bound, Nodes, bind_snapshot};
+
 use super::resolution::source_key;
 use oxc_allocator::Allocator;
 use oxc_ast::{
@@ -606,7 +610,10 @@ fn summarize_source(path: &Path, source: &str, key: String) -> Option<Summary> {
     Some(reader.summarize(key, path.parent()?.to_path_buf()))
 }
 
-fn summarize_all(files: &[(PathBuf, String)]) -> Vec<Summary> {
+fn summarize_all(
+    files: &[(PathBuf, String)],
+    summarize: impl Fn(&Path, String) -> Option<Summary> + Sync,
+) -> Vec<Summary> {
     let workers = std::thread::available_parallelism()
         .map_or(1, usize::from)
         .min(files.len().div_ceil(8).max(1));
@@ -622,9 +629,11 @@ fn summarize_all(files: &[(PathBuf, String)]) -> Vec<Summary> {
                     };
                     // Very deep sources can exhaust a worker's stack in the
                     // parser; a failed file only loses its own edges.
-                    let summary = std::panic::catch_unwind(|| summarize_file(path, key.clone()))
-                        .ok()
-                        .flatten();
+                    let summary = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                        summarize(path, key.clone())
+                    }))
+                    .ok()
+                    .flatten();
                     if let Some(summary) = summary {
                         slots
                             .lock()
@@ -748,75 +757,18 @@ impl<'g> Index<'g> {
             .min_by_key(|(l, id)| (l.abs_diff(line), *id))
             .map(|(_, id)| *id)
     }
+}
+
+impl<'g> Nodes for Index<'g> {
+    type Id = &'g str;
     fn function(&self, file: &str, name: &str, line: usize) -> Option<&'g str> {
         Self::closest(self.functions.get(file)?.get(name), line)
     }
     fn class(&self, file: &str, name: &str, line: usize) -> Option<&'g str> {
         Self::closest(self.classes.get(file)?.get(name), line)
     }
-}
-
-struct Resolve<'a> {
-    summaries: &'a [Summary],
-    by_path: FxHashMap<PathBuf, usize>,
-    resolver: oxc_resolver::Resolver,
-    /// The scan root's tsconfig.json, for files whose nearest tsconfig does
-    /// not carry the project's `paths` (what `tsc -p <root>` sees).
-    root_resolver: Option<oxc_resolver::Resolver>,
-    modules: FxHashMap<(usize, String), Option<usize>>,
-}
-
-impl Resolve<'_> {
-    fn module(&mut self, from: usize, spec: &str) -> Option<usize> {
-        let key = (from, spec.to_string());
-        if let Some(hit) = self.modules.get(&key) {
-            return *hit;
-        }
-        let dir = &self.summaries[from].dir;
-        let found = std::iter::once(&self.resolver)
-            .chain(self.root_resolver.as_ref())
-            .find_map(|resolver| {
-                let resolved = resolver.resolve(dir, spec).ok()?;
-                let path = resolved.path();
-                let path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-                self.by_path.get(&path).copied()
-            });
-        self.modules.insert(key, found);
-        found
-    }
-    /// The local declaration `name` exported from `file` resolves to.
-    fn export(&mut self, file: usize, name: &str, hops: usize) -> Option<(usize, Ref)> {
-        if hops > MAX_HOPS {
-            return None;
-        }
-        let summaries = self.summaries;
-        match summaries[file].exports.get(name) {
-            Some(Export::Local(r @ Ref::Local { .. })) => Some((file, r.clone())),
-            Some(Export::Local(Ref::Import { spec, name })) | Some(Export::From { spec, name }) => {
-                let target = self.module(file, spec)?;
-                self.export(target, name, hops + 1)
-            }
-            None if name != "default" => {
-                for star in &summaries[file].stars {
-                    if let Some(target) = self.module(file, star)
-                        && let Some(found) = self.export(target, name, hops + 1)
-                    {
-                        return Some(found);
-                    }
-                }
-                None
-            }
-            None => None,
-        }
-    }
-    fn declaration(&mut self, file: usize, r: &Ref) -> Option<(usize, Ref)> {
-        match r {
-            Ref::Local { .. } => Some((file, r.clone())),
-            Ref::Import { spec, name } => {
-                let target = self.module(file, spec)?;
-                self.export(target, name, 0)
-            }
-        }
+    fn method(&self, class: &&'g str, name: &str) -> Option<&'g str> {
+        self.methods.get(&(*class, name)).copied()
     }
 }
 
@@ -870,7 +822,7 @@ pub fn resolve(
             }
         }
     }
-    let summaries = summarize_all(&files);
+    let summaries = summarize_all(&files, summarize_file);
     let parsed = started.elapsed();
     let all_nodes = nodes.iter().chain(context_nodes).collect::<Vec<_>>();
     let all_edges = edges.iter().chain(context_edges).collect::<Vec<_>>();
@@ -903,80 +855,12 @@ pub fn resolve(
             .filter(|p| p.is_file())
             .map(|p| resolver(Some(p))),
         modules: FxHashMap::default(),
+        canonical: |p| p.canonicalize().unwrap_or_else(|_| p.to_path_buf()),
     };
-    let class_node =
-        |file: usize, reference: &Ref, r: &mut Resolve| -> Option<(usize, String, usize)> {
-            let (file, Ref::Local { name, line }) = r.declaration(file, reference)? else {
-                return None;
-            };
-            Some((file, name, line))
-        };
     let mut added = vec![];
-    for (fi, summary) in summaries.iter().enumerate() {
-        if !emit.contains(&summary.key) {
-            continue;
-        }
-        for site in &summary.sites {
-            let caller = site.callers.iter().find_map(|c| match c {
-                Caller::Function { name, line } => index.function(&summary.key, name, *line),
-                Caller::Method {
-                    class,
-                    class_line,
-                    name,
-                } => index
-                    .class(&summary.key, class, *class_line)
-                    .and_then(|c| index.methods.get(&(c, name.as_str())).copied()),
-                Caller::Value { name, line } => index.class(&summary.key, name, *line),
-            });
-            let Some(caller) = caller else { continue };
-            let (target, resolution) = match &site.target {
-                Target::Function(reference) => {
-                    let Some((file, Ref::Local { name, line })) = r.declaration(fi, reference)
-                    else {
-                        continue;
-                    };
-                    (
-                        index.function(&summaries[file].key, &name, line),
-                        "oxc_binding",
-                    )
-                }
-                Target::Namespace { spec, name } => {
-                    let Some(module) = r.module(fi, spec) else {
-                        continue;
-                    };
-                    let Some((file, Ref::Local { name, line })) = r.export(module, name, 0) else {
-                        continue;
-                    };
-                    (
-                        index.function(&summaries[file].key, &name, line),
-                        "oxc_binding",
-                    )
-                }
-                Target::New(class) => {
-                    let Some((file, name, line)) = class_node(fi, class, &mut r) else {
-                        continue;
-                    };
-                    (
-                        index.class(&summaries[file].key, &name, line),
-                        "oxc_binding",
-                    )
-                }
-                Target::Member { class, name, typed } => (
-                    method(&index, &mut r, fi, class, name),
-                    if *typed { "oxc_type" } else { "oxc_binding" },
-                ),
-                Target::Method { class, name } => {
-                    (method(&index, &mut r, fi, class, name), "oxc_binding")
-                }
-            };
-            let Some(target) = target else { continue };
-            if target == caller {
-                continue;
-            }
-            if !pairs.insert((caller, target)) {
-                continue;
-            }
-            added.push(edge(caller, target, site.line, &summary.key, resolution));
+    for b in bind::bind(&mut r, |key| emit.contains(key), &index) {
+        if pairs.insert((b.caller, b.target)) {
+            added.push(edge(b.caller, b.target, b.line, &b.file, b.resolution));
         }
     }
     if timing {
@@ -989,39 +873,6 @@ pub fn resolve(
         );
     }
     edges.extend(added);
-}
-
-/// Method `name` of the class `reference` (from file `file`) or its bases.
-fn method<'g>(
-    index: &Index<'g>,
-    r: &mut Resolve,
-    file: usize,
-    reference: &Ref,
-    name: &str,
-) -> Option<&'g str> {
-    let (mut file, mut class) = r.declaration(file, reference)?;
-    for _ in 0..MAX_HOPS {
-        let Ref::Local {
-            name: class_name,
-            line,
-        } = &class
-        else {
-            return None;
-        };
-        let summary = &r.summaries[file];
-        let node = index.class(&summary.key, class_name, *line)?;
-        if let Some(m) = index.methods.get(&(node, name)) {
-            return Some(m);
-        }
-        let base = summary
-            .classes
-            .iter()
-            .find(|c| &c.name == class_name && c.line == *line)?
-            .base
-            .clone()?;
-        (file, class) = r.declaration(file, &base)?;
-    }
-    None
 }
 
 #[cfg(test)]
