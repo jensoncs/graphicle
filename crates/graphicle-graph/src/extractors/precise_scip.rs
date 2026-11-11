@@ -457,12 +457,14 @@ pub fn resolve(
         .collect::<FxHashSet<_>>();
     let all_nodes = nodes.iter().chain(context_nodes).collect::<Vec<_>>();
     let index = Index::build(&all_nodes, root);
-    let mut pairs: FxHashSet<(String, String)> = FxHashSet::default();
-    for e in edges.iter().chain(context_edges) {
-        let (a, b) = (s(e, "source"), s(e, "target"));
-        let (a, b) = if a <= b { (a, b) } else { (b, a) };
-        pairs.insert((a.to_string(), b.to_string()));
-    }
+    // Directed calls already known: another relation, or the reverse call,
+    // between the same two nodes is not this call.
+    let mut pairs: FxHashSet<(String, String)> = edges
+        .iter()
+        .chain(context_edges)
+        .filter(|e| s(e, "relation") == "calls")
+        .map(|e| (s(e, "source").to_string(), s(e, "target").to_string()))
+        .collect();
     let mut added = vec![];
     let mut sources: FxHashMap<String, Option<Vec<String>>> = FxHashMap::default();
     for bytes in &indexes {
@@ -576,8 +578,7 @@ pub fn resolve(
                     continue;
                 }
                 confirmed.insert((src.to_string(), tgt.to_string()));
-                let pair = if src <= tgt { (src, tgt) } else { (tgt, src) };
-                if !pairs.insert((pair.0.to_string(), pair.1.to_string())) {
+                if !pairs.insert((src.to_string(), tgt.to_string())) {
                     continue;
                 }
                 added.push(edge(src, tgt, line + 1, &keys[di]));
@@ -647,6 +648,78 @@ mod tests {
         let mut bytes = [0x80; 10];
         bytes[9] = 2;
         assert!(Pb::new(&bytes).varint().is_none());
+    }
+
+    fn field(out: &mut Vec<u8>, number: u64, bytes: &[u8]) {
+        let varint = |out: &mut Vec<u8>, mut v: u64| {
+            while v >= 0x80 {
+                out.push((v as u8) | 0x80);
+                v >>= 7;
+            }
+            out.push(v as u8);
+        };
+        varint(out, number << 3 | 2);
+        varint(out, bytes.len() as u64);
+        out.extend(bytes);
+    }
+
+    fn occurrence_bytes(range: &[u8], symbol: &str, roles: u8, enclosing: &[u8]) -> Vec<u8> {
+        let mut out = vec![];
+        field(&mut out, 1, range);
+        field(&mut out, 2, symbol.as_bytes());
+        out.extend([0x18, roles]);
+        if !enclosing.is_empty() {
+            field(&mut out, 7, enclosing);
+        }
+        out
+    }
+
+    #[test]
+    fn keeps_both_directions_of_a_mutual_call() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = crate::extractors::resolution::resolved(dir.path());
+        let sym = |m: &str, f: &str| format!("scip-python python p 0 `{m}`/{f}().");
+        let mut index = vec![];
+        let mut nodes = vec![];
+        let mut paths = vec![];
+        for (module, name, callee) in [("a", "ping", ("b", "pong")), ("b", "pong", ("a", "ping"))] {
+            let path = root.join(format!("{module}.py"));
+            std::fs::write(
+                &path,
+                format!("def {name}(n):\n    return {}(n)\n", callee.1),
+            )
+            .unwrap();
+            let mut doc = vec![];
+            field(&mut doc, 1, format!("{module}.py").as_bytes());
+            let definition = occurrence_bytes(&[0, 4, 8], &sym(module, name), 1, &[0, 0, 1, 18]);
+            field(&mut doc, 2, &definition);
+            field(
+                &mut doc,
+                2,
+                &occurrence_bytes(&[1, 11, 15], &sym(callee.0, callee.1), 0, &[]),
+            );
+            field(&mut index, 2, &doc);
+            nodes.push(
+                json!({"id": format!("{module}_{name}"), "label": format!("{name}()"),
+                "source_file": path.to_string_lossy(), "source_location": "L1"}),
+            );
+            paths.push(path);
+        }
+        std::fs::write(root.join("index.scip"), index).unwrap();
+        let mut edges = vec![];
+        resolve(&paths, &nodes, &mut edges, &[], &[], &root);
+        let mut pairs = edges
+            .iter()
+            .map(|e| (s(e, "source").to_string(), s(e, "target").to_string()))
+            .collect::<Vec<_>>();
+        pairs.sort();
+        assert_eq!(
+            pairs,
+            [
+                ("a_ping".to_string(), "b_pong".to_string()),
+                ("b_pong".into(), "a_ping".into())
+            ]
+        );
     }
 
     #[test]

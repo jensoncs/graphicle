@@ -10,6 +10,11 @@ versioned together at 0.2.0.
 
 ### Review and revocation fixes
 
+- The precise TypeScript/JavaScript and SCIP call resolvers keep both calls
+  of a mutual pair. They skipped a call when any edge, of any relation or
+  direction, already joined the two symbols, so when `a` called `b` and `b`
+  called `a`, the second call was lost, and so was `b` as a caller of `a` in
+  `graph.impact`.
 - Pinned review no longer reports a cgo package as complete. Review runs Go
   with cgo disabled, which hid `import "C"` files from analysis; packages whose
   files depend on cgo now fail closed with `unsupported_cgo`.

@@ -858,11 +858,13 @@ pub fn resolve(
     let all_nodes = nodes.iter().chain(context_nodes).collect::<Vec<_>>();
     let all_edges = edges.iter().chain(context_edges).collect::<Vec<_>>();
     let index = Index::build(&all_nodes, &all_edges, root);
-    let mut pairs: FxHashSet<(&str, &str)> = FxHashSet::default();
-    for e in &all_edges {
-        let (a, b) = (s(e, "source"), s(e, "target"));
-        pairs.insert(if a <= b { (a, b) } else { (b, a) });
-    }
+    // Directed calls already known: another relation, or the reverse call,
+    // between the same two nodes is not this call.
+    let mut pairs: FxHashSet<(&str, &str)> = all_edges
+        .iter()
+        .filter(|e| s(e, "relation") == "calls")
+        .map(|e| (s(e, "source"), s(e, "target")))
+        .collect();
     // Summaries skip files that failed to parse; map paths to summaries by key.
     let key_index = summaries
         .iter()
@@ -954,12 +956,7 @@ pub fn resolve(
             if target == caller {
                 continue;
             }
-            let pair = if caller <= target {
-                (caller, target)
-            } else {
-                (target, caller)
-            };
-            if !pairs.insert(pair) {
+            if !pairs.insert((caller, target)) {
                 continue;
             }
             added.push(edge(caller, target, site.line, &summary.key, resolution));
@@ -1105,5 +1102,47 @@ mod tests {
                 .any(|(s, t, r)| s == ".describe()" && t == ".area()" && r != "oxc_type"),
             "{calls:?}"
         );
+    }
+
+    #[test]
+    fn keeps_both_directions_of_a_mutual_call() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = crate::extractors::resolution::resolved(dir.path());
+        let files = vec![
+            write(
+                &root,
+                "src/ping.ts",
+                "import * as other from './pong';\nexport function ping(n: number): number { return n > 0 ? other.pong(n - 1) : 0; }\n",
+            ),
+            write(
+                &root,
+                "src/pong.ts",
+                "import * as other from './ping';\nexport function pong(n: number): number { return other.ping(n); }\n",
+            ),
+        ];
+        let options = ExtractOptions {
+            root: Some(root.clone()),
+            cache_root: Some(root.clone()),
+            parallel: false,
+            precise: true,
+            ..Default::default()
+        };
+        let _serial = crate::extractors::parse_cache::test_serial();
+        let result = extract(&files, &options).unwrap();
+        let calls = calls(&result);
+        // The base extractor binds neither namespace call; both come from here.
+        let base = extract(
+            &files,
+            &ExtractOptions {
+                precise: false,
+                ..options
+            },
+        )
+        .unwrap();
+        assert!(super::tests::calls(&base).is_empty());
+        let has = |a: &str, b: &str| calls.iter().any(|(s, t, _)| s == a && t == b);
+        for (a, b) in [("ping()", "pong()"), ("pong()", "ping()")] {
+            assert!(has(a, b), "missing {a} -> {b}: {calls:?}");
+        }
     }
 }
