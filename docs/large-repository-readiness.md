@@ -371,6 +371,11 @@ to meet the targets.
   current returned evidence. **Done when:** edit/restore checks show consistent
   eligibility and freshness diagnostics, without returning stale notes during
   the changed-source interval. Evidence: [E11](evidence/large-repository-e11-2026-11-06.json).
+  **Status:** a sync now clears the marker of a memory whose recorded file
+  hashes all match the restored heads (integration test
+  `restoring_a_memorys_source_clears_its_stale_marker`); memories that also
+  cite links or connector documents, or are current only through symbol
+  links, keep theirs. The E11 harness has not been rerun.
 
 - [ ] **Address memory recall limits and qualify combined scale.** Ordinary and
   graph-assisted recall consider the newest 20,000 eligible notes, omitting the

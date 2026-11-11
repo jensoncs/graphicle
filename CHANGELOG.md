@@ -80,6 +80,11 @@ versioned together at 0.2.0.
   only.
 - Offboarding refuses a backup with a non-empty `-wal` or `-journal` beside
   it: the backup is read immutable, which misses pages held in the log.
+- A sync that restores a file to the bytes a memory was written against
+  clears that memory's stale marker, so `freshness` agrees with the memory's
+  own stale check. A memory that also cites workspace links or connector
+  documents, or is current only through its symbol links, keeps its marker
+  (E11-F1).
 - `memory.import` keeps a memory's dependencies, workspace links and connector
   sources only for sources its evidence quotes or symbol links cite, at their
   recorded hashes, so an edited or missing source still leaves the draft

@@ -1017,7 +1017,15 @@ impl Store {
             db.execute("UPDATE repo_projects SET snapshot=?,generation=generation+1,metadata=?,updated_at=? WHERE id=?",params![s(&sync,"snapshot"),s(&sync,"metadata"),now(),identifier])?;
             db.execute("UPDATE repo_syncs SET state='complete' WHERE id=?",[s(&sync,"id")])?;
             invalidate(db,identifier)?;
-            for path in changed.iter().chain(&removed) {crate::invalidation::file_changed(db,&p.workspace,identifier,path,"repository_commit")?;crate::observer::forget_source(db,&p.workspace,identifier,&format!("file:{path}"))?;}
+            let mut memories=Vec::new();
+            for path in changed.iter().chain(&removed) {
+                let marked=crate::invalidation::file_changed(db,&p.workspace,identifier,path,"repository_commit")?;
+                memories.extend(marked.into_iter().filter(|(kind,_)|kind==crate::invalidation::MEMORY).map(|(_,id)|id));
+                crate::observer::forget_source(db,&p.workspace,identifier,&format!("file:{path}"))?;
+            }
+            // A file restored to the bytes a memory was written against leaves the memory current.
+            memories.sort();memories.dedup();
+            crate::invalidation::clear_restored_memories(db,&p.workspace,identifier,&memories)?;
             let changed_paths:BTreeSet<&str>=changed.iter().map(String::as_str).collect();
             for document in documents.iter().filter(|d|changed_paths.contains(d.path.as_str())) {crate::invalidation::record_file_chunks(db,&p.workspace,identifier,&document.path,&document.sha)?;}
             event(db,identifier,"synced",json!({"snapshot":sync["snapshot"],"changed":changed,"removed":removed}))?;

@@ -10,6 +10,7 @@ use tempfile::TempDir;
 const A_V1: &str = "def alpha():\n    return 1\n\ndef beta():\n    return 2\n";
 const A_V2: &str = "def alpha():\n    return 1\n";
 const B: &str = "from a import alpha, beta\n\ndef run():\n    return alpha() + beta()\n";
+const B_V2: &str = "from a import alpha\n\ndef run():\n    return alpha()\n";
 const C: &str = "def gamma():\n    return 3\n";
 
 /// Installs the edition under test before a fixture is built: nothing in this
@@ -434,6 +435,47 @@ fn memories_record_their_sources_and_go_stale_when_sources_change() {
     drop(db);
     f.sync(&[("a.py", A_V2), ("b.py", B)]);
     assert_eq!(f.stale(MEMORY), vec![memory_id]);
+}
+
+/// Restoring the bytes a memory was written against clears its marker: the
+/// freshness ledger agrees with the memory's own stale check (E11-F1).
+#[test]
+fn restoring_a_memorys_source_clears_its_stale_marker() {
+    let f = Fixture::new(&[("a.py", A_V1), ("b.py", B)]);
+    let note = |title: &str, quote: &str, file: &str| {
+        let memory = f
+            .store
+            .note(
+                &f.workspace,
+                &f.key,
+                &f.args(json!({"kind":"decision","title":title,"body":title,"evidence":[{"id":format!("file:{file}"),"quote":quote}]})),
+            )
+            .unwrap();
+        s(&memory, "id").to_string()
+    };
+    let alpha = note("Alpha returns one", "return 1", "a.py");
+    let both = f
+        .store
+        .note(
+            &f.workspace,
+            &f.key,
+            &f.args(
+                json!({"kind":"decision","title":"Both","body":"both","evidence":[
+                {"id":"file:a.py","quote":"return 1"},{"id":"file:b.py","quote":"alpha"}]}),
+            ),
+        )
+        .unwrap();
+    let both = s(&both, "id").to_string();
+    f.sync(&[("a.py", A_V2), ("b.py", B)]);
+    let mut marked = vec![alpha.clone(), both.clone()];
+    marked.sort();
+    assert_eq!(f.stale(MEMORY), marked);
+    // a.py restored while b.py now differs: only the memory on a.py alone
+    // is current again.
+    f.sync(&[("a.py", A_V1), ("b.py", B_V2)]);
+    assert_eq!(f.stale(MEMORY), vec![both.clone()]);
+    f.sync(&[("a.py", A_V1), ("b.py", B)]);
+    assert!(f.stale(MEMORY).is_empty(), "{:?}", f.stale(MEMORY));
 }
 
 #[test]

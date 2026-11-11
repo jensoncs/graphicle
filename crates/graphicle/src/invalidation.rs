@@ -284,6 +284,51 @@ pub fn record_memory(
     Ok(())
 }
 
+/// Clear the markers of `memories` whose recorded file hashes all equal the
+/// repository's heads: a source restored to the bytes a memory was written
+/// against leaves it current, as its own check ([`crate::memory::list_of`])
+/// reports. Returns how many were cleared.
+/// ponytail: by hash only. A memory that also cites workspace links or
+/// connector documents, or that is current through its symbol links while
+/// its file differs, keeps its marker; widen to the full check if needed.
+pub fn clear_restored_memories(
+    db: &Connection,
+    workspace: &str,
+    repository: &str,
+    memories: &[String],
+) -> Result<usize> {
+    if memories.is_empty() {
+        return Ok(0);
+    }
+    let heads = crate::store::heads(db, repository)?;
+    let mut statement = db.prepare(
+        "SELECT id,data FROM repo_memories WHERE repository_id=? AND id IN (SELECT value FROM json_each(?))",
+    )?;
+    let rows = statement
+        .query_map(
+            params![repository, serde_json::json!(memories).to_string()],
+            |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+        )?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    let mut cleared = 0;
+    for (id, data) in rows {
+        let data: serde_json::Value = serde_json::from_str(&data).unwrap_or_default();
+        let cites_others = ["evidence_links", "native_sources"]
+            .iter()
+            .any(|key| data[key].as_object().is_some_and(|m| !m.is_empty()));
+        let current = data["dependencies"].as_object().is_some_and(|files| {
+            !files.is_empty()
+                && files
+                    .iter()
+                    .all(|(path, hash)| heads.get(path).map(String::as_str) == hash.as_str())
+        });
+        if current && !cites_others && clear_stale(db, workspace, MEMORY, &id)? {
+            cleared += 1;
+        }
+    }
+    Ok(cleared)
+}
+
 /// Record that a derived artifact depends on each evidence document it used
 /// (by document id as produced by `memory::documents`).
 pub fn record_document_dependencies<'a>(
