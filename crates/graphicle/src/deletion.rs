@@ -1845,11 +1845,33 @@ fn project_rows(
     Ok(json!({"columns_checked":checked,"matches":matches}))
 }
 
+/// Other projects' review packets whose receipt pins `repository`. The
+/// residue scan skips repository-keyed tables, and these rows belong to the
+/// anchor project, yet name the pinned project's ids, commits and paths.
+const PINNING_PACKETS: &str = "FROM repo_review_packets WHERE EXISTS (\
+    SELECT 1 FROM json_each(receipt,'$.base') pin WHERE json_extract(pin.value,'$.repository_id')=?1 \
+    UNION ALL \
+    SELECT 1 FROM json_each(receipt,'$.head') pin WHERE json_extract(pin.value,'$.repository_id')=?1)";
+
+fn pinning_review_packets(db: &Connection, repository: &str) -> Result<usize> {
+    count(
+        db,
+        &format!("SELECT count(*) {PINNING_PACKETS}"),
+        [repository],
+    )
+}
+
+/// Forget the review packets that pin a deleted project: they cannot be
+/// reused without it. Returns how many were removed.
+pub fn forget_review_packets(db: &Connection, repository: &str) -> Result<usize> {
+    Ok(db.execute(&format!("DELETE {PINNING_PACKETS}"), [repository])?)
+}
+
 /// The receipt of `project.delete` for `repository`. `removed` holds what
 /// the deletion removed besides the project's own rows: `references`
-/// (dependency-index entries) and, when the project had any,
-/// `pr_scratch_projects` (the PR scratch projects deleted with it, each with
-/// its own receipt).
+/// (dependency-index entries), `review_packets` (other projects' packets
+/// that pinned it) and, when the project had any, `pr_scratch_projects` (the
+/// PR scratch projects deleted with it, each with its own receipt).
 pub fn project_receipt(
     db: &Connection,
     p: &Principal,
@@ -1872,13 +1894,14 @@ pub fn project_receipt(
         true,
     )?;
     let cleanups = external(db, repository)?;
-    let clean = empty(&remaining) && empty(&ids);
+    let packets = pinning_review_packets(db, repository)?;
+    let clean = empty(&remaining) && empty(&ids) && packets == 0;
     let pending = cleanups.iter().any(|c| c["state"] != "complete");
     let receipt = json!({
         "contract":CONTRACT,"operation":"project.delete","workspace_id":p.workspace,
         "repository_id":repository,"target":repository,"connectors":connectors,"requested_by":p.credential,"deleted_at":now(),
         "removed":removed,
-        "remaining":{"project_rows":remaining},
+        "remaining":{"project_rows":remaining,"review_packets":packets},
         "residue":{"source_ids":ids,"retained_by_design":retained},
         "external_cleanup":cleanups,
         "verified_local":clean,"external_pending":pending,"complete":clean && !pending,
@@ -2057,7 +2080,8 @@ pub fn verify(store: &Store, workspace: &str, token: &str, args: &Value) -> Resu
                 let mut patterns = vec![repository.clone()];
                 patterns.extend(connectors.iter().map(|c| format!("connector:{c}:")));
                 let ids = references(db, &catalog, &patterns, (&repository, workspace), &retained(db)?, true)?;
-                json!({"verified_local":empty(&remaining) && empty(&ids),"project_rows":remaining,"source_ids":ids})
+                let packets = pinning_review_packets(db, &repository)?;
+                json!({"verified_local":empty(&remaining) && empty(&ids) && packets == 0,"project_rows":remaining,"source_ids":ids,"review_packets":packets})
             }
             "memory.delete" => {
                 // Only one-way hashes of the ids are kept: confirm no

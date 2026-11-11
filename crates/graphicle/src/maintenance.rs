@@ -56,6 +56,7 @@ pub(crate) fn delete_project(
         crate::graph_materialize::purge(&cache)?;
     }
     crate::passage_index::clear(db, identifier)?;
+    removed["review_packets"] = json!(deletion::forget_review_packets(db, identifier)?);
     db.execute("DELETE FROM repo_projects WHERE id=?", [identifier])?;
     graphicle_memory::cache::clear(identifier).map_err(Error::bad)?;
     deletion::project_receipt(db, p, identifier, &connectors, removed)

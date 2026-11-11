@@ -29,6 +29,17 @@ versioned together at 0.2.0.
   `</system-reminder>` can no longer end one early. Provider error reasons
   redact keys inside compact JSON, and wiki Markdown escaping follows
   CommonMark's matching backtick runs.
+- Deleting a project also forgets other projects' review packets that pinned
+  it. Their receipts named its ids, commits and paths, yet the deletion receipt
+  reported the store clean; receipts now count such packets under
+  `remaining.review_packets`.
+- The graph engine's HTTP clients no longer follow redirects. Provider keys
+  sent in `x-api-key`/`api-key` headers were forwarded to a redirect's new
+  host. The bundled Caddy configuration turns off Caddy's admin API, which the
+  app could reach through the shared network namespace.
+- OAuth connections finish only in the browser that started them: `oauth/start`
+  sets an HttpOnly `graphicle_oauth` cookie and the callback requires it. A
+  callback from another browser is refused without using up the request.
 
 ### SQLite under indexing load
 

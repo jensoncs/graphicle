@@ -231,7 +231,7 @@ async fn oauth_pkce_roundtrip_and_replay_rejection() {
         .with_state(state.clone());
     let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
     oauth::configure(&store,&ws,&token,&json!({"provider":"github","config":{"client_id":"test-client","client_secret_ref":null,"authorization_url":format!("{base}/authorize"),"token_url":format!("{base}/token"),"identity_url":format!("{base}/user"),"scopes":["read"],"pkce":true}})).unwrap();
-    let started = oauth::start(
+    let (started, browser) = oauth::start(
         &store,
         &ws,
         &token,
@@ -239,14 +239,32 @@ async fn oauth_pkce_roundtrip_and_replay_rejection() {
         &format!("{base}/oauth/callback/github"),
     )
     .unwrap();
+    assert!(!started.to_string().contains(&browser));
     let url = url::Url::parse(s(&started, "authorization_url")).unwrap();
     let params: std::collections::BTreeMap<_, _> = url.query_pairs().into_owned().collect();
+    // Another browser (without the initiator's cookie) cannot complete the
+    // flow, and its attempt does not use up the initiator's request.
+    for other in ["", "not-the-initiator"] {
+        assert!(
+            oauth::callback(
+                &store,
+                &model::client().unwrap(),
+                "github",
+                &params["state"],
+                "test-code",
+                other,
+            )
+            .await
+            .is_err()
+        );
+    }
     let result = oauth::callback(
         &store,
         &model::client().unwrap(),
         "github",
         &params["state"],
         "test-code",
+        &browser,
     )
     .await
     .unwrap();
@@ -257,7 +275,8 @@ async fn oauth_pkce_roundtrip_and_replay_rejection() {
             &model::client().unwrap(),
             "github",
             &params["state"],
-            "test-code"
+            "test-code",
+            &browser,
         )
         .await
         .is_err()

@@ -2246,3 +2246,54 @@ fn cgo_files_hidden_by_disabled_cgo_never_claim_complete() {
         "{report}"
     );
 }
+
+#[test]
+fn deleting_a_pinned_dependency_forgets_review_packets_that_name_it() {
+    let f = Fixture::new();
+    let tax = f.repo("tax");
+    let consumer = f.repo("consumer");
+    let a = f.pin(
+        &tax,
+        "tax",
+        'a',
+        &[("go.mod", MOD), ("rate.go", "package tax\nconst Rate=1\n")],
+    );
+    let b = f.pin(
+        &tax,
+        "tax",
+        'b',
+        &[("go.mod", MOD), ("rate.go", "package tax\nconst Rate=2\n")],
+    );
+    let c=f.pin(&consumer,"consumer",'a',&[("go.mod","module example/consumer\ngo 1.23\nrequire example/tax v0.0.0\nreplace example/tax => ../tax\n"),("use.go","package consumer\nimport \"example/tax\"\nfunc Use() int {return tax.Rate}\n")]);
+    f.run(&request(&consumer, vec![c.clone(), a], vec![c, b.clone()]));
+    let naming = |f: &Fixture| -> i64 {
+        f.store
+            .connect()
+            .unwrap()
+            .query_row(
+                "SELECT count(*) FROM repo_review_packets WHERE instr(receipt,?)>0",
+                [&tax],
+                |r| r.get(0),
+            )
+            .unwrap()
+    };
+    assert_eq!(naming(&f), 1, "the consumer's packet pins the tax project");
+
+    let deleted = f
+        .store
+        .maintain(
+            &f.workspace,
+            &f.token,
+            "project.delete",
+            &json!({"repository_id":tax,"expected_snapshot":b["snapshot"]}),
+        )
+        .unwrap();
+    assert_eq!(
+        naming(&f),
+        0,
+        "a deleted project's ids stay in another project's packet"
+    );
+    let receipt = &deleted["receipt"];
+    assert_eq!(receipt["removed"]["review_packets"], 1, "{receipt:#}");
+    assert_eq!(receipt["verified_local"], true, "{receipt:#}");
+}

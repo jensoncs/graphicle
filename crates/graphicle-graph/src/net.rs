@@ -11,23 +11,28 @@
 /// the system's roots cannot be used (the store holds no certificate that
 /// parses), the client is built again with the bundled roots alone, so it
 /// still reaches servers with public certificates.
+///
+/// Redirects are not followed unless `configure` asks: provider keys travel
+/// in custom headers (`x-api-key`, `api-key`) that reqwest keeps when a
+/// redirect leaves the origin, and a redirect may also downgrade to http.
 pub fn client(
     configure: impl Fn(reqwest::ClientBuilder) -> reqwest::ClientBuilder,
 ) -> reqwest::Result<reqwest::Client> {
-    configure(reqwest::Client::builder())
+    let builder = || reqwest::Client::builder().redirect(reqwest::redirect::Policy::none());
+    configure(builder())
         .build()
-        .or_else(|_| configure(reqwest::Client::builder().tls_built_in_native_certs(false)).build())
+        .or_else(|_| configure(builder().tls_built_in_native_certs(false)).build())
 }
 
 /// [`client`] for the blocking API.
 pub fn blocking_client(
     configure: impl Fn(reqwest::blocking::ClientBuilder) -> reqwest::blocking::ClientBuilder,
 ) -> reqwest::Result<reqwest::blocking::Client> {
-    configure(reqwest::blocking::Client::builder())
+    let builder =
+        || reqwest::blocking::Client::builder().redirect(reqwest::redirect::Policy::none());
+    configure(builder())
         .build()
-        .or_else(|_| {
-            configure(reqwest::blocking::Client::builder().tls_built_in_native_certs(false)).build()
-        })
+        .or_else(|_| configure(builder().tls_built_in_native_certs(false)).build())
 }
 
 /// What to do when a server's certificate is refused.
@@ -102,5 +107,46 @@ mod tests {
     fn a_client_builds_with_the_system_roots_and_the_bundled_roots() {
         assert!(client(|builder| builder).is_ok());
         assert!(blocking_client(|builder| builder).is_ok());
+    }
+}
+
+#[cfg(test)]
+mod redirect_tests {
+    use std::io::{Read, Write};
+    use std::net::TcpListener;
+
+    /// Provider keys travel in custom headers (`x-api-key`, `api-key`) that
+    /// reqwest keeps on a cross-origin redirect, so no client follows one.
+    #[test]
+    fn clients_never_follow_redirects() {
+        let target = TcpListener::bind("127.0.0.1:0").unwrap();
+        target.set_nonblocking(true).unwrap();
+        let origin = TcpListener::bind("127.0.0.1:0").unwrap();
+        let location = format!("http://{}/", target.local_addr().unwrap());
+        let url = format!("http://{}/", origin.local_addr().unwrap());
+        let server = std::thread::spawn(move || {
+            let (mut stream, _) = origin.accept().unwrap();
+            let mut request = [0u8; 4096];
+            let _ = stream.read(&mut request);
+            let reply = format!(
+                "HTTP/1.1 307 Temporary Redirect\r\nLocation: {location}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+            );
+            stream.write_all(reply.as_bytes()).unwrap();
+        });
+        let client =
+            super::blocking_client(|builder| builder.timeout(std::time::Duration::from_secs(2)))
+                .unwrap();
+        // A followed redirect reaches `target`, which never answers.
+        let response = client
+            .post(&url)
+            .header("x-api-key", "secret")
+            .body("{}")
+            .send();
+        server.join().unwrap();
+        assert!(
+            target.accept().is_err(),
+            "the redirect target was contacted"
+        );
+        assert_eq!(response.unwrap().status().as_u16(), 307);
     }
 }

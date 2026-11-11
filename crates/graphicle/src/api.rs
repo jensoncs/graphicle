@@ -1145,7 +1145,7 @@ async fn oauth_start(
     Path(workspace): Path<String>,
     headers: HeaderMap,
     Json(args): Json<Value>,
-) -> Result<Json<Value>> {
+) -> Result<impl IntoResponse> {
     let provider = string(&args, "provider", 20)?;
     let host = headers
         .get(header::HOST)
@@ -1156,17 +1156,43 @@ async fn oauth_start(
         .clone()
         .unwrap_or_else(|| format!("http://{host}"));
     let redirect = format!("{origin}/oauth/callback/{provider}");
-    Ok(Json(crate::oauth::start(
+    let (started, browser) = crate::oauth::start(
         &app.worker.store,
         &workspace,
         token(&headers)?,
         provider,
         &redirect,
-    )?))
+    )?;
+    // The callback requires this cookie: only the initiating browser can
+    // finish the connection. Lax still sends it on the provider's redirect.
+    // ponytail: one cookie for all providers (extension names are not
+    // cookie-safe); a second concurrent connection replaces the first.
+    let secure = if origin.starts_with("https://") {
+        "; Secure"
+    } else {
+        ""
+    };
+    let cookie = format!(
+        "{OAUTH_COOKIE}={browser}; Path=/oauth/callback; Max-Age=600; HttpOnly; SameSite=Lax{secure}"
+    );
+    Ok(([(header::SET_COOKIE, cookie)], Json(started)))
+}
+const OAUTH_COOKIE: &str = "graphicle_oauth";
+/// The OAuth browser nonce from a `Cookie` header; empty when absent.
+fn oauth_cookie(headers: &HeaderMap) -> String {
+    headers
+        .get_all(header::COOKIE)
+        .iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|v| v.split(';'))
+        .find_map(|pair| pair.trim().strip_prefix(OAUTH_COOKIE)?.strip_prefix('='))
+        .unwrap_or("")
+        .to_string()
 }
 async fn oauth_callback(
     State(app): State<App>,
     Path(provider): Path<String>,
+    headers: HeaderMap,
     Query(args): Query<std::collections::BTreeMap<String, String>>,
 ) -> Result<impl IntoResponse> {
     if args.contains_key("error") {
@@ -1178,10 +1204,16 @@ async fn oauth_callback(
         &provider,
         args.get("state").map(String::as_str).unwrap_or(""),
         args.get("code").map(String::as_str).unwrap_or(""),
+        &oauth_cookie(&headers),
     )
     .await?;
+    let cleared =
+        format!("{OAUTH_COOKIE}=; Path=/oauth/callback; Max-Age=0; HttpOnly; SameSite=Lax");
     Ok((
-        [("content-type", "text/html; charset=utf-8")],
+        [
+            (header::CONTENT_TYPE, "text/html; charset=utf-8".to_string()),
+            (header::SET_COOKIE, cleared),
+        ],
         "<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><title>Account connected — Graphicle</title><h1>Account connected</h1><p>Your credential is encrypted in this workspace.</p><p><a href=/>Return to Graphicle</a></p></html>",
     ))
 }
@@ -2989,5 +3021,23 @@ mod operation_table_tests {
             .await
             .unwrap_err();
         assert_eq!(error.message, unsupported);
+    }
+}
+
+#[cfg(test)]
+mod oauth_cookie_tests {
+    use super::*;
+
+    #[test]
+    fn oauth_cookie_reads_only_its_own_pair() {
+        let mut headers = HeaderMap::new();
+        headers.insert(
+            header::COOKIE,
+            "a=1; graphicle_oauth_x=2; graphicle_oauth=n0nce"
+                .parse()
+                .unwrap(),
+        );
+        assert_eq!(oauth_cookie(&headers), "n0nce");
+        assert_eq!(oauth_cookie(&HeaderMap::new()), "");
     }
 }

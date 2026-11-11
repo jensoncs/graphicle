@@ -1,3 +1,9 @@
+{
+	# The app shares this network namespace (compose network_mode); a reachable
+	# admin API on :2019 would let it rewrite the proxy. Restart to reconfigure.
+	admin off
+}
+
 {$GRAPHICLE_DOMAIN} {
 	encode zstd gzip
 	request_body {

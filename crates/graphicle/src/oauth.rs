@@ -89,13 +89,17 @@ pub fn status(store: &Store, workspace: &str, capability: &str) -> Result<Value>
         Ok(json!({"providers":providers(store,workspace)?.keys().collect::<Vec<_>>(),"accounts":accounts}))
     })
 }
+/// Begin a connection. Returns the authorization URL and a browser nonce:
+/// the caller hands the nonce to the initiating browser (an HttpOnly cookie)
+/// and [`callback`] requires it back, so a callback opened in another browser,
+/// for example a victim's, cannot complete this flow.
 pub fn start(
     store: &Store,
     workspace: &str,
     capability: &str,
     name: &str,
     redirect: &str,
-) -> Result<Value> {
+) -> Result<(Value, String)> {
     let principal = store.authorized(workspace, capability, "admin", |_, p| Ok(p.clone()))?;
     let all = providers(store, workspace)?;
     let config = all
@@ -109,9 +113,12 @@ pub fn start(
     OsRng.fill_bytes(&mut random);
     let state = URL_SAFE_NO_PAD.encode(random);
     let state_hash = digest(&json!(state));
+    OsRng.fill_bytes(&mut random);
+    let browser = URL_SAFE_NO_PAD.encode(random);
     let binding =
-        json!({"verifier":verifier,"configuration":digest(&serde_json::to_value(config)?)})
-            .to_string();
+        json!({"verifier":verifier,"configuration":digest(&serde_json::to_value(config)?),
+        "browser":digest(&json!(browser))})
+        .to_string();
     let secret = store.save_secret(workspace, &format!("oauth-verifier:{state_hash}"), &binding)?;
     let expires = (chrono::Utc::now() + chrono::Duration::minutes(10))
         .to_rfc3339_opts(chrono::SecondsFormat::Micros, true);
@@ -155,7 +162,10 @@ pub fn start(
                 .append_pair("prompt", "consent");
         }
     }
-    Ok(json!({"authorization_url":url.as_str(),"expires_at":expires,"provider":name}))
+    Ok((
+        json!({"authorization_url":url.as_str(),"expires_at":expires,"provider":name}),
+        browser,
+    ))
 }
 async fn exchange(
     client: &reqwest::Client,
@@ -213,23 +223,40 @@ pub async fn callback(
     name: &str,
     state: &str,
     code: &str,
+    browser: &str,
 ) -> Result<Value> {
-    if state.len() > 200 || code.len() > 8192 || code.is_empty() {
+    if state.len() > 200 || code.len() > 8192 || code.is_empty() || browser.len() > 200 {
         return Err(Error::bad("Invalid OAuth response"));
     }
     let state_hash = digest(&json!(state));
-    let pending=store.transaction(|db|{
+    let pending = store.transaction(|db| {
         let p=one(db,"SELECT * FROM am_oauth_pending WHERE state_hash=? AND provider=? AND used=0 AND expires_at>?",params![state_hash,name,now()])?.ok_or_else(||Error::bad("Connection request expired or was already used"))?;
-        authorize_hash(db,s(&p,"workspace_id"),s(&p,"principal_hash"),"admin")?;
-        db.execute("UPDATE am_oauth_pending SET used=1 WHERE state_hash=?",[&state_hash])?;Ok(p)
+        authorize_hash(db, s(&p, "workspace_id"), s(&p, "principal_hash"), "admin")?;
+        Ok(p)
     })?;
     let workspace = s(&pending, "workspace_id");
+    let bound: Value =
+        serde_json::from_str(&store.secret(workspace, s(&pending, "verifier_secret"))?)?;
+    // Only the browser that started the flow holds the nonce. Checked before
+    // the request is used up, so another browser cannot spoil the real one.
+    // Comparing digests of a 256-bit secret leaks nothing through timing.
+    if browser.is_empty() || bound["browser"] != digest(&json!(browser)) {
+        return Err(Error::denied());
+    }
+    store.transaction(|db| {
+        let claimed = db.execute(
+            "UPDATE am_oauth_pending SET used=1 WHERE state_hash=? AND used=0",
+            [&state_hash],
+        )?;
+        if claimed == 0 {
+            return Err(Error::bad("Connection request expired or was already used"));
+        }
+        Ok(())
+    })?;
     let all = providers(store, workspace)?;
     let config = all
         .get(name)
         .ok_or_else(|| Error::bad("OAuth provider was removed"))?;
-    let bound: Value =
-        serde_json::from_str(&store.secret(workspace, s(&pending, "verifier_secret"))?)?;
     if bound["configuration"] != digest(&serde_json::to_value(config)?) {
         return Err(Error::conflict(
             "OAuth application changed; start a new connection",

@@ -94,10 +94,17 @@ def test_hosted_origin_controls_creation_and_oauth_redirect(service):
     assert service.http("/health", headers=headers)[1]["hosted"] is True
     assert service.http("/api/workspaces", {"name": "Uninvited"}, headers)[0] == 400
     assert service.http("/health", headers={**headers, "Origin": "http://memory.example.test"})[0] == 403
-    code, answer, _ = service.http(f"/api/workspaces/{service.session['workspace']}/oauth/start", {"provider": "github"},
+    code, answer, response_headers = service.http(f"/api/workspaces/{service.session['workspace']}/oauth/start", {"provider": "github"},
                                   {**headers, "X-Forwarded-Host": "evil.example", "X-Forwarded-Proto": "http"})
     assert code == 200, answer
     assert parse_qs(urlparse(answer["authorization_url"]).query)["redirect_uri"] == ["https://memory.example.test/oauth/callback/github"]
+    # The callback only completes in the browser that holds this nonce.
+    cookie = response_headers["set-cookie"] if "set-cookie" in response_headers else response_headers["Set-Cookie"]
+    assert cookie.startswith("graphicle_oauth=") and len(cookie.split(";")[0]) > len("graphicle_oauth=") + 30
+    for attribute in ("Path=/oauth/callback", "HttpOnly", "SameSite=Lax", "Secure"):
+        assert attribute in cookie, cookie
+    callback = service.http("/oauth/callback/github?state=x&code=y", headers=headers)
+    assert callback[0] >= 400
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX service-manager shutdown")
