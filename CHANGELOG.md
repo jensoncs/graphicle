@@ -32,6 +32,13 @@ versioned together at 0.2.0.
   per core). They contend on the module cache and file system, so more ran
   no faster: on hyperion (325 modules, 18 cores) four take 164 s against
   174 s, with 0.5 GB peak memory against 2.1 GB. Output is unchanged.
+- Basic review relates imports and calls in a repository of more than 5,000
+  source files (it reported `basic_import_limit` and related none of them).
+  The import graph no longer scans every file for each import (to find its
+  tsconfig) or every import edge for each re-export, so its cost is linear:
+  15,700 files take 2.0 s (13.8 s before). Its bound is now 100,000 files.
+  A stored project's query still reads file relationships from its code
+  graph past 5,000 files.
 - Basic review resolves imports of a JavaScript/TypeScript workspace's own
   packages (`@scope/pkg`, `@scope/pkg/sub`) to the member's source entry,
   from the root `package.json` `workspaces` or `pnpm-workspace.yaml`, as the

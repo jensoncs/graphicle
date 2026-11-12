@@ -327,6 +327,11 @@ pub struct Snapshot {
 /// analyses through `structure::graph`. Superseded by the projected code-graph
 /// episode (`episode_graph`); retained only as the fallback for repositories
 /// without a recorded episode and for the B10 equivalence test.
+/// Files of a stored project past which a query reads file relationships
+/// from its projected code graph only, instead of relating every stored
+/// analysis again on each query.
+const LEGACY_GRAPH_FILES: usize = 5000;
+
 pub fn legacy_graph(db: &Connection, repository: &Value, _p: &Principal) -> Result<Value> {
     // Past the adapter's file limit (a project larger than earlier builds
     // allowed), file relationships come from the projected episode only.
@@ -335,8 +340,7 @@ pub fn legacy_graph(db: &Connection, repository: &Value, _p: &Principal) -> Resu
         [s(repository, "id")],
         |r| r.get(0),
     )?;
-    if usize::try_from(files).unwrap_or(usize::MAX) > graphicle_memory::structure::GRAPH_FILE_LIMIT
-    {
+    if usize::try_from(files).unwrap_or(usize::MAX) > LEGACY_GRAPH_FILES {
         return Ok(
             json!({"edges":[],"unresolved":[],"symbol_calls":[],"unresolved_calls":[],
             "coverage":{"files":files,"symbols":0,"incomplete_files":[],"incomplete":[]},

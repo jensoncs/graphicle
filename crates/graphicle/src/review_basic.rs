@@ -992,6 +992,38 @@ mod tests {
     }
 
     #[test]
+    fn a_repository_past_five_thousand_sources_still_resolves_imports() {
+        let callers: Vec<(String, String)> = (0..6000)
+            .map(|i| {
+                (
+                    format!("repo/src/c{i}.ts"),
+                    format!("import {{ price }} from './price';\nexport function c{i}(): number {{\n  return price();\n}}\n"),
+                )
+            })
+            .collect();
+        let mut files = vec![(
+            "repo/src/price.ts",
+            "export function price(): number {\n  return 1;\n}\n",
+        )];
+        files.extend(callers.iter().map(|(p, t)| (p.as_str(), t.as_str())));
+        let a = analysis(&input(&files));
+        assert!(
+            !a.issues.iter().any(|i| i["reason"] == "basic_import_limit"),
+            "{:?}",
+            a.issues
+                .iter()
+                .find(|i| i["reason"] == "basic_import_limit")
+        );
+        let target = symbol_key("repo/src/price.ts", "price");
+        let callers = a
+            .calls
+            .iter()
+            .filter(|(_, c)| c.target == target && c.relation == "may_call")
+            .count();
+        assert_eq!(callers, 6000);
+    }
+
+    #[test]
     fn workspace_package_imports_reach_the_member_source() {
         let files = |root: (&str, &str)| {
             input(&[

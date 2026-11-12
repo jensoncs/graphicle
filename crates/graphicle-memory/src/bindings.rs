@@ -164,26 +164,50 @@ fn load_paths(
     Some(result)
 }
 
+/// The manifest's `tsconfig.json`/`jsconfig.json` files, each parsed once,
+/// deepest first. Built once per graph: a per-import scan of every path was
+/// quadratic in the repository's size.
+pub(crate) struct JsConfigs {
+    configs: Vec<(String, Option<Paths>)>,
+}
+
+impl JsConfigs {
+    pub(crate) fn new(analyses: &serde_json::Map<String, Value>, paths: &BTreeSet<String>) -> Self {
+        let mut configs: Vec<_> = paths
+            .iter()
+            .filter(|path| {
+                matches!(
+                    Path::new(path).file_name().and_then(|s| s.to_str()),
+                    Some("tsconfig.json" | "jsconfig.json")
+                )
+            })
+            .map(|path| {
+                (
+                    parent(path).to_string(),
+                    load_paths(path, analyses, &mut BTreeSet::new()),
+                )
+            })
+            .collect();
+        configs.sort_by_key(|(dir, _)| std::cmp::Reverse(dir.len()));
+        Self { configs }
+    }
+
+    /// The nearest config governing `source`, and its parsed paths.
+    fn governing(&self, source: &str) -> Option<&Option<Paths>> {
+        self.configs
+            .iter()
+            .find(|(dir, _)| dir.is_empty() || source.starts_with(&format!("{dir}/")))
+            .map(|(_, config)| config)
+    }
+}
+
 pub(crate) fn configured_targets(
     source: &str,
     module: &str,
-    analyses: &serde_json::Map<String, Value>,
+    configs: &JsConfigs,
     paths: &BTreeSet<String>,
 ) -> BTreeSet<String> {
-    let mut configs: Vec<_> = paths
-        .iter()
-        .filter(|path| {
-            matches!(
-                Path::new(path).file_name().and_then(|s| s.to_str()),
-                Some("tsconfig.json" | "jsconfig.json")
-            ) && (parent(path).is_empty() || source.starts_with(&format!("{}/", parent(path))))
-        })
-        .collect();
-    configs.sort_by_key(|path| std::cmp::Reverse(parent(path).len()));
-    let Some(config) = configs
-        .first()
-        .and_then(|p| load_paths(p, analyses, &mut BTreeSet::new()))
-    else {
+    let Some(Some(config)) = configs.governing(source) else {
         return BTreeSet::new();
     };
     let mut matches = Vec::new();
@@ -215,18 +239,10 @@ pub(crate) fn configured_targets(
     }
     config
         .base
-        .and_then(|base| join(&base, module))
+        .as_deref()
+        .and_then(|base| join(base, module))
         .map(|base| javascript_targets(&base, paths))
         .unwrap_or_default()
-}
-
-fn has_js_config(source: &str, paths: &BTreeSet<String>) -> bool {
-    paths.iter().any(|path| {
-        matches!(
-            Path::new(path).file_name().and_then(|s| s.to_str()),
-            Some("tsconfig.json" | "jsconfig.json")
-        ) && (parent(path).is_empty() || source.starts_with(&format!("{}/", parent(path))))
-    })
 }
 
 /// The manifest's JS workspaces: each root (a `package.json` with
@@ -406,12 +422,13 @@ fn js_project_anchor(source: &str, paths: &BTreeSet<String>) -> String {
 pub(crate) fn convention_alias_targets(
     source: &str,
     module: &str,
+    configs: &JsConfigs,
     paths: &BTreeSet<String>,
 ) -> BTreeSet<String> {
     let Some(subpath) = module.strip_prefix("@/") else {
         return BTreeSet::new();
     };
-    if subpath.is_empty() || has_js_config(source, paths) {
+    if subpath.is_empty() || configs.governing(source).is_some() {
         return BTreeSet::new();
     }
     let anchor = js_project_anchor(source, paths);
@@ -423,9 +440,11 @@ pub(crate) fn convention_alias_targets(
         }
     };
     let src = format!("{}src", under(&anchor));
+    let under_src = format!("{src}/");
     if paths
-        .iter()
-        .any(|path| path.starts_with(&format!("{src}/")))
+        .range(under_src.clone()..)
+        .next()
+        .is_some_and(|path| path.starts_with(&under_src))
         && let Some(base) = join(&src, subpath)
     {
         let targets = javascript_targets(&base, paths);
@@ -509,7 +528,7 @@ fn exported(
     path: &str,
     name: &str,
     analyses: &serde_json::Map<String, Value>,
-    edges: &[Value],
+    import_edges: &ImportEdges,
     visiting: &mut BTreeSet<(String, String)>,
     remaining: &mut usize,
 ) -> Option<BTreeSet<(String, String)>> {
@@ -540,18 +559,18 @@ fn exported(
             continue;
         };
         // A submodule edge binds a module object, never a symbol named `name`.
-        for edge in edges.iter().filter(|v| {
-            s(v, "source") == path
-                && v["line"] == import["line"]
-                && s(v, "module") == s(import, "module")
-                && v["kind"] == "imports"
-                && s(v, "submodule").is_empty()
-        }) {
+        let key = (path, import["line"].to_string(), s(import, "module"));
+        for &(target, _) in import_edges
+            .get(&key)
+            .into_iter()
+            .flatten()
+            .filter(|(_, submodule)| submodule.is_empty())
+        {
             found.extend(exported(
-                s(edge, "target"),
+                target,
                 original,
                 analyses,
-                edges,
+                import_edges,
                 visiting,
                 remaining,
             )?);
@@ -566,6 +585,8 @@ fn exported(
 /// segment whose scope the caller sees.
 /// An import edge's file, line (as JSON text) and module.
 type ImportKey<'a> = (&'a str, String, &'a str);
+/// Each import's edges (target, submodule), by [`ImportKey`].
+type ImportEdges<'a> = HashMap<ImportKey<'a>, Vec<(&'a str, &'a str)>>;
 
 struct Declarations<'a> {
     full: HashMap<&'a str, Vec<&'a Value>>,
@@ -616,7 +637,7 @@ pub(crate) fn resolve_calls(
     // An import's edges, by its file, line and module: computed once, not per
     // call (each call used to scan every edge for each visible import). The
     // line is keyed by its JSON text, which compares as `Value` equality does.
-    let mut import_edges: HashMap<ImportKey, Vec<(&str, &str)>> = HashMap::new();
+    let mut import_edges = ImportEdges::new();
     for edge in edges.iter().filter(|e| e["kind"] == "imports") {
         import_edges
             .entry((
@@ -719,7 +740,7 @@ pub(crate) fn resolve_calls(
                                 target,
                                 &imported,
                                 analyses,
-                                edges,
+                                &import_edges,
                                 &mut BTreeSet::new(),
                                 &mut 256,
                             ) {

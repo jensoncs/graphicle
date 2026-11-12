@@ -55,10 +55,10 @@ impl Default for Limits {
 /// text-only analysis.
 pub const MAX_PATH_BYTES: usize = 2000;
 
-/// Most analyses [`graph`] relates in one call. The application's project
-/// limit applies first; past this a project's file relationships come from
-/// its projected code graph only.
-pub const GRAPH_FILE_LIMIT: usize = 5000;
+/// Most analyses [`graph`] relates in one call. Its cost is linear in the
+/// analyses (about 2 s for 15,700 files), so this only bounds a pathological
+/// manifest; basic review reports a larger repository as `basic_import_limit`.
+pub const GRAPH_FILE_LIMIT: usize = 100_000;
 
 /// The revision a cache records for an analysis that is not complete within
 /// `limits` (one with `limited` or `skipped`): such an analysis is redone
@@ -1081,6 +1081,7 @@ pub fn graph(analyses: &Value) -> Result<Value> {
     }
     let paths: BTreeSet<_> = analyses.keys().cloned().collect();
     let workspaces = crate::bindings::Workspaces::new(analyses);
+    let js_configs = crate::bindings::JsConfigs::new(analyses, &paths);
     let mut modules: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for path in &paths {
         if let Some(name) = path.strip_suffix(".py") {
@@ -1238,14 +1239,20 @@ pub fn graph(analyses: &Value) -> Result<Value> {
                     && !module.starts_with('.')
                 {
                     targets.extend(crate::bindings::configured_targets(
-                        path, module, analyses, &paths,
+                        path,
+                        module,
+                        &js_configs,
+                        &paths,
                     ));
                     if targets.is_empty() {
                         targets.extend(workspaces.targets(path, module, &paths));
                     }
                     if targets.is_empty() {
                         targets.extend(crate::bindings::convention_alias_targets(
-                            path, module, &paths,
+                            path,
+                            module,
+                            &js_configs,
+                            &paths,
                         ));
                     }
                 }
