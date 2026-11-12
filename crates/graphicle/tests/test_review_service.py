@@ -7,6 +7,7 @@ from pathlib import Path
 import shlex
 import shutil
 import sqlite3
+import subprocess
 import sys
 import tempfile
 import time
@@ -101,7 +102,14 @@ fi
 exec {shlex.quote(real_go)} "$@"
 ''')
         wrapper.chmod(0o700)
-        env = {**os.environ, 'PATH': str(shim) + os.pathsep + os.environ['PATH']}
+        # A helper kept by an earlier run (under HOME) would skip the compilation
+        # this test blocks; Go keeps its own caches.
+        names = ['GOCACHE', 'GOMODCACHE', 'GOPATH']
+        caches = dict(zip(names, subprocess.run([real_go, 'env', *names], capture_output=True, text=True,
+                                                check=True).stdout.splitlines()))
+        (self.root / 'home').mkdir()
+        env = {**os.environ, **caches, 'HOME': str(self.root / 'home'),
+               'PATH': str(shim) + os.pathsep + os.environ['PATH']}
         with LocalServer(BINARY, self.store, env=env, serve_args=['--no-worker']) as client:
             client.timeout = 150
             project = client.project('deadline-recovery')
