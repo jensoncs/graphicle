@@ -31,6 +31,8 @@ mod diagnostics;
 mod analysis_coverage;
 #[path = "review_basic.rs"]
 mod basic;
+#[path = "review_basic_precise.rs"]
+mod basic_precise;
 #[path = "review_components.rs"]
 mod components;
 #[path = "review_diff_context.rs"]

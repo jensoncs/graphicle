@@ -105,6 +105,14 @@ versioned together at 0.2.0.
   reached the packet (1 before) in 4,593 tokens (4,913 before). The
   review-risk v2 schema and the TypeScript SDK type add `basic_symbol` to
   `analysis_level`.
+- Pinned review also finds TypeScript and JavaScript callers through `new`
+  and through methods on a receiver typed by an annotation or made by `new`.
+  The oxc binder of `--precise` resolves modules over the pinned snapshot's
+  own files only, so these are `may_call` edges with evidence `oxc_binding` or
+  `oxc_type`. A repository with more than 64 MiB of sources is reported as
+  `precise_js_budget`. The analyzer is `basic-source-impact-v2`. Added edges
+  per side: livestream-service 4,796 (0.03 s), GitNexus 4,107 (0.4 s), trader
+  1,154 (0.1 s).
 - Pinned review gives TypeScript and JavaScript the basic file-level impact
   Python and Rust have: `.ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs` importers are
   selected through relative and `tsconfig`/`jsconfig` `paths` import

@@ -58,7 +58,12 @@ pub(super) fn annotate(entries: &mut [Value], base: &Input, head: &Input) {
                 if step["relation"] == "may_call"
                     && !matches!(
                         step["evidence"].as_str(),
-                        Some("explicit_import_binding" | "unique_visible_declaration_candidate")
+                        Some(
+                            "explicit_import_binding"
+                                | "unique_visible_declaration_candidate"
+                                | "oxc_binding"
+                                | "oxc_type"
+                        )
                     )
                 {
                     step["evidence"] = json!("function_value_candidate");

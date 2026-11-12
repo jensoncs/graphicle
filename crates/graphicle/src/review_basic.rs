@@ -4,7 +4,7 @@
 use super::*;
 use graphicle_memory::structure;
 
-const VERSION: &str = "basic-source-impact-v1";
+const VERSION: &str = "basic-source-impact-v2";
 
 fn ancestor_file(input: &Input, path: &str, name: &str) -> Option<String> {
     let mut dir = Path::new(path).parent()?;
@@ -99,7 +99,7 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
 }
 
 /// A TypeScript or JavaScript source file, as opposed to its manifests.
-fn script_source(ext: &str) -> bool {
+pub(super) fn script_source(ext: &str) -> bool {
     matches!(
         ext,
         "ts" | "tsx" | "mts" | "cts" | "js" | "jsx" | "mjs" | "cjs"
@@ -107,12 +107,12 @@ fn script_source(ext: &str) -> bool {
 }
 
 /// The review key of a declaration, stable across base and head.
-fn symbol_key(path: &str, name: &str) -> String {
+pub(super) fn symbol_key(path: &str, name: &str) -> String {
     format!("symbol:{path}#{name}")
 }
 
 /// The bytes of line `line` (1-based) of `source`.
-fn line_span(source: &str, line: usize) -> std::ops::Range<usize> {
+pub(super) fn line_span(source: &str, line: usize) -> std::ops::Range<usize> {
     let start = source
         .split_inclusive('\n')
         .take(line.saturating_sub(1))
@@ -260,7 +260,7 @@ fn link(
 }
 
 /// An edge from `caller` in file `from` to `target` in file `to`.
-fn edge(
+pub(super) fn edge(
     out: &mut Analysis,
     (from, caller): (&str, &str),
     (to, target): (&str, &str),
@@ -464,7 +464,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "helm"=>"Chart source scope only; no rendering, release values, cluster capabilities or remote chart resolution",
                 "bash"=>"Literal script paths are candidates; working directory, PATH, expansions and dynamic commands are unresolved",
                 "python"=>"Local import candidates, calls bound by name through a visible declaration or explicit import, and literal environment reads only; runtime environments, dynamic imports, rebinding, method calls and runtime dispatch are not resolved",
-                "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates, and calls bound by name through a visible declaration or explicit import, only; node_modules, package exports, CommonJS require, dynamic import(), bundler aliases, method calls, new, JSX and callbacks are not resolved",
+                "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates, calls bound by name through a visible declaration or explicit import, and, in repositories within 64 MiB of sources, calls the oxc binder resolves (new, and methods on a receiver typed by an annotation or made by new); node_modules, package exports, CommonJS require, dynamic import(), bundler aliases, JSX, callbacks and untyped receivers are not resolved",
                 _=>"Local module candidates and calls bound by name through a visible declaration or explicit import only; Cargo resolution, cfg, macros, build scripts, method calls and trait dispatch are not resolved"
             }})));
     }
@@ -600,6 +600,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 line_span(source, line),
             );
         }
+        super::basic_precise::calls(input, &repo, &declared, out);
         let unresolved_calls = graph["unresolved_calls"].as_array().map_or(0, Vec::len);
         if unresolved_calls > 0 {
             out.issues.push(issue(
@@ -994,6 +995,46 @@ mod tests {
                 .any(|e| e["file"] == "src/report.ts" && e["name"] == "audit")
         );
         assert!(selected(&r, "head", "src/report.ts"));
+        assert_eq!(r["coverage"]["complete"], false);
+    }
+
+    #[test]
+    fn precise_calls_reach_method_and_constructor_callers() {
+        let files = |amount: &str| {
+            input(&[
+                (
+                    "repo/src/price.ts",
+                    &format!(
+                        "export class Price {{\n  amount(): number {{\n    return {amount};\n  }}\n}}\n"
+                    ),
+                ),
+                (
+                    "repo/src/cart.ts",
+                    "import { Price } from './price';\n\nexport function total(p: Price): number {\n  return p.amount() + 1;\n}\n",
+                ),
+                (
+                    "repo/src/make.ts",
+                    "import { Price } from './price';\n\nexport function make(): Price {\n  return new Price();\n}\n",
+                ),
+            ])
+        };
+        let r = report(&files("1"), &files("2"));
+        let caller = |file: &str, name: &str, evidence: &str| {
+            r["entries"].as_array().unwrap().iter().any(|e| {
+                e["side"] == "head"
+                    && e["file"] == file
+                    && e["name"] == name
+                    && e["reasons"].as_array().unwrap().iter().any(|reason| {
+                        reason["reason"] == "potential_consumer"
+                            && reason["steps"].as_array().is_some_and(|s| s.len() == 1)
+                            && reason["steps"][0]["relation"] == "may_call"
+                            && reason["steps"][0]["evidence"] == evidence
+                    })
+            })
+        };
+        // `p: Price` types the receiver; `new Price()` binds the class.
+        assert!(caller("src/cart.ts", "total", "oxc_type"), "{r:#}");
+        assert!(caller("src/make.ts", "make", "oxc_binding"), "{r:#}");
         assert_eq!(r["coverage"]["complete"], false);
     }
 

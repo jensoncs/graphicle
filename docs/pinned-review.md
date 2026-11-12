@@ -192,10 +192,15 @@ digested apart, so a change reports `signature_changed` and
 visible declaration or an explicit import, is a `may_call` edge with evidence
 `explicit_import_binding` or `unique_visible_declaration_candidate`. The callers
 of a changed declaration are therefore required context and are counted in
-`coverage.callers`; a call at module level is its file's. These are name
-bindings, not resolved runtime calls: method calls, `new`, JSX, callbacks and
-rebound names are not seen, so file importers are still selected through
-`potential_import` and `configuration_scope` edges as optional context. A name
+`coverage.callers`; a call at module level is its file's. For TypeScript and
+JavaScript, the oxc binder (as in `--precise`) also resolves modules over the
+pinned snapshot's own files, with no `node_modules`, and adds `new` and method
+calls on a receiver typed by an annotation (`oxc_type`) or made by `new`
+(`oxc_binding`), inside functions and methods, in a repository with at most
+64 MiB of TypeScript/JavaScript sources; a larger one is reported as
+`precise_js_budget`. These are static bindings, not resolved runtime calls:
+untyped receivers, JSX, callbacks and rebound names are not seen, so file
+importers are still selected through `potential_import` and `configuration_scope` edges as optional context. A name
 declared twice in one file is reported as `basic_duplicate_declaration` and has
 no node; unbound calls are counted in `basic_unresolved_calls`. Paths built from
 these edges are `potential_static` candidates, never observed flows. Missing or ambiguous targets and parse/analysis limits are reported.
