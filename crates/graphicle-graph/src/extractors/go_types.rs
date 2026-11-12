@@ -36,6 +36,61 @@ fn offline_command(program: impl AsRef<std::ffi::OsStr>) -> Command {
     command
 }
 
+/// Where a helper built from these sources with this toolchain is kept, so a
+/// later process skips `go build` (about 4 s). Keyed by [`review_identity`]:
+/// every embedded helper source, `GOVERSION`, `GOROOT` and the host platform.
+fn helper_cache_file() -> Option<PathBuf> {
+    use sha2::Digest;
+    let identity = review_identity().ok()?;
+    let key = format!(
+        "{:x}",
+        sha2::Sha256::digest(identity.to_string().as_bytes())
+    );
+    let store = crate::global_graph::GlobalStore::default_location().ok()?;
+    Some(store.directory.join("go-helper").join(&key[..32]))
+}
+
+/// The cached helper at `path`, only when this user alone could have written
+/// it and its folder: the bytes are executed.
+fn read_cached_helper(path: &Path) -> Option<Vec<u8>> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        let uid = nix::unistd::Uid::current().as_raw();
+        for p in [path, path.parent()?] {
+            let m = std::fs::symlink_metadata(p).ok()?;
+            if m.file_type().is_symlink() || m.uid() != uid || m.mode() & 0o022 != 0 {
+                return None;
+            }
+        }
+    }
+    std::fs::read(path).ok()
+}
+
+/// Keep `bytes` at `path`, atomically, in a folder only this user can write.
+/// A failure only costs the next process a build.
+fn store_cached_helper(path: &Path, bytes: &[u8]) {
+    use std::io::Write;
+    let Some(dir) = path.parent() else { return };
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(true);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    if builder.create(dir).is_err() {
+        return;
+    }
+    // A named temporary file is created readable and writable by its owner only.
+    let Ok(mut file) = tempfile::NamedTempFile::new_in(dir) else {
+        return;
+    };
+    if file.write_all(bytes).is_ok() {
+        let _ = file.persist(path);
+    }
+}
+
 fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
     // Rust statics are not dropped at exit. Cache bytes, not a TempDir whose
     // destructor would never run; executable scratch files live only for a call.
@@ -62,6 +117,10 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
                 return None;
             }
             let compile = || {
+                let cached = helper_cache_file();
+                if let Some(bytes) = cached.as_deref().and_then(read_cached_helper) {
+                    return Some(bytes);
+                }
                 let dir = tempfile::tempdir().ok()?;
                 let source = dir.path().join("main.go");
                 let binary = dir.path().join(if cfg!(windows) {
@@ -111,7 +170,14 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
                     Duration::from_secs(60),
                 )
                 .ok()?;
-                result.success.then(|| std::fs::read(binary).ok()).flatten()
+                let bytes = result
+                    .success
+                    .then(|| std::fs::read(binary).ok())
+                    .flatten()?;
+                if let Some(path) = &cached {
+                    store_cached_helper(path, &bytes);
+                }
+                Some(bytes)
             };
             // Keep a compiled helper even when the deadline expired meanwhile: the
             // deadline check below still ends this request, and the next one reuses it.
@@ -621,6 +687,32 @@ mod fact_encoding_tests {
     use super::*;
     use base64::Engine;
     use std::io::Write;
+    #[cfg(unix)]
+    #[test]
+    fn a_cached_helper_is_used_only_when_this_user_alone_could_write_it() {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = |p: &Path, m: u32| {
+            std::fs::set_permissions(p, std::fs::Permissions::from_mode(m)).unwrap()
+        };
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("go-helper").join("key");
+        assert!(read_cached_helper(&path).is_none());
+        store_cached_helper(&path, b"binary");
+        assert_eq!(read_cached_helper(&path).as_deref(), Some(&b"binary"[..]));
+        mode(&path, 0o666);
+        assert!(
+            read_cached_helper(&path).is_none(),
+            "a file others can write"
+        );
+        mode(&path, 0o700);
+        mode(path.parent().unwrap(), 0o777);
+        assert!(
+            read_cached_helper(&path).is_none(),
+            "a folder others can write"
+        );
+        mode(path.parent().unwrap(), 0o700);
+        assert!(read_cached_helper(&path).is_some());
+    }
     #[test]
     fn compiler_failures_name_the_bound_without_forwarding_process_output() {
         let timeout = ReviewFailure::process(std::io::Error::new(
