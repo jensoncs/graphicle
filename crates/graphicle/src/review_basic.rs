@@ -405,6 +405,8 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
         .collect();
     let mut sql_queries = BTreeMap::<&str, Vec<super::basic_sql::Query>>::new();
     let mut protos = BTreeMap::<&str, super::basic_proto::Proto>::new();
+    // (declaration's file, its name, the generated Go file, the Go name)
+    let mut generated_from = Vec::<(String, String, String, String)>::new();
     let mut pb_go = BTreeMap::<(&str, &str), Vec<&str>>::new();
     for path in input.sources.keys() {
         if let Some(stem) = path.strip_suffix(".pb.go") {
@@ -539,6 +541,12 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                         .filter(|(_, methods)| methods.contains(q.name.as_str()))
                     {
                         d["generated"] = json!({"file":input.sources[go].path,"function":q.name});
+                        generated_from.push((
+                            path.clone(),
+                            q.name.clone(),
+                            go.clone(),
+                            q.name.clone(),
+                        ));
                     }
                     d
                 })
@@ -574,7 +582,13 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                         matches!(d.kind, "proto_message" | "proto_enum")
                     }) && types.contains(go.as_str())
                     {
-                        v["generated"] = json!({"file":file,"type":go});
+                        v["generated"] = json!({"file":input.sources[*file].path,"type":go});
+                        generated_from.push((
+                            path.clone(),
+                            d.name.clone(),
+                            (*file).into(),
+                            go,
+                        ));
                     }
                     v
                 })
@@ -628,8 +642,8 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "helm"=>"Chart source scope only; no rendering, release values, cluster capabilities or remote chart resolution",
                 "bash"=>"Literal script paths are candidates; working directory, PATH, expansions and dynamic commands are unresolved",
                 "python"=>"Local import candidates, calls bound by name through a visible declaration or explicit import, and literal environment reads only; runtime environments, dynamic imports, rebinding, method calls and runtime dispatch are not resolved",
-                "proto"=>"Messages, enums, services, rpcs and extensions are declarations; a field's, rpc's or extension's message or enum type and a custom option name link it to the declaration of that name in its file or its imports, by protobuf scoping; an import names the one snapshot .proto at that path or ending in it (no buf or protoc import roots); the generated Go type is named, but its Go callers, option values, field numbers and wire compatibility are not resolved",
-                "sql"=>"sqlc query blocks are declarations; a query's FROM, JOIN, INTO and UPDATE tables link it to the sqlc schema files that create, alter, drop or write a table of that name, as candidates; the generated Go method is named, but its Go callers, views, functions, search paths and dynamic SQL are not resolved; SQL outside an sqlc configuration is file level only",
+                "proto"=>"Messages, enums, services, rpcs and extensions are declarations; a field's, rpc's or extension's message or enum type and a custom option name link it to the declaration of that name in its file or its imports, by protobuf scoping; an import names the one snapshot .proto at that path or ending in it (no buf or protoc import roots); the generated Go type, where Go review declares it, links the declaration to the Go code that uses it; option values, field numbers and wire compatibility are not resolved",
+                "sql"=>"sqlc query blocks are declarations; a query's FROM, JOIN, INTO and UPDATE tables link it to the sqlc schema files that create, alter, drop or write a table of that name, as candidates; the generated Go method, where Go review declares it, links the query to the Go code that calls it; views, functions, search paths and dynamic SQL are not resolved; SQL outside an sqlc configuration is file level only",
                 "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates, calls bound by name through a visible declaration or explicit import, and, in repositories within 64 MiB of sources, calls the oxc binder resolves (new, and methods on a receiver typed by an annotation or made by new); node_modules, package exports, CommonJS require, dynamic import(), bundler aliases, JSX, callbacks and untyped receivers are not resolved",
                 _=>"Local module candidates and calls bound by name through a visible declaration or explicit import only; Cargo resolution, cfg, macros, build scripts, method calls and trait dispatch are not resolved"
             }})));
@@ -858,7 +872,55 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
         }
     }
     sql_tables(input, &files, &sqlc, &sql_queries, &declared, out)?;
-    proto_types(input, &protos, &declared, out)
+    proto_types(input, &protos, &declared, out)?;
+    generated_links(out, &generated_from);
+    Ok(())
+}
+
+/// Links each generated Go method or type that Go review declares to the
+/// sqlc query or proto declaration it was generated from (`generated_from`,
+/// across worlds), so a change to the source reaches the Go code that calls
+/// or uses what was generated through Go review's own edges.
+fn generated_links(out: &mut Analysis, generated: &[(String, String, String, String)]) {
+    let files: BTreeSet<&str> = generated.iter().map(|g| g.2.as_str()).collect();
+    let mut go = BTreeMap::<(&str, &str), Vec<&str>>::new();
+    for (id, (world, symbol)) in &out.symbols {
+        if world.starts_with("basic:") || !files.contains(symbol.file.as_str()) {
+            continue;
+        }
+        // A method is `(*pkg.Type).Name` or `(pkg.Type).Name`.
+        let name = match symbol.kind.as_str() {
+            "function" => symbol
+                .name
+                .strip_prefix('(')
+                .and_then(|n| n.rsplit_once(").").map(|(_, method)| method)),
+            "type" => Some(symbol.name.as_str()),
+            _ => None,
+        };
+        if let Some(name) = name {
+            go.entry((symbol.file.as_str(), name)).or_default().push(id);
+        }
+    }
+    let mut edges = vec![];
+    for (file, name, go_file, go_name) in generated {
+        let to = key(&world(file), &symbol_key(file, name));
+        if !out.symbols.contains_key(&to) {
+            continue;
+        }
+        for from in go
+            .get(&(go_file.as_str(), go_name.as_str()))
+            .into_iter()
+            .flatten()
+        {
+            edges.push(services::Edge {
+                from: (*from).into(),
+                to: to.clone(),
+                relation: "generated_from",
+                evidence: json!({"evidence":"generated_code_name","source_file":file,"declaration":name,"generated_file":go_file,"generated_name":go_name}),
+            });
+        }
+    }
+    out.services.edges.extend(edges);
 }
 
 /// The generated `.pb.go` of a proto file and the types it declares: the one
@@ -866,7 +928,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
 /// its `go_package` import path.
 fn proto_generated<'a>(
     input: &'a Input,
-    pb_go: &BTreeMap<(&str, &str), Vec<&str>>,
+    pb_go: &BTreeMap<(&str, &str), Vec<&'a str>>,
     path: &str,
     proto: &super::basic_proto::Proto,
 ) -> Option<(&'a str, BTreeSet<&'a str>)> {
@@ -889,10 +951,9 @@ fn proto_generated<'a>(
     let [go] = found[..] else {
         return None;
     };
-    let source = &input.sources[go];
     Some((
-        source.path.as_str(),
-        super::basic_proto::go_types(source.content.text()?),
+        go,
+        super::basic_proto::go_types(input.sources[go].content.text()?),
     ))
 }
 
@@ -1442,6 +1503,207 @@ mod tests {
                         .is_some_and(|f| f.ends_with(".proto"))),
             "{issues:?}"
         );
+    }
+
+    /// Go review's facts for `go`: each `(file, name, kind, text)` symbol,
+    /// then `(caller, callee, relation)` calls by name, before basic review.
+    fn with_go(
+        input: &Input,
+        go: &[(&str, &str, &str, &str)],
+        calls: &[(&str, &str, &str)],
+    ) -> Analysis {
+        let mut out = analyze_go(
+            input,
+            &profile(),
+            None,
+            &mut crate::review_cache::PackagePool::default(),
+            "test",
+        )
+        .unwrap();
+        for (file, name, kind, text) in go {
+            let content = input.sources[*file].content.text().unwrap();
+            let start = content.find(text).unwrap();
+            let digest = text::sha256(text.as_bytes());
+            let symbol = Symbol {
+                key: format!("example.com/app|{file}|{name}|{kind}"),
+                file: (*file).into(),
+                package: "example.com/app".into(),
+                name: (*name).into(),
+                kind: (*kind).into(),
+                parent: String::new(),
+                start,
+                end: start + text.len(),
+                body_start: start,
+                line: 1,
+                end_line: 1,
+                revision: digest.clone(),
+                signature: digest.clone(),
+                implementation: digest.clone(),
+                correspondence: digest,
+            };
+            out.symbols
+                .insert(key("app", &symbol.key), ("app".into(), symbol));
+        }
+        let go_key = |name: &str| {
+            out.symbols
+                .values()
+                .find(|(w, s)| w == "app" && s.name == name)
+                .unwrap()
+                .1
+                .key
+                .clone()
+        };
+        let calls: Vec<_> = calls
+            .iter()
+            .map(|(caller, callee, relation)| Call {
+                boundary: Value::Null,
+                caller: go_key(caller),
+                target: go_key(callee),
+                target_file: String::new(),
+                target_package: String::new(),
+                target_offset: 0,
+                spelling: (*callee).into(),
+                file: String::new(),
+                start: 0,
+                end: 0,
+                line: 1,
+                relation: (*relation).into(),
+                reason: String::new(),
+                evidence: String::new(),
+                discarded_error: false,
+            })
+            .collect();
+        out.calls
+            .extend(calls.into_iter().map(|c| ("app".to_string(), c)));
+        extend(input, &mut out).unwrap();
+        services::attach(input, &mut out).unwrap();
+        out
+    }
+
+    #[test]
+    fn a_change_reaches_the_go_code_that_uses_what_was_generated_from_it() {
+        const QUERIES_GO: &str = "package db\n\nfunc (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {\n\treturn User{}, nil\n}\n";
+        const ORDER_GO: &str = "package orderv1\n\ntype Order struct {\n}\n";
+        const APP_GO: &str = "package app\n\nfunc Handle(q *db.Queries) {\n\tq.GetUser(nil, 1)\n}\n\nfunc Total(o *orderv1.Order) {\n}\n\nfunc Other() {\n}\n";
+        let files = |migration: &str, money: &str| {
+            input(&[
+                (
+                    "repo/sqlc.yaml",
+                    "version: \"2\"\nsql:\n  - schema: ./db/migrations/\n    queries: ./db/queries/\n    gen:\n      go:\n        out: ./db/sqlc\n",
+                ),
+                ("repo/db/migrations/001_init.up.sql", migration),
+                (
+                    "repo/db/queries/users.sql",
+                    "-- name: GetUser :one\nSELECT * FROM users WHERE id = $1;\n",
+                ),
+                ("repo/db/sqlc/users.sql.go", QUERIES_GO),
+                (
+                    "repo/proto/order.proto",
+                    &format!(
+                        "syntax = \"proto3\";\npackage order.v1;\noption go_package = \"example.com/app/gen/order/v1\";\n\nmessage Money {{\n  {money}\n}}\n\nmessage Order {{\n  Money total = 1;\n}}\n"
+                    ),
+                ),
+                ("repo/gen/order/v1/order.pb.go", ORDER_GO),
+                ("repo/app/app.go", APP_GO),
+            ])
+        };
+        let go = [
+            (
+                "repo/db/sqlc/users.sql.go",
+                "(*example.com/app/db.Queries).GetUser",
+                "function",
+                "func (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {\n\treturn User{}, nil\n}",
+            ),
+            (
+                "repo/gen/order/v1/order.pb.go",
+                "Order",
+                "type",
+                "Order struct {\n}",
+            ),
+            (
+                "repo/app/app.go",
+                "example.com/app.Handle",
+                "function",
+                "func Handle(q *db.Queries) {\n\tq.GetUser(nil, 1)\n}",
+            ),
+            (
+                "repo/app/app.go",
+                "example.com/app.Total",
+                "function",
+                "func Total(o *orderv1.Order) {\n}",
+            ),
+            (
+                "repo/app/app.go",
+                "example.com/app.Other",
+                "function",
+                "func Other() {\n}",
+            ),
+        ];
+        let calls = [
+            (
+                "example.com/app.Handle",
+                "(*example.com/app/db.Queries).GetUser",
+                "calls",
+            ),
+            ("example.com/app.Total", "Order", "uses_type"),
+        ];
+        let review = |base: &Input, head: &Input| {
+            let request = Request {
+                timeout_ms: None,
+                compact_provenance: false,
+                repository_id: "repo".into(),
+                base: vec![],
+                head: vec![],
+                profile: profile(),
+                max_depth: 8,
+                max_tokens: 16000,
+                previous_packet_id: None,
+                business_context: None,
+                reuse_text: false,
+                reviewed_entries: vec![],
+                provided_diff: vec![],
+            };
+            compare(
+                base,
+                head,
+                &with_go(base, &go, &calls),
+                &with_go(head, &go, &calls),
+                &request,
+            )
+            .unwrap()
+        };
+        let named = |r: &Value, name: &str| {
+            r["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|e| e["side"] == "head" && e["name"] == name)
+        };
+        let base = files("CREATE TABLE users (id int);\n", "int64 units = 1;");
+        let migration = review(
+            &base,
+            &files("CREATE TABLE users (id bigint);\n", "int64 units = 1;"),
+        );
+        assert!(named(&migration, "GetUser"), "{migration}");
+        assert!(named(&migration, "example.com/app.Handle"), "{migration}");
+        assert!(!named(&migration, "example.com/app.Other"));
+        assert!(!named(&migration, "example.com/app.Total"));
+        let handle = migration["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["name"] == "example.com/app.Handle")
+            .unwrap();
+        assert!(handle.to_string().contains("generated_from"), "{handle}");
+        let money = review(
+            &base,
+            &files(
+                "CREATE TABLE users (id int);\n",
+                "int64 units = 1;\n  string currency = 2;",
+            ),
+        );
+        assert!(named(&money, "example.com/app.Total"), "{money}");
+        assert!(!named(&money, "example.com/app.Handle"));
     }
 
     #[test]

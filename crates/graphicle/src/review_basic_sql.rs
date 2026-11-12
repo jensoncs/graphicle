@@ -38,6 +38,13 @@ static TOUCHED: LazyLock<Regex> = LazyLock::new(|| {
     ))
     .unwrap()
 });
+/// A trigger changes how its table is written.
+static TRIGGER: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(&format!(
+        r"(?i)\bCREATE\s+(?:OR\s+REPLACE\s+)?(?:CONSTRAINT\s+)?TRIGGER\s+{IDENT}\s+[^;]*?\bON\s+(?:ONLY\s+)?({IDENT})"
+    ))
+    .unwrap()
+});
 static DROPPED: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)\bDROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?([^;]+)").unwrap());
 static USED: LazyLock<Regex> = LazyLock::new(|| {
@@ -55,9 +62,9 @@ static CTE: LazyLock<Regex> = LazyLock::new(|| {
 static IDENTS: LazyLock<Regex> = LazyLock::new(|| Regex::new(IDENT).unwrap());
 
 /// Words a pattern can capture that are never a table (`ON UPDATE CASCADE`,
-/// `DO UPDATE SET`).
+/// `DO UPDATE SET`, a trigger's `BEFORE UPDATE ON t` and `UPDATE OF column`).
 const NOT_TABLES: &[&str] = &[
-    "cascade", "restrict", "set", "no", "only", "if", "not", "exists", "table",
+    "cascade", "restrict", "set", "no", "only", "if", "not", "exists", "table", "on", "of",
 ];
 
 /// A table's name without its schema, as written names compare.
@@ -109,6 +116,7 @@ pub(super) fn touched(content: &str) -> BTreeSet<String> {
     let text = masked(content);
     let mut out: BTreeSet<String> = TOUCHED
         .captures_iter(&text)
+        .chain(TRIGGER.captures_iter(&text))
         .filter_map(|c| table(&c[1]))
         .collect();
     for list in DROPPED.captures_iter(&text) {
@@ -253,9 +261,11 @@ mod tests {
             DROP TABLE IF EXISTS a, "b" CASCADE;
             INSERT INTO seeds (id) VALUES ('UPDATE fake');
             ALTER TABLE old RENAME TO renamed;
+            CREATE TRIGGER t BEFORE UPDATE ON audited FOR EACH ROW EXECUTE FUNCTION f();
+            CREATE TRIGGER u AFTER UPDATE OF note ON audited FOR EACH ROW EXECUTE FUNCTION f();
         "#;
         let expected: BTreeSet<_> = [
-            "users", "orders", "items", "a", "b", "seeds", "old", "renamed",
+            "users", "orders", "items", "a", "b", "seeds", "old", "renamed", "audited",
         ]
         .map(String::from)
         .into();

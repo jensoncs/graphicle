@@ -51,6 +51,14 @@ versioned together at 0.2.0.
   functions, search paths and dynamic SQL are not resolved, and SQL outside
   an sqlc configuration is file level. `.sql` files and `sqlc.yaml`/`.yml`/
   `.json` were reported as an unsupported language.
+- A change to an sqlc query's tables or to a proto message reaches the Go
+  code that uses what was generated from it. Each generated Go method or
+  type that Go review declares links (`generated_from`) to the query or
+  proto declaration it came from, so a migration selects its queries, their
+  generated methods and the Go code that calls them, interface calls through
+  sqlc's `Querier` included; a message selects its `.pb.go` type and the Go
+  code that uses it. A trigger (`CREATE TRIGGER ... ON t`) touches its
+  table, and a trigger's `UPDATE ON`/`UPDATE OF` no longer reads as a table.
 - Basic review covers Protocol Buffers. Messages, enums, services, rpcs and
   extensions are declarations, and a message or enum names its generated Go
   type and `.pb.go` file when they are in the snapshot. A field's, rpc's or

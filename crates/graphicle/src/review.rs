@@ -901,6 +901,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
         "configuration_scope".into(),
         "reads_environment".into(),
         "uses_table".into(),
+        "generated_from".into(),
     ];
     let mut paths_emitted = 0usize;
     for reverse in [false, true] {
@@ -954,7 +955,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
                 };
                 let evidence = if let Some(index) = reference["service_index"].as_u64() {
                     let edge = &analysis.services.edges[index as usize];
-                    json!({"relation":edge.relation,"caller":edge.from,"callee":edge.to,"evidence":"configured_static","provenance":edge.evidence})
+                    json!({"relation":edge.relation,"caller":edge.from,"callee":edge.to,"evidence":edge.evidence["evidence"].as_str().unwrap_or("configured_static"),"provenance":edge.evidence})
                 } else {
                     let (world, call) =
                         &analysis.calls[reference["call_index"].as_u64().unwrap() as usize];

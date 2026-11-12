@@ -382,7 +382,11 @@ fn compatible(a: &Binding, b: &Binding) -> bool {
 /// when compiler facts hit the cache. Removed/changed wiring changes node
 /// revisions and path evidence, driving ordinary packet invalidations.
 pub(super) fn attach(input: &Input, a: &mut Analysis) -> Result<()> {
-    let mut links = Links::default();
+    // Keep the cross-world links basic review made (generated code).
+    let mut links = Links {
+        edges: std::mem::take(&mut a.services.edges),
+        ..Links::default()
+    };
     let mut endpoints = vec![];
     let mut parsed = BTreeMap::new();
     let mut attempted = 0;
