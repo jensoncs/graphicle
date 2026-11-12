@@ -1,7 +1,7 @@
 //! Conservative bindings within an authorized source manifest. No files outside
 //! that manifest are consulted, and unresolved receivers remain unresolved.
 use serde_json::{Value, json};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::path::Path;
 
 fn s<'a>(v: &'a Value, key: &str) -> &'a str {
@@ -293,17 +293,23 @@ pub(crate) fn convention_alias_targets(
 }
 
 fn declaration(analysis: &Value, name: &str, caller: &str) -> Option<String> {
-    let mut matches: Vec<_> = items(analysis, "symbols")
-        .iter()
-        .filter(|v| {
-            let full = s(v, "name");
-            if full == name {
-                return true;
-            }
-            let (scope, local) = full.rsplit_once('.').unwrap_or(("", full));
-            local == name && visible(scope, caller)
-        })
-        .collect();
+    innermost(
+        items(analysis, "symbols")
+            .iter()
+            .filter(|v| {
+                let full = s(v, "name");
+                if full == name {
+                    return true;
+                }
+                let (scope, local) = full.rsplit_once('.').unwrap_or(("", full));
+                local == name && visible(scope, caller)
+            })
+            .collect(),
+    )
+}
+
+/// The most deeply scoped of `matches`, unless two share that depth.
+fn innermost(mut matches: Vec<&Value>) -> Option<String> {
     matches.sort_by_key(|v| std::cmp::Reverse(s(v, "name").matches('.').count()));
     let first = matches.first()?;
     if matches.get(1).is_some_and(|second| {
@@ -409,6 +415,50 @@ fn exported(
     Some(found)
 }
 
+/// One file's symbols by name, as [`declaration`] filters them: a dotted name
+/// matches a symbol by its full name, any other name a symbol by its last
+/// segment whose scope the caller sees.
+/// An import edge's file, line (as JSON text) and module.
+type ImportKey<'a> = (&'a str, String, &'a str);
+
+struct Declarations<'a> {
+    full: HashMap<&'a str, Vec<&'a Value>>,
+    local: HashMap<&'a str, Vec<(&'a str, &'a Value)>>,
+}
+
+impl<'a> Declarations<'a> {
+    fn of(analysis: &'a Value) -> Self {
+        let mut out = Self {
+            full: HashMap::new(),
+            local: HashMap::new(),
+        };
+        for symbol in items(analysis, "symbols") {
+            let full = s(symbol, "name");
+            out.full.entry(full).or_default().push(symbol);
+            let (scope, local) = full.rsplit_once('.').unwrap_or(("", full));
+            out.local.entry(local).or_default().push((scope, symbol));
+        }
+        out
+    }
+    /// [`declaration`] without scanning every symbol.
+    fn find(&self, name: &str, caller: &str) -> Option<String> {
+        // A last segment has no dot, so a dotted name only matches in full;
+        // an undotted full match is a last-segment match at the top scope.
+        let matches = if name.contains('.') {
+            self.full.get(name).cloned().unwrap_or_default()
+        } else {
+            self.local
+                .get(name)
+                .into_iter()
+                .flatten()
+                .filter(|(scope, _)| visible(scope, caller))
+                .map(|(_, symbol)| *symbol)
+                .collect()
+        };
+        innermost(matches)
+    }
+}
+
 /// Resolve explicit imported callable names. Unknown object receiver types,
 /// wildcard imports and shadowed identifiers never become guessed call edges.
 pub(crate) fn resolve_calls(
@@ -417,42 +467,66 @@ pub(crate) fn resolve_calls(
 ) -> (Vec<Value>, Vec<Value>) {
     let mut resolved = Vec::new();
     let mut unresolved = Vec::new();
+    // An import's edges, by its file, line and module: computed once, not per
+    // call (each call used to scan every edge for each visible import). The
+    // line is keyed by its JSON text, which compares as `Value` equality does.
+    let mut import_edges: HashMap<ImportKey, Vec<(&str, &str)>> = HashMap::new();
+    for edge in edges.iter().filter(|e| e["kind"] == "imports") {
+        import_edges
+            .entry((
+                s(edge, "source"),
+                edge["line"].to_string(),
+                s(edge, "module"),
+            ))
+            .or_default()
+            .push((s(edge, "target"), s(edge, "submodule")));
+    }
     for (path, analysis) in analyses {
+        let declarations = Declarations::of(analysis);
+        let mut shadowed: HashMap<&str, Vec<&str>> = HashMap::new();
+        for binding in items(analysis, "shadowed_bindings") {
+            shadowed
+                .entry(s(binding, "name"))
+                .or_default()
+                .push(s(binding, "scope"));
+        }
+        let imports: Vec<_> = items(analysis, "imports")
+            .iter()
+            .filter(|import| import["reexport"] != true && import["type_only"] != true)
+            .map(|import| {
+                let key = (
+                    path.as_str(),
+                    import["line"].to_string(),
+                    s(import, "module"),
+                );
+                (
+                    import,
+                    import_edges.get(&key).map_or(&[][..], Vec::as_slice),
+                )
+            })
+            .collect();
         for call in items(analysis, "calls") {
             let name = s(call, "callee");
             let caller = s(call, "caller");
             let head = name.split(['.', ':']).next().unwrap_or(name);
-            if items(analysis, "shadowed_bindings")
-                .iter()
-                .any(|v| s(v, "name") == head && visible(s(v, "scope"), caller))
+            if shadowed
+                .get(head)
+                .is_some_and(|scopes| scopes.iter().any(|scope| visible(scope, caller)))
             {
                 unresolved.push(json!({"path":path,"caller":caller,"callee":name,"line":call["line"],"reason":"shadowed_or_dynamic_binding"}));
                 continue;
             }
             let mut candidates = BTreeSet::new();
             let mut incomplete_export = false;
-            if let Some(local) = declaration(analysis, name, caller) {
+            if let Some(local) = declarations.find(name, caller) {
                 candidates.insert((path.clone(), local));
             }
             if candidates.is_empty() {
-                for import in items(analysis, "imports") {
-                    if !visible(s(import, "scope"), caller)
-                        || import["reexport"] == true
-                        || import["type_only"] == true
-                    {
+                for &(import, targets) in &imports {
+                    if !visible(s(import, "scope"), caller) {
                         continue;
                     }
-                    let targets: Vec<_> = edges
-                        .iter()
-                        .filter(|edge| {
-                            s(edge, "source") == path
-                                && edge["line"] == import["line"]
-                                && s(edge, "module") == s(import, "module")
-                                && edge["kind"] == "imports"
-                        })
-                        .map(|edge| (s(edge, "target"), s(edge, "submodule")))
-                        .collect();
-                    for (target, submodule) in targets {
+                    for &(target, submodule) in targets {
                         let imported = if !submodule.is_empty() {
                             // `from pkg import sub` binds the submodule object, so
                             // `sub.fn()` (or an alias's) names `fn` inside it.

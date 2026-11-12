@@ -10,6 +10,11 @@ versioned together at 0.2.0.
 
 ### Review and revocation fixes
 
+- Basic review impact no longer slows down as a repository grows. Call
+  resolution scanned every import edge in the repository, and every symbol in
+  the file, once per call; it now indexes them once. Output is unchanged.
+  Per side: GitNexus 248 s to 5.3 s, livestream-service 139 s to 0.9 s,
+  trader 53 s to 3.7 s, metadata-service 7.8 s to 0.95 s.
 - The precise TypeScript/JavaScript and SCIP call resolvers keep both calls
   of a mutual pair. They skipped a call when any edge, of any relation or
   direction, already joined the two symbols, so when `a` called `b` and `b`
