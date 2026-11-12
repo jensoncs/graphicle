@@ -18,6 +18,11 @@ versioned together at 0.2.0.
   process rebuilt it, about 4 s). A kept helper is used only when this user
   alone can write it and its folder. GitNexus (7,555 files): 71 s to 51 s;
   kodus-ai (6,625): 41 s to 31 s; trader (Go): 35 s to 20 s.
+- Basic review impact parses its sources on every core before reading them
+  (it parsed them one at a time), so TypeScript, JavaScript, Python, Rust and
+  Bash reviews spend less time per side. Output is byte-identical. Per side:
+  trader 3.7 s to 1.2 s, GitNexus 5.9 s to 2.6 s, livestream-service 0.95 s
+  to 0.40 s, pwa-sharechat 0.45 s to 0.22 s.
 - Basic review impact no longer slows down as a repository grows. Call
   resolution scanned every import edge in the repository, and every symbol in
   the file, once per call; it now indexes them once. Output is unchanged.

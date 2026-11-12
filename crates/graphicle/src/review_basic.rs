@@ -116,6 +116,61 @@ pub(super) fn minified(ext: &str, content: &str) -> bool {
     script_source(ext) && content.lines().any(|l| l.len() > MINIFIED_LINE)
 }
 
+/// The path `extend` parses a file's structure under, or None when it reads
+/// no structure for it: a minified bundle, or a language it keeps at file level.
+fn structure_path<'a>(lang: &str, path: &'a str, content: &str) -> Option<&'a str> {
+    let ext = Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    let config = matches!(
+        Path::new(path).file_name().and_then(|n| n.to_str()),
+        Some("tsconfig.json" | "jsconfig.json")
+    );
+    let read = !minified(ext, content)
+        && (matches!(lang, "python" | "rust" | "bash")
+            && (matches!(ext, "py" | "rs" | "sh" | "bash") || lang == "bash")
+            || script_source(ext)
+            || config);
+    read.then_some(if lang == "bash" { "source.sh" } else { path })
+}
+
+/// Each file's structure, parsed on every core: parsing is most of `extend`'s
+/// time and depends on the file alone. Workers keep the request's deadline.
+fn parse_structures<'a>(
+    input: &'a Input,
+    files: &'a BTreeMap<String, &'static str>,
+) -> Result<BTreeMap<&'a str, Value>> {
+    let jobs: Vec<(&str, &str, &str)> = files
+        .iter()
+        .filter_map(|(path, lang)| {
+            let source = &input.sources[path];
+            let content = source.content.text()?;
+            Some((
+                path.as_str(),
+                structure_path(lang, &source.path, content)?,
+                content,
+            ))
+        })
+        .collect();
+    let left = graphicle::process::bounded_timeout(std::time::Duration::MAX)
+        .map_err(|_| Error::timeout("Review request deadline exceeded"))?;
+    let deadline = (left != std::time::Duration::MAX).then(|| std::time::Instant::now() + left);
+    let parsed = graphicle_memory::cache::par_map(
+        &jobs,
+        || graphicle::process::deadline_scope(deadline),
+        |_, (path, parse_path, content)| {
+            checkpoint()?;
+            Ok((
+                *path,
+                structure::analyze(parse_path, content)
+                    .unwrap_or_else(|_| structure::skipped("basic parse failed")),
+            ))
+        },
+    );
+    parsed.into_iter().collect()
+}
+
 /// The review key of a declaration, stable across base and head.
 pub(super) fn symbol_key(path: &str, name: &str) -> String {
     format!("symbol:{path}#{name}")
@@ -320,6 +375,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
         return Ok(());
     }
     out.analyzer = format!("{}+{VERSION}", out.analyzer);
+    let mut structures = parse_structures(input, &files)?;
     let mut counts = BTreeMap::<&str, usize>::new();
     let mut groups = BTreeMap::<String, Vec<String>>::new();
     let mut imports = BTreeMap::<String, serde_json::Map<String, Value>>::new();
@@ -365,18 +421,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "basic_minified_source",
                 json!({"file":path,"bytes":content.len()}),
             ));
-        } else if matches!(*lang, "python" | "rust" | "bash")
-            && (matches!(ext, "py" | "rs" | "sh" | "bash") || *lang == "bash")
-            || script_source(ext)
-            || config
-        {
-            let parse_path = if *lang == "bash" {
-                "source.sh"
-            } else {
-                source.path.as_str()
-            };
-            let mut parsed = structure::analyze(parse_path, content)
-                .unwrap_or_else(|_| structure::skipped("basic parse failed"));
+        } else if let Some(mut parsed) = structures.remove(path.as_str()) {
             if *lang == "python" && ext == "py" {
                 let shadowed_os = input.sources.keys().any(|other| {
                     other.split('/').next() == path.split('/').next()
@@ -940,6 +985,61 @@ mod tests {
         let bumped = files("1", "{\"name\":\"shop\",\"version\":\"2\"}\n");
         let r = report(&base, &bumped);
         assert!(selected(&r, "head", "src/unrelated.js"));
+    }
+
+    #[test]
+    fn many_files_keep_every_caller_in_a_stable_order() {
+        // Past the threshold where file parsing runs on several threads.
+        let callers: Vec<(String, String)> = (0..80)
+            .map(|i| {
+                (
+                    format!("repo/src/caller{i:02}.ts"),
+                    format!("import {{ price }} from './price';\n\nexport function caller{i:02}(): number {{\n  return price();\n}}\n"),
+                )
+            })
+            .collect();
+        let mut files = vec![(
+            "repo/src/price.ts",
+            "export function price(): number {\n  return 1;\n}\n",
+        )];
+        files.extend(callers.iter().map(|(p, t)| (p.as_str(), t.as_str())));
+        let data = input(&files);
+        let (first, second) = (analysis(&data), analysis(&data));
+        let target = symbol_key("repo/src/price.ts", "price");
+        let found: Vec<_> = first
+            .calls
+            .iter()
+            .filter(|(_, c)| c.target == target && c.relation == "may_call")
+            .map(|(_, c)| c.caller.clone())
+            .collect();
+        let expected: Vec<_> = (0..80)
+            .map(|i| {
+                symbol_key(
+                    &format!("repo/src/caller{i:02}.ts"),
+                    &format!("caller{i:02}"),
+                )
+            })
+            .collect();
+        assert_eq!(found, expected);
+        let shape = |a: &Analysis| {
+            (
+                a.calls
+                    .iter()
+                    .map(|(w, c)| {
+                        (
+                            w.clone(),
+                            c.caller.clone(),
+                            c.target.clone(),
+                            c.evidence.clone(),
+                        )
+                    })
+                    .collect::<Vec<_>>(),
+                a.symbols.keys().cloned().collect::<Vec<_>>(),
+                serde_json::to_string(&a.inputs).unwrap(),
+                serde_json::to_string(&a.issues).unwrap(),
+            )
+        };
+        assert_eq!(shape(&first), shape(&second));
     }
 
     #[test]
