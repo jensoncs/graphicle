@@ -202,7 +202,11 @@ calls on a receiver typed by an annotation (`oxc_type`) or made by `new`
 untyped receivers, JSX, callbacks and rebound names are not seen, so file
 importers are still selected through `potential_import` and `configuration_scope` edges as optional context. A name
 declared twice in one file is reported as `basic_duplicate_declaration` and has
-no node; unbound calls are counted in `basic_unresolved_calls`. Paths built from
+no node; unbound calls are counted in `basic_unresolved_calls`. A
+TypeScript/JavaScript file with a line over 10,000 bytes is generated output
+(a minified bundle): it stays a file entry, so a change to it is still seen,
+but has no declarations, imports or calls, and is reported as
+`basic_minified_source`. Paths built from
 these edges are `potential_static` candidates, never observed flows. Missing or ambiguous targets and parse/analysis limits are reported.
 Basic analysis always reports `basic_analysis_limitations` and leaves
 `coverage.complete=false`; it cannot certify no impact or permit skipped-review

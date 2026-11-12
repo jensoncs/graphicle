@@ -3,7 +3,7 @@
 //! disk, no `node_modules`) and binds calls to the review's declarations: a
 //! method on a receiver typed by an annotation or made by `new`, and `new`
 //! itself, which the name-based binder leaves unresolved.
-use super::basic::{edge, line_span, script_source, symbol_key};
+use super::basic::{edge, line_span, minified, script_source, symbol_key};
 use super::*;
 use graphicle::extractors::precise_js::{Nodes, bind_snapshot};
 use std::path::PathBuf;
@@ -70,7 +70,9 @@ pub(super) fn calls(input: &Input, repo: &str, declared: &BTreeSet<String>, out:
         let Some(text) = source.content.text() else {
             continue;
         };
-        if script_source(ext) {
+        if minified(ext, text) {
+            continue;
+        } else if script_source(ext) {
             sources += 1;
             bytes += text.len();
         } else if !resolution_config(rel) {

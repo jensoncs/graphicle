@@ -106,6 +106,16 @@ pub(super) fn script_source(ext: &str) -> bool {
     )
 }
 
+/// No line written by hand is this long; a bundler's or minifier's output is
+/// one line of the whole program.
+const MINIFIED_LINE: usize = 10_000;
+
+/// A TypeScript or JavaScript file that is generated output, not source: it
+/// stays a file node, with no declarations, imports or calls.
+pub(super) fn minified(ext: &str, content: &str) -> bool {
+    script_source(ext) && content.lines().any(|l| l.len() > MINIFIED_LINE)
+}
+
 /// The review key of a declaration, stable across base and head.
 pub(super) fn symbol_key(path: &str, name: &str) -> String {
     format!("symbol:{path}#{name}")
@@ -350,7 +360,12 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             Path::new(path).file_name().and_then(|n| n.to_str()),
             Some("tsconfig.json" | "jsconfig.json")
         );
-        if matches!(*lang, "python" | "rust" | "bash")
+        if minified(ext, content) {
+            out.issues.push(issue(
+                "basic_minified_source",
+                json!({"file":path,"bytes":content.len()}),
+            ));
+        } else if matches!(*lang, "python" | "rust" | "bash")
             && (matches!(ext, "py" | "rs" | "sh" | "bash") || *lang == "bash")
             || script_source(ext)
             || config
@@ -996,6 +1011,47 @@ mod tests {
         );
         assert!(selected(&r, "head", "src/report.ts"));
         assert_eq!(r["coverage"]["complete"], false);
+    }
+
+    #[test]
+    fn minified_bundles_stay_file_level_without_declarations() {
+        // A bundler's one-line output: thousands of declarations nobody wrote.
+        let bundle = |n: usize| {
+            let body: String = (0..2_000)
+                .map(|i| format!("function f{i}(){{return {n};}}"))
+                .collect();
+            format!("{body}\n")
+        };
+        let files = |n: usize| {
+            input(&[
+                ("repo/vendor/bundle.js", &bundle(n)),
+                ("repo/src/app.js", "export function app() { return 1; }\n"),
+            ])
+        };
+        let head = analysis(&files(2));
+        assert!(
+            head.issues
+                .iter()
+                .any(|i| i["reason"] == "basic_minified_source"
+                    && i["detail"]["file"] == "repo/vendor/bundle.js"),
+            "{:#?}",
+            head.issues
+        );
+        assert!(
+            !head
+                .symbols
+                .values()
+                .any(|(_, s)| s.file == "repo/vendor/bundle.js" && s.kind != "basic_file"),
+            "no declarations from a bundle"
+        );
+        assert!(
+            head.symbols
+                .values()
+                .any(|(_, s)| s.key == "symbol:repo/src/app.js#app")
+        );
+        // A change to it is still a changed file.
+        let r = report(&files(1), &files(2));
+        assert!(selected(&r, "head", "vendor/bundle.js"), "{r:#}");
     }
 
     #[test]
