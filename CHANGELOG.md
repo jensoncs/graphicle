@@ -32,6 +32,13 @@ versioned together at 0.2.0.
   per core). They contend on the module cache and file system, so more ran
   no faster: on hyperion (325 modules, 18 cores) four take 164 s against
   174 s, with 0.5 GB peak memory against 2.1 GB. Output is unchanged.
+- Basic review resolves imports of a JavaScript/TypeScript workspace's own
+  packages (`@scope/pkg`, `@scope/pkg/sub`) to the member's source entry,
+  from the root `package.json` `workspaces` or `pnpm-workspace.yaml`, as the
+  graph engine does. They were reported as unresolved imports, so calls into
+  another workspace package were missing. A name two members share stays
+  unresolved. atlas-backstage: 1,253 unresolved `@internal/*` imports to 0.
+  Repository syncs re-parse each file once (analysis revision 11).
 - Basic review impact parses its sources on every core before reading them
   (it parsed them one at a time), so TypeScript, JavaScript, Python, Rust and
   Bash reviews spend less time per side. Output is byte-identical. Per side:

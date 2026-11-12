@@ -359,9 +359,13 @@ pub fn find_workspace_root(start: &Path) -> Option<PathBuf> {
 }
 pub fn pnpm_workspace_globs(p: &Path) -> Vec<String> {
     crate::inputs::content(p);
+    pnpm_globs(&fsutil::read_text_lossy(p).unwrap_or_default())
+}
+/// The `packages:` globs of a `pnpm-workspace.yaml`'s text, exclusions left out.
+pub fn pnpm_globs(text: &str) -> Vec<String> {
     let mut out = vec![];
     let mut inside = false;
-    for raw in fsutil::read_text_lossy(p).unwrap_or_default().lines() {
+    for raw in text.lines() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') {
             continue;
@@ -484,11 +488,16 @@ pub fn resolve_export_targets(value: &Value, platform: Option<&str>) -> Vec<Stri
     }
     out
 }
-fn exports_candidates(dir: &Path, targets: Vec<String>, platform: Option<&str>) -> Vec<PathBuf> {
+fn exports_candidates(
+    dir: &Path,
+    targets: Vec<String>,
+    platform: Option<&str>,
+    inside: &dyn Fn(&Path) -> bool,
+) -> Vec<PathBuf> {
     let mut out = vec![];
     for s in targets {
         let p = dir.join(s);
-        if absolute(&p).starts_with(absolute(dir)) {
+        if inside(&p) {
             out.push(p.clone());
             out.extend(platform_variants(&p, platform));
         }
@@ -541,13 +550,29 @@ fn with_source_twins(dir: &Path, mut candidates: Vec<PathBuf>, root_entry: bool)
 }
 pub fn package_entry_candidates(dir: &Path, subpath: &str, platform: Option<&str>) -> Vec<PathBuf> {
     let d = read_json_config(&dir.join("package.json")).unwrap_or(Value::Null);
+    let root = absolute(dir);
+    entry_candidates(&d, dir, subpath, platform, &|p| {
+        absolute(p).starts_with(&root)
+    })
+}
+/// The files a package (`d`, its `package.json`, in `dir`) offers for
+/// `subpath` (`""` for the package itself), in preference order. `inside`
+/// says whether a path stays within `dir`: an `exports` target that leaves the
+/// package is never a candidate.
+pub fn entry_candidates(
+    d: &Value,
+    dir: &Path,
+    subpath: &str,
+    platform: Option<&str>,
+    inside: &dyn Fn(&Path) -> bool,
+) -> Vec<PathBuf> {
     let exports = &d["exports"];
     if !subpath.is_empty() {
         if let Some(obj) = exports.as_object() {
             let key = format!("./{subpath}");
             let targets = resolve_export_targets(&exports[&key], platform);
             if !targets.is_empty() {
-                let c = exports_candidates(dir, targets, platform);
+                let c = exports_candidates(dir, targets, platform, inside);
                 if !c.is_empty() {
                     return with_source_twins(dir, c, false);
                 }
@@ -567,7 +592,7 @@ pub fn package_entry_candidates(dir: &Path, subpath: &str, platform: Option<&str
                             .filter(|s| s.contains('*'))
                             .map(|s| s.replace('*', cap))
                             .collect();
-                        let c = exports_candidates(dir, targets, platform);
+                        let c = exports_candidates(dir, targets, platform, inside);
                         if !c.is_empty() {
                             return with_source_twins(dir, c, false);
                         }
@@ -582,7 +607,11 @@ pub fn package_entry_candidates(dir: &Path, subpath: &str, platform: Option<&str
     }
     let targets = resolve_export_targets(&exports["."], platform);
     if !targets.is_empty() {
-        return with_source_twins(dir, exports_candidates(dir, targets, platform), true);
+        return with_source_twins(
+            dir,
+            exports_candidates(dir, targets, platform, inside),
+            true,
+        );
     }
     let mut out = vec![];
     for k in ["svelte", "module", "main", "types"] {
@@ -621,7 +650,7 @@ pub fn resolve_workspace_import(raw: &str, start: &Path) -> Option<PathBuf> {
     }
     None
 }
-const BUILD_OUTPUT_DIRS: &[&str] = &["build", "dist", "dist-protected", "out", "target"];
+pub const BUILD_OUTPUT_DIRS: &[&str] = &["build", "dist", "dist-protected", "out", "target"];
 fn build_output_path(path: &Path, package_dir: &Path) -> bool {
     let path = crate::extractors::resolution::resolved(path);
     let dir = crate::extractors::resolution::resolved(package_dir);

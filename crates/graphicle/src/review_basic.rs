@@ -80,6 +80,7 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
                     | "npm-shrinkwrap.json"
                     | "yarn.lock"
                     | "pnpm-lock.yaml"
+                    | "pnpm-workspace.yaml"
             ) =>
             {
                 "javascript"
@@ -118,15 +119,21 @@ pub(super) fn minified(ext: &str, content: &str) -> bool {
 
 /// The path `extend` parses a file's structure under, or None when it reads
 /// no structure for it: a minified bundle, or a language it keeps at file level.
+/// A file read for how imports resolve (paths, workspace members), not for
+/// declarations.
+fn module_config(path: &str) -> bool {
+    matches!(
+        Path::new(path).file_name().and_then(|n| n.to_str()),
+        Some("tsconfig.json" | "jsconfig.json" | "package.json" | "pnpm-workspace.yaml")
+    )
+}
+
 fn structure_path<'a>(lang: &str, path: &'a str, content: &str) -> Option<&'a str> {
     let ext = Path::new(path)
         .extension()
         .and_then(|e| e.to_str())
         .unwrap_or("");
-    let config = matches!(
-        Path::new(path).file_name().and_then(|n| n.to_str()),
-        Some("tsconfig.json" | "jsconfig.json")
-    );
+    let config = module_config(path);
     let read = !minified(ext, content)
         && (matches!(lang, "python" | "rust" | "bash")
             && (matches!(ext, "py" | "rs" | "sh" | "bash") || lang == "bash")
@@ -412,10 +419,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             .extension()
             .and_then(|e| e.to_str())
             .unwrap_or("");
-        let config = matches!(
-            Path::new(path).file_name().and_then(|n| n.to_str()),
-            Some("tsconfig.json" | "jsconfig.json")
-        );
+        let config = module_config(path);
         if minified(ext, content) {
             out.issues.push(issue(
                 "basic_minified_source",
@@ -985,6 +989,70 @@ mod tests {
         let bumped = files("1", "{\"name\":\"shop\",\"version\":\"2\"}\n");
         let r = report(&base, &bumped);
         assert!(selected(&r, "head", "src/unrelated.js"));
+    }
+
+    #[test]
+    fn workspace_package_imports_reach_the_member_source() {
+        let files = |root: (&str, &str)| {
+            input(&[
+                root,
+                (
+                    "repo/plugins/core/package.json",
+                    "{\"name\":\"@internal/core\",\"main\":\"src/index.ts\",\"scripts\":{\"build\":\"tsc\"}}\n",
+                ),
+                (
+                    "repo/plugins/core/src/index.ts",
+                    "export function price(): number {\n  return 1;\n}\n",
+                ),
+                (
+                    "repo/plugins/app/package.json",
+                    "{\"name\":\"@internal/app\"}\n",
+                ),
+                (
+                    "repo/plugins/app/src/a.ts",
+                    "import { price } from '@internal/core';\nexport function total(): number {\n  return price();\n}\n",
+                ),
+            ])
+        };
+        for root in [
+            (
+                "repo/package.json",
+                "{\"workspaces\":{\"packages\":[\"plugins/*\"]}}\n",
+            ),
+            ("repo/pnpm-workspace.yaml", "packages:\n  - plugins/*\n"),
+        ] {
+            let a = analysis(&files(root));
+            assert!(
+                a.calls
+                    .iter()
+                    .any(|(_, c)| c.file == "repo/plugins/app/src/a.ts"
+                        && c.target_file == "repo/plugins/core/src/index.ts"
+                        && c.relation == "potential_import"),
+                "{}",
+                root.0
+            );
+            assert!(a.calls.iter().any(|(_, c)| c.relation == "may_call"
+                && c.target == symbol_key("repo/plugins/core/src/index.ts", "price")));
+            assert!(
+                !a.issues
+                    .iter()
+                    .any(|i| i["reason"] == "basic_unresolved_import"
+                        || i["reason"] == "basic_parse_incomplete"),
+                "{:?}",
+                a.issues
+            );
+            // A manifest is read for resolution only, not as declarations.
+            for m in a.inputs.iter().filter(|i| {
+                i["file"]
+                    .as_str()
+                    .is_some_and(|f| f.ends_with("package.json") || f.ends_with(".yaml"))
+            }) {
+                assert!(
+                    m["declarations"].as_array().is_none_or(Vec::is_empty),
+                    "{m}"
+                );
+            }
+        }
     }
 
     #[test]

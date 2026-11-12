@@ -1554,6 +1554,7 @@ name = "graphicle-memory"
 version = "0.2.0"
 dependencies = [
  "chrono",
+ "glob",
  "graphicle",
  "hashbrown 0.16.1",
  "regex",

@@ -229,6 +229,152 @@ fn has_js_config(source: &str, paths: &BTreeSet<String>) -> bool {
     })
 }
 
+/// The manifest's JS workspaces: each root (a `package.json` with
+/// `workspaces`, or a `pnpm-workspace.yaml`) with its members by package name,
+/// `None` for a name two members share. Built once per graph.
+pub(crate) struct Workspaces<'a> {
+    roots: Vec<(String, Members<'a>)>,
+}
+/// Package name to its directory and `package.json`; `None` when shared.
+type Members<'a> = BTreeMap<&'a str, Option<(String, &'a Value)>>;
+
+impl<'a> Workspaces<'a> {
+    pub(crate) fn new(analyses: &'a serde_json::Map<String, Value>) -> Self {
+        let named = |file: &str, path: &str| {
+            Path::new(path).file_name().and_then(|n| n.to_str()) == Some(file)
+        };
+        let packages: Vec<(&str, &Value)> = analyses
+            .iter()
+            .filter(|(path, _)| named("package.json", path))
+            .filter_map(|(path, a)| Some((parent(path), a.get("package_manifest")?)))
+            .collect();
+        let mut roots = Vec::new();
+        for (path, analysis) in analyses {
+            let globs = if named("pnpm-workspace.yaml", path) {
+                &analysis["workspace_globs"]
+            } else if named("package.json", path) {
+                let w = &analysis["package_manifest"]["workspaces"];
+                if w.is_null() {
+                    continue; // a member, not a workspace root
+                }
+                if w.is_array() { w } else { &w["packages"] }
+            } else {
+                continue;
+            };
+            let root = parent(path).to_string();
+            let mut patterns = Vec::new();
+            for glob in globs
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(Value::as_str)
+            {
+                let glob = glob.trim_start_matches("./").trim_end_matches('/');
+                if glob.starts_with('!') {
+                    continue;
+                }
+                let full = match (root.as_str(), glob) {
+                    (_, "" | ".") => root.clone(),
+                    ("", _) => glob.to_string(),
+                    _ => format!("{root}/{glob}"),
+                };
+                if let Ok(pattern) = glob::Pattern::new(&full) {
+                    patterns.push(pattern);
+                }
+            }
+            let options = glob::MatchOptions {
+                require_literal_separator: true,
+                ..Default::default()
+            };
+            let mut members = Members::new();
+            for (dir, manifest) in &packages {
+                let Some(name) = manifest["name"].as_str().filter(|n| !n.is_empty()) else {
+                    continue;
+                };
+                if patterns.iter().any(|p| p.matches_with(dir, options)) {
+                    let member = Some((dir.to_string(), *manifest));
+                    members
+                        .entry(name)
+                        .and_modify(|m| *m = None)
+                        .or_insert(member);
+                }
+            }
+            roots.push((root, members));
+        }
+        Self { roots }
+    }
+
+    /// A bare import of a member of `source`'s nearest workspace: the
+    /// member's source entry for it, as the graph engine's on-disk resolver
+    /// picks it (a build-output file only when no source file is offered).
+    pub(crate) fn targets(
+        &self,
+        source: &str,
+        module: &str,
+        paths: &BTreeSet<String>,
+    ) -> BTreeSet<String> {
+        let Some((_, members)) = self
+            .roots
+            .iter()
+            .filter(|(root, _)| root.is_empty() || source.starts_with(&format!("{root}/")))
+            .max_by_key(|(root, _)| root.len())
+        else {
+            return BTreeSet::new();
+        };
+        for (name, member) in members {
+            let sub = if module == *name {
+                ""
+            } else if let Some(sub) = module.strip_prefix(&format!("{name}/")) {
+                sub
+            } else {
+                continue;
+            };
+            let Some((dir, manifest)) = member else {
+                return BTreeSet::new();
+            };
+            let within = |p: &str| dir.is_empty() || p == dir || p.starts_with(&format!("{dir}/"));
+            let inside = |p: &Path| {
+                crate::structure::normalize(&p.to_string_lossy()).is_some_and(|p| within(&p))
+            };
+            let platform =
+                graphicle::extractors::resolution_js::importer_platform(Path::new(source));
+            let mut built = BTreeSet::new();
+            for candidate in graphicle::extractors::resolution_js::entry_candidates(
+                manifest,
+                Path::new(dir),
+                sub,
+                platform,
+                &inside,
+            ) {
+                let Some(base) = crate::structure::normalize(&candidate.to_string_lossy()) else {
+                    continue;
+                };
+                let found = javascript_targets(&base, paths);
+                if found.is_empty() {
+                    continue;
+                }
+                let build_output = found.iter().all(|f| {
+                    f.strip_prefix(&format!("{dir}/"))
+                        .unwrap_or(f)
+                        .split('/')
+                        .next()
+                        .is_some_and(|first| {
+                            graphicle::extractors::resolution_js::BUILD_OUTPUT_DIRS.contains(&first)
+                        })
+                });
+                if !build_output {
+                    return found;
+                }
+                if built.is_empty() {
+                    built = found;
+                }
+            }
+            return built;
+        }
+        BTreeSet::new()
+    }
+}
+
 /// Nearest ancestor directory of `source` (walking up to the manifest root)
 /// holding a `package.json` or `pnpm-workspace.yaml`, mirroring Graphify's
 /// `_find_js_project_anchor`. Falls back to the importer's own directory.

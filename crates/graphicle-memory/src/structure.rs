@@ -16,7 +16,8 @@ mod python_environment;
 /// (`repo_parses`): a new value re-parses cached files once. Bump it whenever
 /// the analysis output changes. 10: direct os separator constants and filesystem
 /// encoding calls no longer create false environment-binding escape diagnostics.
-pub const REVISION: &str = "graphicle-static-rust-10";
+/// 11: package.json and pnpm-workspace.yaml keep what workspace imports resolve by.
+pub const REVISION: &str = "graphicle-static-rust-11";
 
 /// Per-file analysis limits. No limit fails an analysis: a
 /// file past one is analysed as far as the limit allows, its analysis is
@@ -598,11 +599,40 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
         && let Some(language) = expanded_language(path)
     {
         let mut result = expanded(path, content, language, limits)?;
+        let name = Path::new(path).file_name().and_then(|n| n.to_str());
         if language == "json"
             && let Some(config) = crate::bindings::configuration(content)
-            && (config.get("compilerOptions").is_some() || config.get("extends").is_some())
         {
-            result["module_configuration"] = config;
+            if config.get("compilerOptions").is_some() || config.get("extends").is_some() {
+                result["module_configuration"] = config;
+            } else if name == Some("package.json") {
+                // What workspace import resolution reads (bindings::workspace_targets).
+                let package: serde_json::Map<_, _> = config
+                    .as_object()
+                    .into_iter()
+                    .flatten()
+                    .filter(|(key, _)| {
+                        matches!(
+                            key.as_str(),
+                            "name"
+                                | "workspaces"
+                                | "exports"
+                                | "main"
+                                | "module"
+                                | "types"
+                                | "svelte"
+                        )
+                    })
+                    .map(|(key, value)| (key.clone(), value.clone()))
+                    .collect();
+                if !package.is_empty() {
+                    result["package_manifest"] = Value::Object(package);
+                }
+            }
+        }
+        if name == Some("pnpm-workspace.yaml") {
+            result["workspace_globs"] =
+                json!(graphicle::extractors::resolution_js::pnpm_globs(content));
         }
         return Ok(result);
     }
@@ -1050,6 +1080,7 @@ pub fn graph(analyses: &Value) -> Result<Value> {
         return Err("Graph file limit exceeded".into());
     }
     let paths: BTreeSet<_> = analyses.keys().cloned().collect();
+    let workspaces = crate::bindings::Workspaces::new(analyses);
     let mut modules: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for path in &paths {
         if let Some(name) = path.strip_suffix(".py") {
@@ -1209,6 +1240,9 @@ pub fn graph(analyses: &Value) -> Result<Value> {
                     targets.extend(crate::bindings::configured_targets(
                         path, module, analyses, &paths,
                     ));
+                    if targets.is_empty() {
+                        targets.extend(workspaces.targets(path, module, &paths));
+                    }
                     if targets.is_empty() {
                         targets.extend(crate::bindings::convention_alias_targets(
                             path, module, &paths,
