@@ -28,6 +28,10 @@ versioned together at 0.2.0.
   of Go files (it was 64 MiB; a 6,900-file repository printed 214 MB).
   Output is unchanged. Helper run on hyperion (6,925 Go files, offline):
   475 s to 155 s.
+- The Go type-checking helper runs at most four `go list` at once (it ran one
+  per core). They contend on the module cache and file system, so more ran
+  no faster: on hyperion (325 modules, 18 cores) four take 164 s against
+  174 s, with 0.5 GB peak memory against 2.1 GB. Output is unchanged.
 - Basic review impact parses its sources on every core before reading them
   (it parsed them one at a time), so TypeScript, JavaScript, Python, Rust and
   Bash reviews spend less time per side. Output is byte-identical. Per side:

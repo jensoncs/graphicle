@@ -452,7 +452,9 @@ func discover(root string, dirs map[string]bool, module bool, testDirs, wanted m
 	if !module && (os.Getenv("GOWORK") == "" || os.Getenv("GOWORK") == "off") {
 		cmd.Env = append(os.Environ(), "GO111MODULE=off")
 	}
+	goList <- struct{}{}
 	data, err := cmd.Output()
+	<-goList
 	if err != nil {
 		return nil
 	}
@@ -478,6 +480,13 @@ func discover(root string, dirs map[string]bool, module bool, testDirs, wanted m
 	}
 	return l.sites
 }
+
+// goListSlots bounds concurrent go list runs. They contend on the module
+// cache and file system: on hyperion (325 modules, 18 cores) four at once were
+// as fast as eighteen with a quarter of the memory.
+const goListSlots = 4
+
+var goList = make(chan struct{}, goListSlots)
 
 func sortedKeys(values map[string]bool) []string {
 	keys := make([]string, 0, len(values))

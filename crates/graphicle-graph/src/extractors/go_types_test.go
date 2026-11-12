@@ -171,17 +171,20 @@ func TestModulesAreDiscoveredInParallelAndReportedInModuleOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	running, overlapped := 0, false
+	running, peak := 0, 0
 	for _, line := range strings.Fields(string(commands)) {
 		if line == "start" {
 			running++
-			overlapped = overlapped || running > 1
+			peak = max(peak, running)
 		} else {
 			running--
 		}
 	}
-	if !overlapped {
+	if peak < 2 {
 		t.Fatalf("module discoveries ran one at a time:\n%s", commands)
+	}
+	if peak > goListSlots {
+		t.Fatalf("%d go list calls ran at once, more than %d", peak, goListSlots)
 	}
 }
 
