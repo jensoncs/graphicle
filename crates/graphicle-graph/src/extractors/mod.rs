@@ -83,5 +83,5 @@ pub mod terraform;
 pub mod vbnet;
 pub mod verilog;
 pub mod yaml_config;
-pub(crate) mod yaml_frontmatter;
+pub mod yaml_frontmatter;
 pub mod zig;

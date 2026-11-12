@@ -57,7 +57,7 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
         "review_excluded_modules": "explicit-go-root-exclusions-v1",
         "sync_analysis_cache": "parse-reuse-and-rebuild-counts-v1",
         "review_go_roots": "admitted-module-discovery-v1",
-        "basic_change_impact": {"languages":["terraform","helm","bash","python","rust","typescript","javascript"],"granularity":"file-module-chart","compiler_resolution":false,"declaration_callers":{"languages":["python","rust","typescript","javascript"],"relation":"may_call","analysis_level":"basic_symbol"}},
+        "basic_change_impact": {"languages":["terraform","helm","bash","python","rust","typescript","javascript","sql"],"granularity":"file-module-chart","compiler_resolution":false,"declaration_callers":{"languages":["python","rust","typescript","javascript"],"relation":"may_call","analysis_level":"basic_symbol"}},
         "business_context": true,
         "business_context_scope": "static-candidates-and-pinned-history-v1",
         "execution_coverage": true,

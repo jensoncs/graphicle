@@ -47,6 +47,7 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
             "sh" | "bash" => "bash",
             "ts" | "tsx" | "mts" | "cts" => "typescript",
             "js" | "jsx" | "mjs" | "cjs" => "javascript",
+            "sql" => "sql",
             _ if name.ends_with(".tf.json")
                 || name.ends_with(".tfvars.json")
                 || name == ".terraform.lock.hcl" =>
@@ -73,6 +74,7 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
                 "python"
             }
             _ if matches!(name, "tsconfig.json" | "jsconfig.json") => "typescript",
+            _ if matches!(name, "sqlc.yaml" | "sqlc.yml" | "sqlc.json") => "sql",
             _ if matches!(
                 name,
                 "package.json"
@@ -289,7 +291,7 @@ fn file_key(path: &str) -> String {
 }
 
 /// Normalize lexically under this repository. Never touch the host filesystem.
-fn relative(file: &str, target: &str) -> Option<String> {
+pub(super) fn relative(file: &str, target: &str) -> Option<String> {
     if target.starts_with('/') || target.contains(['\\', ':', '\0']) {
         return None;
     }
@@ -387,6 +389,13 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
     let mut groups = BTreeMap::<String, Vec<String>>::new();
     let mut imports = BTreeMap::<String, serde_json::Map<String, Value>>::new();
     let mut declared = BTreeSet::<String>::new();
+    let text = |path: &str| input.sources.get(path).and_then(|s| s.content.text());
+    let sqlc: Vec<super::basic_sql::Config> = files
+        .keys()
+        .filter(|p| super::basic_sql::config_file(p))
+        .flat_map(|p| super::basic_sql::configs(p, text(p).unwrap_or("")))
+        .collect();
+    let mut sql_queries = BTreeMap::<&str, Vec<super::basic_sql::Query>>::new();
     for (path, lang) in &files {
         checkpoint()?;
         *counts.entry(lang).or_default() += 1;
@@ -495,6 +504,35 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                     .insert(source.path.clone(), parsed);
             }
         }
+        if *lang == "sql" && ext == "sql" && !minified(ext, content) {
+            let found = super::basic_sql::queries(content);
+            let generated_in = sqlc
+                .iter()
+                .find(|c| super::basic_sql::under(path, &c.queries))
+                .and_then(|c| c.out.as_deref());
+            let symbols: Vec<Value> = found
+                .iter()
+                .map(|q| {
+                    let mut d = json!({"name":q.name,"kind":"sql_query","byte_start":q.start,"byte_end":q.end,"body_start":q.body_start,"line":q.line,"end_line":q.end_line});
+                    if let Some(go) = generated_in
+                        .and_then(|o| super::basic_sql::generated(o, path, &q.name, text))
+                    {
+                        d["generated"] = json!({"file":input.sources[&go].path,"function":q.name});
+                    }
+                    d
+                })
+                .collect();
+            inventory["declarations"] = json!(symbols.iter().take(128).collect::<Vec<_>>());
+            inventory["declarations_omitted"] = json!(symbols.len().saturating_sub(128));
+            declared.extend(declaration_nodes(
+                out,
+                &owner,
+                path,
+                content,
+                &json!({ "symbols": symbols }),
+            ));
+            sql_queries.insert(path, found);
+        }
         out.inputs.push(inventory);
         let group = match *lang {
             "helm" => ancestor_file(input, path, "Chart.yaml"),
@@ -504,6 +542,9 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             // A build/packaging configuration can affect every source in its
             // nearest project. This is conservative scope, not a call relation.
             "rust" => ancestor_file(input, path, "Cargo.toml"),
+            "sql" => ancestor_file(input, path, "sqlc.yaml")
+                .or_else(|| ancestor_file(input, path, "sqlc.yml"))
+                .or_else(|| ancestor_file(input, path, "sqlc.json")),
             "typescript" | "javascript" => ancestor_file(input, path, "package.json")
                 .or_else(|| ancestor_file(input, path, "tsconfig.json"))
                 .or_else(|| ancestor_file(input, path, "jsconfig.json")),
@@ -528,6 +569,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "helm"=>"Chart source scope only; no rendering, release values, cluster capabilities or remote chart resolution",
                 "bash"=>"Literal script paths are candidates; working directory, PATH, expansions and dynamic commands are unresolved",
                 "python"=>"Local import candidates, calls bound by name through a visible declaration or explicit import, and literal environment reads only; runtime environments, dynamic imports, rebinding, method calls and runtime dispatch are not resolved",
+                "sql"=>"sqlc query blocks are declarations; a query's FROM, JOIN, INTO and UPDATE tables link it to the sqlc schema files that create, alter, drop or write a table of that name, as candidates; the generated Go method is named, but its Go callers, views, functions, search paths and dynamic SQL are not resolved; SQL outside an sqlc configuration is file level only",
                 "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates, calls bound by name through a visible declaration or explicit import, and, in repositories within 64 MiB of sources, calls the oxc binder resolves (new, and methods on a receiver typed by an annotation or made by new); node_modules, package exports, CommonJS require, dynamic import(), bundler aliases, JSX, callbacks and untyped receivers are not resolved",
                 _=>"Local module candidates and calls bound by name through a visible declaration or explicit import only; Cargo resolution, cfg, macros, build scripts, method calls and trait dispatch are not resolved"
             }})));
@@ -557,7 +599,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                     .is_some_and(|n| n == "build.rs")
                 || !(matches!(
                     Path::new(member).extension().and_then(|e| e.to_str()),
-                    Some("py" | "pyi" | "rs")
+                    Some("py" | "pyi" | "rs" | "sql")
                 ) || script_source(
                     Path::new(member)
                         .extension()
@@ -755,6 +797,62 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             }
         }
     }
+    sql_tables(input, &files, &sqlc, &sql_queries, &declared, out)
+}
+
+/// Each sqlc query's `uses_table` edges to the schema files that touch a
+/// table it uses: a migration's change selects the queries of its tables.
+fn sql_tables(
+    input: &Input,
+    files: &BTreeMap<String, &'static str>,
+    sqlc: &[super::basic_sql::Config],
+    queries: &BTreeMap<&str, Vec<super::basic_sql::Query>>,
+    declared: &BTreeSet<String>,
+    out: &mut Analysis,
+) -> Result<()> {
+    for config in sqlc {
+        checkpoint()?;
+        let mut touching = BTreeMap::<String, Vec<&str>>::new();
+        for file in files
+            .keys()
+            .filter(|p| p.ends_with(".sql") && super::basic_sql::under(p, &config.schema))
+        {
+            let content = input.sources[file].content.text().unwrap_or("");
+            for table in super::basic_sql::touched(content) {
+                touching.entry(table).or_default().push(file);
+            }
+        }
+        for (file, found) in queries
+            .iter()
+            .filter(|(p, _)| super::basic_sql::under(p, &config.queries))
+        {
+            let content = input.sources[*file].content.text().unwrap_or("");
+            for q in found {
+                let caller = symbol_key(file, &q.name);
+                if !declared.contains(&caller) {
+                    continue;
+                }
+                let migrations: BTreeSet<&str> =
+                    super::basic_sql::used(&content[q.body_start..q.end])
+                        .iter()
+                        .filter_map(|t| touching.get(t))
+                        .flatten()
+                        .copied()
+                        .collect();
+                for migration in migrations {
+                    edge(
+                        out,
+                        (file, &caller),
+                        (migration, &file_key(migration)),
+                        "uses_table",
+                        "sqlc_table_name_candidate",
+                        q.line,
+                        q.start..q.body_start,
+                    );
+                }
+            }
+        }
+    }
     Ok(())
 }
 
@@ -767,6 +865,15 @@ pub(super) fn annotate(entry: &mut Value, analysis: &Analysis, file: &str) {
             .find(|i| i["file"] == file && i["analysis_level"] == "basic_file")
         {
             entry["language"] = input["language"].clone();
+            if let Some(generated) = input["declarations"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .find(|d| d["name"] == entry["name"])
+                .and_then(|d| d.get("generated"))
+            {
+                entry["generated"] = generated.clone();
+            }
         }
         entry["analysis_level"] = json!("basic_symbol");
         entry["test_classification"] = json!("not_analyzed");
@@ -995,6 +1102,74 @@ mod tests {
         let bumped = files("1", "{\"name\":\"shop\",\"version\":\"2\"}\n");
         let r = report(&base, &bumped);
         assert!(selected(&r, "head", "src/unrelated.js"));
+    }
+
+    #[test]
+    fn a_migration_selects_the_sqlc_queries_of_its_tables() {
+        let files = |migration: &str| {
+            input(&[
+                (
+                    "repo/sqlc.yaml",
+                    "version: \"2\"\nsql:\n  - engine: postgresql\n    schema: ./db/migrations/\n    queries: ./db/queries/\n    gen:\n      go:\n        out: ./db/sqlc\n",
+                ),
+                (
+                    "repo/db/migrations/001_init.up.sql",
+                    "CREATE TABLE IF NOT EXISTS users (id int);\nCREATE TABLE \"orders\" (id int);\n",
+                ),
+                ("repo/db/migrations/002_email.up.sql", migration),
+                (
+                    "repo/db/queries/users.sql",
+                    "-- name: GetUser :one\nSELECT * FROM users WHERE id = $1;\n",
+                ),
+                (
+                    "repo/db/queries/orders.sql",
+                    "-- name: ListOrders :many\nWITH recent AS (SELECT * FROM public.orders)\nSELECT * FROM recent;\n",
+                ),
+                (
+                    "repo/db/sqlc/users.sql.go",
+                    "package db\n\nfunc (q *Queries) GetUser(ctx context.Context, id int32) (User, error) {\n\treturn User{}, nil\n}\n",
+                ),
+            ])
+        };
+        let base = files("ALTER TABLE users ADD COLUMN email text;\n");
+        let head = files("ALTER TABLE users ADD COLUMN email text NOT NULL;\n");
+        let a = analysis(&head);
+        let uses = |query: &str, migration: &str| {
+            a.calls.iter().any(|(_, c)| {
+                c.relation == "uses_table" && c.caller == query && c.target_file == migration
+            })
+        };
+        let get_user = symbol_key("repo/db/queries/users.sql", "GetUser");
+        let list_orders = symbol_key("repo/db/queries/orders.sql", "ListOrders");
+        assert!(uses(&get_user, "repo/db/migrations/002_email.up.sql"));
+        assert!(uses(&get_user, "repo/db/migrations/001_init.up.sql"));
+        assert!(uses(&list_orders, "repo/db/migrations/001_init.up.sql"));
+        assert!(!uses(&list_orders, "repo/db/migrations/002_email.up.sql"));
+        let r = report(&base, &head);
+        assert!(selected(&r, "head", "db/queries/users.sql"), "{r}");
+        assert!(!selected(&r, "head", "db/queries/orders.sql"));
+        assert!(
+            r["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|e| e["file"] == "db/queries/users.sql"
+                    && e["generated"]
+                        == json!({"file":"db/sqlc/users.sql.go","function":"GetUser"})),
+            "{r}"
+        );
+        assert!(
+            !r["coverage"]["issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|i| i["reason"] == "unsupported_source_language_or_contract"
+                    && i["detail"]["file"]
+                        .as_str()
+                        .is_some_and(|f| f.ends_with(".sql"))),
+            "{}",
+            r["coverage"]["issues"]
+        );
     }
 
     #[test]

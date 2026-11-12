@@ -42,6 +42,15 @@ versioned together at 0.2.0.
   by walking up its own directories, and a member by its package name, so
   a manifest of many configs or workspace roots costs no more per import
   (30,000 of each: 0.35 s); the request deadline is checked per file.
+- Basic review covers SQL in sqlc projects. Each `-- name: X :kind` block in
+  an sqlc query file is a declaration that names its generated Go method and
+  file when they are in the snapshot. A query is linked to the schema files
+  (migrations) that create, alter, drop or write a table it reads or writes
+  (`uses_table`, a name candidate), so a migration's change selects the
+  queries of its tables. Go callers of the generated method, views,
+  functions, search paths and dynamic SQL are not resolved, and SQL outside
+  an sqlc configuration is file level. `.sql` files and `sqlc.yaml`/`.yml`/
+  `.json` were reported as an unsupported language.
 - Basic review resolves imports of a JavaScript/TypeScript workspace's own
   packages (`@scope/pkg`, `@scope/pkg/sub`) to the member's source entry,
   from the root `package.json` `workspaces` or `pnpm-workspace.yaml`, as the

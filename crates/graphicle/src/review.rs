@@ -33,6 +33,8 @@ mod analysis_coverage;
 mod basic;
 #[path = "review_basic_precise.rs"]
 mod basic_precise;
+#[path = "review_basic_sql.rs"]
+mod basic_sql;
 #[path = "review_components.rs"]
 mod components;
 #[path = "review_diff_context.rs"]
@@ -896,6 +898,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
         "potential_import".into(),
         "configuration_scope".into(),
         "reads_environment".into(),
+        "uses_table".into(),
     ];
     let mut paths_emitted = 0usize;
     for reverse in [false, true] {
