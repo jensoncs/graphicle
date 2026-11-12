@@ -272,30 +272,44 @@ struct Loader<'a> {
     cache: HashMap<String, Option<SourceText<'a>>>,
 }
 
-impl Loader<'_> {
-    fn source(&mut self, relpath: &str) -> Option<&SourceText<'_>> {
+impl<'a> Loader<'a> {
+    /// `relpath`'s bytes and declarations, read and parsed once.
+    fn load(options: &'a IdentityOptions, relpath: &str) -> Option<SourceText<'a>> {
+        let source = match options.sources.get(relpath) {
+            Some(text) => std::borrow::Cow::Borrowed(text.as_str()),
+            None => {
+                let path = super::cross_repo_imports::join_below(options.root.as_ref()?, relpath)?;
+                let bytes = std::fs::read(path).ok()?;
+                std::borrow::Cow::Owned(String::from_utf8_lossy(&bytes).into_owned())
+            }
+        };
+        let symbols = crate::structure::analyze(relpath, &source)
+            .ok()
+            .filter(crate::structure::declaration_spans_complete)
+            .and_then(|v| v["symbols"].as_array().cloned())
+            .unwrap_or_default();
+        let mut loaded = SourceText::new(source);
+        loaded.symbols = symbols;
+        Some(loaded)
+    }
+    /// Load every file in `relpaths` up front: each depends only on its own
+    /// bytes, so they are read and parsed on every core.
+    fn preload(&mut self, relpaths: &[String]) {
+        let options = self.options;
+        let wanted: Vec<&String> = relpaths
+            .iter()
+            .filter(|p| !p.is_empty() && !self.cache.contains_key(*p))
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect();
+        let loaded = crate::cache::par_map(&wanted, || (), |_, p| Self::load(options, p));
+        self.cache.extend(wanted.into_iter().cloned().zip(loaded));
+    }
+    fn source(&mut self, relpath: &str) -> Option<&SourceText<'a>> {
         let options = self.options;
         self.cache
             .entry(relpath.to_owned())
-            .or_insert_with(|| {
-                let source = match options.sources.get(relpath) {
-                    Some(text) => std::borrow::Cow::Borrowed(text.as_str()),
-                    None => {
-                        let path =
-                            super::cross_repo_imports::join_below(options.root.as_ref()?, relpath)?;
-                        let bytes = std::fs::read(path).ok()?;
-                        std::borrow::Cow::Owned(String::from_utf8_lossy(&bytes).into_owned())
-                    }
-                };
-                let symbols = crate::structure::analyze(relpath, &source)
-                    .ok()
-                    .filter(crate::structure::declaration_spans_complete)
-                    .and_then(|v| v["symbols"].as_array().cloned())
-                    .unwrap_or_default();
-                let mut loaded = SourceText::new(source);
-                loaded.symbols = symbols;
-                Some(loaded)
-            })
+            .or_insert_with(|| Self::load(options, relpath))
             .as_ref()
     }
 }
@@ -470,6 +484,7 @@ pub fn annotate(graph: &mut Graph, options: &IdentityOptions) -> Result<Identity
         options,
         cache: HashMap::new(),
     };
+    loader.preload(&relpaths);
     let mut with_revision = 0;
     let mut missing = BTreeSet::new();
     let mut updates = Vec::with_capacity(count);
