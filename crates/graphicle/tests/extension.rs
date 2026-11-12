@@ -1160,7 +1160,8 @@ fn the_vault_key_comes_from_the_extension_that_holds_it() {
     );
     assert_eq!(std::fs::metadata(&device).unwrap().len(), 32);
 
-    std::fs::remove_file(&device).unwrap();
+    let aside = directory.join("vault.key.aside");
+    std::fs::rename(&device, &aside).unwrap();
     std::fs::write(directory.join("probe-vault-key"), b"").unwrap();
     let held = f
         .store
@@ -1168,8 +1169,9 @@ fn the_vault_key_comes_from_the_extension_that_holds_it() {
         .unwrap();
     assert_eq!(f.store.secret(&f.workspace, &held).unwrap(), "probe-sealed");
     assert!(!device.exists(), "no device key is made for a held store");
-    // It was sealed with the probe's key: a device key does not open it.
+    // It was sealed with the probe's key: the device key does not open it.
     std::fs::remove_file(directory.join("probe-vault-key")).unwrap();
+    std::fs::rename(&aside, &device).unwrap();
     let error = f.store.secret(&f.workspace, &held).unwrap_err();
     assert_eq!(error.message, "Credential integrity check failed");
 
