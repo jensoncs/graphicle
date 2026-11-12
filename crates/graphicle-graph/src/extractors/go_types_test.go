@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"encoding/base64"
@@ -12,8 +13,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestDiscoveryBatchesModuleAndResolvesLinuxHTTP(t *testing.T) {
@@ -72,10 +75,7 @@ func TestDiscoveryBatchesModuleAndResolvesLinuxHTTP(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var sites []site
-	if err := json.Unmarshal(out, &sites); err != nil {
-		t.Fatal(err)
-	}
+	sites := groupSites(t, out)
 	resolved := 0
 	for _, call := range sites {
 		if call.Target == "F" && call.Reason == "" {
@@ -97,6 +97,208 @@ func TestDiscoveryBatchesModuleAndResolvesLinuxHTTP(t *testing.T) {
 	}
 	if lists != 1 {
 		t.Fatalf("expected one go list, got %d: %s", lists, commands)
+	}
+}
+
+func TestModulesAreDiscoveredInParallelAndReportedInModuleOrder(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("command-timing wrapper uses a POSIX shell")
+	}
+	if runtime.NumCPU() < 2 {
+		t.Skip("parallel discovery needs two CPUs")
+	}
+	root := t.TempDir()
+	helper := filepath.Join(root, "helper")
+	build := exec.Command("go", "build", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go", "go_review_cache.go")
+	build.Env = append(os.Environ(), "GOFLAGS=", "GOWORK=off", "GOENV=off", "GOTOOLCHAIN=local", "CGO_ENABLED=0")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build: %v: %s", err, out)
+	}
+	realGo, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrapper := filepath.Join(root, "bin")
+	if err := os.Mkdir(wrapper, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// Each go list is held half a second and logged as it starts and ends.
+	script := "#!/bin/sh\ncase \"$1\" in list) echo start >> \"$GO_TEST_LOG\"; sleep 0.5;; esac\n" +
+		"\"$GO_TEST_REAL\" \"$@\"; rc=$?\ncase \"$1\" in list) echo end >> \"$GO_TEST_LOG\";; esac\nexit $rc\n"
+	if err := os.WriteFile(filepath.Join(wrapper, "go"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	paths := []string{}
+	for i := 0; i < 12; i++ {
+		module := filepath.Join(root, "repo", fmt.Sprintf("m%02d", i))
+		if err := os.MkdirAll(module, 0700); err != nil {
+			t.Fatal(err)
+		}
+		mod := fmt.Sprintf("module example/m%02d\ngo 1.23\n", i)
+		if err := os.WriteFile(filepath.Join(module, "go.mod"), []byte(mod), 0600); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(module, "main.go")
+		source := "package p\nfunc F() int { return 1 }\nfunc G() int { return F() }\n"
+		if err := os.WriteFile(path, []byte(source), 0600); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, path)
+	}
+	payload, _ := json.Marshal(request{Paths: paths})
+	log := filepath.Join(root, "commands")
+	run := exec.Command(helper)
+	run.Dir = filepath.Join(root, "repo")
+	run.Stdin = bytes.NewReader(payload)
+	run.Env = append(os.Environ(), "PATH="+wrapper+string(os.PathListSeparator)+os.Getenv("PATH"), "GO_TEST_LOG="+log, "GO_TEST_REAL="+realGo,
+		"GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0", "GOENV=off", "GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOVCS=*:off")
+	out, err := run.Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sites := groupSites(t, out)
+	files := []string{}
+	for _, call := range sites {
+		if call.Target != "F" || call.Reason != "" {
+			t.Fatalf("unresolved call: %s", out)
+		}
+		files = append(files, call.File)
+	}
+	if strings.Join(files, "\n") != strings.Join(paths, "\n") {
+		t.Fatalf("calls not in module order:\n%s", strings.Join(files, "\n"))
+	}
+	commands, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatal(err)
+	}
+	running, overlapped := 0, false
+	for _, line := range strings.Fields(string(commands)) {
+		if line == "start" {
+			running++
+			overlapped = overlapped || running > 1
+		} else {
+			running--
+		}
+	}
+	if !overlapped {
+		t.Fatalf("module discoveries ran one at a time:\n%s", commands)
+	}
+}
+
+// groupSites reads one JSON line per module group and returns their sites in
+// group order, checking that each group lists the requested files it covers.
+func groupSites(t *testing.T, out []byte) []site {
+	t.Helper()
+	groups := []group{}
+	for _, line := range strings.Split(strings.TrimSuffix(string(out), "\n"), "\n") {
+		var g group
+		if err := json.Unmarshal([]byte(line), &g); err != nil {
+			t.Fatalf("%v: %q", err, line)
+		}
+		for _, call := range g.Sites {
+			found := false
+			for _, file := range g.Files {
+				found = found || file == call.File
+			}
+			if !found {
+				t.Fatalf("site outside group %s files %v: %s", g.Root, g.Files, call.File)
+			}
+		}
+		groups = append(groups, g)
+	}
+	sort.Slice(groups, func(i, j int) bool { return groups[i].Root < groups[j].Root })
+	sites := []site{}
+	for _, g := range groups {
+		sites = append(sites, g.Sites...)
+	}
+	return sites
+}
+
+func TestEachModuleIsReportedWhenItFinishesWhileAnotherHangs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("hanging wrapper uses a POSIX shell")
+	}
+	if runtime.NumCPU() < 2 {
+		t.Skip("parallel discovery needs two CPUs")
+	}
+	root := t.TempDir()
+	helper := filepath.Join(root, "helper")
+	build := exec.Command("go", "build", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go", "go_review_cache.go")
+	build.Env = append(os.Environ(), "GOFLAGS=", "GOWORK=off", "GOENV=off", "GOTOOLCHAIN=local", "CGO_ENABLED=0")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build: %v: %s", err, out)
+	}
+	realGo, err := exec.LookPath("go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrapper := filepath.Join(root, "bin")
+	if err := os.Mkdir(wrapper, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// Module m00's discovery never finishes within the test.
+	script := "#!/bin/sh\ncase \"$1:$(pwd)\" in list:*/m00) sleep 30;; esac\nexec \"$GO_TEST_REAL\" \"$@\"\n"
+	if err := os.WriteFile(filepath.Join(wrapper, "go"), []byte(script), 0700); err != nil {
+		t.Fatal(err)
+	}
+	paths := []string{}
+	for i := 0; i < 6; i++ {
+		module := filepath.Join(root, "repo", fmt.Sprintf("m%02d", i))
+		if err := os.MkdirAll(module, 0700); err != nil {
+			t.Fatal(err)
+		}
+		mod := fmt.Sprintf("module example/m%02d\ngo 1.23\n", i)
+		if err := os.WriteFile(filepath.Join(module, "go.mod"), []byte(mod), 0600); err != nil {
+			t.Fatal(err)
+		}
+		path := filepath.Join(module, "main.go")
+		if err := os.WriteFile(path, []byte("package p\nfunc F() int { return 1 }\nfunc G() int { return F() }\n"), 0600); err != nil {
+			t.Fatal(err)
+		}
+		paths = append(paths, path)
+	}
+	payload, _ := json.Marshal(request{Paths: paths})
+	run := exec.Command(helper)
+	run.Dir = filepath.Join(root, "repo")
+	run.Stdin = bytes.NewReader(payload)
+	run.Env = append(os.Environ(), "PATH="+wrapper+string(os.PathListSeparator)+os.Getenv("PATH"), "GO_TEST_REAL="+realGo,
+		"GOOS=linux", "GOARCH=amd64", "CGO_ENABLED=0", "GOENV=off", "GOFLAGS=", "GOWORK=off", "GOTOOLCHAIN=local", "GOPROXY=off", "GOSUMDB=off", "GOVCS=*:off")
+	stdout, err := run.StdoutPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := run.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = run.Process.Kill(); _ = run.Wait() }()
+	lines := make(chan []byte)
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		scanner.Buffer(nil, 1<<20)
+		for scanner.Scan() {
+			lines <- append([]byte(nil), scanner.Bytes()...)
+		}
+		close(lines)
+	}()
+	reported := map[string]bool{}
+	timeout := time.After(20 * time.Second)
+	for len(reported) < len(paths)-1 {
+		select {
+		case line, open := <-lines:
+			if !open {
+				t.Fatalf("helper ended after %d groups", len(reported))
+			}
+			sites := groupSites(t, line)
+			if len(sites) != 1 || sites[0].Target != "F" {
+				t.Fatalf("unexpected group: %s", line)
+			}
+			reported[filepath.Base(filepath.Dir(sites[0].File))] = true
+		case <-timeout:
+			t.Fatalf("finished modules were held back: %v", reported)
+		}
+	}
+	if reported["m00"] {
+		t.Fatalf("hanging module reported: %v", reported)
 	}
 }
 

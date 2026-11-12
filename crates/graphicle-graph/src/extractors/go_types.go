@@ -15,8 +15,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 )
 
 type request struct {
@@ -57,6 +59,14 @@ type site struct {
 	TargetLine int    `json:"target_line,omitempty"`
 	Target     string `json:"target,omitempty"`
 	Reason     string `json:"reason,omitempty"`
+}
+
+// One stdout line per module group, written when the group finishes: a caller
+// stopped mid-run keeps every finished group, and knows which files it covers.
+type group struct {
+	Root  string   `json:"root"`
+	Files []string `json:"files"`
+	Sites []site   `json:"sites"`
 }
 type loader struct {
 	fset     *token.FileSet
@@ -320,8 +330,6 @@ func main() {
 		runReview(*req.Review)
 		return
 	}
-	l := &loader{fset: token.NewFileSet(), meta: map[string]*metadata{}, packages: map[string]*types.Package{}, busy: map[string]bool{}, wanted: map[string]bool{}}
-	l.fallback = importer.ForCompiler(l.fset, "source", nil)
 	configuration, err := exec.Command("go", "env", "-json", "GOARCH", "GOFLAGS", "GO111MODULE").Output()
 	if err != nil {
 		panic(err)
@@ -333,19 +341,21 @@ func main() {
 	// The Rust graph reads disk sources, not Go overlay replacements. An
 	// overlay cannot be safely mapped back to those declaration identities.
 	if strings.Contains(config["GOFLAGS"], "-overlay") || strings.Contains(config["GOFLAGS"], "-compiler") {
-		fmt.Println("[]")
 		return
 	}
-	l.sizes = types.SizesFor("gc", config["GOARCH"])
-	if l.sizes == nil {
+	sizes := types.SizesFor("gc", config["GOARCH"])
+	if sizes == nil {
 		panic("unsupported Go architecture")
 	}
+	wanted := map[string]bool{}
 	dirs := map[string]bool{}
+	files := map[string][]string{}
 	testDirs := map[string]bool{}
 	for _, p := range req.Paths {
 		p, _ = filepath.Abs(p)
-		l.wanted[p] = true
+		wanted[p] = true
 		dirs[filepath.Dir(p)] = true
+		files[filepath.Dir(p)] = append(files[filepath.Dir(p)], p)
 		if strings.HasSuffix(p, "_test.go") {
 			testDirs[filepath.Dir(p)] = true
 		}
@@ -375,65 +385,98 @@ func main() {
 	for root := range groups {
 		groupRoots[root] = true
 	}
-	for _, root := range sortedKeys(groupRoots) {
-		// Module instances must not share go/types packages across builds.
-		l.meta = map[string]*metadata{}
-		l.packages = map[string]*types.Package{}
-		l.failures = map[string]error{}
-		roots := map[string]bool{}
-		args := []string{"list", "-e", "-deps", "-json"}
-		if modules[root] {
-			args = append(args, moduleMode(root, os.Getenv("GOWORK")))
-		}
-		patterns := []string{}
-		tests := false
-		for _, dir := range sortedKeys(groups[root]) {
-			rel, err := filepath.Rel(root, dir)
-			if err != nil {
-				continue
+	// Groups share nothing but the requested files, so each is discovered and
+	// type-checked on its own loader, on every core, and reported as it
+	// finishes. Lines arrive in finish order; a reader sorts them by root.
+	roots := sortedKeys(groupRoots)
+	next := make(chan int)
+	out := json.NewEncoder(os.Stdout)
+	var written sync.Mutex
+	var wg sync.WaitGroup
+	for w := 0; w < min(runtime.GOMAXPROCS(0), len(roots)); w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range next {
+				g := group{Root: roots[i], Files: []string{}, Sites: discover(roots[i], groups[roots[i]], modules[roots[i]], testDirs, wanted, sizes)}
+				for _, dir := range sortedKeys(groups[roots[i]]) {
+					g.Files = append(g.Files, files[dir]...)
+				}
+				if g.Sites == nil {
+					g.Sites = []site{}
+				}
+				// Encode writes the whole line at once; the lock keeps lines whole.
+				written.Lock()
+				err := out.Encode(g)
+				written.Unlock()
+				if err != nil {
+					panic(err)
+				}
 			}
-			patterns = append(patterns, "./"+filepath.ToSlash(rel))
-			tests = tests || testDirs[dir]
-		}
-		if tests {
-			args = append(args, "-test")
-		}
-		cmd := exec.Command("go", append(args, patterns...)...)
-		cmd.Dir = root
-		if !modules[root] && (os.Getenv("GOWORK") == "" || os.Getenv("GOWORK") == "off") {
-			cmd.Env = append(os.Environ(), "GO111MODULE=off")
-		}
-		data, err := cmd.Output()
+		}()
+	}
+	for i := range roots {
+		next <- i
+	}
+	close(next)
+	wg.Wait()
+}
+
+// discover lists one group's packages with go list and type-checks them on a
+// loader of its own: module instances must not share go/types packages
+// across builds. It returns the group's call sites in check order.
+func discover(root string, dirs map[string]bool, module bool, testDirs, wanted map[string]bool, sizes types.Sizes) []site {
+	fset := token.NewFileSet()
+	l := &loader{fset: fset, meta: map[string]*metadata{}, packages: map[string]*types.Package{}, failures: map[string]error{}, busy: map[string]bool{}, wanted: wanted, sizes: sizes}
+	l.fallback = importer.ForCompiler(fset, "source", nil)
+	roots := map[string]bool{}
+	args := []string{"list", "-e", "-deps", "-json"}
+	if module {
+		args = append(args, moduleMode(root, os.Getenv("GOWORK")))
+	}
+	patterns := []string{}
+	tests := false
+	for _, dir := range sortedKeys(dirs) {
+		rel, err := filepath.Rel(root, dir)
 		if err != nil {
 			continue
 		}
-		dec := json.NewDecoder(strings.NewReader(string(data)))
-		for {
-			var m metadata
-			if err := dec.Decode(&m); err != nil {
-				if err != io.EOF {
-					panic(err)
-				}
-				break
+		patterns = append(patterns, "./"+filepath.ToSlash(rel))
+		tests = tests || testDirs[dir]
+	}
+	if tests {
+		args = append(args, "-test")
+	}
+	cmd := exec.Command("go", append(args, patterns...)...)
+	cmd.Dir = root
+	if !module && (os.Getenv("GOWORK") == "" || os.Getenv("GOWORK") == "off") {
+		cmd.Env = append(os.Environ(), "GO111MODULE=off")
+	}
+	data, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	dec := json.NewDecoder(strings.NewReader(string(data)))
+	for {
+		var m metadata
+		if err := dec.Decode(&m); err != nil {
+			if err != io.EOF {
+				panic(err)
 			}
-			if m.Dir == "" || m.ImportPath == "" || (m.Name == "main" && strings.HasSuffix(m.ImportPath, ".test")) {
-				continue
-			}
-			l.meta[m.ImportPath] = &m
-			if groups[root][m.Dir] {
-				roots[m.ImportPath] = true
-			}
+			break
 		}
-		for _, path := range sortedKeys(roots) {
-			_, _ = l.Import(path)
+		if m.Dir == "" || m.ImportPath == "" || (m.Name == "main" && strings.HasSuffix(m.ImportPath, ".test")) {
+			continue
+		}
+		l.meta[m.ImportPath] = &m
+		if dirs[m.Dir] {
+			roots[m.ImportPath] = true
 		}
 	}
-	if l.sites == nil {
-		l.sites = []site{}
+	for _, path := range sortedKeys(roots) {
+		_, _ = l.Import(path)
 	}
-	if err := json.NewEncoder(os.Stdout).Encode(l.sites); err != nil {
-		panic(err)
-	}
+	return l.sites
 }
 
 func sortedKeys(values map[string]bool) []string {

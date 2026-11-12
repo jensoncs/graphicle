@@ -537,6 +537,39 @@ struct Site {
     reason: String,
 }
 
+#[derive(Deserialize)]
+struct Group {
+    root: String,
+    files: Vec<String>,
+    sites: Vec<Site>,
+}
+
+/// The helper prints one line per module group as it finishes. Returns the
+/// finished groups' sites in root order (the order of a complete run) and the
+/// files those groups cover. A line cut short by a kill or crash is not a group.
+fn finished_groups(
+    stdout: &[u8],
+    root: &Path,
+) -> Result<(Vec<Site>, BTreeSet<String>), &'static str> {
+    let whole = &stdout[..stdout
+        .iter()
+        .rposition(|b| *b == b'\n')
+        .map_or(0, |i| i + 1)];
+    let mut groups = whole
+        .split(|b| *b == b'\n')
+        .filter(|line| !line.is_empty())
+        .map(serde_json::from_slice::<Group>)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|_| "go_analysis_invalid_output")?;
+    groups.sort_by(|a, b| a.root.cmp(&b.root));
+    let covered = groups
+        .iter()
+        .flat_map(|g| &g.files)
+        .map(|f| source_key(f, root))
+        .collect();
+    Ok((groups.into_iter().flat_map(|g| g.sites).collect(), covered))
+}
+
 pub fn resolve(
     paths: &[PathBuf],
     nodes: &[Value],
@@ -583,7 +616,7 @@ pub fn resolve(
             }
         }
     }
-    let sites = (|| -> Result<Vec<Site>, &str> {
+    let finished = (|| -> Result<_, &str> {
         let (_helper_dir, binary) = helper().ok_or("go_helper_unavailable")?;
         let cache = tempfile::tempdir().map_err(|_| "go_scratch_unavailable")?;
         let workspace = root.join("go.work");
@@ -595,19 +628,19 @@ pub fn resolve(
         // Extraction may use already-cached dependencies. Keep the inherited
         // module cache (or Go's default); offline_command and -mod=readonly
         // prevent downloads and module-file edits. Pinned review stays isolated.
-        let output = crate::process::capture_bounded(
+        let run = crate::process::capture_lines(
             offline_command(&binary)
                 .current_dir(root)
                 .env("GOWORK", workspace)
                 .env("GO111MODULE", "auto")
                 .env("GOCACHE", cache.path().join("build")),
-            // An admitted 100,000-file repository can need more than a minute
-            // just for package discovery. Background projection has a renewable
-            // lease; capture_bounded still enforces any shorter request deadline
-            // and the output bound below.
+            // A large repository runs for minutes. Each module group reports
+            // when it finishes, so the helper is stopped only after five
+            // minutes with no group finishing; the request deadline still
+            // applies. A 6,900-file repository printed ~31 KiB per file.
             Duration::from_secs(300),
             Some(serde_json::to_vec(&json!({"Paths": paths})).map_err(|_| "go_request_invalid")?),
-            64 * 1024 * 1024,
+            (paths.len() * 64 * 1024).max(64 * 1024 * 1024),
         )
         .map_err(|e| {
             if e.kind() == std::io::ErrorKind::TimedOut {
@@ -616,15 +649,25 @@ pub fn resolve(
                 "go_analysis_io_failure"
             }
         })?;
-        if !output.success {
-            return Err("go_analysis_failed");
-        }
-        serde_json::from_slice::<Vec<Site>>(&output.stdout)
-            .map_err(|_| "go_analysis_invalid_output")
+        let (sites, covered) = finished_groups(&run.output.stdout, root)?;
+        let unfinished = if run.stalled {
+            Some("go_analysis_timeout")
+        } else {
+            (!run.output.success).then_some("go_analysis_failed")
+        };
+        Ok((sites, covered, unfinished))
     })();
-    if let Err(reason) = &sites {
-        for value in unresolved.values_mut() {
-            value["reason"] = json!(reason);
+    // Finished groups keep their results; only calls the helper never
+    // reported on carry the failure.
+    let (sites, covered, unfinished) = match finished {
+        Ok(finished) => finished,
+        Err(reason) => (vec![], BTreeSet::new(), Some(reason)),
+    };
+    if let Some(reason) = unfinished {
+        for ((file, ..), value) in unresolved.iter_mut() {
+            if !covered.contains(file) {
+                value["reason"] = json!(reason);
+            }
         }
     }
     // File + declaration line + name must select exactly one graph node.
@@ -649,7 +692,7 @@ pub fn resolve(
         (ids.len() == 1).then(|| ids.first().unwrap().clone())
     };
     let mut have = BTreeSet::new();
-    for site in sites.into_iter().flatten() {
+    for site in sites {
         let key = (source_key(&site.file, root), site.line, site.column);
         if !files.contains(&key.0) {
             continue;
@@ -687,6 +730,29 @@ mod fact_encoding_tests {
     use super::*;
     use base64::Engine;
     use std::io::Write;
+    #[test]
+    fn finished_groups_keep_root_order_and_drop_a_cut_line() {
+        let root = Path::new("/repo");
+        let site = |file: &str| {
+            format!(r#"{{"file":"{file}","line":1,"column":1,"caller":"G","caller_line":1}}"#)
+        };
+        let stdout = format!(
+            "{{\"root\":\"/repo/b\",\"files\":[\"/repo/b/x.go\"],\"sites\":[{}]}}\n{{\"root\":\"/repo/a\",\"files\":[\"/repo/a/x.go\",\"/repo/a/y.go\"],\"sites\":[{}]}}\n{{\"root\":\"/repo/c\",\"fil",
+            site("/repo/b/x.go"),
+            site("/repo/a/x.go"),
+        );
+        let (sites, covered) = finished_groups(stdout.as_bytes(), root).unwrap();
+        let files: Vec<_> = sites.iter().map(|s| s.file.as_str()).collect();
+        assert_eq!(files, ["/repo/a/x.go", "/repo/b/x.go"]);
+        assert_eq!(
+            covered,
+            ["a/x.go", "a/y.go", "b/x.go"]
+                .map(|f| source_key(&format!("/repo/{f}"), root))
+                .into()
+        );
+        assert!(finished_groups(b"[]\n", root).is_err());
+        assert!(finished_groups(b"", root).unwrap().0.is_empty());
+    }
     #[cfg(unix)]
     #[test]
     fn a_cached_helper_is_used_only_when_this_user_alone_could_write_it() {

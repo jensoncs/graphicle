@@ -83,9 +83,46 @@ pub fn capture_bounded(
     input: Option<Vec<u8>>,
     max_bytes: usize,
 ) -> io::Result<Output> {
+    run(command, timeout, None, input, max_bytes).map(|lines| lines.output)
+}
+
+/// What [`capture_lines`] read, and whether it stopped the command.
+pub struct Lines {
+    pub output: Output,
+    /// No stdout line arrived within the idle limit, so the command was
+    /// killed; `output.stdout` holds the whole lines it printed before.
+    pub stalled: bool,
+}
+
+/// [`capture_bounded`] for a command that reports progress one stdout line at
+/// a time: `idle` bounds the wait for each next line, not the whole run, so a
+/// command that keeps printing runs until it exits. The request deadline still
+/// bounds it (a timeout error, as for [`capture_bounded`]).
+pub fn capture_lines(
+    command: &mut Command,
+    idle: Duration,
+    input: Option<Vec<u8>>,
+    max_bytes: usize,
+) -> io::Result<Lines> {
+    run(command, Duration::MAX, Some(idle), input, max_bytes)
+}
+
+fn run(
+    command: &mut Command,
+    timeout: Duration,
+    idle: Option<Duration>,
+    input: Option<Vec<u8>>,
+    max_bytes: usize,
+) -> io::Result<Lines> {
     let timeout = bounded_timeout(timeout)?;
     let started = Instant::now();
-    fn drain(mut stream: impl Read, max: usize) -> io::Result<Vec<u8>> {
+    // When stdout last completed a line.
+    let last_line = std::sync::Arc::new(std::sync::Mutex::new(started));
+    fn drain(
+        mut stream: impl Read,
+        max: usize,
+        last_line: Option<std::sync::Arc<std::sync::Mutex<Instant>>>,
+    ) -> io::Result<Vec<u8>> {
         let mut bytes = Vec::new();
         let mut buffer = [0u8; 8192];
         let mut exceeded = false;
@@ -97,6 +134,11 @@ pub fn capture_bounded(
             let keep = n.min(max.saturating_sub(bytes.len()));
             bytes.extend_from_slice(&buffer[..keep]);
             exceeded |= keep != n;
+            if let Some(last) = &last_line
+                && buffer[..n].contains(&b'\n')
+            {
+                *last.lock().unwrap_or_else(|e| e.into_inner()) = Instant::now();
+            }
         }
         if exceeded {
             Err(io::Error::new(
@@ -120,8 +162,9 @@ pub fn capture_bounded(
         })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+    let spawn_limit = idle.map_or(timeout, |idle| idle.min(timeout));
     let mut child = loop {
-        if started.elapsed() >= timeout {
+        if started.elapsed() >= spawn_limit {
             return Err(io::Error::new(io::ErrorKind::TimedOut, "command timed out"));
         }
         match command.spawn() {
@@ -130,7 +173,7 @@ pub fn capture_bounded(
             // a freshly materialized helper, even after this thread closed it.
             // No child ran on ETXTBSY; retry without extending its time budget.
             Err(error) if error.kind() == io::ErrorKind::ExecutableFileBusy => {
-                let remaining = timeout.saturating_sub(started.elapsed());
+                let remaining = spawn_limit.saturating_sub(started.elapsed());
                 std::thread::sleep(remaining.min(Duration::from_millis(10)));
             }
             Err(error) => return Err(error),
@@ -143,9 +186,28 @@ pub fn capture_bounded(
     // Drain both pipes concurrently, including during the deadline wait.
     let stdout = child.stdout.take().expect("piped stdout");
     let stderr = child.stderr.take().expect("piped stderr");
-    let out = std::thread::spawn(move || drain(stdout, max_bytes));
-    let err = std::thread::spawn(move || drain(stderr, max_bytes));
-    let status = child.wait_timeout(timeout.saturating_sub(started.elapsed()));
+    let progress = idle.map(|_| last_line.clone());
+    let out = std::thread::spawn(move || drain(stdout, max_bytes, progress));
+    let err = std::thread::spawn(move || drain(stderr, max_bytes, None));
+    let mut stalled = false;
+    let status = loop {
+        let left = timeout.saturating_sub(started.elapsed());
+        let Some(idle) = idle else {
+            break child.wait_timeout(left);
+        };
+        let quiet = last_line
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .elapsed();
+        if quiet >= idle {
+            stalled = true;
+            break Ok(None);
+        }
+        match child.wait_timeout(left.min(idle - quiet)) {
+            Ok(None) if !left.is_zero() && started.elapsed() < timeout => continue,
+            other => break other,
+        }
+    };
     if !matches!(status, Ok(Some(_))) {
         #[cfg(unix)]
         {
@@ -159,7 +221,7 @@ pub fn capture_bounded(
         let _ = child.kill();
         let _ = child.wait();
     }
-    let stdout = out
+    let mut stdout = out
         .join()
         .map_err(|_| io::Error::other("stdout reader panicked"))??;
     let stderr = err
@@ -176,14 +238,35 @@ pub fn capture_bounded(
             return Err(error);
         }
     }
+    if stalled {
+        // A line cut by the kill is not a line.
+        stdout.truncate(
+            stdout
+                .iter()
+                .rposition(|b| *b == b'\n')
+                .map_or(0, |i| i + 1),
+        );
+        return Ok(Lines {
+            output: Output {
+                success: false,
+                code: None,
+                stdout,
+                stderr,
+            },
+            stalled,
+        });
+    }
     let Some(status) = status? else {
         return Err(io::Error::new(io::ErrorKind::TimedOut, "command timed out"));
     };
-    Ok(Output {
-        success: status.success(),
-        code: status.code(),
-        stdout,
-        stderr,
+    Ok(Lines {
+        output: Output {
+            success: status.success(),
+            code: status.code(),
+            stdout,
+            stderr,
+        },
+        stalled,
     })
 }
 
@@ -247,6 +330,60 @@ mod tests {
             );
             assert!(started.elapsed() < Duration::from_secs(2));
         }
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_command_that_keeps_printing_runs_past_its_idle_limit() {
+        let started = Instant::now();
+        let lines = capture_lines(
+            Command::new("/bin/sh").args([
+                "-c",
+                "for i in 1 2 3 4 5 6; do echo line$i; sleep 0.2; done",
+            ]),
+            Duration::from_millis(600),
+            None,
+            1 << 20,
+        )
+        .unwrap();
+        assert!(!lines.stalled);
+        assert!(lines.output.success);
+        assert!(started.elapsed() >= Duration::from_millis(1100));
+        assert_eq!(
+            String::from_utf8(lines.output.stdout).unwrap(),
+            "line1\nline2\nline3\nline4\nline5\nline6\n"
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn a_command_that_stops_printing_is_killed_and_keeps_its_whole_lines() {
+        let started = Instant::now();
+        let lines = capture_lines(
+            Command::new("/bin/sh").args(["-c", "echo first; printf partial; sleep 10 & wait"]),
+            Duration::from_millis(300),
+            None,
+            1 << 20,
+        )
+        .unwrap();
+        assert!(lines.stalled);
+        assert!(started.elapsed() < Duration::from_secs(5));
+        assert_eq!(String::from_utf8(lines.output.stdout).unwrap(), "first\n");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn the_request_deadline_still_bounds_a_command_that_keeps_printing() {
+        let started = Instant::now();
+        let _request = deadline_scope(Some(started + Duration::from_millis(400)));
+        let result = capture_lines(
+            Command::new("/bin/sh").args(["-c", "while true; do echo tick; sleep 0.05; done"]),
+            Duration::from_secs(5),
+            None,
+            1 << 20,
+        );
+        assert_eq!(result.err().unwrap().kind(), io::ErrorKind::TimedOut);
+        assert!(started.elapsed() < Duration::from_secs(3));
     }
 
     #[test]

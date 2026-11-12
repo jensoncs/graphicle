@@ -18,6 +18,16 @@ versioned together at 0.2.0.
   process rebuilt it, about 4 s). A kept helper is used only when this user
   alone can write it and its folder. GitNexus (7,555 files): 71 s to 51 s;
   kodus-ai (6,625): 41 s to 31 s; trader (Go): 35 s to 20 s.
+- Go call resolution no longer loses every call on a large repository. The
+  type-checking helper discovers and checks each module on its own core (it
+  went one module at a time), reports each module as it finishes, and is
+  stopped only after five minutes with no module finishing (it was stopped
+  five minutes after it started, and every Go call was then marked
+  `go_analysis_timeout`). When it is stopped, finished modules keep their
+  calls and only the rest are marked. Its output bound grows with the number
+  of Go files (it was 64 MiB; a 6,900-file repository printed 214 MB).
+  Output is unchanged. Helper run on hyperion (6,925 Go files, offline):
+  475 s to 155 s.
 - Basic review impact parses its sources on every core before reading them
   (it parsed them one at a time), so TypeScript, JavaScript, Python, Rust and
   Bash reviews spend less time per side. Output is byte-identical. Per side:
