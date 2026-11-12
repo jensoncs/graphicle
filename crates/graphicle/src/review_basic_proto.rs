@@ -136,7 +136,7 @@ impl<'a> Parser<'a> {
         self.stack.iter().rev().find_map(|s| s.decl)
     }
     fn reference(&mut self, owner: Option<usize>, at: usize, option: bool) {
-        let (Tok::Word(name), start, end) = self.toks[at] else {
+        let Some(&(Tok::Word(name), start, end)) = self.toks.get(at) else {
             return;
         };
         if option || !SCALARS.contains(&name) {
@@ -604,6 +604,23 @@ extend google.protobuf.FieldOptions { optional Config field = 1159; }
             p.refs.iter().map(|r| r.name.as_str()).collect::<Vec<_>>(),
             ["B"]
         );
+    }
+
+    #[test]
+    fn a_file_cut_off_anywhere_parses_without_panicking() {
+        for end in 0..=PROTO.len() {
+            if PROTO.is_char_boundary(end) {
+                parse(&PROTO[..end]);
+            }
+        }
+        for cut in [
+            "service S { rpc X(",
+            "service S { rpc X(stream",
+            "message A { map<",
+            "option (",
+        ] {
+            assert!(parse(cut).decls.iter().all(|d| d.end > 0));
+        }
     }
 
     #[test]
