@@ -952,10 +952,13 @@ impl Store {
                 Ok(contents)
             })?;
             let batch = &work[start..start + contents.len()];
-            let rows: Vec<_> = batch
-                .iter()
-                .zip(&contents)
-                .map(|(document, content)| -> Result<_> {
+            // Each document's parse and chunks depend only on its own bytes:
+            // compute them on every core, in order, then write them serially.
+            let pairs: Vec<_> = batch.iter().zip(&contents).collect();
+            let rows: Vec<_> = graphicle_memory::cache::par_map(
+                &pairs,
+                || (),
+                |_, (document, content)| -> Result<_> {
                     let analysis = if document.analyze {
                         Some(analysis_row(
                             &document.path,
@@ -972,8 +975,11 @@ impl Store {
                         Vec::new()
                     };
                     Ok((analysis, chunks))
-                })
-                .collect::<Result<_>>()?;
+                },
+            )
+            .into_iter()
+            .collect::<Result<_>>()?;
+            drop(pairs);
             drop(contents);
             self.authorized(workspace, token, "collect", |db, p| {
                 let repository = repo(db, p, string(args, "repository_id", 100)?)?;
