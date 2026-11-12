@@ -94,3 +94,40 @@ fn a_package_outside_the_workspace_or_with_a_shared_name_stays_unresolved() {
     assert!(targets(&raw, "@internal/twin").is_empty());
     assert!(unresolved(&raw, "@internal/twin"));
 }
+
+#[test]
+fn the_nearest_workspace_root_and_tsconfig_govern_an_import() {
+    let raw = build(&[
+        // pnpm's file defines a root that also has package.json workspaces.
+        ("package.json", r#"{"workspaces": ["outer/*"]}"#),
+        ("pnpm-workspace.yaml", "packages:\n  - 'apps/*'\n  - 'apps/inner/libs/*'\n"),
+        ("outer/core/package.json", r#"{"name": "@internal/core", "main": "index.ts"}"#),
+        ("outer/core/index.ts", CORE),
+        ("apps/a/package.json", r#"{"name": "@internal/core", "main": "index.ts"}"#),
+        ("apps/a/index.ts", CORE),
+        // A nested root lists its own member under the same name.
+        ("apps/inner/package.json", r#"{"name": "inner", "workspaces": ["libs/*"]}"#),
+        ("apps/inner/libs/core/package.json", r#"{"name": "@internal/core", "main": "index.ts"}"#),
+        ("apps/inner/libs/core/index.ts", CORE),
+        ("apps/inner/libs/app/src/a.ts", APP),
+        ("apps/b/src/a.ts", "import '@internal/core';\n"),
+        // The nearest tsconfig maps `@x/*`; the outer one would not.
+        ("tsconfig.json", r#"{"compilerOptions": {"paths": {"@x/*": ["nowhere/*"]}}}"#),
+        ("apps/b/tsconfig.json", r#"{"compilerOptions": {"paths": {"@x/*": ["./src/*"]}}}"#),
+        ("apps/b/src/x.ts", CORE),
+        ("apps/b/src/y.ts", "import '@x/x';\n"),
+    ]);
+    let edges = |source: &str, module: &str| -> Vec<String> {
+        raw["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["source"] == source && e["module"] == module)
+            .map(|e| e["target"].as_str().unwrap().to_string())
+            .collect()
+    };
+    assert_eq!(edges("apps/inner/libs/app/src/a.ts", "@internal/core"), ["apps/inner/libs/core/index.ts"]);
+    // In pnpm's root, apps/a and apps/inner/libs/core share the name.
+    assert!(edges("apps/b/src/a.ts", "@internal/core").is_empty());
+    assert_eq!(edges("apps/b/src/y.ts", "@x/x"), ["apps/b/src/x.ts"]);
+}

@@ -612,7 +612,13 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
         }
         // Reuse the existing static import resolver. Its targets remain
         // candidates here: a source layout is not a pinned runtime/build path.
-        let graph = structure::graph(&Value::Object(analyses))?;
+        let graph = match structure::graph(&Value::Object(analyses)) {
+            Ok(graph) => graph,
+            Err(error) => {
+                checkpoint()?; // past the deadline: a timeout, not a failed graph
+                return Err(error.into());
+            }
+        };
         for edge in graph["edges"]
             .as_array()
             .into_iter()

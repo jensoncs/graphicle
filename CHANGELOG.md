@@ -38,7 +38,10 @@ versioned together at 0.2.0.
   tsconfig) or every import edge for each re-export, so its cost is linear:
   15,700 files take 2.0 s (13.8 s before). Its bound is now 100,000 files.
   A stored project's query still reads file relationships from its code
-  graph past 5,000 files.
+  graph past 5,000 files. Each import finds its tsconfig and workspace root
+  by walking up its own directories, and a member by its package name, so
+  a manifest of many configs or workspace roots costs no more per import
+  (30,000 of each: 0.35 s); the request deadline is checked per file.
 - Basic review resolves imports of a JavaScript/TypeScript workspace's own
   packages (`@scope/pkg`, `@scope/pkg/sub`) to the member's source entry,
   from the root `package.json` `workspaces` or `pnpm-workspace.yaml`, as the

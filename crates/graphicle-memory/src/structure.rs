@@ -1109,6 +1109,8 @@ pub fn graph(analyses: &Value) -> Result<Value> {
     let mut unresolved = Vec::new();
     let mut seen = BTreeSet::new();
     for (path, analysis) in analyses {
+        // A request's deadline bounds a large manifest.
+        graphicle::process::check_deadline().map_err(|_| "Graph request deadline exceeded")?;
         for (field, relation) in [("imports", "imports"), ("links", "document_link")] {
             for item in get_items(analysis, field) {
                 let module = item.get("module").and_then(Value::as_str).unwrap_or("");
