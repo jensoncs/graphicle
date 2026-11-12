@@ -77,7 +77,12 @@ pub(super) fn queries(content: &str) -> Vec<Query> {
         .captures_iter(content)
         .map(|c| (c.get(0).unwrap().start(), c[1].to_string()))
         .collect();
-    let line = |at: usize| content[..at].matches('\n').count() + 1;
+    // Offsets only grow, so lines are counted forward once over the file.
+    let mut cursor = (0, 1);
+    let mut line = |at: usize| {
+        cursor = (at, cursor.1 + content[cursor.0..at].matches('\n').count());
+        cursor.1
+    };
     starts
         .iter()
         .enumerate()
@@ -186,19 +191,20 @@ pub(super) fn under(file: &str, paths: &[String]) -> bool {
 }
 
 /// The generated Go file sqlc writes for query file `file` in `out`, when it
-/// is in the snapshot and declares `name` as a method.
+/// is in the snapshot, and the methods it declares.
 pub(super) fn generated<'a>(
     out: &str,
     file: &str,
-    name: &str,
     text: impl Fn(&str) -> Option<&'a str>,
-) -> Option<String> {
+) -> Option<(String, BTreeSet<&'a str>)> {
     let go = format!("{out}/{}.go", file.rsplit('/').next()?);
-    let declared = format!(") {name}(");
-    text(&go)?
+    let methods = text(&go)?
         .lines()
-        .any(|l| l.starts_with("func (") && l.contains(&declared))
-        .then_some(go)
+        .filter_map(|l| l.strip_prefix("func ("))
+        .filter_map(|l| l.split_once(") ")?.1.split_once('('))
+        .map(|(name, _)| name)
+        .collect();
+    Some((go, methods))
 }
 
 #[cfg(test)]
@@ -219,6 +225,23 @@ mod tests {
         );
         assert_eq!(&sql[q[0].body_start..q[0].end], "SELECT 1;");
         assert_eq!((q[1].line, q[1].end_line), (5, 6));
+    }
+
+    #[test]
+    fn many_query_blocks_and_methods_cost_linear_time() {
+        let n = 40_000;
+        let sql: String = (0..n)
+            .map(|i| format!("-- name: Q{i} :one\nSELECT * FROM t{i};\n"))
+            .collect();
+        let go: String = (0..n)
+            .map(|i| format!("func (q *Queries) Q{i}(ctx context.Context) error {{\n"))
+            .collect();
+        let started = std::time::Instant::now();
+        let q = queries(&sql);
+        assert_eq!((q.len(), q[n - 1].line), (n, 2 * n - 1));
+        let methods = generated("gen", "q/a.sql", |_| Some(go.as_str())).unwrap();
+        assert!(q.iter().all(|q| methods.1.contains(q.name.as_str())));
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
     }
 
     #[test]
@@ -270,10 +293,9 @@ mod tests {
         assert!(under("repo/q/a.sql", &c[0].queries) && !under("repo/qq/a.sql", &c[0].queries));
         let go = "package db\nfunc (q *Queries) GetUser(ctx context.Context) error {\n";
         let text = |p: &str| (p == "repo/gen/a.sql.go").then_some(go);
-        assert_eq!(
-            generated("repo/gen", "repo/q/a.sql", "GetUser", text).as_deref(),
-            Some("repo/gen/a.sql.go")
-        );
-        assert_eq!(generated("repo/gen", "repo/q/a.sql", "Other", text), None);
+        let (file, methods) = generated("repo/gen", "repo/q/a.sql", text).unwrap();
+        assert_eq!(file, "repo/gen/a.sql.go");
+        assert_eq!(methods, BTreeSet::from(["GetUser"]));
+        assert!(generated("repo/gen", "repo/q/b.sql", text).is_none());
     }
 }

@@ -506,18 +506,20 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
         }
         if *lang == "sql" && ext == "sql" && !minified(ext, content) {
             let found = super::basic_sql::queries(content);
-            let generated_in = sqlc
+            let generated = sqlc
                 .iter()
                 .find(|c| super::basic_sql::under(path, &c.queries))
-                .and_then(|c| c.out.as_deref());
+                .and_then(|c| c.out.as_deref())
+                .and_then(|o| super::basic_sql::generated(o, path, text));
             let symbols: Vec<Value> = found
                 .iter()
                 .map(|q| {
                     let mut d = json!({"name":q.name,"kind":"sql_query","byte_start":q.start,"byte_end":q.end,"body_start":q.body_start,"line":q.line,"end_line":q.end_line});
-                    if let Some(go) = generated_in
-                        .and_then(|o| super::basic_sql::generated(o, path, &q.name, text))
+                    if let Some((go, _)) = generated
+                        .as_ref()
+                        .filter(|(_, methods)| methods.contains(q.name.as_str()))
                     {
-                        d["generated"] = json!({"file":input.sources[&go].path,"function":q.name});
+                        d["generated"] = json!({"file":input.sources[go].path,"function":q.name});
                     }
                     d
                 })
@@ -826,6 +828,7 @@ fn sql_tables(
             .iter()
             .filter(|(p, _)| super::basic_sql::under(p, &config.queries))
         {
+            checkpoint()?;
             let content = input.sources[*file].content.text().unwrap_or("");
             for q in found {
                 let caller = symbol_key(file, &q.name);

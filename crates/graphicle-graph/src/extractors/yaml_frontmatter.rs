@@ -338,6 +338,47 @@ fn scalar(text: &str, explicit: &str, implicit: bool) -> Result<Value> {
         _ => Err("Unsupported safe YAML scalar tag".into()),
     }
 }
+/// Nodes that aliases may add to a document when it is expanded. A few
+/// written aliases of aliases otherwise expand exponentially.
+const ALIAS_EXPANSION_ALLOWANCE: usize = 1_000_000;
+
+/// Refuses, before expanding, a document whose aliases expand past the
+/// allowance, and the recursive or too deeply nested documents [`expand`]
+/// refuses (with its error). Linear in the written nodes.
+fn check_expansion(nodes: &[Node], roots: &[usize]) -> Result<()> {
+    fn size(nodes: &[Node], id: usize, depth: usize, memo: &mut [Option<usize>]) -> Result<usize> {
+        if depth > 128 || memo[id] == Some(0) {
+            return Err("Recursive or excessively nested YAML".into());
+        }
+        if let Some(n) = memo[id] {
+            return Ok(n);
+        }
+        memo[id] = Some(0);
+        let n = match &nodes[id] {
+            Node::Alias(target) => size(nodes, *target, depth + 1, memo)?,
+            Node::Sequence(children, _) | Node::Mapping(children, _) => {
+                let mut n = 1usize;
+                for &child in children {
+                    n = n.saturating_add(size(nodes, child, depth + 1, memo)?);
+                }
+                n
+            }
+            _ => 1,
+        };
+        memo[id] = Some(n);
+        Ok(n)
+    }
+    let mut memo = vec![None; nodes.len()];
+    let mut total = 0usize;
+    for &root in roots {
+        total = total.saturating_add(size(nodes, root, 0, &mut memo)?);
+    }
+    if total > nodes.len().saturating_add(ALIAS_EXPANSION_ALLOWANCE) {
+        return Err("YAML aliases expand too far".into());
+    }
+    Ok(())
+}
+
 fn expand(nodes: &[Node], id: usize, depth: usize) -> Result<Value> {
     // Refuse recursive aliases before materializing JSON; the Python exporter
     // cannot serialize these either. The caller uses its flat fallback.
@@ -526,6 +567,7 @@ pub fn parse(text: &str) -> Result<Value> {
     if builder.roots.len() > 1 {
         return Err("Expected one YAML document".into());
     }
+    check_expansion(&builder.nodes, &builder.roots)?;
     match builder.roots.first() {
         Some(&root) => expand(&builder.nodes, root, 0),
         None => Ok(Value::Null),
@@ -665,6 +707,7 @@ pub fn parse_all(text: &str) -> Result<Vec<Loaded>> {
     if let Some(error) = builder.error {
         return Err((error).into());
     }
+    check_expansion(&builder.nodes, &builder.roots)?;
     builder
         .roots
         .iter()
@@ -739,6 +782,25 @@ mod tests {
         // The text is scanned again after a moved line, so a duplicate anchor
         // after it is still refused, as PyYAML refuses it.
         assert!(parse("a: &x [\n'1'\n]\nb: &x 2").is_err());
+    }
+
+    #[test]
+    fn aliases_that_expand_exponentially_are_refused() {
+        // Ten levels of ten aliases each: 10^10 nodes from 100 written.
+        let mut text = "l0: &l0 [x, x, x, x, x, x, x, x, x, x]\n".to_string();
+        for level in 1..=10 {
+            let refs = vec![format!("*l{}", level - 1); 10].join(", ");
+            text.push_str(&format!("l{level}: &l{level} [{refs}]\n"));
+        }
+        let started = std::time::Instant::now();
+        assert!(parse(&text).is_err());
+        assert!(super::parse_all(&text).is_err());
+        assert!(started.elapsed() < std::time::Duration::from_secs(5));
+        // Aliases that stay small are expanded as before.
+        assert_eq!(
+            parse("a: &a [1, 2]\nb: [*a, *a]").unwrap()["b"],
+            json!([[1, 2], [1, 2]])
+        );
     }
 
     #[test]

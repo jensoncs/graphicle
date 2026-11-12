@@ -42,6 +42,10 @@ versioned together at 0.2.0.
   by walking up its own directories, and a member by its package name, so
   a manifest of many configs or workspace roots costs no more per import
   (30,000 of each: 0.35 s); the request deadline is checked per file.
+- YAML whose aliases expand past a million nodes beyond the written ones is
+  refused before it is expanded (ten levels of ten aliases each never
+  finished). Basic review's sqlc query blocks are split, and their generated
+  methods read, in linear time.
 - Basic review covers SQL in sqlc projects. Each `-- name: X :kind` block in
   an sqlc query file is a declaration that names its generated Go method and
   file when they are in the snapshot. A query is linked to the schema files
