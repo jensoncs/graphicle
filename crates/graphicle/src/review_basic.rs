@@ -48,6 +48,7 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
             "ts" | "tsx" | "mts" | "cts" => "typescript",
             "js" | "jsx" | "mjs" | "cjs" => "javascript",
             "sql" => "sql",
+            "proto" => "proto",
             _ if name.ends_with(".tf.json")
                 || name.ends_with(".tfvars.json")
                 || name == ".terraform.lock.hcl" =>
@@ -75,6 +76,13 @@ pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
             }
             _ if matches!(name, "tsconfig.json" | "jsconfig.json") => "typescript",
             _ if matches!(name, "sqlc.yaml" | "sqlc.yml" | "sqlc.json") => "sql",
+            _ if matches!(
+                name,
+                "buf.yaml" | "buf.work.yaml" | "buf.gen.yaml" | "buf.lock"
+            ) =>
+            {
+                "proto"
+            }
             _ if matches!(
                 name,
                 "package.json"
@@ -396,6 +404,17 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
         .flat_map(|p| super::basic_sql::configs(p, text(p).unwrap_or("")))
         .collect();
     let mut sql_queries = BTreeMap::<&str, Vec<super::basic_sql::Query>>::new();
+    let mut protos = BTreeMap::<&str, super::basic_proto::Proto>::new();
+    let mut pb_go = BTreeMap::<(&str, &str), Vec<&str>>::new();
+    for path in input.sources.keys() {
+        if let Some(stem) = path.strip_suffix(".pb.go") {
+            let repo = path.split('/').next().unwrap_or("");
+            pb_go
+                .entry((repo, stem.rsplit('/').next().unwrap_or("")))
+                .or_default()
+                .push(path);
+        }
+    }
     for (path, lang) in &files {
         checkpoint()?;
         *counts.entry(lang).or_default() += 1;
@@ -535,6 +554,42 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             ));
             sql_queries.insert(path, found);
         }
+        if *lang == "proto" && ext == "proto" && !minified(ext, content) {
+            let parsed = super::basic_proto::parse(content);
+            if parsed.incomplete {
+                out.issues.push(issue(
+                    "basic_parse_incomplete",
+                    json!({"file":path,"issues":["unbalanced braces"]}),
+                ));
+            }
+            let generated = proto_generated(input, &pb_go, path, &parsed);
+            let line = super::basic_proto::lines(content);
+            let symbols: Vec<Value> = parsed
+                .decls
+                .iter()
+                .map(|d| {
+                    let mut v = json!({"name":d.name,"kind":d.kind,"byte_start":d.start,"byte_end":d.end,"body_start":d.body_start,"line":line(d.start),"end_line":line(d.end)});
+                    let go = super::basic_proto::go_name(&d.name);
+                    if let Some((file, types)) = generated.as_ref().filter(|_| {
+                        matches!(d.kind, "proto_message" | "proto_enum")
+                    }) && types.contains(go.as_str())
+                    {
+                        v["generated"] = json!({"file":file,"type":go});
+                    }
+                    v
+                })
+                .collect();
+            inventory["declarations"] = json!(symbols.iter().take(128).collect::<Vec<_>>());
+            inventory["declarations_omitted"] = json!(symbols.len().saturating_sub(128));
+            declared.extend(declaration_nodes(
+                out,
+                &owner,
+                path,
+                content,
+                &json!({ "symbols": symbols }),
+            ));
+            protos.insert(path, parsed);
+        }
         out.inputs.push(inventory);
         let group = match *lang {
             "helm" => ancestor_file(input, path, "Chart.yaml"),
@@ -544,6 +599,8 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             // A build/packaging configuration can affect every source in its
             // nearest project. This is conservative scope, not a call relation.
             "rust" => ancestor_file(input, path, "Cargo.toml"),
+            "proto" => ancestor_file(input, path, "buf.yaml")
+                .or_else(|| ancestor_file(input, path, "buf.work.yaml")),
             "sql" => ancestor_file(input, path, "sqlc.yaml")
                 .or_else(|| ancestor_file(input, path, "sqlc.yml"))
                 .or_else(|| ancestor_file(input, path, "sqlc.json")),
@@ -571,6 +628,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "helm"=>"Chart source scope only; no rendering, release values, cluster capabilities or remote chart resolution",
                 "bash"=>"Literal script paths are candidates; working directory, PATH, expansions and dynamic commands are unresolved",
                 "python"=>"Local import candidates, calls bound by name through a visible declaration or explicit import, and literal environment reads only; runtime environments, dynamic imports, rebinding, method calls and runtime dispatch are not resolved",
+                "proto"=>"Messages, enums, services, rpcs and extensions are declarations; a field's, rpc's or extension's message or enum type and a custom option name link it to the declaration of that name in its file or its imports, by protobuf scoping; an import names the one snapshot .proto at that path or ending in it (no buf or protoc import roots); the generated Go type is named, but its Go callers, option values, field numbers and wire compatibility are not resolved",
                 "sql"=>"sqlc query blocks are declarations; a query's FROM, JOIN, INTO and UPDATE tables link it to the sqlc schema files that create, alter, drop or write a table of that name, as candidates; the generated Go method is named, but its Go callers, views, functions, search paths and dynamic SQL are not resolved; SQL outside an sqlc configuration is file level only",
                 "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates, calls bound by name through a visible declaration or explicit import, and, in repositories within 64 MiB of sources, calls the oxc binder resolves (new, and methods on a receiver typed by an annotation or made by new); node_modules, package exports, CommonJS require, dynamic import(), bundler aliases, JSX, callbacks and untyped receivers are not resolved",
                 _=>"Local module candidates and calls bound by name through a visible declaration or explicit import only; Cargo resolution, cfg, macros, build scripts, method calls and trait dispatch are not resolved"
@@ -601,7 +659,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                     .is_some_and(|n| n == "build.rs")
                 || !(matches!(
                     Path::new(member).extension().and_then(|e| e.to_str()),
-                    Some("py" | "pyi" | "rs" | "sql")
+                    Some("py" | "pyi" | "rs" | "sql" | "proto")
                 ) || script_source(
                     Path::new(member)
                         .extension()
@@ -799,7 +857,135 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             }
         }
     }
-    sql_tables(input, &files, &sqlc, &sql_queries, &declared, out)
+    sql_tables(input, &files, &sqlc, &sql_queries, &declared, out)?;
+    proto_types(input, &protos, &declared, out)
+}
+
+/// The generated `.pb.go` of a proto file and the types it declares: the one
+/// snapshot `<stem>.pb.go` in the proto's folder or in a folder that ends
+/// its `go_package` import path.
+fn proto_generated<'a>(
+    input: &'a Input,
+    pb_go: &BTreeMap<(&str, &str), Vec<&str>>,
+    path: &str,
+    proto: &super::basic_proto::Proto,
+) -> Option<(&'a str, BTreeSet<&'a str>)> {
+    let (repo, rest) = path.split_once('/')?;
+    let stem = rest.rsplit('/').next()?.strip_suffix(".proto")?;
+    let folder = rest.rsplit_once('/').map_or("", |(d, _)| d);
+    let import = proto
+        .go_package
+        .as_deref()
+        .map(|g| g.split(';').next().unwrap_or(g));
+    let found: Vec<&str> = pb_go
+        .get(&(repo, stem))?
+        .iter()
+        .copied()
+        .filter(|go| {
+            let dir = go[repo.len() + 1..].rsplit_once('/').map_or("", |(d, _)| d);
+            dir == folder || import.is_some_and(|i| i == dir || i.ends_with(&format!("/{dir}")))
+        })
+        .collect();
+    let [go] = found[..] else {
+        return None;
+    };
+    let source = &input.sources[go];
+    Some((
+        source.path.as_str(),
+        super::basic_proto::go_types(source.content.text()?),
+    ))
+}
+
+/// Each proto declaration's `uses_type` edges to the messages, enums and
+/// extensions its fields, rpcs and custom options name in its file and the
+/// files it imports.
+fn proto_types(
+    input: &Input,
+    protos: &BTreeMap<&str, super::basic_proto::Proto>,
+    declared: &BTreeSet<String>,
+    out: &mut Analysis,
+) -> Result<()> {
+    let mut index = std::collections::HashMap::<String, Vec<(&str, &str)>>::new();
+    for (file, proto) in protos {
+        for d in &proto.decls {
+            let full = match proto.package.as_str() {
+                "" => d.name.clone(),
+                package => format!("{package}.{}", d.name),
+            };
+            index.entry(full).or_default().push((file, &d.name));
+        }
+    }
+    let mut by_suffix = std::collections::HashMap::<(&str, &str), Vec<&str>>::new();
+    for file in protos.keys() {
+        let (repo, rest) = file.split_once('/').unwrap_or(("", file));
+        let mut tail = rest;
+        loop {
+            by_suffix.entry((repo, tail)).or_default().push(file);
+            match tail.split_once('/') {
+                Some((_, next)) => tail = next,
+                None => break,
+            }
+        }
+    }
+    for (file, proto) in protos {
+        checkpoint()?;
+        let repo = file.split('/').next().unwrap_or("");
+        let mut visible = BTreeSet::from([*file]);
+        for import in &proto.imports {
+            match by_suffix.get(&(repo, import.as_str())).map(Vec::as_slice) {
+                Some([target]) => {
+                    visible.insert(target);
+                }
+                found if !import.starts_with("google/protobuf/") => out.issues.push(issue(
+                    "proto_import_unresolved",
+                    json!({"file":file,"import":import,"candidates":found.map_or(0, <[_]>::len)}),
+                )),
+                _ => {}
+            }
+        }
+        let content = input.sources[*file].content.text().unwrap_or("");
+        let line = super::basic_proto::lines(content);
+        for r in &proto.refs {
+            let caller = r
+                .owner
+                .map(|o| symbol_key(file, &proto.decls[o].name))
+                .filter(|k| declared.contains(k))
+                .unwrap_or_else(|| file_key(file));
+            let target = super::basic_proto::candidates(&proto.package, &r.scope, &r.name)
+                .iter()
+                .find_map(|full| {
+                    let found: Vec<_> = index
+                        .get(full)?
+                        .iter()
+                        .filter(|(f, _)| visible.contains(f))
+                        .collect();
+                    match found[..] {
+                        [one] => Some(*one),
+                        _ => None,
+                    }
+                });
+            let Some((target_file, name)) = target else {
+                continue;
+            };
+            let target = symbol_key(target_file, name);
+            if declared.contains(&target) {
+                edge(
+                    out,
+                    (file, &caller),
+                    (target_file, &target),
+                    "uses_type",
+                    if r.option {
+                        "proto_custom_option_name"
+                    } else {
+                        "proto_type_name"
+                    },
+                    line(r.start),
+                    r.start..r.end,
+                );
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Each sqlc query's `uses_table` edges to the schema files that touch a
@@ -1172,6 +1358,89 @@ mod tests {
                         .is_some_and(|f| f.ends_with(".sql"))),
             "{}",
             r["coverage"]["issues"]
+        );
+    }
+
+    #[test]
+    fn a_changed_proto_message_selects_its_users_through_types_and_options() {
+        let files = |money: &str, rules: &str| {
+            input(&[
+                (
+                    "repo/proto/common/v1/common.proto",
+                    &format!(
+                        "syntax = \"proto3\";\npackage common.v1;\nimport \"google/protobuf/descriptor.proto\";\n\nmessage Money {{\n  {money}\n}}\n\nmessage Rules {{\n  {rules}\n}}\n\nextend google.protobuf.FieldOptions {{\n  optional Rules rules = 50000;\n}}\n"
+                    ),
+                ),
+                (
+                    "repo/proto/order/v1/order.proto",
+                    "syntax = \"proto3\";\npackage order.v1;\nimport \"common/v1/common.proto\";\nimport \"missing/thing.proto\";\noption go_package = \"github.com/acme/repo/gen/order/v1;orderv1\";\n\nmessage Order {\n  common.v1.Money total = 1;\n  Line line = 2;\n  message Line {\n    string sku = 1 [(common.v1.rules).required = true];\n  }\n}\n\nmessage Other {\n  string note = 1;\n}\n\nservice Orders {\n  rpc Get(Order) returns (Order);\n}\n",
+                ),
+                (
+                    "repo/gen/order/v1/order.pb.go",
+                    "package orderv1\n\ntype Order struct {\n}\n\ntype Order_Line struct {\n}\n\ntype Other struct {\n}\n",
+                ),
+            ])
+        };
+        let base = files("int64 units = 1;", "bool required = 1;");
+        let money = report(
+            &base,
+            &files(
+                "int64 units = 1;\n  string currency = 2;",
+                "bool required = 1;",
+            ),
+        );
+        let named = |r: &Value, name: &str| {
+            r["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|e| e["side"] == "head" && e["name"] == name)
+        };
+        assert!(named(&money, "Money"), "{money}");
+        assert!(named(&money, "Order"), "{money}");
+        assert!(named(&money, "Orders.Get"), "{money}");
+        assert!(!named(&money, "Other"));
+        assert!(!named(&money, "Order.Line"));
+        // An option's extension carries a change to its type to the fields
+        // that set it.
+        let rules = report(
+            &base,
+            &files("int64 units = 1;", "bool required = 1;\n  bool strict = 2;"),
+        );
+        assert!(named(&rules, "rules"), "{rules}");
+        assert!(named(&rules, "Order.Line"), "{rules}");
+        assert!(!named(&rules, "Other"));
+        let order = rules["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|e| e["name"] == "Order.Line")
+            .unwrap();
+        assert_eq!(
+            order["generated"],
+            json!({"file":"gen/order/v1/order.pb.go","type":"Order_Line"})
+        );
+        let issues = rules["coverage"]["issues"].as_array().unwrap();
+        assert!(
+            issues
+                .iter()
+                .any(|i| i["reason"] == "proto_import_unresolved"
+                    && i["detail"]["import"] == "missing/thing.proto"),
+            "{issues:?}"
+        );
+        assert!(
+            !issues
+                .iter()
+                .any(|i| i["detail"]["import"] == "google/protobuf/descriptor.proto")
+        );
+        assert!(
+            !issues
+                .iter()
+                .any(|i| i["reason"] == "unsupported_source_language_or_contract"
+                    && i["detail"]["file"]
+                        .as_str()
+                        .is_some_and(|f| f.ends_with(".proto"))),
+            "{issues:?}"
         );
     }
 

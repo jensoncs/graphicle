@@ -42,10 +42,6 @@ versioned together at 0.2.0.
   by walking up its own directories, and a member by its package name, so
   a manifest of many configs or workspace roots costs no more per import
   (30,000 of each: 0.35 s); the request deadline is checked per file.
-- YAML whose aliases expand past a million nodes beyond the written ones is
-  refused before it is expanded (ten levels of ten aliases each never
-  finished). Basic review's sqlc query blocks are split, and their generated
-  methods read, in linear time.
 - Basic review covers SQL in sqlc projects. Each `-- name: X :kind` block in
   an sqlc query file is a declaration that names its generated Go method and
   file when they are in the snapshot. A query is linked to the schema files
@@ -55,6 +51,22 @@ versioned together at 0.2.0.
   functions, search paths and dynamic SQL are not resolved, and SQL outside
   an sqlc configuration is file level. `.sql` files and `sqlc.yaml`/`.yml`/
   `.json` were reported as an unsupported language.
+- Basic review covers Protocol Buffers. Messages, enums, services, rpcs and
+  extensions are declarations, and a message or enum names its generated Go
+  type and `.pb.go` file when they are in the snapshot. A field's, rpc's or
+  extension's type and a custom option (`[(buf.validate.field)...]`) link it
+  to the declaration of that name in its file or its imports, resolved by
+  protobuf scoping, so a changed message selects the messages and rpcs that
+  use it, and a changed option type selects the fields that set the option.
+  An import names the one snapshot `.proto` at that path or ending in it; an
+  import that names none, other than `google/protobuf/`, is reported
+  (`proto_import_unresolved`). `.proto` and `buf.yaml`/`buf.work.yaml`/
+  `buf.gen.yaml`/`buf.lock` were reported as an unsupported language.
+  sharechat-central-protos (305 files): 3,613 type and option links, 0.15 s.
+- YAML whose aliases expand past a million nodes beyond the written ones is
+  refused before it is expanded (ten levels of ten aliases each never
+  finished). Basic review's sqlc query blocks are split, and their generated
+  methods read, in linear time.
 - Basic review resolves imports of a JavaScript/TypeScript workspace's own
   packages (`@scope/pkg`, `@scope/pkg/sub`) to the member's source entry,
   from the root `package.json` `workspaces` or `pnpm-workspace.yaml`, as the

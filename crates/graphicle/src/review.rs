@@ -33,6 +33,8 @@ mod analysis_coverage;
 mod basic;
 #[path = "review_basic_precise.rs"]
 mod basic_precise;
+#[path = "review_basic_proto.rs"]
+mod basic_proto;
 #[path = "review_basic_sql.rs"]
 mod basic_sql;
 #[path = "review_components.rs"]
