@@ -242,13 +242,21 @@ versioned together at 0.2.0.
   not trusted. In JavaScript files `new X()` is a call. Rust calls inside
   macro arguments are calls, `crate::` and the crate's own name resolve from
   the nearest crate root (a workspace member's, or an integration test's
-  crate), and a `use`d module qualifies the calls made through it. Cached
-  analyses are recomputed once (`graphicle-static-rust-12`). Caller recall
-  against SCIP indexes: ds_services (Python) 0.36 to 0.64 and ad-relevance
-  0.45 to 0.63 at precision 1.0; cross-file calls in notification-service-jobs
-  (JavaScript) 0 to 0.54 and tag-chat-service 0 to 0.91; graphicle-memory
-  (Rust) 0.61 to 0.63. Rust method calls and `Type::`/`Self::` paths are
-  still not bound.
+  crate), and a `use`d module qualifies the calls made through it. A Rust
+  method is named by the type its `impl` is for (`Cache.get`, so methods of
+  the same name in two types stay apart), and is reached through `self.m()`,
+  `Self::m()`, `Type::m()` and a receiver whose type the code states: a typed
+  parameter or `let`, a struct literal, or a `Type::f(..)` result (`?`
+  allowed), bound once in the caller. A bare call inside an `impl` is not its
+  method. Cached analyses are recomputed once (`graphicle-static-rust-13`).
+  Caller recall against SCIP indexes: ds_services (Python) 0.36 to 0.64 and
+  ad-relevance 0.45 to 0.63 at precision 1.0; cross-file calls in
+  notification-service-jobs (JavaScript) 0 to 0.54 and tag-chat-service 0 to
+  0.91; graphicle-memory (Rust) 0.61 to 0.75 and graphicle-graph 0.35 to
+  0.50, at the reference's precision (the calls it does not count were
+  checked by hand: calls in macro arguments, `self.cmp()` recorded against
+  `Ord`). Calls through fields (`self.store.get()`) and untyped receivers
+  stay unresolved.
 - Pinned review gives TypeScript and JavaScript the basic file-level impact
   Python and Rust have: `.ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs` importers are
   selected through relative and `tsconfig`/`jsconfig` `paths` import

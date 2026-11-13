@@ -17,7 +17,7 @@ mod python_environment;
 /// the analysis output changes. 10: direct os separator constants and filesystem
 /// encoding calls no longer create false environment-binding escape diagnostics.
 /// 11: package.json and pnpm-workspace.yaml keep what workspace imports resolve by.
-pub const REVISION: &str = "graphicle-static-rust-12";
+pub const REVISION: &str = "graphicle-static-rust-13";
 
 /// Per-file analysis limits. No limit fails an analysis: a
 /// file past one is analysed as far as the limit allows, its analysis is
@@ -359,6 +359,58 @@ fn token_tree_calls<'t>(tree: Node<'t>, source: &[u8]) -> Vec<(String, Node<'t>)
         out.push((callee, tokens[start]));
     }
     out
+}
+
+/// The type a Rust type expression names, when it is one capitalised path:
+/// `&'a mut crate::m::Foo<T>` is `Foo`, `dyn Trait` is `Trait`. Tuples,
+/// slices, primitives and generic parameters' bounds name none.
+fn rust_type(text: &str) -> &str {
+    let mut t = text.trim();
+    loop {
+        let mut next = t.trim_start_matches('&').trim_start();
+        if next.starts_with('\'') {
+            next = next
+                .split_once(char::is_whitespace)
+                .map_or("", |(_, rest)| rest);
+        }
+        for prefix in ["mut ", "dyn ", "impl "] {
+            next = next.strip_prefix(prefix).unwrap_or(next).trim_start();
+        }
+        if next == t {
+            break;
+        }
+        t = next;
+    }
+    let path = t.split('<').next().unwrap_or("").trim_end();
+    let name = path.rsplit("::").next().unwrap_or("");
+    let identifier = name.chars().all(|c| c == '_' || c.is_ascii_alphanumeric());
+    if identifier && name.starts_with(|c: char| c.is_ascii_uppercase()) {
+        name
+    } else {
+        ""
+    }
+}
+
+/// The type a Rust `let` value states: a struct literal `T { .. }` or a
+/// call `T::f(..)`, either followed by `?`. A `T::f` that returns another
+/// type only matters if that type has a method of the called name too.
+fn rust_value_type<'a>(value: Node<'_>, source: &'a [u8]) -> &'a str {
+    let value = if value.kind() == "try_expression" {
+        match value.named_child(0) {
+            Some(inner) => inner,
+            None => return "",
+        }
+    } else {
+        value
+    };
+    match value.kind() {
+        "struct_expression" => rust_type(field(value, "name", source)),
+        "call_expression" => value
+            .child_by_field_name("function")
+            .filter(|f| f.kind() == "scoped_identifier")
+            .map_or("", |f| rust_type(field(f, "path", source))),
+        _ => "",
+    }
 }
 
 /// The module a `require('m')` or `import('m')` call names, when it is one
@@ -750,6 +802,7 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
     let mut issues = Vec::new();
     let mut shadowed = Vec::new();
     let mut default_export = String::new();
+    let mut typed = Vec::new();
     let mut environment = Value::Null;
     let mut environment_limited = false;
     let (mut symbols_full, mut imports_full, mut links_full) = (false, false, false);
@@ -820,13 +873,48 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
                 let name = field(node, "name", raw);
                 if !name.is_empty() {
                     child_scope.push(name.to_owned());
-                    push_within(
-                        &mut symbols,
-                        limits.symbols,
-                        &mut symbols_full,
-                        json!({"name":child_scope.join("."),"kind":definition,
+                    let mut symbol = json!({"name":child_scope.join("."),"kind":definition,
                     "line":line,"end_line":node.end_position().row+1,"byte_start":node.start_byte(),"byte_end":node.end_byte(),
-                    "body_start":node.child_by_field_name("body").map(|body| body.start_byte())}),
+                    "body_start":node.child_by_field_name("body").map(|body| body.start_byte())});
+                    // A Rust method is reached as `self.m()`, `Self::m()` or
+                    // `Type::m()`, never by its bare name.
+                    if ext == "rs"
+                        && node
+                            .parent()
+                            .and_then(|list| list.parent())
+                            .is_some_and(|item| matches!(item.kind(), "impl_item" | "trait_item"))
+                    {
+                        symbol["member"] = json!(true);
+                    }
+                    push_within(&mut symbols, limits.symbols, &mut symbols_full, symbol);
+                }
+            }
+            // `impl Type` (or `impl Trait for Type`) scopes its methods by the
+            // type: `Type.m`.
+            if ext == "rs" && kind == "impl_item" {
+                let name = node
+                    .child_by_field_name("type")
+                    .map_or("", |t| rust_type(value(t, raw)));
+                if !name.is_empty() {
+                    child_scope.push(name.to_owned());
+                }
+            }
+            // The type a Rust binding's code states: `x: T`, `let x: T`,
+            // `let x = T { .. }`, `let x = T::f(..)` (`?` allowed).
+            if ext == "rs"
+                && matches!(kind, "parameter" | "let_declaration")
+                && let Some(pattern) = node.child_by_field_name("pattern")
+                && pattern.kind() == "identifier"
+            {
+                let stated = match node.child_by_field_name("type") {
+                    Some(t) => rust_type(value(t, raw)),
+                    None => node
+                        .child_by_field_name("value")
+                        .map_or("", |v| rust_value_type(v, raw)),
+                };
+                if !stated.is_empty() && typed.len() < limits.symbols {
+                    typed.push(
+                        json!({"name":value(pattern, raw),"scope":scope.join("."),"type":stated}),
                     );
                 }
             }
@@ -1180,6 +1268,9 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
     }
     if !default_export.is_empty() {
         result["default_export"] = json!(default_export);
+    }
+    if !typed.is_empty() {
+        result["typed_bindings"] = json!(typed);
     }
     if let Some(kind) = limited_kind(
         nodes_stopped,

@@ -10,6 +10,12 @@ fn s<'a>(v: &'a Value, key: &str) -> &'a str {
 fn items<'a>(v: &'a Value, key: &str) -> &'a [Value] {
     v[key].as_array().map(Vec::as_slice).unwrap_or(&[])
 }
+fn identifier(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c == '_' || c == '$' || c.is_alphanumeric())
+}
 fn visible(scope: &str, caller: &str) -> bool {
     scope.is_empty()
         || caller == scope
@@ -479,7 +485,7 @@ fn declaration(analysis: &Value, name: &str, caller: &str) -> Option<String> {
                     return true;
                 }
                 let (scope, local) = full.rsplit_once('.').unwrap_or(("", full));
-                local == name && visible(scope, caller)
+                local == name && visible(scope, caller) && v["member"] != true
             })
             .collect(),
     )
@@ -630,11 +636,20 @@ impl<'a> Declarations<'a> {
                 .get(name)
                 .into_iter()
                 .flatten()
-                .filter(|(scope, _)| visible(scope, caller))
+                .filter(|(scope, symbol)| visible(scope, caller) && symbol["member"] != true)
                 .map(|(_, symbol)| *symbol)
                 .collect()
         };
         innermost(matches)
+    }
+    /// The type whose `impl` (or trait) declares the Rust method `caller`.
+    fn impl_type<'c>(&self, caller: &'c str) -> Option<&'c str> {
+        let (parent, _) = caller.rsplit_once('.')?;
+        self.full
+            .get(caller)?
+            .iter()
+            .any(|symbol| symbol["member"] == true)
+            .then_some(parent)
     }
     /// `self.m()` or `cls.m()` in Python, `this.m()` in JavaScript or
     /// TypeScript: the method `m` of the class the caller is defined in,
@@ -648,6 +663,19 @@ impl<'a> Declarations<'a> {
         caller: &str,
         rebound: &HashMap<&str, Vec<&str>>,
     ) -> Option<String> {
+        if path.ends_with(".rs") {
+            // `self.m()` / `Self::m()` in a method: the method `m` of the
+            // type its impl is for. A nested `fn` sees neither.
+            let method = name
+                .strip_prefix("self.")
+                .or_else(|| name.strip_prefix("Self::"))?;
+            if !identifier(method) {
+                return None;
+            }
+            let full = format!("{}.{method}", self.impl_type(caller)?);
+            let unique = self.full.get(full.as_str()).is_some_and(|v| v.len() == 1);
+            return unique.then_some(full);
+        }
         let (head, method) = name.split_once('.')?;
         let python = path.ends_with(".py") || path.ends_with(".pyi");
         let script = [".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"]
@@ -655,10 +683,7 @@ impl<'a> Declarations<'a> {
             .any(|ext| path.ends_with(ext));
         let receiver = (python && matches!(head, "self" | "cls")) || (script && head == "this");
         if !receiver
-            || method.is_empty()
-            || !method
-                .chars()
-                .all(|c| c == '_' || c == '$' || c.is_alphanumeric())
+            || !identifier(method)
             || rebound
                 .get(head)
                 .is_some_and(|scopes| scopes.iter().any(|scope| visible(scope, caller)))
@@ -683,6 +708,90 @@ impl<'a> Declarations<'a> {
             }
             scope = parent;
         }
+    }
+}
+
+/// One file's imports, each with its edges (target, submodule).
+type FileImports<'a> = [(&'a Value, &'a [(&'a str, &'a str)])];
+
+/// The type and method of a Rust call through a stated type: `Type::m`, or
+/// `x.m` where `x` is bound once in the caller's scope and its code states
+/// `Type`. `Self` is the type of the caller's impl.
+fn rust_typed<'n>(
+    name: &'n str,
+    caller: &str,
+    declarations: &Declarations<'_>,
+    typed: &HashMap<&str, Vec<(&str, &str)>>,
+    shadowed: &HashMap<&str, Vec<&str>>,
+) -> Option<(String, &'n str)> {
+    let (stated, method) = match name.split_once("::") {
+        Some((head, method)) => (head, method),
+        None => {
+            let (head, method) = name.split_once('.')?;
+            let visible_in =
+                |scopes: &Vec<&str>| scopes.iter().filter(|scope| visible(scope, caller)).count();
+            let types: Vec<&str> = typed
+                .get(head)
+                .into_iter()
+                .flatten()
+                .filter(|(scope, _)| visible(scope, caller))
+                .map(|(_, stated)| *stated)
+                .collect();
+            if shadowed.get(head).map_or(0, visible_in) != 1 || types.len() != 1 {
+                return None;
+            }
+            (types[0], method)
+        }
+    };
+    let stated = if stated == "Self" {
+        declarations.impl_type(caller)?
+    } else {
+        stated
+    };
+    let capitalised = stated.starts_with(|c: char| c.is_ascii_uppercase());
+    (capitalised && identifier(stated) && identifier(method)).then(|| (stated.to_owned(), method))
+}
+
+/// `Type.method` declared once in `path`, else in the one file a visible
+/// `use` brings `Type` from.
+fn rust_member(
+    path: &str,
+    (stated, method): (String, &str),
+    caller: &str,
+    declarations: &Declarations<'_>,
+    imports: &FileImports<'_>,
+    analyses: &serde_json::Map<String, Value>,
+) -> Option<(String, String)> {
+    let local = format!("{stated}.{method}");
+    if let Some(symbols) = declarations.full.get(local.as_str()) {
+        return (symbols.len() == 1).then(|| (path.to_owned(), local));
+    }
+    let mut found = BTreeSet::new();
+    for &(import, targets) in imports {
+        let Some(original) = import["bindings"].get(&stated).and_then(Value::as_str) else {
+            continue;
+        };
+        if !visible(s(import, "scope"), caller) {
+            continue;
+        }
+        let member = format!("{original}.{method}");
+        for &(target, _) in targets {
+            let declared = analyses.get(target).is_some_and(|analysis| {
+                items(analysis, "symbols")
+                    .iter()
+                    .filter(|symbol| s(symbol, "name") == member)
+                    .count()
+                    == 1
+            });
+            if declared {
+                found.insert((target.to_owned(), member.clone()));
+            }
+        }
+    }
+    let mut found = found.into_iter();
+    match (found.next(), found.next()) {
+        (Some(one), None) => Some(one),
+        _ => None,
     }
 }
 
@@ -755,6 +864,14 @@ pub(crate) fn resolve_calls(
                     .push(s(binding, "scope"));
             }
         }
+        let mut typed: HashMap<&str, Vec<(&str, &str)>> = HashMap::new();
+        for binding in items(analysis, "typed_bindings") {
+            typed
+                .entry(s(binding, "name"))
+                .or_default()
+                .push((s(binding, "scope"), s(binding, "type")));
+        }
+        let rust = path.ends_with(".rs");
         let imports: Vec<_> = items(analysis, "imports")
             .iter()
             .filter(|import| import["reexport"] != true && import["type_only"] != true)
@@ -775,6 +892,16 @@ pub(crate) fn resolve_calls(
             let caller = s(call, "caller");
             let head = name.split(['.', ':']).next().unwrap_or(name);
             let receiver = declarations.receiver_method(path, name, caller, &rebound);
+            if rust
+                && receiver.is_none()
+                && let Some(stated) = rust_typed(name, caller, &declarations, &typed, &shadowed)
+                && let Some((target, callee)) =
+                    rust_member(path, stated, caller, &declarations, &imports, analyses)
+            {
+                resolved.push(json!({"path":path,"caller":caller,"callee_path":target,"callee":callee,"line":call["line"],
+                    "basis":if target==*path{"unique_visible_declaration_candidate"}else{"explicit_import_binding"},"runtime_verified":false}));
+                continue;
+            }
             if receiver.is_none()
                 && shadowed
                     .get(head)

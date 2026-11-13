@@ -190,7 +190,12 @@ For Python, Rust, TypeScript and JavaScript, each uniquely named declaration
 digested apart, so a change reports `signature_changed` and
 `implementation_changed`. A call the parser binds to one declaration, through a
 visible declaration or an explicit import, is a `may_call` edge with evidence
-`explicit_import_binding` or `unique_visible_declaration_candidate`. The callers
+`explicit_import_binding` or `unique_visible_declaration_candidate`. That
+includes a method called through its own receiver (`self.m()`, `cls.m()`,
+`this.m()`, Rust `Self::m()`), a CommonJS `require` binding, a Rust
+`Type::m()`, and a Rust receiver whose type the code states (a typed parameter
+or `let`, a struct literal or a `Type::f(..)` result); Rust methods are named
+by their type (`Cache.get`). The callers
 of a changed declaration are therefore required context and are counted in
 `coverage.callers`; a call at module level is its file's. For TypeScript and
 JavaScript, the oxc binder (as in `--precise`) also resolves modules over the
