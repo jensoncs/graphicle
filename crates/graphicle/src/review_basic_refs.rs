@@ -23,8 +23,13 @@ pub(super) enum To {
     /// A C `#include` name; `angle` for `<x.h>`.
     Include { name: String, angle: bool },
     /// A declaration of this file, or, when `wide`, the one of that name in
-    /// the repository.
-    Decl { name: String, wide: bool },
+    /// the repository. A `namespace` (a Kubernetes reference's) rules out a
+    /// declaration stated in another namespace.
+    Decl {
+        name: String,
+        wide: bool,
+        namespace: Option<String>,
+    },
 }
 
 pub(super) struct Ref {
@@ -39,6 +44,8 @@ pub(super) struct Ref {
 pub(super) struct Facts {
     pub decls: Vec<Decl>,
     pub refs: Vec<Ref>,
+    /// The namespace a Kubernetes object states, by declaration name.
+    pub namespaces: std::collections::HashMap<String, String>,
 }
 
 impl Facts {
@@ -68,6 +75,7 @@ impl Facts {
             to: To::Decl {
                 name: name.into(),
                 wide,
+                namespace: None,
             },
             start,
             end,

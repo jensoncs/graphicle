@@ -47,6 +47,10 @@ pub(super) fn yaml(path: &str, content: &str) -> Facts {
             continue;
         };
         let header = text.find('\n').map_or(end, |n| start + n);
+        let namespace = doc["metadata"]["namespace"].as_str();
+        if let Some(ns) = namespace {
+            f.namespaces.insert(format!("{kind}/{name}"), ns.to_owned());
+        }
         f.decls.push(Decl {
             name: format!("{kind}/{name}"),
             kind: "kubernetes_object",
@@ -55,8 +59,8 @@ pub(super) fn yaml(path: &str, content: &str) -> Facts {
             end: start + text.trim_end().len(),
         });
         let mut named = vec![];
-        object_refs(&doc, &mut named, 0);
-        for target in named {
+        object_refs(&doc, namespace, &mut named, 0);
+        for (target, namespace) in named {
             // The first place the name is written; the span is a citation.
             let written = target.split_once('/').map_or("", |(_, n)| n);
             let (s, e) = text
@@ -64,14 +68,30 @@ pub(super) fn yaml(path: &str, content: &str) -> Facts {
                 .map_or((start, header), |i| {
                     (start + i + 1, start + i + 1 + written.len())
                 });
-            f.decl_ref(&target, true, s, e, "uses_value", "kubernetes_object_name");
+            f.refs.push(Ref {
+                to: To::Decl {
+                    name: target,
+                    wide: true,
+                    namespace,
+                },
+                start: s,
+                end: e,
+                relation: "uses_value",
+                evidence: "kubernetes_object_name",
+            });
         }
     }
     f
 }
 
-/// The `Kind/name` of each object this one names by a reference field.
-fn object_refs(value: &Value, out: &mut Vec<String>, depth: usize) {
+/// The `Kind/name` of each object this one, in `namespace`, names by a
+/// reference field, and the namespace that object is in when known.
+fn object_refs(
+    value: &Value,
+    namespace: Option<&str>,
+    out: &mut Vec<(String, Option<String>)>,
+    depth: usize,
+) {
     if depth > 64 {
         return;
     }
@@ -79,34 +99,61 @@ fn object_refs(value: &Value, out: &mut Vec<String>, depth: usize) {
         Value::Object(map) => {
             for (key, v) in map {
                 let named = |field: &str| v[field].as_str().filter(|n| !n.contains("{{"));
+                let here = |target: String| (target, namespace.map(str::to_owned));
                 let target = match key.as_str() {
                     "configMapRef" | "configMapKeyRef" | "configMap" => {
-                        named("name").map(|n| format!("ConfigMap/{n}"))
+                        named("name").map(|n| here(format!("ConfigMap/{n}")))
                     }
-                    "secretRef" | "secretKeyRef" => named("name").map(|n| format!("Secret/{n}")),
-                    "secret" => named("secretName").map(|n| format!("Secret/{n}")),
+                    "secretRef" | "secretKeyRef" => {
+                        named("name").map(|n| here(format!("Secret/{n}")))
+                    }
+                    "secret" => named("secretName").map(|n| here(format!("Secret/{n}"))),
                     "persistentVolumeClaim" => {
-                        named("claimName").map(|n| format!("PersistentVolumeClaim/{n}"))
+                        named("claimName").map(|n| here(format!("PersistentVolumeClaim/{n}")))
                     }
-                    "serviceAccountName" => v.as_str().map(|n| format!("ServiceAccount/{n}")),
-                    "scaleTargetRef" | "targetRef" | "roleRef" => named("kind")
-                        .zip(named("name"))
-                        .map(|(k, n)| format!("{k}/{n}")),
-                    // An Ingress backend.
-                    "service" if v.get("port").is_some() => {
-                        named("name").map(|n| format!("Service/{n}"))
+                    "serviceAccountName" => v.as_str().map(|n| here(format!("ServiceAccount/{n}"))),
+                    "scaleTargetRef" | "targetRef" | "roleRef" => {
+                        named("kind").zip(named("name")).map(|(k, n)| {
+                            // A cluster-scoped object is in no namespace.
+                            let (target, ns) = here(format!("{k}/{n}"));
+                            (target, ns.filter(|_| !k.starts_with("Cluster")))
+                        })
                     }
+                    // An Ingress or webhook backend.
+                    "service" if v.get("port").is_some() => named("name").map(|n| {
+                        let ns = named("namespace").or(namespace);
+                        (format!("Service/{n}"), ns.map(str::to_owned))
+                    }),
+                    // An extensions/v1beta1 or networking.k8s.io/v1beta1 Ingress backend.
+                    "serviceName" if map.contains_key("servicePort") => v
+                        .as_str()
+                        .filter(|n| !n.contains("{{"))
+                        .map(|n| here(format!("Service/{n}"))),
                     _ => None,
                 };
-                if let Some(target) = target
-                    && !out.contains(&target)
-                {
-                    out.push(target);
+                // A binding's service accounts, in the namespace each states.
+                let subjects = v
+                    .as_array()
+                    .filter(|_| key == "subjects")
+                    .into_iter()
+                    .flatten()
+                    .filter(|s| s["kind"] == "ServiceAccount")
+                    .filter_map(|s| {
+                        let name = s["name"].as_str().filter(|n| !n.contains("{{"))?;
+                        let ns = s["namespace"].as_str().map(str::to_owned);
+                        Some((format!("ServiceAccount/{name}"), ns))
+                    });
+                for target in target.into_iter().chain(subjects) {
+                    if !out.contains(&target) {
+                        out.push(target);
+                    }
                 }
-                object_refs(v, out, depth + 1);
+                object_refs(v, namespace, out, depth + 1);
             }
         }
-        Value::Array(items) => items.iter().for_each(|v| object_refs(v, out, depth + 1)),
+        Value::Array(items) => items
+            .iter()
+            .for_each(|v| object_refs(v, namespace, out, depth + 1)),
         _ => {}
     }
 }
@@ -214,6 +261,7 @@ pub(super) fn json(content: &str) -> Facts {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::collections::BTreeSet;
 
     fn targets(f: &Facts) -> Vec<String> {
         f.refs
@@ -245,6 +293,35 @@ mod tests {
             ]
         );
         assert_eq!(&text[f.refs[1].start..f.refs[1].end], "api-config");
+    }
+
+    #[test]
+    fn bindings_name_service_accounts_and_old_ingresses_name_services_in_a_namespace() {
+        let text = "kind: RoleBinding\nmetadata:\n  name: r\n  namespace: a\nroleRef:\n  kind: Role\n  name: reader\nsubjects:\n  - kind: ServiceAccount\n    name: bot\n    namespace: b\n  - kind: User\n    name: jane\n  - kind: ServiceAccount\n    name: own\n---\nkind: ClusterRoleBinding\nmetadata:\n  name: c\nroleRef:\n  kind: ClusterRole\n  name: view\n---\napiVersion: extensions/v1beta1\nkind: Ingress\nmetadata:\n  name: web\n  namespace: w\nspec:\n  backend:\n    serviceName: fallback\n    servicePort: 80\n  rules:\n    - http:\n        paths:\n          - backend:\n              serviceName: web\n              servicePort: http\n---\nkind: StatefulSet\nmetadata:\n  name: db\nspec:\n  serviceName: db\n";
+        let f = yaml("repo/k/rbac.yaml", text);
+        let wanted: BTreeSet<_> = f
+            .refs
+            .iter()
+            .map(|r| match &r.to {
+                To::Decl {
+                    name, namespace, ..
+                } => (name.as_str(), namespace.as_deref()),
+                _ => ("", None),
+            })
+            .collect();
+        let expected: BTreeSet<_> = [
+            ("Role/reader", Some("a")),
+            ("ServiceAccount/bot", Some("b")),
+            ("ServiceAccount/own", None),
+            ("ClusterRole/view", None),
+            ("Service/fallback", Some("w")),
+            ("Service/web", Some("w")),
+        ]
+        .into_iter()
+        .collect();
+        assert_eq!(wanted, expected);
+        assert_eq!(f.namespaces["RoleBinding/r"], "a");
+        assert!(!f.namespaces.contains_key("ClusterRoleBinding/c"));
     }
 
     #[test]

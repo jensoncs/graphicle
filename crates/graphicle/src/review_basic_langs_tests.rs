@@ -227,6 +227,62 @@ fn a_workflow_job_is_selected_by_its_scripts_local_actions_and_needed_jobs() {
 }
 
 #[test]
+fn kubernetes_names_resolve_within_the_namespace_the_bytes_state() {
+    let sa = |ns: &str| {
+        format!("apiVersion: v1\nkind: ServiceAccount\nmetadata:\n  name: bot\n  namespace: {ns}\n")
+    };
+    let (a, b) = (sa("a"), sa("b"));
+    let files = [
+        ("repo/a/sa.yaml", a.as_str()),
+        ("repo/b/sa.yaml", b.as_str()),
+        (
+            "repo/c/deploy.yaml",
+            "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: api\n  namespace: b\nspec:\n  template:\n    spec:\n      serviceAccountName: bot\n",
+        ),
+        (
+            "repo/c/binding.yaml",
+            "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRoleBinding\nmetadata:\n  name: x\nroleRef:\n  apiGroup: rbac.authorization.k8s.io\n  kind: ClusterRole\n  name: viewer\nsubjects:\n  - kind: ServiceAccount\n    name: bot\n    namespace: a\n",
+        ),
+        (
+            "repo/c/role.yaml",
+            "apiVersion: rbac.authorization.k8s.io/v1\nkind: ClusterRole\nmetadata:\n  name: viewer\n",
+        ),
+        (
+            "repo/c/ingress.yaml",
+            "apiVersion: networking.k8s.io/v1beta1\nkind: Ingress\nmetadata:\n  name: web\n  namespace: b\nspec:\n  rules:\n    - http:\n        paths:\n          - backend:\n              serviceName: web\n              servicePort: 80\n",
+        ),
+        (
+            "repo/web/svc.yaml",
+            "apiVersion: v1\nkind: Service\nmetadata:\n  name: web\n  namespace: b\n",
+        ),
+        (
+            "repo/d/deploy.yaml",
+            "apiVersion: apps/v1\nkind: Deployment\nmetadata:\n  name: free\nspec:\n  template:\n    spec:\n      serviceAccountName: bot\n",
+        ),
+    ];
+    let l = links(&files);
+    for link in [
+        "c/deploy.yaml#Deployment/api -> b/sa.yaml#ServiceAccount/bot (kubernetes_object_name)",
+        "c/binding.yaml#ClusterRoleBinding/x -> a/sa.yaml#ServiceAccount/bot (kubernetes_object_name)",
+        "c/binding.yaml#ClusterRoleBinding/x -> c/role.yaml#ClusterRole/viewer (kubernetes_object_name)",
+        "c/ingress.yaml#Ingress/web -> web/svc.yaml#Service/web (kubernetes_object_name)",
+    ] {
+        assert!(l.contains(link), "{link} not in {l:?}");
+    }
+    assert!(
+        !l.iter()
+            .any(|x| x.starts_with("c/deploy.yaml#Deployment/api -> a/")),
+        "{l:?}"
+    );
+    // No namespace stated: two candidates, so no link.
+    assert!(
+        !l.iter()
+            .any(|x| x.starts_with("d/deploy.yaml#Deployment/free")),
+        "{l:?}"
+    );
+}
+
+#[test]
 fn kubernetes_objects_and_kustomizations_are_selected_by_what_they_name() {
     let files = [
         (

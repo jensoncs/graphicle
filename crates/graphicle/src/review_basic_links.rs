@@ -415,13 +415,29 @@ pub(super) fn references(
                         .into_iter()
                         .collect()
                 }
-                To::Decl { name, wide } => {
+                To::Decl {
+                    name,
+                    wide,
+                    namespace,
+                } => {
+                    // A declaration stated in another namespace is not it.
+                    let fits = |f: &str| match (namespace, facts.get(f)) {
+                        (Some(wanted), Some(at)) => {
+                            at.namespaces.get(name).is_none_or(|n| n == wanted)
+                        }
+                        _ => true,
+                    };
                     let own = symbol_key(file, name);
-                    if declared.contains(&own) {
+                    if declared.contains(&own) && fits(file) {
                         vec![(own, (*file).to_owned())]
                     } else if *wide {
                         let found = by_name.get(&(repo(file), name.as_str()));
-                        let all: Vec<&str> = found.into_iter().flatten().copied().collect();
+                        let all: Vec<&str> = found
+                            .into_iter()
+                            .flatten()
+                            .copied()
+                            .filter(|f| fits(f))
+                            .collect();
                         let near: Vec<&str> = all
                             .iter()
                             .copied()
