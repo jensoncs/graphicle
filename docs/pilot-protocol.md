@@ -148,6 +148,28 @@ The temporary tree is removed when analysis finishes or materialization fails.
 Cleanup is outside the `review_materialize` phase, so measure it separately when
 comparing total filesystem cost. This does not reuse a tree between reviews.
 
+## Retained base snapshots
+
+A reviewer that prepares one base for many reviews (a main commit every PR on it
+compares with) retains that base's snapshot:
+
+```json
+{"operation":"review.retain","arguments":{"repository_id":"…","snapshot":"…"}}
+```
+
+Until `review.release` with the same arguments, the review analysis and Go
+package facts built from that snapshot are outside every cache limit: the four
+analyses kept per project, the package pool's entry and byte bounds, and the
+removal of other configurations' pools at each review. A retained pool's facts
+load first. `storage.prune` keeps a retained snapshot whatever `keep_snapshots`
+says. Both need write access; retain takes only a snapshot of that project and
+answers `{"retained":true}`, also when it was retained already; release answers
+`released` true or false. A retained snapshot that is deleted (its project
+deleted) is released with it. `build.info.review_retention` advertises
+`retained-snapshots-v1`.
+
+Retention is the caller's to release: nothing here expires it.
+
 ## Risk measurements
 
 When `entries` is empty, `empty_reason` explains why. It is separate from

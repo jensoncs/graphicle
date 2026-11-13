@@ -1297,6 +1297,8 @@ pub const CORE_OPERATIONS: &[&str] = &[
     "register",
     "retention.apply",
     "retention.preview",
+    "review.release",
+    "review.retain",
     "runtime.status",
     "session.forget",
     "session.timeline",
@@ -1413,6 +1415,9 @@ pub(crate) fn dispatch(
         "workflow.enqueue" => store.enqueue(workspace, capability, args, &app.worker.config),
         "workflow.status" => store.job_status(workspace, capability, args),
         "impact.report" | "graph.impact" => crate::review::run(store, workspace, capability, args),
+        "review.retain" | "review.release" => {
+            crate::review_cache::retention(store, workspace, capability, operation, args)
+        }
         "coverage.upload" => crate::coverage::upload(store, workspace, capability, args),
         "graph.source" => store.graph_source(workspace, capability, args),
         "graph.project" => store.graph_project(workspace, capability, string(args, "repository_id", 100)?),

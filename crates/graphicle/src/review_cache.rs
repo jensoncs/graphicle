@@ -14,6 +14,10 @@ const PACKAGE_BYTES: usize = 64 * 1024 * 1024;
 const PACKAGE_ENTRY_BYTES: usize = 4 * 1024 * 1024;
 const PACKAGE_COUNT: usize = 4096;
 
+/// A row built from a retained snapshot (`review.retain`): no limit below evicts it.
+const RETAINED_ANALYSIS: &str = "EXISTS (SELECT 1 FROM repo_review_analysis_inputs i JOIN repo_review_retained k ON k.repository_id=i.input_repository AND k.snapshot=i.snapshot WHERE i.repository_id=repo_review_analysis.repository_id AND i.id=repo_review_analysis.id)";
+const RETAINED_PACKAGE: &str = "EXISTS (SELECT 1 FROM repo_review_package_inputs i JOIN repo_review_retained k ON k.repository_id=i.input_repository AND k.snapshot=i.snapshot WHERE i.repository_id=repo_review_package_facts.repository_id AND i.id=repo_review_package_facts.id)";
+
 fn cache_note(action: &str, anchor: &str, key: &str, result: &str) {
     crate::phase::note(
         action,
@@ -140,7 +144,7 @@ fn load_package_rows(
     let mut bytes = 0;
     let (mut considered, mut unavailable, mut invalid_key, mut byte_limit, mut checksum) =
         (0, 0, 0, 0, 0);
-    let mut query = db.prepare("SELECT id,data,sha256 FROM repo_review_package_facts WHERE repository_id=? AND pool_key=? AND length(data)<=? ORDER BY used_at DESC,rowid DESC LIMIT ?")?;
+    let mut query = db.prepare(&format!("SELECT id,data,sha256 FROM repo_review_package_facts WHERE repository_id=? AND pool_key=? AND length(data)<=? ORDER BY {RETAINED_PACKAGE} DESC,used_at DESC,rowid DESC LIMIT ?"))?;
     let mut rows = query.query(params![
         anchor,
         namespace,
@@ -198,7 +202,7 @@ pub(crate) fn retain_package_pools(
     head: &str,
 ) -> Result<()> {
     let removed = db.execute(
-        "DELETE FROM repo_review_package_facts WHERE repository_id=? AND pool_key NOT IN (?,?)",
+        &format!("DELETE FROM repo_review_package_facts WHERE repository_id=? AND pool_key NOT IN (?,?) AND NOT {RETAINED_PACKAGE}"),
         params![anchor, base, head],
     )?;
     crate::phase::note(
@@ -253,7 +257,8 @@ pub(crate) fn save_packages(
         }
     }
     // Enforce both byte and entry limits, evicting least-recently-used facts.
-    let evicted = db.execute("DELETE FROM repo_review_package_facts WHERE repository_id=? AND pool_key=? AND id NOT IN (SELECT id FROM (SELECT id,row_number() OVER (ORDER BY used_at DESC,rowid DESC) AS n,sum(length(data)) OVER (ORDER BY used_at DESC,rowid DESC) AS bytes FROM repo_review_package_facts WHERE repository_id=? AND pool_key=?) WHERE n<=? AND bytes<=?)",params![anchor,pool.namespace,anchor,pool.namespace,PACKAGE_COUNT,PACKAGE_BYTES])?;
+    // ponytail: retained facts count toward neither limit, so a pool can hold more than PACKAGE_COUNT; loading reads them first.
+    let evicted = db.execute(&format!("DELETE FROM repo_review_package_facts WHERE repository_id=? AND pool_key=? AND NOT {RETAINED_PACKAGE} AND id NOT IN (SELECT id FROM (SELECT id,row_number() OVER (ORDER BY used_at DESC,rowid DESC) AS n,sum(length(data)) OVER (ORDER BY used_at DESC,rowid DESC) AS bytes FROM repo_review_package_facts WHERE repository_id=? AND pool_key=? AND NOT {RETAINED_PACKAGE}) WHERE n<=? AND bytes<=?)"),params![anchor,pool.namespace,anchor,pool.namespace,PACKAGE_COUNT,PACKAGE_BYTES])?;
     let mut stats = json!({"status":"pending_commit","requested_entries":used.len(),"written_entries":written,"refreshed_entries":refreshed_count,
         "skipped":{"unavailable":unavailable,"invalid_key":invalid_key,"entry_limit":entry_limit,"count_limit":used.len().saturating_sub(PACKAGE_COUNT)},
         "evicted_entries":evicted,"namespace":pool.namespace,"store_byte_limit":PACKAGE_BYTES,"store_entry_limit":PACKAGE_COUNT});
@@ -324,7 +329,7 @@ pub(crate) fn save(
     for pin in pins {
         db.execute("INSERT OR IGNORE INTO repo_review_analysis_inputs(repository_id,id,input_repository,snapshot) VALUES(?,?,?,?)",params![anchor,key,pin.repository_id,pin.snapshot])?;
     }
-    let evicted = db.execute("DELETE FROM repo_review_analysis WHERE repository_id=? AND id NOT IN (SELECT id FROM repo_review_analysis WHERE repository_id=? ORDER BY used_at DESC,rowid DESC LIMIT 4)",params![anchor,anchor])?;
+    let evicted = db.execute(&format!("DELETE FROM repo_review_analysis WHERE repository_id=? AND NOT {RETAINED_ANALYSIS} AND id NOT IN (SELECT id FROM repo_review_analysis WHERE repository_id=? AND NOT {RETAINED_ANALYSIS} ORDER BY used_at DESC,rowid DESC LIMIT 4)"),params![anchor,anchor])?;
     cache_note(
         "review_cache_write",
         anchor,
@@ -339,6 +344,34 @@ pub(crate) fn save(
         ),
     );
     Ok(())
+}
+
+/// `review.retain` and `review.release` (`repository_id`, `snapshot`): a
+/// retained snapshot's review analysis and package facts stay past every
+/// limit here, and `storage.prune` keeps it, until it is released. For a base
+/// a reviewer keeps for many reviews (one main commit's prepared base).
+pub(crate) fn retention(
+    store: &Store,
+    workspace: &str,
+    token: &str,
+    operation: &str,
+    args: &Value,
+) -> Result<Value> {
+    let repository = crate::string(args, "repository_id", 100)?;
+    let snapshot = store::hash(crate::string(args, "snapshot", 64)?)?;
+    store.authorized(workspace, token, "write", |db, p| {
+        let project = store::repo(db, p, repository)?;
+        let id = s(&project, "id");
+        if operation == "review.retain" {
+            store::one(db, "SELECT sha256 FROM repo_snapshots WHERE repository_id=? AND sha256=?", params![id, snapshot])?
+                .ok_or_else(|| crate::Error::bad("Snapshot is not one of this project's"))?;
+            db.execute("INSERT OR IGNORE INTO repo_review_retained(repository_id,snapshot,created_at) VALUES(?,?,?)", params![id, snapshot, crate::now()])?;
+            Ok(json!({"retained": true, "snapshot": snapshot}))
+        } else {
+            let released = db.execute("DELETE FROM repo_review_retained WHERE repository_id=? AND snapshot=?", params![id, snapshot])? > 0;
+            Ok(json!({"released": released, "snapshot": snapshot}))
+        }
+    })
 }
 
 #[cfg(test)]
@@ -662,6 +695,183 @@ mod tests {
             assert_eq!(stats["skipped"]["count_limit"],1);
             Ok(())
         }).unwrap();
+    }
+
+    /// A store, its workspace (id, owner capability) and one project with the
+    /// given snapshots, oldest first.
+    fn project_with(snapshots: &[&str]) -> (tempfile::TempDir, Store, Value, String) {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        let ws = store.create_workspace("retention").unwrap();
+        let repo = store
+            .register(
+                s(&ws, "id"),
+                s(&ws, "capability"),
+                &json!({"project_key":"r","name":"r"}),
+            )
+            .unwrap();
+        let anchor = s(&repo, "id").to_owned();
+        store
+            .transaction(|db| {
+                for (n, snapshot) in snapshots.iter().enumerate() {
+                    db.execute(
+                        "INSERT INTO repo_snapshots VALUES(?,?,'{}','{}',?)",
+                        params![anchor, snapshot, format!("2026-01-{:02}", n + 1)],
+                    )?;
+                }
+                Ok(())
+            })
+            .unwrap();
+        (dir, store, ws, anchor)
+    }
+
+    fn pin(repository: &str, snapshot: &str) -> Pin {
+        serde_json::from_value(json!({"repository_id":repository,"snapshot":snapshot,"commit":"c","policy_sha256":"p","directory":"d"})).unwrap()
+    }
+
+    fn call(
+        store: &Store,
+        ws: &Value,
+        operation: &str,
+        anchor: &str,
+        snapshot: &str,
+    ) -> Result<Value> {
+        retention(
+            store,
+            s(ws, "id"),
+            s(ws, "capability"),
+            operation,
+            &json!({"repository_id":anchor,"snapshot":snapshot}),
+        )
+    }
+
+    #[test]
+    fn a_retained_snapshot_keeps_its_analysis_and_package_facts_past_every_eviction() {
+        let (base, other) = ("b".repeat(64), "c".repeat(64));
+        let (_dir, store, ws, anchor) = project_with(&[&base, &other]);
+        call(&store, &ws, "review.retain", &anchor, &base).unwrap();
+        let based = "1".repeat(64);
+        let mut pool = PackagePool {
+            namespace: "base-pool".into(),
+            ..Default::default()
+        };
+        pool.entries.insert(based.clone(), "base facts".into());
+        let count = |db: &Connection, table: &str, id: &str| -> usize {
+            db.query_row(
+                &format!("SELECT count(*) FROM {table} WHERE id=?"),
+                [id],
+                |r| r.get(0),
+            )
+            .unwrap()
+        };
+        store
+            .transaction(|db| {
+                save(db, &anchor, &based, &json!({"side":"base"}), &[pin(&anchor, &base)], None)?;
+                save_packages(db, &anchor, &mut pool, std::slice::from_ref(&based), &[pin(&anchor, &base)])?;
+                db.execute("UPDATE repo_review_analysis SET used_at='0'", [])?;
+                db.execute("UPDATE repo_review_package_facts SET used_at='0'", [])?;
+                // Newer, unretained analyses past the four kept per project.
+                for n in 0..6 {
+                    save(db, &anchor, &format!("{n:064x}"), &json!({"n":n}), &[pin(&anchor, &other)], None)?;
+                }
+                // Another review's two pools, and a full pool of newer facts in the base's.
+                retain_package_pools(db, &anchor, "head-a", "head-b")?;
+                for n in 0..PACKAGE_COUNT + 2 {
+                    db.execute("INSERT INTO repo_review_package_facts(repository_id,id,data,sha256,used_at,pool_key) VALUES(?,?,?,?,?,?)",
+                        params![anchor, format!("{:064x}", n + 100), "x", graphicle_memory::text::sha256(b"x"), "9", "base-pool"])?;
+                }
+                let mut newer = PackagePool { namespace: "base-pool".into(), ..Default::default() };
+                newer.entries.insert("2".repeat(64), "newer".into());
+                save_packages(db, &anchor, &mut newer, &["2".repeat(64)], &[])?;
+                assert_eq!(count(db, "repo_review_analysis", &based), 1);
+                assert_eq!(db.query_row("SELECT count(*) FROM repo_review_analysis", [], |r| r.get::<_, usize>(0))?, 5);
+                assert_eq!(count(db, "repo_review_package_facts", &based), 1);
+                Ok(())
+            })
+            .unwrap();
+        // Loaded first, ahead of newer unretained facts of its pool.
+        let loaded = load_packages(
+            &store,
+            s(&ws, "id"),
+            s(&ws, "capability"),
+            &anchor,
+            "",
+            "base-pool",
+        )
+        .unwrap();
+        assert_eq!(
+            loaded.entries.get(&based).map(String::as_str),
+            Some("base facts")
+        );
+        // storage.prune keeps a retained snapshot whatever its age.
+        store
+            .maintain(
+                s(&ws, "id"),
+                s(&ws, "capability"),
+                "storage.prune",
+                &json!({"repository_id":anchor,"keep_snapshots":1}),
+            )
+            .unwrap();
+        store
+            .transaction(|db| {
+                let kept: usize = db.query_row(
+                    "SELECT count(*) FROM repo_snapshots WHERE sha256=?",
+                    [&base],
+                    |r| r.get(0),
+                )?;
+                assert_eq!(kept, 1);
+                Ok(())
+            })
+            .unwrap();
+        // Released, it is an ordinary row again: the next save evicts it.
+        assert_eq!(
+            call(&store, &ws, "review.release", &anchor, &base).unwrap()["released"],
+            true
+        );
+        store
+            .transaction(|db| {
+                save(db, &anchor, &"9".repeat(64), &json!({}), &[], None)?;
+                assert_eq!(count(db, "repo_review_analysis", &based), 0);
+                Ok(())
+            })
+            .unwrap();
+    }
+
+    #[test]
+    fn retain_takes_only_a_snapshot_of_the_project_and_needs_write_access() {
+        let base = "b".repeat(64);
+        let (_dir, store, ws, anchor) = project_with(&[&base]);
+        assert!(call(&store, &ws, "review.retain", &anchor, &"d".repeat(64)).is_err());
+        assert!(call(&store, &ws, "review.retain", &anchor, "not-a-hash").is_err());
+        let reader = store
+            .grant(
+                s(&ws, "id"),
+                s(&ws, "capability"),
+                &json!({"label":"reader","role":"reader"}),
+            )
+            .unwrap();
+        let read_only = json!({"id":s(&ws, "id"),"capability":s(&reader, "capability")});
+        assert!(call(&store, &read_only, "review.retain", &anchor, &base).is_err());
+        assert_eq!(
+            call(&store, &ws, "review.retain", &anchor, &base).unwrap()["retained"],
+            true
+        );
+        assert_eq!(
+            call(&store, &ws, "review.retain", &anchor, &base).unwrap()["retained"],
+            true
+        );
+        assert_eq!(
+            call(&store, &ws, "review.release", &anchor, &base).unwrap()["released"],
+            true
+        );
+        assert_eq!(
+            call(&store, &ws, "review.release", &anchor, &base).unwrap()["released"],
+            false
+        );
+        assert_eq!(
+            crate::core_capabilities::capabilities()["review_retention"],
+            "retained-snapshots-v1"
+        );
     }
 
     #[test]

@@ -506,3 +506,9 @@ CREATE TRIGGER IF NOT EXISTS review_package_input_removed AFTER DELETE ON repo_r
 BEGIN
     DELETE FROM repo_review_package_facts WHERE repository_id=OLD.repository_id AND id=OLD.id;
 END;
+-- review.retain: a snapshot whose review analysis and package facts no limit
+-- evicts, and storage.prune keeps, until review.release.
+CREATE TABLE IF NOT EXISTS repo_review_retained (
+    repository_id TEXT NOT NULL, snapshot TEXT NOT NULL, created_at TEXT NOT NULL,
+    PRIMARY KEY(repository_id,snapshot),
+    FOREIGN KEY(repository_id,snapshot) REFERENCES repo_snapshots(repository_id,sha256) ON DELETE CASCADE);

@@ -205,6 +205,9 @@ impl Store {
                     let snapshots=rows(db,"SELECT sha256,manifest FROM repo_snapshots WHERE repository_id=? ORDER BY created_at DESC,sha256",[identifier])?;
                     let mut keep_snapshots:BTreeSet<String>=snapshots.iter().take(keep).map(|r|s(r,"sha256").to_string()).collect();
                     keep_snapshots.insert(s(&repository,"snapshot").to_string());
+                    for retained in rows(db,"SELECT snapshot FROM repo_review_retained WHERE repository_id=?",[identifier])? {
+                        keep_snapshots.insert(s(&retained,"snapshot").to_string());
+                    }
                     for run in rows(db,"SELECT start_snapshot,end_snapshot FROM repo_runs WHERE repository_id=?",[identifier])? {
                         for key in ["start_snapshot","end_snapshot"] {if let Some(v)=run[key].as_str(){keep_snapshots.insert(v.to_string());}}
                     }
