@@ -111,6 +111,21 @@ fn paths(
     vec![]
 }
 
+/// The one source of `file`'s repository whose path ends with `name`.
+fn ending(by_base: &HashMap<(&str, &str), Vec<&str>>, file: &str, name: &str) -> Option<String> {
+    let base = name.rsplit('/').next().unwrap_or(name);
+    let tail = format!("/{}", name.trim_start_matches("./"));
+    let found: Vec<_> = by_base
+        .get(&(repo(file), base))?
+        .iter()
+        .filter(|p| p.ends_with(&tail))
+        .collect();
+    match found[..] {
+        [one] => Some((*one).to_owned()),
+        _ => None,
+    }
+}
+
 /// The first of `names` beside `file`, else the one source of the repository
 /// whose path ends with it.
 fn suffix(
@@ -120,20 +135,9 @@ fn suffix(
     names: &[String],
 ) -> Option<String> {
     names.iter().find_map(|name| {
-        if let Some(beside) = relative(file, name).filter(|p| files.contains_key(p)) {
-            return Some(beside);
-        }
-        let base = name.rsplit('/').next().unwrap_or(name);
-        let tail = format!("/{}", name.trim_start_matches("./"));
-        let found: Vec<_> = by_base
-            .get(&(repo(file), base))?
-            .iter()
-            .filter(|p| p.ends_with(&tail))
-            .collect();
-        match found[..] {
-            [one] => Some((*one).to_owned()),
-            _ => None,
-        }
+        relative(file, name)
+            .filter(|p| files.contains_key(p))
+            .or_else(|| ending(by_base, file, name))
     })
 }
 
@@ -204,6 +208,136 @@ fn style(
         })
 }
 
+static CMAKE_INCLUDES: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+    regex::Regex::new(r"(?i)\b(target_)?include_directories\s*\(([^)]*)\)").unwrap()
+});
+
+/// `content` without `#` comments (CMake and make both use them).
+// ponytail: a `#` inside a quoted argument or a CMake `#[[ ]]` block is not
+// special-cased; neither appears in include directories in practice.
+fn uncommented(content: &str) -> String {
+    content
+        .lines()
+        .map(|l| l.split('#').next().unwrap_or(""))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// `path` under the snapshot directory `base`; None for an absolute path, a
+/// variable or one that leaves the repository.
+fn under_dir(base: &str, path: &str) -> Option<String> {
+    if path.starts_with('/') || path.contains(['$', '(', ')', '{', '}', '<', '>']) {
+        return None;
+    }
+    relative(&format!("{base}/_"), path)
+}
+
+/// The include directories the build files in `dir` name, in order: CMake
+/// `include_directories`/`target_include_directories` (relative, or under
+/// `${CMAKE_CURRENT_SOURCE_DIR}`, `${CMAKE_CURRENT_LIST_DIR}` or
+/// `${CMAKE_SOURCE_DIR}`) and Makefile `-I` flags. Other variables are not
+/// followed; compile_commands.json holds machine paths and is not read.
+fn build_roots(input: &Input, dir: &str) -> Vec<String> {
+    let text = |name: &str| {
+        input
+            .sources
+            .get(&format!("{dir}/{name}"))
+            .and_then(|s| s.content.text())
+    };
+    let mut roots = vec![];
+    if let Some(cmake) = text("CMakeLists.txt") {
+        // The source tree's top: the outermost CMakeLists.txt above `dir`.
+        let top = std::iter::successors(Some(dir), |d| d.rsplit_once('/').map(|(p, _)| p))
+            .filter(|d| input.sources.contains_key(&format!("{d}/CMakeLists.txt")))
+            .last()
+            .unwrap_or(dir);
+        for call in CMAKE_INCLUDES.captures_iter(&uncommented(cmake)) {
+            let target = usize::from(call.get(1).is_some());
+            for arg in call[2].split_whitespace().skip(target) {
+                let arg = arg.trim_matches('"');
+                let arg = arg
+                    .strip_prefix("$<BUILD_INTERFACE:")
+                    .and_then(|a| a.strip_suffix('>'))
+                    .unwrap_or(arg);
+                let (base, path) = if let Some(rest) = arg
+                    .strip_prefix("${CMAKE_CURRENT_SOURCE_DIR}")
+                    .or_else(|| arg.strip_prefix("${CMAKE_CURRENT_LIST_DIR}"))
+                {
+                    (dir, rest.trim_start_matches('/'))
+                } else if let Some(rest) = arg.strip_prefix("${CMAKE_SOURCE_DIR}") {
+                    (top, rest.trim_start_matches('/'))
+                } else if matches!(
+                    arg,
+                    "SYSTEM" | "BEFORE" | "AFTER" | "PRIVATE" | "PUBLIC" | "INTERFACE"
+                ) {
+                    continue;
+                } else {
+                    (dir, arg)
+                };
+                roots.extend(under_dir(base, path));
+            }
+        }
+    }
+    for make in ["Makefile", "makefile", "GNUmakefile"]
+        .into_iter()
+        .filter_map(text)
+    {
+        let make = uncommented(make);
+        let mut words = make.split_whitespace();
+        while let Some(word) = words.next() {
+            let path = match word.strip_prefix("-I") {
+                Some("") => words.next(),
+                other => other,
+            };
+            roots.extend(path.and_then(|p| under_dir(dir, p.trim_matches('"'))));
+        }
+    }
+    roots
+}
+
+/// The include directories for sources under `dir`: its build files' first,
+/// then each enclosing directory's, up to the repository root.
+fn include_roots<'c>(
+    input: &Input,
+    cache: &'c mut HashMap<String, Vec<String>>,
+    dir: &str,
+) -> &'c [String] {
+    if !cache.contains_key(dir) {
+        let mut roots = build_roots(input, dir);
+        if let Some((parent, _)) = dir.rsplit_once('/') {
+            roots.extend_from_slice(include_roots(input, cache, parent));
+        }
+        cache.insert(dir.to_owned(), roots);
+    }
+    &cache[dir]
+}
+
+/// A C include, searched as a compiler would: a quoted one beside the file,
+/// then under the build files' include directories in order, then the one
+/// header ending with it; an angle one under the include directories, then,
+/// when it names a directory (`<proj/api.h>`), the one header ending with it.
+/// A bare `<x.h>` found nowhere else is a system header, never a repository
+/// file of that name.
+fn include(
+    files: &BTreeMap<String, &'static str>,
+    by_base: &HashMap<(&str, &str), Vec<&str>>,
+    file: &str,
+    roots: &[String],
+    name: &str,
+    angle: bool,
+) -> Option<String> {
+    let beside = (!angle).then(|| relative(file, name)).flatten();
+    beside
+        .into_iter()
+        .chain(roots.iter().filter_map(|r| under_dir(r, name)))
+        .find(|p| files.contains_key(p))
+        .or_else(|| {
+            (!angle || name.contains('/'))
+                .then(|| ending(by_base, file, name))
+                .flatten()
+        })
+}
+
 /// The innermost declaration of `file` around `at`, else the file.
 fn owner(file: &str, facts: &Facts, at: usize, declared: &BTreeSet<String>) -> String {
     facts
@@ -240,6 +374,7 @@ pub(super) fn references(
     }
     // Load paths by folder: every stylesheet of a folder shares its build.
     let mut load = HashMap::<&str, Vec<String>>::new();
+    let mut roots = HashMap::new();
     for (file, f) in facts {
         checkpoint()?;
         let content = input.sources[*file].content.text().unwrap_or("");
@@ -269,6 +404,13 @@ pub(super) fn references(
                         .entry(dir(file))
                         .or_insert_with(|| load_paths(input, file));
                     style(files, file, names, load)
+                        .map(|t| (file_key(&t), t))
+                        .into_iter()
+                        .collect()
+                }
+                To::Include { name, angle } => {
+                    let roots = include_roots(input, &mut roots, dir(file));
+                    include(files, &by_base, file, roots, name, *angle)
                         .map(|t| (file_key(&t), t))
                         .into_iter()
                         .collect()

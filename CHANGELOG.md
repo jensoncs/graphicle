@@ -120,6 +120,17 @@ versioned together at 0.2.0.
   `templates/` file outside any chart, are now read as what they are:
   temporal-orchestrator's 41 `{{template}}` calls 0 to 41, and files taken for
   Helm with no chart 36 to 1 across 31 repositories.
+- Basic review links a shell script to the scripts it runs by path
+  (`./build.sh`, `ci/test.sh`, `bash -x check.sh`) and through its own
+  directory (`"$(dirname "$0")"/x.sh`, or a variable every assignment sets to
+  it); a name found through `PATH` never links, `bash -c` runs a string, and
+  a command run by a path that is no snapshot file is a tool, not a missing
+  dependency. C and C++ angle includes resolve through the include
+  directories CMakeLists.txt and Makefile `-I` flags name, or to the one
+  header ending with a `<dir/x.h>` path; a bare `<x.h>` links only when such
+  a directory holds it. Shell script-to-script recall on three ShareChat
+  repositories: 4 to 56 of 60, every link correct by hand; beyla's BPF
+  includes: 32 to 710 of 1,095.
 - Basic review covers Protocol Buffers. Messages, enums, services, rpcs and
   extensions are declarations, and a message or enum names its generated Go
   type and `.pb.go` file when they are in the snapshot. A field's, rpc's or

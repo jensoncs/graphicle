@@ -707,3 +707,54 @@ fn scripts_run_by_path_or_from_their_own_directory_select_their_callers() {
         "a variable assigned anything else stays dynamic: {got:?}"
     );
 }
+
+#[test]
+fn angle_includes_resolve_through_build_roots_or_a_unique_path_never_a_bare_name() {
+    let files = [
+        (
+            "repo/src/main.c",
+            "#include <stdio.h>\n#include <util.h>\n#include <proj/api.h>\n#include <common/types.h>\n#include <dup/x.h>\n",
+        ),
+        ("repo/src/stdio.h", "int s;\n"),
+        ("repo/src/util.h", "int u;\n"),
+        ("repo/include/proj/api.h", "int a;\n"),
+        ("repo/a/common/types.h", "int t;\n"),
+        ("repo/b/common/types.h", "int t;\n"),
+        ("repo/a/dup/x.h", "int x;\n"),
+        ("repo/b/dup/x.h", "int x;\n"),
+        (
+            "repo/src/CMakeLists.txt",
+            "# include_directories(../a)\ntarget_include_directories(app PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../b $<BUILD_INTERFACE:gen>)\n",
+        ),
+        (
+            "repo/lib/m.c",
+            "#include <common/types.h>\n#include \"dup/x.h\"\n#include <only.h>\n",
+        ),
+        ("repo/a/only.h", "int o;\n"),
+        (
+            "repo/lib/Makefile",
+            "CFLAGS = -Wall -I$(TOP)/x -I ../a # -I../b\n",
+        ),
+        ("repo/tools/t.c", "#include <dup/x.h>\n#include <only.h>\n"),
+    ];
+    let got: BTreeSet<_> = links(&files)
+        .into_iter()
+        .filter(|l| l.ends_with("(c_include_candidate)"))
+        .collect();
+    let expect: BTreeSet<_> = [
+        ("src/main.c", "include/proj/api.h"),
+        ("src/main.c", "b/common/types.h"),
+        ("src/main.c", "b/dup/x.h"),
+        ("lib/m.c", "a/common/types.h"),
+        ("lib/m.c", "a/dup/x.h"),
+        ("lib/m.c", "a/only.h"),
+    ]
+    .iter()
+    .map(|(f, t)| format!("{f} -> {t} (c_include_candidate)"))
+    .collect();
+    assert_eq!(
+        got, expect,
+        "a bare <x.h> links only under a build file's include directory; tools/ has none, \
+         so its <dup/x.h> has two candidates"
+    );
+}

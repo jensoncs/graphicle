@@ -299,6 +299,7 @@ mod tests {
             .map(|r| match &r.to {
                 To::Path { literal, .. } => (literal.clone(), r.evidence),
                 To::Suffix(names) | To::Style(names) => (names.join("|"), r.evidence),
+                To::Include { name, .. } => (format!("<{name}>"), r.evidence),
                 To::Decl { name, .. } => (format!("#{name}"), r.evidence),
             })
             .collect()

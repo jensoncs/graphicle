@@ -214,6 +214,7 @@ mod tests {
                 To::Path { literal, .. } => literal.clone(),
                 To::Decl { name, .. } => format!("#{name}"),
                 To::Suffix(n) | To::Style(n) => n.join("|"),
+                To::Include { name, .. } => format!("<{name}>"),
             })
             .collect()
     }

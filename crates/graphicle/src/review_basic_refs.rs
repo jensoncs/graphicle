@@ -13,13 +13,15 @@ pub(super) enum To {
         required: bool,
     },
     /// A file named by a search path the snapshot cannot show (a template
-    /// loader's roots, a C include path, Lua's package.path): the one source
+    /// loader's roots, Lua's package.path): the one source
     /// in the repository whose path ends with one of these.
     Suffix(Vec<String>),
     /// A stylesheet import's candidate files, in order: the first found
     /// beside the file, then in each load path its build states, then from
     /// the repository root.
     Style(Vec<String>),
+    /// A C `#include` name; `angle` for `<x.h>`.
+    Include { name: String, angle: bool },
     /// A declaration of this file, or, when `wide`, the one of that name in
     /// the repository.
     Decl { name: String, wide: bool },
@@ -143,22 +145,28 @@ pub(super) fn path_like(word: &str) -> bool {
         })
 }
 
-/// `#include "x.h"`: beside the including file, else the one source ending
-/// in that path. `<x.h>` is a system or include-path header.
+/// `#include "x.h"` and `#include <x.h>`; `basic_links` resolves them.
 fn includes(content: &str) -> Facts {
     let mut f = Facts::default();
     let mut at = 0;
     for line in content.split_inclusive('\n') {
-        let trimmed = line.trim_start();
-        if let Some(rest) = trimmed.strip_prefix('#')
-            && let Some(rest) = rest.trim_start().strip_prefix("include")
-            && let Some(quoted) = rest.trim_start().strip_prefix('"')
-            && let Some((name, _)) = quoted.split_once('"')
+        let directive = line
+            .trim_start()
+            .strip_prefix('#')
+            .and_then(|r| r.trim_start().strip_prefix("include"))
+            .map(str::trim_start);
+        if let Some(rest) = directive
+            && let Some((angle, body)) = (rest.strip_prefix('"').map(|b| (false, b)))
+                .or_else(|| rest.strip_prefix('<').map(|b| (true, b)))
+            && let Some((name, _)) = body.split_once(if angle { '>' } else { '"' })
             && !name.is_empty()
         {
             let start = at + line.find(name).unwrap_or(0);
             f.refs.push(Ref {
-                to: To::Suffix(vec![name.into()]),
+                to: To::Include {
+                    name: name.into(),
+                    angle,
+                },
                 start,
                 end: start + name.len(),
                 relation: "potential_import",
@@ -246,9 +254,19 @@ mod tests {
     }
 
     #[test]
-    fn quoted_includes_are_candidates_and_system_headers_are_not() {
-        let f = includes("#include <stdio.h>\n  #  include \"lib/util.h\"\n");
-        assert!(matches!(&f.refs[..], [Ref { to: To::Suffix(s), .. }] if s == &["lib/util.h"]));
+    fn includes_name_quoted_and_angle_headers_and_skip_comments() {
+        let text = "#include <stdio.h>\n  #  include \"lib/util.h\"\n// #include \"no.h\"\n";
+        let f = includes(text);
+        let got: Vec<_> = f
+            .refs
+            .iter()
+            .filter_map(|r| match &r.to {
+                To::Include { name, angle } => Some((name.as_str(), *angle)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(got, [("stdio.h", true), ("lib/util.h", false)]);
+        assert_eq!(&text[f.refs[1].start..f.refs[1].end], "lib/util.h");
     }
 
     #[test]
