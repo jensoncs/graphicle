@@ -309,8 +309,14 @@ fn python_default_mapping_includes_reader_and_import_consumers_and_measures_scop
             .to_string()
             .contains("python_import_binding")
     );
+    // The changed deployment's own nodes are not candidates being narrowed.
     let count = |p: &Value| {
-        p["entries"].as_array().unwrap().len()
+        p["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["file"] != "deployment.yaml")
+            .count()
             + p["diffs"].as_array().unwrap().len()
             + p["coverage"]["budget_omitted"].as_u64().unwrap() as usize
     };
@@ -319,7 +325,16 @@ fn python_default_mapping_includes_reader_and_import_consumers_and_measures_scop
         count(&baseline),
         count(&packet)
     );
-    assert!(count(&baseline) > 60 && count(&packet) < 10);
+    assert!(
+        count(&baseline) > 60 && count(&packet) < 10,
+        "{:?}",
+        packet["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| (&e["side"], &e["file"], &e["name"]))
+            .collect::<Vec<_>>()
+    );
     let mut args = request_full(&repo, base, head);
     args["previous_packet_id"] = packet["packet_id"].clone();
     assert!(f.run(&args)["entries"].as_array().unwrap().is_empty());

@@ -85,14 +85,29 @@ fn literal_environment_change_selects_consumers_and_measures_reduction() {
     assert_eq!(stats["literal_reads"], 2);
     assert_eq!(stats["resolved_reads"], 2);
     assert_eq!(stats["narrowing_eligible"], true);
+    // The changed deployment's own nodes are not candidates being narrowed.
     let candidates = |p: &Value| {
-        p["entries"].as_array().unwrap().len()
+        p["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["file"] != "deployment.yaml")
+            .count()
             + p["diffs"].as_array().unwrap().len()
             + p["coverage"]["budget_omitted"].as_u64().unwrap() as usize
     };
     let before = candidates(&baseline);
     let after = candidates(&scoped);
-    assert!(before >= 200 && after < 10, "before={before} after={after}");
+    assert!(
+        before >= 200 && after < 10,
+        "before={before} after={after}: {:?}",
+        scoped["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| (&e["side"], &e["file"], &e["name"]))
+            .collect::<Vec<_>>()
+    );
     eprintln!(
         "environment probe: entry/diff candidates {before} -> {after}; direct consumers found 2/2; unrelated functions retained 0/100; literal bindings resolved 2/2"
     );

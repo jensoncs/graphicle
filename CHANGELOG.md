@@ -59,6 +59,43 @@ versioned together at 0.2.0.
   sqlc's `Querier` included; a message selects its `.pb.go` type and the Go
   code that uses it. A trigger (`CREATE TRIGGER ... ON t`) touches its
   table, and a trigger's `UPDATE ON`/`UPDATE OF` no longer reads as a table.
+- Basic review covers build, CI, configuration, markup, template, Lua and C
+  sources, which were skipped or reported as an unsupported language. A
+  change to a file or declaration they name selects them:
+  - Dockerfiles: named stages are declarations; `COPY`/`ADD` sources and
+    paths in `RUN`/`CMD`/`ENTRYPOINT` link to the file beside the Dockerfile
+    or at the repository root; `COPY --from` and `FROM` link stages.
+  - Makefiles (`Makefile`, `*.mk`): targets are declarations, linked to the
+    targets they need; `include`, file prerequisites and recipe scripts
+    link to their files.
+  - Jenkinsfiles and Groovy, other HCL: file level, with literal paths
+    (`sh` scripts, `load`) linked. `*.tftest.hcl` is Terraform, in the
+    module above its `tests/` folder.
+  - GitHub Actions workflows and `action.yml`: jobs are declarations, linked
+    by `needs`; `uses: ./` links the local action or reusable workflow, and
+    run scripts link to their files.
+  - YAML: a Kubernetes object (`Kind/name`) is a declaration and links to
+    the ConfigMaps, Secrets, ServiceAccounts, claims, Services and scale
+    targets it names, beside it first; a kustomization links its resources,
+    bases, components, patches and generator files, and a local one that is
+    missing is reported. Other YAML and JSON are file level; a JSON schema's
+    relative `$ref` links to its file.
+  - HTML `src`/`href`, CSS and Sass `@import`/`@use`/`url()`, Mustache
+    partials and Jinja/Nunjucks `include`/`extends`/`import` link to their
+    files; Go template `define`/`block` are declarations called by
+    `template`.
+  - Lua: top-level functions are declarations, linked from same-file calls
+    by name; `require` links to the module file. C/C++ `#include "..."`
+    links to the header.
+  - A Helm template's `.Files.Get`/`.Glob` links to the chart file, and a Go
+    variable's `//go:embed` pattern links it to the embedded files, so a
+    changed embedded Lua filter selects the Go code that loads it.
+
+  Every link is a candidate from the file's bytes; nothing is rendered,
+  built or run. A change to YAML or JSON keeps the repository-wide scope it
+  had (code reads configuration in ways basic review cannot see) unless
+  environment analysis narrows it; its links add to that scope. Six repositories (up to 11,018 files, 10,716 of them YAML)
+  analyse in 0.02-1.1 s.
 - Basic review covers Protocol Buffers. Messages, enums, services, rpcs and
   extensions are declarations, and a message or enum names its generated Go
   type and `.pb.go` file when they are in the snapshot. A field's, rpc's or

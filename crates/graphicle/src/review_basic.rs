@@ -6,7 +6,7 @@ use graphicle_memory::structure;
 
 const VERSION: &str = "basic-source-impact-v2";
 
-fn ancestor_file(input: &Input, path: &str, name: &str) -> Option<String> {
+pub(super) fn ancestor_file(input: &Input, path: &str, name: &str) -> Option<String> {
     let mut dir = Path::new(path).parent()?;
     // A pin directory is the trust boundary: never search a sibling repository.
     loop {
@@ -21,92 +21,207 @@ fn ancestor_file(input: &Input, path: &str, name: &str) -> Option<String> {
     }
 }
 
+/// A file the chart at `chart` (its Chart.yaml) renders or configures: the
+/// chart's metadata, lock, values and their schema, and everything under
+/// templates/ (Helm renders every file there). Other files in a chart
+/// (files/, scripts/, crds/) keep their own language; a template reaches the
+/// ones it loads through `.Files`.
+fn chart_file(chart: &str, path: &str) -> bool {
+    let Some(rel) = Path::new(chart)
+        .parent()
+        .and_then(|root| Path::new(path).strip_prefix(root).ok())
+        .and_then(Path::to_str)
+    else {
+        return false;
+    };
+    rel.starts_with("templates/")
+        || matches!(
+            rel,
+            "Chart.yaml"
+                | "Chart.lock"
+                | "requirements.yaml"
+                | "requirements.lock"
+                | "values.schema.json"
+                | ".helmignore"
+        )
+        || (rel.starts_with("values")
+            && !rel.contains('/')
+            && (rel.ends_with(".yaml") || rel.ends_with(".yml")))
+}
+
 pub(super) fn language(input: &Input, path: &str) -> Option<&'static str> {
     let source = input.sources.get(path)?;
     let content = source.content.text()?;
     let name = Path::new(path).file_name()?.to_str()?;
-    // Files inside a chart may be templates even when they end in .sh or .py.
-    if ancestor_file(input, path, "Chart.yaml").is_some()
-        || (path.contains("/templates/")
-            && matches!(
-                Path::new(path).extension().and_then(|e| e.to_str()),
-                Some("yaml" | "yml" | "tpl")
-            ))
-    {
+    let chart = ancestor_file(input, path, "Chart.yaml");
+    // A templates/ file using Helm's own objects with no Chart.yaml above it
+    // is a chart whose metadata is missing (reported); a plain manifest or
+    // another tool's template under templates/ is not.
+    let orphan = chart.is_none()
+        && path.contains("/templates/")
+        && matches!(
+            Path::new(path).extension().and_then(|e| e.to_str()),
+            Some("yaml" | "yml" | "tpl")
+        )
+        && content.contains("{{")
+        && [
+            ".Values",
+            ".Release",
+            ".Chart",
+            ".Capabilities",
+            ".Files",
+            "include \"",
+        ]
+        .iter()
+        .any(|object| content.contains(object));
+    if orphan || chart.is_some_and(|chart| chart_file(&chart, path)) {
         return Some("helm");
     }
-    Some(
-        match Path::new(path)
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("")
+    if let Some(build) = build_language(name) {
+        return Some(build);
+    }
+    let ext = Path::new(path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("");
+    Some(match ext {
+        "tf" | "tfvars" => "terraform",
+        "hcl" if name == ".terraform.lock.hcl" || name.ends_with(".tftest.hcl") => "terraform",
+        "hcl" => "hcl",
+        "lua" => "lua",
+        "c" | "h" => "c",
+        "cc" | "cpp" | "cxx" | "hpp" | "hh" | "hxx" => "cpp",
+        "html" | "htm" => "html",
+        "css" | "scss" | "sass" | "less" => "css",
+        "mustache" | "hbs" | "handlebars" | "njk" | "j2" | "jinja" | "jinja2" | "tmpl"
+        | "gotmpl" | "gohtml" | "tpl" => "template",
+        "py" | "pyi" => "python",
+        "rs" => "rust",
+        "sh" | "bash" => "bash",
+        "ts" | "tsx" | "mts" | "cts" => "typescript",
+        "js" | "jsx" | "mjs" | "cjs" => "javascript",
+        "sql" => "sql",
+        "proto" => "proto",
+        _ if name.ends_with(".tf.json") || name.ends_with(".tfvars.json") => "terraform",
+        _ if matches!(
+            name,
+            "Cargo.toml" | "Cargo.lock" | "rust-toolchain" | "rust-toolchain.toml"
+        ) =>
         {
-            "tf" | "tfvars" => "terraform",
-            "py" | "pyi" => "python",
-            "rs" => "rust",
-            "sh" | "bash" => "bash",
-            "ts" | "tsx" | "mts" | "cts" => "typescript",
-            "js" | "jsx" | "mjs" | "cjs" => "javascript",
-            "sql" => "sql",
-            "proto" => "proto",
-            _ if name.ends_with(".tf.json")
-                || name.ends_with(".tfvars.json")
-                || name == ".terraform.lock.hcl" =>
-            {
-                "terraform"
-            }
-            _ if matches!(
-                name,
-                "Cargo.toml" | "Cargo.lock" | "rust-toolchain" | "rust-toolchain.toml"
-            ) =>
-            {
-                "rust"
-            }
-            _ if matches!(
-                name,
-                "pyproject.toml"
-                    | "setup.py"
-                    | "setup.cfg"
-                    | "requirements.txt"
-                    | "uv.lock"
-                    | "poetry.lock"
-            ) =>
-            {
-                "python"
-            }
-            _ if matches!(name, "tsconfig.json" | "jsconfig.json") => "typescript",
-            _ if matches!(name, "sqlc.yaml" | "sqlc.yml" | "sqlc.json") => "sql",
-            _ if matches!(
-                name,
-                "buf.yaml" | "buf.work.yaml" | "buf.gen.yaml" | "buf.lock"
-            ) =>
-            {
-                "proto"
-            }
-            _ if matches!(
-                name,
-                "package.json"
-                    | "package-lock.json"
-                    | "npm-shrinkwrap.json"
-                    | "yarn.lock"
-                    | "pnpm-lock.yaml"
-                    | "pnpm-workspace.yaml"
-            ) =>
-            {
-                "javascript"
-            }
-            _ if content.lines().next().is_some_and(|line| {
-                line.starts_with("#!")
-                    && line
-                        .split(['/', ' ', '\t'])
-                        .any(|part| matches!(part, "bash" | "sh"))
-            }) =>
-            {
-                "bash"
-            }
-            _ => return None,
-        },
-    )
+            "rust"
+        }
+        _ if matches!(
+            name,
+            "pyproject.toml"
+                | "setup.py"
+                | "setup.cfg"
+                | "requirements.txt"
+                | "uv.lock"
+                | "poetry.lock"
+        ) =>
+        {
+            "python"
+        }
+        _ if matches!(name, "tsconfig.json" | "jsconfig.json") => "typescript",
+        _ if matches!(name, "sqlc.yaml" | "sqlc.yml" | "sqlc.json") => "sql",
+        _ if matches!(
+            name,
+            "buf.yaml" | "buf.work.yaml" | "buf.gen.yaml" | "buf.lock"
+        ) =>
+        {
+            "proto"
+        }
+        _ if matches!(
+            name,
+            "package.json"
+                | "package-lock.json"
+                | "npm-shrinkwrap.json"
+                | "yarn.lock"
+                | "pnpm-lock.yaml"
+                | "pnpm-workspace.yaml"
+        ) =>
+        {
+            "javascript"
+        }
+        _ if content.lines().next().is_some_and(|line| {
+            line.starts_with("#!")
+                && line
+                    .split(['/', ' ', '\t'])
+                    .any(|part| matches!(part, "bash" | "sh"))
+        }) =>
+        {
+            "bash"
+        }
+        _ if matches!(name, "action.yml" | "action.yaml")
+            || path.contains("/.github/workflows/") && matches!(ext, "yml" | "yaml") =>
+        {
+            "github_actions"
+        }
+        "yaml" | "yml" => "yaml",
+        "json" => "json",
+        _ => return None,
+    })
+}
+
+/// Build files known by name rather than extension.
+fn build_language(name: &str) -> Option<&'static str> {
+    let lower = name.to_ascii_lowercase();
+    let ext = lower.rsplit_once('.').map_or("", |(_, e)| e);
+    // `dockerfile_test.go` or `Makefile.toml` is a source, data or document
+    // file named after a build file: its extension decides.
+    if matches!(
+        ext,
+        "go" | "py"
+            | "pyi"
+            | "rs"
+            | "ts"
+            | "js"
+            | "java"
+            | "kt"
+            | "sh"
+            | "bash"
+            | "md"
+            | "txt"
+            | "toml"
+            | "json"
+            | "yaml"
+            | "yml"
+            | "j2"
+            | "tpl"
+            | "tmpl"
+    ) {
+        return None;
+    }
+    // `Dockerfile`, `Dockerfile.prod`, `Dockerfile-dev`, `api.Dockerfile`.
+    let named = |base: &str| {
+        lower == base
+            || lower
+                .strip_prefix(base)
+                .is_some_and(|rest| rest.starts_with(['.', '-', '_']))
+            || lower
+                .strip_suffix(base)
+                .is_some_and(|rest| rest.ends_with(['.', '-', '_']))
+    };
+    if (named("dockerfile") || named("containerfile")) && !lower.ends_with(".dockerignore") {
+        Some("dockerfile")
+    } else if named("makefile") || lower == "gnumakefile" || ext == "mk" {
+        Some("make")
+    } else if lower.starts_with("jenkinsfile")
+        || named("jenkinsfile")
+        || matches!(ext, "groovy" | "gvy")
+    {
+        Some("groovy")
+    } else {
+        None
+    }
+}
+
+/// A basic input of configuration (YAML, JSON) that code reads in ways basic
+/// review cannot see: a change to it keeps the repository-wide conservative
+/// scope a file outside basic review has, unless environment analysis
+/// narrows it.
+pub(super) fn configuration(input: &Value) -> bool {
+    input["analysis_level"] == "basic_file" && matches!(s(input, "language"), "yaml" | "json")
 }
 
 /// A TypeScript or JavaScript source file, as opposed to its manifests.
@@ -291,10 +406,10 @@ fn declaration_nodes(
     added
 }
 
-fn world(path: &str) -> String {
+pub(super) fn world(path: &str) -> String {
     format!("basic:{}", path.split('/').next().unwrap_or(""))
 }
-fn file_key(path: &str) -> String {
+pub(super) fn file_key(path: &str) -> String {
     format!("file:{path}")
 }
 
@@ -318,7 +433,7 @@ pub(super) fn relative(file: &str, target: &str) -> Option<String> {
     Some(parts.join("/"))
 }
 
-fn link(
+pub(super) fn link(
     out: &mut Analysis,
     from: &str,
     to: &str,
@@ -408,6 +523,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
     // (declaration's file, its name, the generated Go file, the Go name)
     let mut generated_from = Vec::<(String, String, String, String)>::new();
     let mut pb_go = BTreeMap::<(&str, &str), Vec<&str>>::new();
+    let mut facts = BTreeMap::<&str, super::basic_refs::Facts>::new();
     for path in input.sources.keys() {
         if let Some(stem) = path.strip_suffix(".pb.go") {
             let repo = path.split('/').next().unwrap_or("");
@@ -604,11 +720,37 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             ));
             protos.insert(path, parsed);
         }
+        let found = super::basic_refs::facts(lang, path, content);
+        if !found.decls.is_empty() || !found.refs.is_empty() {
+            let line = super::basic_proto::lines(content);
+            let symbols: Vec<Value> = found
+                .decls
+                .iter()
+                .map(|d| json!({"name":d.name,"kind":d.kind,"byte_start":d.start,"byte_end":d.end,"body_start":d.body_start,"line":line(d.start),"end_line":line(d.end)}))
+                .collect();
+            if !symbols.is_empty() {
+                inventory["declarations"] = json!(symbols.iter().take(128).collect::<Vec<_>>());
+                inventory["declarations_omitted"] = json!(symbols.len().saturating_sub(128));
+            }
+            declared.extend(declaration_nodes(
+                out,
+                &owner,
+                path,
+                content,
+                &json!({ "symbols": symbols }),
+            ));
+            facts.insert(path, found);
+        }
         out.inputs.push(inventory);
         let group = match *lang {
             "helm" => ancestor_file(input, path, "Chart.yaml"),
+            // A `terraform test` file in tests/ belongs to the module above it.
             "terraform" => Path::new(path)
                 .parent()
+                .map(|p| match p.parent() {
+                    Some(module) if path.ends_with(".tftest.hcl") && p.ends_with("tests") => module,
+                    _ => p,
+                })
                 .map(|p| format!("terraform:{}", p.display())),
             // A build/packaging configuration can affect every source in its
             // nearest project. This is conservative scope, not a call relation.
@@ -644,6 +786,18 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "python"=>"Local import candidates, calls bound by name through a visible declaration or explicit import, and literal environment reads only; runtime environments, dynamic imports, rebinding, method calls and runtime dispatch are not resolved",
                 "proto"=>"Messages, enums, services, rpcs and extensions are declarations; a field's, rpc's or extension's message or enum type and a custom option name link it to the declaration of that name in its file or its imports, by protobuf scoping; an import names the one snapshot .proto at that path or ending in it (no buf or protoc import roots); the generated Go type, where Go review declares it, links the declaration to the Go code that uses it; option values, field numbers and wire compatibility are not resolved",
                 "sql"=>"sqlc query blocks are declarations; a query's FROM, JOIN, INTO and UPDATE tables link it to the sqlc schema files that create, alter, drop or write a table of that name, as candidates; the generated Go method, where Go review declares it, links the query to the Go code that calls it; views, functions, search paths and dynamic SQL are not resolved; SQL outside an sqlc configuration is file level only",
+                "dockerfile"=>"Named stages are declarations; COPY and ADD sources and literal paths in RUN, CMD and ENTRYPOINT link to the snapshot file beside the Dockerfile or at the repository root, as candidates (the build context is not known); COPY --from and FROM link a stage to the stage it names; build arguments, remote images and the context directory are not resolved",
+                "make"=>"Rule targets are declarations; a prerequisite links its target to the target of that name in the file, and include, file prerequisites and literal paths in recipes link to snapshot files; variables, pattern rules, implicit rules and recursive make are not resolved",
+                "groovy"=>"File level; literal paths in the file (sh steps, load, Dockerfile arguments) link to snapshot files beside it or at the repository root, as candidates; shared libraries, Groovy evaluation and plugins are not resolved",
+                "github_actions"=>"Workflow jobs are declarations; needs links a job to the jobs it needs, uses ./ links to the local action or reusable workflow, and literal paths in run and with values link to snapshot files; remote actions, expressions, matrices and path filters are not resolved",
+                "yaml"=>"Kubernetes objects (kind and metadata.name) are declarations and link to the ConfigMaps, Secrets, ServiceAccounts, claims, Services and scale or rollout targets they name, beside them first, as candidates; a kustomization links to its resources, bases, components, patches and generator files; other YAML is file level; no rendering, overlays merge, namespaces or cluster state",
+                "json"=>"File level; a relative JSON schema $ref links to that file; consumers of configuration files are not resolved",
+                "html"=>"File level; relative src and href values link to snapshot files, and a page written as a Jinja/Django or Go template links its include, extends and template actions as a template does; absolute, remote and generated URLs are not resolved",
+                "css"=>"File level; relative @import, @use, @forward and url() values link to snapshot files, with Sass partial names; load paths and bundler aliases are not resolved",
+                "template"=>"Mustache partials and Jinja/Nunjucks include, extends, import and from link to the template file beside it or the one source ending in that name; Go template define and block are declarations linked from template and include by name; loader roots and template data are not resolved",
+                "lua"=>"Top-level functions are declarations; a call by a declared name links its caller to it within the file, and require links to the one source ending in the module path; metatables, upvalues, dynamic requires and host APIs (Envoy, nginx) are not resolved",
+                "c"|"cpp"=>"File level; #include \"...\" links to the header beside the file or the one source ending in that path; include paths, macros, system headers and calls are not resolved",
+                "hcl"=>"File level; literal paths in the file link to snapshot files; HCL evaluation and tool-specific semantics (Terragrunt, Packer, Nomad) are not resolved",
                 "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates, calls bound by name through a visible declaration or explicit import, and, in repositories within 64 MiB of sources, calls the oxc binder resolves (new, and methods on a receiver typed by an annotation or made by new); node_modules, package exports, CommonJS require, dynamic import(), bundler aliases, JSX, callbacks and untyped receivers are not resolved",
                 _=>"Local module candidates and calls bound by name through a visible declaration or explicit import only; Cargo resolution, cfg, macros, build scripts, method calls and trait dispatch are not resolved"
             }})));
@@ -871,6 +1025,9 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             }
         }
     }
+    super::basic_links::references(input, &files, &facts, &declared, out)?;
+    super::basic_links::helm_files(input, &files, out)?;
+    super::basic_links::go_embeds(input, &files, out)?;
     sql_tables(input, &files, &sqlc, &sql_queries, &declared, out)?;
     proto_types(input, &protos, &declared, out)?;
     generated_links(out, &generated_from);
@@ -1155,10 +1312,14 @@ pub(super) fn annotate(entry: &mut Value, analysis: &Analysis, file: &str) {
 }
 
 #[cfg(test)]
+#[path = "review_basic_langs_tests.rs"]
+mod langs_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
-    fn input(files: &[(&str, &str)]) -> Input {
+    pub(super) fn input(files: &[(&str, &str)]) -> Input {
         let sources = files
             .iter()
             .map(|(p, t)| {
@@ -1190,7 +1351,7 @@ mod tests {
             workspace: String::new(),
         }
     }
-    fn analysis(input: &Input) -> Analysis {
+    pub(super) fn analysis(input: &Input) -> Analysis {
         analyze(
             input,
             &profile(),
@@ -1200,8 +1361,11 @@ mod tests {
         )
         .unwrap()
     }
-    fn report(base: &Input, head: &Input) -> Value {
-        let request = Request {
+    pub(super) fn report(base: &Input, head: &Input) -> Value {
+        compare(base, head, &analysis(base), &analysis(head), &request()).unwrap()
+    }
+    pub(super) fn request() -> Request {
+        Request {
             timeout_ms: None,
             compact_provenance: false,
             repository_id: "repo".into(),
@@ -1215,8 +1379,7 @@ mod tests {
             reuse_text: false,
             reviewed_entries: vec![],
             provided_diff: vec![],
-        };
-        compare(base, head, &analysis(base), &analysis(head), &request).unwrap()
+        }
     }
     fn selected(report: &Value, side: &str, file: &str) -> bool {
         report["entries"]
@@ -1507,7 +1670,7 @@ mod tests {
 
     /// Go review's facts for `go`: each `(file, name, kind, text)` symbol,
     /// then `(caller, callee, relation)` calls by name, before basic review.
-    fn with_go(
+    pub(super) fn with_go(
         input: &Input,
         go: &[(&str, &str, &str, &str)],
         calls: &[(&str, &str, &str)],

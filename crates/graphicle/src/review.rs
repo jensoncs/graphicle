@@ -31,10 +31,22 @@ mod diagnostics;
 mod analysis_coverage;
 #[path = "review_basic.rs"]
 mod basic;
+#[path = "review_basic_build.rs"]
+mod basic_build;
+#[path = "review_basic_config.rs"]
+mod basic_config;
+#[path = "review_basic_links.rs"]
+mod basic_links;
+#[path = "review_basic_lua.rs"]
+mod basic_lua;
+#[path = "review_basic_markup.rs"]
+mod basic_markup;
 #[path = "review_basic_precise.rs"]
 mod basic_precise;
 #[path = "review_basic_proto.rs"]
 mod basic_proto;
+#[path = "review_basic_refs.rs"]
+mod basic_refs;
 #[path = "review_basic_sql.rs"]
 mod basic_sql;
 #[path = "review_components.rs"]
@@ -1173,7 +1185,10 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             .chain(&b.inputs)
             .filter(|p| p["file"] == file)
             .collect();
-        let selected = provenance.iter().any(|p| p["role"] == "selected");
+        // Configuration read by code basic review cannot see keeps its
+        // conservative scope; its basic links only add to it.
+        let configuration = provenance.iter().any(|p| basic::configuration(p));
+        let selected = !configuration && provenance.iter().any(|p| p["role"] == "selected");
         let embedded = provenance.iter().any(|p| p["role"] == "embed");
         let excluded = !provenance.is_empty()
             && provenance
@@ -1213,7 +1228,11 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                 let changed_packages: BTreeSet<_> = analysis
                     .inputs
                     .iter()
-                    .filter(|p| p["file"] == file && matches!(s(p, "role"), "selected" | "embed"))
+                    .filter(|p| {
+                        p["file"] == file
+                            && matches!(s(p, "role"), "selected" | "embed")
+                            && !basic::configuration(p)
+                    })
                     .map(|p| {
                         (
                             s(p, "consumer_build").to_owned(),

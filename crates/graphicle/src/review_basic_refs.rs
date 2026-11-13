@@ -1,0 +1,255 @@
+//! What a build, CI, configuration, markup, template, Lua or C source declares
+//! and names, read from its bytes alone. `review_basic` resolves the names
+//! against the snapshot; nothing here touches the filesystem or runs a tool.
+pub(super) use super::basic_proto::Decl;
+
+/// What a reference names.
+pub(super) enum To {
+    /// A path as written. `index` names the files a directory means, in order;
+    /// a `required` path that matches nothing is reported.
+    Path {
+        literal: String,
+        index: &'static [&'static str],
+        required: bool,
+    },
+    /// A file named by a search path the snapshot cannot show (a template
+    /// loader's roots, a C include path, Lua's package.path): the one source
+    /// in the repository whose path ends with one of these.
+    Suffix(Vec<String>),
+    /// A declaration of this file, or, when `wide`, the one of that name in
+    /// the repository.
+    Decl { name: String, wide: bool },
+}
+
+pub(super) struct Ref {
+    pub to: To,
+    pub start: usize,
+    pub end: usize,
+    pub relation: &'static str,
+    pub evidence: &'static str,
+}
+
+#[derive(Default)]
+pub(super) struct Facts {
+    pub decls: Vec<Decl>,
+    pub refs: Vec<Ref>,
+}
+
+impl Facts {
+    pub(super) fn path(&mut self, literal: &str, start: usize, evidence: &'static str) {
+        self.refs.push(Ref {
+            to: To::Path {
+                literal: literal.into(),
+                index: &[],
+                required: false,
+            },
+            start,
+            end: start + literal.len(),
+            relation: "potential_import",
+            evidence,
+        });
+    }
+    pub(super) fn decl_ref(
+        &mut self,
+        name: &str,
+        wide: bool,
+        start: usize,
+        end: usize,
+        relation: &'static str,
+        evidence: &'static str,
+    ) {
+        self.refs.push(Ref {
+            to: To::Decl {
+                name: name.into(),
+                wide,
+            },
+            start,
+            end,
+            relation,
+            evidence,
+        });
+    }
+}
+
+/// Larger sources stay file level: no hand-written build or config file is.
+const FACT_LIMIT: usize = 2 * 1024 * 1024;
+
+pub(super) fn facts(lang: &str, path: &str, content: &str) -> Facts {
+    if content.len() > FACT_LIMIT {
+        return Facts::default();
+    }
+    let ext = path.rsplit_once('.').map_or("", |(_, e)| e);
+    match lang {
+        "dockerfile" => super::basic_build::dockerfile(content),
+        "make" => super::basic_build::makefile(content),
+        "github_actions" => super::basic_build::workflow(content),
+        "groovy" | "hcl" => {
+            let mut f = Facts::default();
+            shell_paths(&mut f, content, 0);
+            f
+        }
+        "yaml" => super::basic_config::yaml(path, content),
+        "json" => super::basic_config::json(content),
+        "html" => super::basic_markup::html(content),
+        "css" => super::basic_markup::css(content),
+        "template" => super::basic_markup::template(ext, content),
+        "lua" => super::basic_lua::lua(content),
+        "c" | "cpp" => includes(content),
+        _ => Facts::default(),
+    }
+}
+
+/// Words of command text that look like relative file paths: a script a
+/// recipe runs, a file a step passes. They are candidates only where a source
+/// of that path exists, so a word that is not a path costs nothing.
+pub(super) fn shell_paths(facts: &mut Facts, text: &str, offset: usize) {
+    let separators = |c: char| {
+        c.is_whitespace()
+            || matches!(
+                c,
+                '"' | '\'' | '`' | '=' | ',' | '(' | ')' | ';' | '|' | '&' | '<' | '>' | '[' | ']'
+            )
+    };
+    let mut at = 0;
+    for word in text.split(separators) {
+        let start = at;
+        at += word.len()
+            + text[start + word.len()..]
+                .chars()
+                .next()
+                .map_or(0, char::len_utf8);
+        let word = word.trim_end_matches(':');
+        if path_like(word) {
+            facts.path(word, offset + start, "literal_path_in_command");
+        }
+    }
+}
+
+pub(super) fn path_like(word: &str) -> bool {
+    let name = word.rsplit('/').next().unwrap_or(word);
+    word.len() < 512
+        && !word.contains("://")
+        && !word.contains(['$', '{', '}', '*', '?', '@', '\\', '%'])
+        && !word.starts_with(['-', '/', '~'])
+        && (word.contains('/') || name.contains('.'))
+        && name.rsplit_once('.').is_some_and(|(stem, ext)| {
+            !stem.is_empty()
+                && ext.starts_with(|c: char| c.is_ascii_alphabetic())
+                && ext.chars().all(|c| c.is_ascii_alphanumeric())
+        })
+}
+
+/// `#include "x.h"`: beside the including file, else the one source ending
+/// in that path. `<x.h>` is a system or include-path header.
+fn includes(content: &str) -> Facts {
+    let mut f = Facts::default();
+    let mut at = 0;
+    for line in content.split_inclusive('\n') {
+        let trimmed = line.trim_start();
+        if let Some(rest) = trimmed.strip_prefix('#')
+            && let Some(rest) = rest.trim_start().strip_prefix("include")
+            && let Some(quoted) = rest.trim_start().strip_prefix('"')
+            && let Some((name, _)) = quoted.split_once('"')
+            && !name.is_empty()
+        {
+            let start = at + line.find(name).unwrap_or(0);
+            f.refs.push(Ref {
+                to: To::Suffix(vec![name.into()]),
+                start,
+                end: start + name.len(),
+                relation: "potential_import",
+                evidence: "c_include_candidate",
+            });
+        }
+        at += line.len();
+    }
+    f
+}
+
+/// `content` with its comments and string literals blanked to spaces, offsets
+/// unchanged, so a keyword scan skips quoted and commented text.
+pub(super) fn masked(content: &str, line_comment: &str, block: Option<(&str, &str)>) -> String {
+    let bytes = content.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    let blank = |out: &mut Vec<u8>, part: &[u8]| {
+        out.extend(part.iter().map(|b| if *b == b'\n' { b'\n' } else { b' ' }));
+    };
+    while i < bytes.len() {
+        let rest = &content[i..];
+        if let Some((open, close)) = block
+            && rest.starts_with(open)
+        {
+            let end = rest[open.len()..]
+                .find(close)
+                .map_or(rest.len(), |e| open.len() + e + close.len());
+            blank(&mut out, &bytes[i..i + end]);
+            i += end;
+        } else if rest.starts_with(line_comment) {
+            let end = rest.find('\n').unwrap_or(rest.len());
+            blank(&mut out, &bytes[i..i + end]);
+            i += end;
+        } else if matches!(bytes[i], b'"' | b'\'') {
+            let quote = bytes[i];
+            let mut j = i + 1;
+            while j < bytes.len() && bytes[j] != quote && bytes[j] != b'\n' {
+                j += if bytes[j] == b'\\' { 2 } else { 1 };
+            }
+            let end = (j + 1).min(bytes.len());
+            out.push(b' ');
+            blank(&mut out, &bytes[i + 1..end]);
+            i = end;
+        } else {
+            out.push(bytes[i]);
+            i += 1;
+        }
+    }
+    // Only ASCII bytes were replaced, by ASCII: char boundaries are kept.
+    String::from_utf8(out).unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn paths(f: &Facts) -> Vec<&str> {
+        f.refs
+            .iter()
+            .filter_map(|r| match &r.to {
+                To::Path { literal, .. } => Some(literal.as_str()),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn command_words_that_look_like_files_are_path_candidates() {
+        let text = "./hack/gen.sh --out=bin/app && kubectl apply -f k8s/a.yaml $(X)/y.sh https://a.io/b.sh v1.2 go build ./...";
+        let mut f = Facts::default();
+        shell_paths(&mut f, text, 10);
+        assert_eq!(
+            paths(&f),
+            ["./hack/gen.sh", "k8s/a.yaml"],
+            "bin/app has no extension; v1.2 a version"
+        );
+        assert_eq!(
+            &text[f.refs[1].start - 10..f.refs[1].end - 10],
+            "k8s/a.yaml"
+        );
+    }
+
+    #[test]
+    fn quoted_includes_are_candidates_and_system_headers_are_not() {
+        let f = includes("#include <stdio.h>\n  #  include \"lib/util.h\"\n");
+        assert!(matches!(&f.refs[..], [Ref { to: To::Suffix(s), .. }] if s == &["lib/util.h"]));
+    }
+
+    #[test]
+    fn masking_keeps_offsets_and_hides_strings_and_comments() {
+        let text = "a = \"end\" -- end\nb = 'x' --[[ end ]] c";
+        let m = masked(text, "--", Some(("--[[", "]]")));
+        assert_eq!(m.len(), text.len());
+        assert!(!m.contains("end"));
+        assert!(m.ends_with(" c"));
+    }
+}

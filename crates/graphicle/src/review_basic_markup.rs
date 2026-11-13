@@ -1,0 +1,231 @@
+//! HTML, CSS and templates: the files a page loads, a stylesheet imports or a
+//! template includes, and Go templates' `define`d blocks and their callers.
+use super::basic_refs::{Decl, Facts, Ref, To};
+use regex::Regex;
+use std::sync::LazyLock;
+
+static HTML: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"(?i)\b(?:src|href)\s*=\s*["']([^"'#?]+)"#).unwrap());
+static CSS_IMPORT: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"@(?:import|use|forward)\s+(?:url\(\s*)?["']?([^"')\s;]+)"#).unwrap()
+});
+static CSS_URL: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r#"\burl\(\s*["']?([^"')\s#?]+)"#).unwrap());
+static PARTIAL: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"\{\{>\s*([\w./-]+)").unwrap());
+static JINJA: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"\{%-?\s*(?:include|extends|import|from)\s+["']([^"']+)["']"#).unwrap()
+});
+static GO_ACTION: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"\{\{-?\s*(define|block|template|include|if|range|with|end)\b\s*(?:"([^"]*)")?[^}]*\}\}"#,
+    )
+    .unwrap()
+});
+
+/// A relative reference to another file of the site or project; a URL, an
+/// absolute path, a data URI or a template expression is not one.
+fn local(value: &str) -> bool {
+    !value.is_empty() && !value.contains([':', '{', '}', '$']) && !value.starts_with(['/', '#'])
+}
+
+fn captures(f: &mut Facts, re: &Regex, content: &str, evidence: &'static str) {
+    for c in re.captures_iter(content) {
+        let m = c.get(1).unwrap();
+        if local(m.as_str()) {
+            f.path(m.as_str(), m.start(), evidence);
+        }
+    }
+}
+
+pub(super) fn html(content: &str) -> Facts {
+    // A page is often a Jinja/Django or Go template: read its template
+    // actions as a template's, so `{% extends %}` and `{{ template }}` link.
+    let mut f = if JINJA.is_match(content) {
+        template("jinja", content)
+    } else if GO_ACTION.is_match(content) {
+        template("gohtml", content)
+    } else {
+        Facts::default()
+    };
+    captures(&mut f, &HTML, content, "html_resource");
+    f
+}
+
+pub(super) fn css(content: &str) -> Facts {
+    let mut f = Facts::default();
+    for c in CSS_IMPORT.captures_iter(content) {
+        let m = c.get(1).unwrap();
+        let name = m.as_str();
+        if !local(name) {
+            continue;
+        }
+        // Sass resolves `base` to base.scss, _base.scss, base.css...
+        let (dir, file) = name.rsplit_once('/').map_or(("", name), |(d, f)| (d, f));
+        let mut candidates = vec![name.to_owned()];
+        if !file.contains('.') {
+            for ext in ["scss", "sass", "css", "less"] {
+                candidates.push(format!("{name}.{ext}"));
+                candidates.push(match dir {
+                    "" => format!("_{file}.{ext}"),
+                    dir => format!("{dir}/_{file}.{ext}"),
+                });
+            }
+        }
+        for candidate in candidates {
+            f.refs.push(Ref {
+                to: To::Path {
+                    literal: candidate,
+                    index: &[],
+                    required: false,
+                },
+                start: m.start(),
+                end: m.end(),
+                relation: "potential_import",
+                evidence: "css_import",
+            });
+        }
+    }
+    let imported: Vec<usize> = f.refs.iter().map(|r| r.start).collect();
+    for c in CSS_URL.captures_iter(content) {
+        let m = c.get(1).unwrap();
+        if local(m.as_str()) && !imported.contains(&m.start()) {
+            f.path(m.as_str(), m.start(), "css_url");
+        }
+    }
+    f
+}
+
+pub(super) fn template(ext: &str, content: &str) -> Facts {
+    let mut f = Facts::default();
+    match ext {
+        "mustache" | "hbs" | "handlebars" => {
+            for c in PARTIAL.captures_iter(content) {
+                let m = c.get(1).unwrap();
+                f.refs.push(Ref {
+                    to: To::Suffix(vec![format!("{}.{ext}", m.as_str()), m.as_str().into()]),
+                    start: m.start(),
+                    end: m.end(),
+                    relation: "potential_import",
+                    evidence: "template_partial",
+                });
+            }
+        }
+        "njk" | "j2" | "jinja" | "jinja2" => {
+            for c in JINJA.captures_iter(content) {
+                let m = c.get(1).unwrap();
+                if local(m.as_str()) {
+                    f.refs.push(Ref {
+                        to: To::Suffix(vec![m.as_str().into()]),
+                        start: m.start(),
+                        end: m.end(),
+                        relation: "potential_import",
+                        evidence: "template_include",
+                    });
+                }
+            }
+        }
+        _ => go_template(&mut f, content),
+    }
+    f
+}
+
+/// `define` and `block` are declarations, ended by their matching `end`;
+/// `template` and `include` call the definition of that name, which a Go
+/// program may parse from any of its template files.
+fn go_template(f: &mut Facts, content: &str) {
+    // Open actions: the index of the declaration they start, if any.
+    let mut open: Vec<Option<usize>> = vec![];
+    for c in GO_ACTION.captures_iter(content) {
+        let action = c.get(0).unwrap();
+        let name = c.get(2).map(|m| (m.as_str(), m.start(), m.end()));
+        match &c[1] {
+            "define" | "block" => {
+                if c[1] == *"block"
+                    && let Some((name, s, e)) = name
+                {
+                    f.decl_ref(name, true, s, e, "may_call", "go_template_call");
+                }
+                open.push(name.map(|(name, ..)| {
+                    f.decls.push(Decl {
+                        name: name.into(),
+                        kind: "template_definition",
+                        start: action.start(),
+                        body_start: action.end(),
+                        end: content.len(),
+                    });
+                    f.decls.len() - 1
+                }));
+            }
+            "if" | "range" | "with" => open.push(None),
+            "end" => {
+                if let Some(Some(decl)) = open.pop() {
+                    f.decls[decl].end = action.end();
+                }
+            }
+            _ => {
+                if let Some((name, s, e)) = name {
+                    f.decl_ref(name, true, s, e, "may_call", "go_template_call");
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn targets(f: &Facts) -> Vec<String> {
+        f.refs
+            .iter()
+            .map(|r| match &r.to {
+                To::Path { literal, .. } => literal.clone(),
+                To::Decl { name, .. } => format!("#{name}"),
+                To::Suffix(n) => n.join("|"),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn pages_and_stylesheets_name_their_local_files() {
+        let page = html(
+            "<link href='css/a.css'><img SRC=\"img/x.png?v=1\"><a href=\"https://x.io/y.js\"><a href=\"#top\"><a href=\"/abs.css\"><a href=\"{{ url }}\">",
+        );
+        assert_eq!(targets(&page), ["css/a.css", "img/x.png"]);
+        let sheet = css(
+            "@import 'b.css';\n@use \"lib/vars\";\n@import url(\"c.css\");\na { background: url(i/bg.png) }\n.x { background: url(data:image/png;base64,AA) }\n",
+        );
+        let t = targets(&sheet);
+        assert_eq!(t[0], "b.css");
+        assert!(t.contains(&"lib/_vars.scss".to_owned()));
+        assert!(t.contains(&"c.css".to_owned()));
+        assert_eq!(t.last().unwrap(), "i/bg.png");
+        assert_eq!(t.iter().filter(|x| *x == "c.css").count(), 1);
+    }
+
+    #[test]
+    fn templates_include_partials_and_go_templates_declare_definitions() {
+        assert_eq!(
+            targets(&template("mustache", "{{> head}}{{name}}")),
+            ["head.mustache|head"]
+        );
+        assert_eq!(
+            targets(&template(
+                "j2",
+                "{% extends 'base.j2' %}{%- include \"p/n.j2\" %}{{ x }}"
+            )),
+            ["base.j2", "p/n.j2"]
+        );
+        let text = "{{/* c */}}{{ define \"a\" }}{{ range .X }}{{ template \"b\" . }}{{ end }}{{ end }}{{ define \"b\" }}x{{- end }}{{ template \"a\" }}";
+        let f = template("tmpl", text);
+        let decls: Vec<_> = f
+            .decls
+            .iter()
+            .map(|d| (d.name.as_str(), &text[d.start..d.end]))
+            .collect();
+        assert_eq!(decls[0].0, "a");
+        assert!(decls[0].1.ends_with("{{ end }}{{ end }}"), "{:?}", decls[0]);
+        assert_eq!(decls[1], ("b", "{{ define \"b\" }}x{{- end }}"));
+        assert_eq!(targets(&f), ["#b", "#a"]);
+    }
+}

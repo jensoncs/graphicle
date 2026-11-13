@@ -8,6 +8,32 @@ use crate::{
 use serde_json::{Value, json};
 
 /// The `build.info` capabilities of this process (see [`capabilities_of`]).
+/// Languages basic review reads.
+const BASIC_LANGUAGES: &[&str] = &[
+    "terraform",
+    "helm",
+    "bash",
+    "python",
+    "rust",
+    "typescript",
+    "javascript",
+    "sql",
+    "proto",
+    "dockerfile",
+    "make",
+    "groovy",
+    "github_actions",
+    "yaml",
+    "json",
+    "html",
+    "css",
+    "template",
+    "lua",
+    "c",
+    "cpp",
+    "hcl",
+];
+
 pub fn capabilities() -> Value {
     capabilities_of(crate::extension::installed())
 }
@@ -27,6 +53,9 @@ pub fn edition() -> &'static str {
 /// `--version` and the update check always agree.
 pub fn capabilities_of(extensions: &Extensions) -> Value {
     let edition = extensions.edition().name();
+    // Built apart: the capabilities literal is at `json!`'s recursion limit.
+    let basic_change_impact = json!({"languages":BASIC_LANGUAGES,"granularity":"file-module-chart","compiler_resolution":false,
+        "declaration_callers":{"languages":["python","rust","typescript","javascript","lua","make","template"],"relation":"may_call","analysis_level":"basic_symbol"}});
     let mut capabilities = json!({"edition": edition,
         "code_graph": true, "memory": true, "observer": true,
         "local_inference": cfg!(feature = "local-inference"),
@@ -57,7 +86,7 @@ pub fn capabilities_of(extensions: &Extensions) -> Value {
         "review_excluded_modules": "explicit-go-root-exclusions-v1",
         "sync_analysis_cache": "parse-reuse-and-rebuild-counts-v1",
         "review_go_roots": "admitted-module-discovery-v1",
-        "basic_change_impact": {"languages":["terraform","helm","bash","python","rust","typescript","javascript","sql","proto"],"granularity":"file-module-chart","compiler_resolution":false,"declaration_callers":{"languages":["python","rust","typescript","javascript"],"relation":"may_call","analysis_level":"basic_symbol"}},
+        "basic_change_impact": basic_change_impact,
         "business_context": true,
         "business_context_scope": "static-candidates-and-pinned-history-v1",
         "execution_coverage": true,
