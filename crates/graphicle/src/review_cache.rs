@@ -359,7 +359,8 @@ pub(crate) fn retention(
 ) -> Result<Value> {
     let repository = crate::string(args, "repository_id", 100)?;
     let snapshot = store::hash(crate::string(args, "snapshot", 64)?)?;
-    store.authorized(workspace, token, "write", |db, p| {
+    // Admin, as storage.prune: a retained snapshot is outside its pruning and every cache bound.
+    store.authorized(workspace, token, "admin", |db, p| {
         let project = store::repo(db, p, repository)?;
         let id = s(&project, "id");
         if operation == "review.retain" {
@@ -838,7 +839,7 @@ mod tests {
     }
 
     #[test]
-    fn retain_takes_only_a_snapshot_of_the_project_and_needs_write_access() {
+    fn retain_takes_only_a_snapshot_of_the_project_and_needs_admin_access() {
         let base = "b".repeat(64);
         let (_dir, store, ws, anchor) = project_with(&[&base]);
         assert!(call(&store, &ws, "review.retain", &anchor, &"d".repeat(64)).is_err());
@@ -852,6 +853,17 @@ mod tests {
             .unwrap();
         let read_only = json!({"id":s(&ws, "id"),"capability":s(&reader, "capability")});
         assert!(call(&store, &read_only, "review.retain", &anchor, &base).is_err());
+        // Write access is not enough: retention is outside storage.prune, which needs admin.
+        let reviewer = store
+            .grant(
+                s(&ws, "id"),
+                s(&ws, "capability"),
+                &json!({"label":"reviewer","role":"reviewer"}),
+            )
+            .unwrap();
+        let writer = json!({"id":s(&ws, "id"),"capability":s(&reviewer, "capability")});
+        assert!(call(&store, &writer, "review.retain", &anchor, &base).is_err());
+        assert!(call(&store, &writer, "review.release", &anchor, &base).is_err());
         assert_eq!(
             call(&store, &ws, "review.retain", &anchor, &base).unwrap()["retained"],
             true

@@ -162,7 +162,7 @@ package facts built from that snapshot are outside every cache limit: the four
 analyses kept per project, the package pool's entry and byte bounds, and the
 removal of other configurations' pools at each review. A retained pool's facts
 load first. `storage.prune` keeps a retained snapshot whatever `keep_snapshots`
-says. Both need write access; retain takes only a snapshot of that project and
+says. Both need admin access, as `storage.prune` does; retain takes only a snapshot of that project and
 answers `{"retained":true}`, also when it was retained already; release answers
 `released` true or false. A retained snapshot that is deleted (its project
 deleted) is released with it. `build.info.review_retention` advertises
