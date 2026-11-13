@@ -609,7 +609,24 @@ pub fn resolve(
                         row.row + 1,
                         row.column + 1,
                     );
-                    unresolved.insert(key.clone(), json!({"source_file":key.0,"source_location":format!("L{}",key.1),"column":key.2,"language":"go","reason":"type_information_unavailable"}));
+                    let mut call = json!({"source_file":key.0,"source_location":format!("L{}",key.1),"column":key.2,"language":"go","reason":"type_information_unavailable"});
+                    // The callee as written (`server.Run`, `Map[int]`), so an
+                    // answer can tell which symbol an unresolved call could
+                    // name; a function literal or a call result names none.
+                    if let Some(function) = node.child_by_field_name("function").filter(|f| {
+                        matches!(
+                            f.kind(),
+                            "identifier"
+                                | "selector_expression"
+                                | "generic_type"
+                                | "index_expression"
+                        )
+                    }) && let Ok(text) = function.utf8_text(&parsed.source)
+                    {
+                        let text: String = text.split_whitespace().collect();
+                        call["callee"] = json!(text.chars().take(200).collect::<String>());
+                    }
+                    unresolved.insert(key.clone(), call);
                 }
                 let mut cursor = node.walk();
                 pending.extend(node.named_children(&mut cursor));

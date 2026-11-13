@@ -793,3 +793,37 @@ fn standard_http_import_keeps_local_go_calls() {
         "{graph}"
     );
 }
+
+/// A Go call the type checker could not resolve keeps its callee text, so an
+/// answer about `RunAthenaServer` can say this call may name it; a call of a
+/// function literal names nothing.
+#[test]
+fn unresolved_go_calls_keep_their_callee_text() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    write(&root, "go.mod", "module example/unresolved\ngo 1.23\n");
+    write(
+        &root,
+        "main.go",
+        "package main\n\nimport \"example.com/missing/server\"\n\nfunc main() {\n\tserver.RunAthenaServer()\n\tfunc() {}()\n}\n",
+    );
+    let graph = extract(
+        &[root.join("main.go")],
+        &ExtractOptions {
+            root: Some(root.clone()),
+            use_cache: false,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let unresolved = graph["unresolved_calls"].as_array().unwrap();
+    let at = |line: &str| {
+        unresolved
+            .iter()
+            .find(|u| u["source_location"] == line)
+            .unwrap_or_else(|| panic!("no unresolved call at {line}: {graph}"))
+    };
+    assert_eq!(at("L6")["callee"], "server.RunAthenaServer", "{graph}");
+    assert!(at("L7").get("callee").is_none(), "{graph}");
+}
