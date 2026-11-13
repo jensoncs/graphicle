@@ -5,7 +5,9 @@
 //! used, gets each name's definitions and references from the project's
 //! code graph as `path:line` citations, within the call's budget, instead of
 //! the full retrieval ([`answer`]). One line names the reviewed memories
-//! linked to those definitions ([`crate::symbol_links`]).
+//! linked to those definitions ([`crate::symbol_links`]), and one, in the
+//! footer, the unresolved calls that could name them and the files read with
+//! no type information (`possibly_incomplete`, [`crate::possibly_incomplete`]).
 //!
 //! A name is a backtick span that reads as an identifier, a `snake_case` or
 //! `SCREAMING_CASE` word, a camelCase or PascalCase word with an inner
@@ -780,9 +782,28 @@ pub fn answer(db: &Connection, p: &Principal, repository: &Value, args: &Value) 
     } else {
         READ_ON
     };
+    // The references the code graph may lack: unresolved calls that could
+    // name these symbols, and the files read with no type information. In
+    // the footer, so the budget never cuts it.
+    let names: Vec<String> = found.iter().map(|(name, ..)| name.clone()).collect();
+    let files: BTreeSet<String> = found
+        .iter()
+        .flat_map(|(_, defined, used)| {
+            defined
+                .iter()
+                .map(|located| located.relpath.clone())
+                .chain(used.iter().map(|reference| reference.relpath.clone()))
+        })
+        .collect();
+    let incomplete = crate::possibly_incomplete::episode(db, id, &episode, &names, &files)?;
+    let incomplete_line = incomplete
+        .as_ref()
+        .and_then(crate::possibly_incomplete::line)
+        .map(|line| format!("{line}\n"))
+        .unwrap_or_default();
     let footer = |omitted: usize| {
         format!(
-            "{read_on}\nBudget: {max_tokens} cl100k_base reference tokens / {max_chars} characters. Omitted: {omitted} definitions and references.\n"
+            "{incomplete_line}{read_on}\nBudget: {max_tokens} cl100k_base reference tokens / {max_chars} characters. Omitted: {omitted} definitions and references.\n"
         )
     };
     let reserve = footer(usize::MAX);
@@ -909,7 +930,7 @@ pub fn answer(db: &Connection, p: &Principal, repository: &Value, args: &Value) 
         route["episode_lag"] = json!(lag.changed);
         route["current_episode"] = json!(lag.current);
     }
-    let packet = json!({
+    let mut packet = json!({
         "repository_id": id,
         "question": question,
         "markdown": markdown,
@@ -935,6 +956,9 @@ pub fn answer(db: &Connection, p: &Principal, repository: &Value, args: &Value) 
         "freshness": crate::invalidation::repository_freshness(db, &p.workspace, id)?,
         REPORT: route,
     });
+    if let Some(incomplete) = incomplete {
+        packet[crate::possibly_incomplete::FIELD] = incomplete;
+    }
     Ok(Routed::Answered(packet))
 }
 

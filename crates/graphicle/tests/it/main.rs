@@ -64,6 +64,7 @@ mod passage_index;
 mod permissions_refresh;
 mod pilot_protocol;
 mod pixel;
+mod possibly_incomplete;
 mod product_workspace;
 mod project_identity;
 mod provider_http_hosts;

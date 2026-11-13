@@ -363,6 +363,8 @@ pub fn legacy_graph(db: &Connection, repository: &Value, _p: &Principal) -> Resu
 }
 /// Basis recorded on every edge derived from a projected episode.
 pub const EPISODE_BASIS: &str = "projected_graph_episode";
+/// Incomplete files an episode's `coverage` lists; the rest are counted.
+pub const INCOMPLETE_LISTED: usize = 100;
 
 fn node_text<'a>(attributes: &'a impl graphicle::record::Properties, key: &str) -> Option<&'a str> {
     attributes
@@ -398,8 +400,14 @@ pub(crate) fn node_line_of(attributes: &impl graphicle::record::Properties) -> O
 ///   `symbol_calls` only) with `basis: "projected_graph_episode"`.
 /// - Markdown `document_link` edges are legacy-only; the episode records
 ///   document nodes and `references` edges instead.
-/// - `coverage.symbols` counts non-file nodes anchored to a file; `incomplete`
-///   is always empty because the episode does not carry parser issues.
+/// - `coverage.symbols` counts non-file nodes anchored to a file. The episode
+///   does not carry parser issues: `incomplete` lists the files whose calls
+///   had no type information ([`crate::possibly_incomplete::file_incomplete`]),
+///   each with its unresolved calls per reason, at most
+///   [`INCOMPLETE_LISTED`] (`incomplete_omitted` counts the rest).
+/// - `unresolved_calls` are the episode's receiver-resolution and Go leftovers
+///   (`source_file`, `source_location`, `callee`, `reason`), not the legacy
+///   adapter's `path`/`line` records.
 pub fn episode_graph(graph: &Graph, episode: &str) -> Value {
     let nodes = graph.nodes();
     let relpath = |index: usize| {
@@ -465,8 +473,40 @@ pub fn episode_graph(graph: &Graph, episode: &str) -> Value {
     let symbols = (0..nodes.len())
         .filter(|&i| !is_file(i) && relpath(i).is_some())
         .count();
-    json!({"edges":edges,"unresolved":[],"symbol_calls":symbol_calls,"unresolved_calls":[],
-        "coverage":{"files":files.len(),"symbols":symbols,"incomplete_files":[],"incomplete":[]},
+    let unresolved_calls = graph
+        .attributes()
+        .get(graph_projection::UNRESOLVED_CALLS)
+        .cloned()
+        .unwrap_or(json!([]));
+    let mut incomplete = BTreeMap::<String, BTreeMap<&str, u64>>::new();
+    for call in unresolved_calls.as_array().into_iter().flatten() {
+        let reason = call["reason"].as_str().unwrap_or("");
+        if let Some(file) = call["source_file"].as_str()
+            && crate::possibly_incomplete::file_incomplete(reason)
+        {
+            *incomplete
+                .entry(file.replace('\\', "/"))
+                .or_default()
+                .entry(reason)
+                .or_default() += 1;
+        }
+    }
+    let incomplete_omitted = incomplete.len().saturating_sub(INCOMPLETE_LISTED);
+    let incomplete: Vec<Value> = incomplete
+        .into_iter()
+        .take(INCOMPLETE_LISTED)
+        .map(|(path, reasons)| {
+            let issues: Vec<Value> = reasons
+                .into_iter()
+                .map(|(reason, calls)| json!({"reason":reason,"unresolved_calls":calls}))
+                .collect();
+            json!({"path":path,"issues":issues})
+        })
+        .collect();
+    let incomplete_files: Vec<&Value> = incomplete.iter().map(|file| &file["path"]).collect();
+    json!({"edges":edges,"unresolved":[],"symbol_calls":symbol_calls,"unresolved_calls":unresolved_calls,
+        "coverage":{"files":files.len(),"symbols":symbols,"incomplete_files":incomplete_files,
+            "incomplete":incomplete,"incomplete_omitted":incomplete_omitted},
         "scope":"Static source relationships in the projected code-graph episode; not a runtime call graph",
         "revision":graphicle_memory::structure::REVISION,"graph_source":"episode","episode":episode,
         "graph_nodes":nodes.len(),"graph_edges":graph.edge_count()})
@@ -3272,6 +3312,31 @@ impl Store {
 #[cfg(test)]
 mod tests {
     use super::{rerank_order, rerank_rrf_order};
+
+    /// The episode's file view carries its unresolved calls and, as
+    /// incomplete, the files whose calls had no type information.
+    #[test]
+    fn episode_view_reports_unresolved_calls_and_files_without_type_information() {
+        use serde_json::json;
+        let mut graph = graphicle::graph::Graph::new(true, true);
+        let calls = json!([
+            {"source_file":"cmd/main.go","source_location":"L31","callee":"server.Run","reason":"type_information_unavailable"},
+            {"source_file":"cmd/main.go","source_location":"L32","callee":"log.Print","reason":"type_information_unavailable"},
+            {"source_file":"app.py","source_location":"L4","callee":"size","reason":"unknown_receiver"}
+        ]);
+        graph.attributes_mut()[crate::graph_projection::UNRESOLVED_CALLS] = calls.clone();
+        let view = super::episode_graph(&graph, "e1");
+        assert_eq!(view["unresolved_calls"], calls);
+        assert_eq!(view["coverage"]["incomplete_files"], json!(["cmd/main.go"]));
+        assert_eq!(
+            view["coverage"]["incomplete"],
+            json!([{"path":"cmd/main.go","issues":[{"reason":"type_information_unavailable","unresolved_calls":2}]}])
+        );
+        assert_eq!(view["coverage"]["incomplete_omitted"], 0);
+        let empty = super::episode_graph(&graphicle::graph::Graph::new(true, true), "e2");
+        assert_eq!(empty["unresolved_calls"], json!([]));
+        assert_eq!(empty["coverage"]["incomplete"], json!([]));
+    }
 
     #[test]
     fn scoring_focus_requires_unique_exact_authorized_source_bytes() {

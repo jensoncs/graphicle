@@ -26,6 +26,11 @@
 //!   through a relation says whether a relation read from an unchanged file
 //!   reaches it (`relation_checked`), the rule the code-graph arm follows
 //!   when it withholds such neighbours.
+//! - **Possibly incomplete.** `get_node` and `get_neighbors` on a code symbol
+//!   add `possibly_incomplete` when the episode's unresolved calls could name
+//!   it or a file the answer read had no type information, and the citations
+//!   block says so in one line ([`crate::possibly_incomplete`]): a neighbour
+//!   list with no caller is then not read as "no callers".
 //! - **Back-links.** `get_node`'s node also lists, under `linked`, the
 //!   current reviewed memories linked to that symbol and the documents the
 //!   reader may read that mention it ([`crate::symbol_links::attach`]); the
@@ -517,6 +522,32 @@ pub fn call(store: &Store, workspace: &str, token: &str, args: &Value) -> Result
         if let Some(checks) = &checks {
             reply["relations_unchecked"] = json!(checks.values().filter(|c| !**c).count());
         }
+        // The callers a symbol's neighbours may lack: the unresolved calls
+        // that could name it, and the files read with no type information.
+        let g = &resident.context.graph;
+        if matches!(tool, "get_node" | "get_neighbors")
+            && let Some(&subject) = named.nodes.first()
+            && code_graph_arm::code_symbol(&g.nodes()[subject].attributes)
+        {
+            let names: Vec<String> =
+                crate::identifier_route::symbol_name(&g.nodes()[subject].attributes)
+                    .into_iter()
+                    .collect();
+            let files: BTreeSet<String> = named
+                .nodes
+                .iter()
+                .filter_map(|&i| code_graph_arm::relpath(&g.nodes()[i].attributes))
+                .collect();
+            if let Some(report) = crate::possibly_incomplete::episode(
+                db,
+                identifier,
+                &reading.episode,
+                &names,
+                &files,
+            )? {
+                reply[crate::possibly_incomplete::FIELD] = report;
+            }
+        }
         Ok(reply)
     })
 }
@@ -612,6 +643,10 @@ pub fn citations_text(reply: &Value) -> String {
             plural(unmatched),
             if unmatched == 1 { "s" } else { "" }
         ));
+    }
+    if let Some(line) = crate::possibly_incomplete::line(&reply[crate::possibly_incomplete::FIELD])
+    {
+        out.push_str(&format!("\n{line}"));
     }
     out
 }

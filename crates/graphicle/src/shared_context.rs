@@ -273,7 +273,6 @@ pub fn export(
         // rather than relabelling a persisted graph from a previous build.
         let (episode, graph, report) = crate::graph_projection::build_graph_with_report(db, project)?;
         bundle.graph = query::episode_graph(&graph, &episode);
-        bundle.graph["unresolved_calls"] = graph.attributes().get("unresolved_calls").cloned().unwrap_or(json!([]));
         bundle.graph["unsupported_files"] = report["unsupported"].clone();
         bundle.bytes()?;
         Ok(bundle)
