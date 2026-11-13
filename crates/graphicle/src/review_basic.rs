@@ -696,7 +696,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 .decls
                 .iter()
                 .map(|d| {
-                    let mut v = json!({"name":d.name,"kind":d.kind,"byte_start":d.start,"byte_end":d.end,"body_start":d.body_start,"line":line(d.start),"end_line":line(d.end)});
+                    let mut v = json!({"name":d.name,"kind":d.kind,"byte_start":d.start,"byte_end":d.end,"body_start":d.body_start,"line":line(d.start),"end_line":line(d.end.saturating_sub(1).max(d.start))});
                     let go = super::basic_proto::go_name(&d.name);
                     if let Some((file, types)) = generated.as_ref().filter(|_| {
                         matches!(d.kind, "proto_message" | "proto_enum")
@@ -730,7 +730,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             let symbols: Vec<Value> = found
                 .decls
                 .iter()
-                .map(|d| json!({"name":d.name,"kind":d.kind,"byte_start":d.start,"byte_end":d.end,"body_start":d.body_start,"line":line(d.start),"end_line":line(d.end)}))
+                .map(|d| json!({"name":d.name,"kind":d.kind,"byte_start":d.start,"byte_end":d.end,"body_start":d.body_start,"line":line(d.start),"end_line":line(d.end.saturating_sub(1).max(d.start))}))
                 .collect();
             if !symbols.is_empty() {
                 inventory["declarations"] = json!(symbols.iter().take(128).collect::<Vec<_>>());

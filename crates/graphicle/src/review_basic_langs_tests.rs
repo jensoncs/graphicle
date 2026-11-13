@@ -150,6 +150,41 @@ fn a_dockerfile_stage_is_selected_by_what_it_copies_and_the_stages_it_copies_fro
 }
 
 #[test]
+fn a_stage_ending_at_the_next_from_ends_on_its_own_last_line() {
+    // The stage's bytes end where the next FROM starts, so its last byte is a
+    // newline: end_line is that newline's line, not the FROM's (a reader that
+    // checks the line against the bytes refuses the packet otherwise).
+    let docker = "FROM golang AS build\nCOPY scripts/build.sh /b.sh\nRUN /b.sh\n\nFROM alpine AS final\nRUN true\n";
+    let files = [
+        ("repo/Dockerfile", docker),
+        ("repo/scripts/build.sh", "#!/bin/sh\necho 1\n"),
+    ];
+    let head = [
+        ("repo/Dockerfile", docker),
+        ("repo/scripts/build.sh", "#!/bin/sh\necho 2\n"),
+    ];
+    let r = report(&input(&files), &input(&head));
+    let build = r["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["side"] == "head" && e["name"] == "build")
+        .unwrap_or_else(|| panic!("{r:#}"));
+    let (start, end) = (
+        build["byte_start"].as_u64().unwrap() as usize,
+        build["byte_end"].as_u64().unwrap() as usize,
+    );
+    assert_eq!(
+        &docker[start..end],
+        "FROM golang AS build\nCOPY scripts/build.sh /b.sh\nRUN /b.sh\n\n"
+    );
+    assert_eq!(
+        (build["line"].as_u64(), build["end_line"].as_u64()),
+        (Some(1), Some(4))
+    );
+}
+
+#[test]
 fn a_build_context_another_file_states_is_where_a_dockerfile_copies_from() {
     let files = [
         (
