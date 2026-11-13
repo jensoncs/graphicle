@@ -132,13 +132,13 @@ fn unsupported_breakdown_counts_both_sides_beyond_issue_sample() {
     let f = Fixture::new();
     let repo = f.repo("unsupported");
     let mut owned: Vec<(String, String)> = (0..24)
-        .map(|i| (format!("db/{i:02}.sql"), "select 1;\n".into()))
+        .map(|i| (format!("src/C{i:02}.java"), "class C {}\n".into()))
         .collect();
     for (path, content) in [
-        ("api.proto", "syntax = \"proto3\";\n"),
-        ("config.yaml", "replicas: 1\n"),
-        ("config.json", "{\"replicas\":1}\n"),
-        ("Dockerfile", "FROM scratch\n"),
+        ("app.kt", "class A\n"),
+        ("app.rb", "puts 1\n"),
+        ("app.swift", "let a = 1\n"),
+        ("app.scala", "object A\n"),
         ("entrypoint", "#!/usr/bin/custom\nrun\n"),
         ("native.S", ".text\n"),
         ("README.md", "Documentation\n"),
@@ -164,11 +164,11 @@ fn unsupported_breakdown_counts_both_sides_beyond_issue_sample() {
     assert_eq!(groups.len(), 14);
     for side in ["base", "head"] {
         for (extension, cause, count) in [
-            ("sql", "code_extension", 24),
-            ("yaml", "code_extension", 1),
-            ("json", "code_extension", 1),
-            ("proto", "contract_extension", 1),
-            ("", "build_filename", 1),
+            ("java", "code_extension", 24),
+            ("kt", "code_extension", 1),
+            ("rb", "code_extension", 1),
+            ("swift", "code_extension", 1),
+            ("scala", "code_extension", 1),
             ("", "shebang", 1),
             ("s", "assembly_extension", 1),
         ] {
