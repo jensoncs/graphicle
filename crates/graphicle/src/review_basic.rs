@@ -790,7 +790,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "python"=>"Local import candidates, calls bound by name through a visible declaration or explicit import, and literal environment reads only; runtime environments, dynamic imports, rebinding, method calls and runtime dispatch are not resolved",
                 "proto"=>"Messages, enums, services, rpcs and extensions are declarations; a field's, rpc's or extension's message or enum type and a custom option name link it to the declaration of that name in its file or its imports, by protobuf scoping; an import names the one snapshot .proto at that path or ending in it (no buf or protoc import roots); the generated Go type, where Go review declares it, links the declaration to the Go code that uses it; option values, field numbers and wire compatibility are not resolved",
                 "sql"=>"sqlc query blocks are declarations; a query's FROM, JOIN, INTO and UPDATE tables link it to the sqlc schema files that create, alter, drop or write a table of that name, as candidates; the generated Go method, where Go review declares it, links the query to the Go code that calls it; views, functions, search paths and dynamic SQL are not resolved; SQL outside an sqlc configuration is file level only",
-                "dockerfile"=>"Named stages are declarations; COPY and ADD sources and literal paths in RUN, CMD and ENTRYPOINT link to the snapshot file beside the Dockerfile or at the repository root, as candidates (the build context is not known); COPY --from and FROM link a stage to the stage it names; build arguments, remote images and the context directory are not resolved",
+                "dockerfile"=>"Named stages are declarations; COPY and ADD sources link to the snapshot files they name, including files no review language analyses, in the build context a docker-compose build or a docker build command states, else beside the Dockerfile or at the repository root, as candidates; literal paths in RUN, CMD and ENTRYPOINT link the same way, and an image path a literal COPY or ADD put there links to its source; COPY --from and FROM link a stage to the stage it names; a copy of the whole context (COPY .), build arguments, remote images and an unstated context are not resolved",
                 "make"=>"Rule targets are declarations; a prerequisite links its target to the target of that name in the file, and include, file prerequisites and literal paths in recipes link to snapshot files; variables, pattern rules, implicit rules and recursive make are not resolved",
                 "groovy"=>"File level; literal paths in the file (sh steps, load, Dockerfile arguments) link to snapshot files beside it or at the repository root, as candidates; shared libraries, Groovy evaluation and plugins are not resolved",
                 "github_actions"=>"Workflow jobs are declarations; needs links a job to the jobs it needs, uses ./ links to the local action or reusable workflow, and literal paths in run and with values link to snapshot files; remote actions, expressions, matrices and path filters are not resolved",
@@ -1367,12 +1367,16 @@ pub(super) fn annotate(entry: &mut Value, analysis: &Analysis, file: &str) {
                 entry[field] = value.clone();
             }
         }
-        entry["test_classification"] = json!("not_analyzed");
-        entry["test"] = Value::Null;
-        entry["signature_revision"] = Value::Null;
-        entry["implementation_revision"] = Value::Null;
-        entry["revision"] = json!(crate::digest(entry));
+    } else {
+        // A file only linked to (what a Dockerfile copies): no language.
+        entry["language"] = Value::Null;
+        entry["analysis_level"] = json!("basic_file");
     }
+    entry["test_classification"] = json!("not_analyzed");
+    entry["test"] = Value::Null;
+    entry["signature_revision"] = Value::Null;
+    entry["implementation_revision"] = Value::Null;
+    entry["revision"] = json!(crate::digest(entry));
 }
 
 #[cfg(test)]

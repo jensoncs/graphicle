@@ -227,6 +227,7 @@ fn kustomization(content: &str) -> Facts {
                 literal: literal.into(),
                 index: KUSTOMIZATION,
                 required: true,
+                any_file: false,
             },
             start: at,
             end: at + literal.len(),

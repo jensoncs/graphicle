@@ -11,6 +11,10 @@ pub(super) enum To {
         literal: String,
         index: &'static [&'static str],
         required: bool,
+        /// It may name a file basic review does not analyse (what a
+        /// Dockerfile copies): resolved against every text source, and such
+        /// a file becomes a node that is only a link target.
+        any_file: bool,
     },
     /// A file named by a search path the snapshot cannot show (a template
     /// loader's roots, Lua's package.path): the one source
@@ -55,6 +59,7 @@ impl Facts {
                 literal: literal.into(),
                 index: &[],
                 required: false,
+                any_file: false,
             },
             start,
             end: start + literal.len(),
@@ -117,15 +122,8 @@ pub(super) fn facts(lang: &str, path: &str, content: &str) -> Facts {
 /// recipe runs, a file a step passes. They are candidates only where a source
 /// of that path exists, so a word that is not a path costs nothing.
 pub(super) fn shell_paths(facts: &mut Facts, text: &str, offset: usize) {
-    let separators = |c: char| {
-        c.is_whitespace()
-            || matches!(
-                c,
-                '"' | '\'' | '`' | '=' | ',' | '(' | ')' | ';' | '|' | '&' | '<' | '>' | '[' | ']'
-            )
-    };
     let mut at = 0;
-    for word in text.split(separators) {
+    for word in text.split(separator) {
         let start = at;
         at += word.len()
             + text[start + word.len()..]
@@ -137,6 +135,15 @@ pub(super) fn shell_paths(facts: &mut Facts, text: &str, offset: usize) {
             facts.path(word, offset + start, "literal_path_in_command");
         }
     }
+}
+
+/// What ends a word of command text.
+pub(super) fn separator(c: char) -> bool {
+    c.is_whitespace()
+        || matches!(
+            c,
+            '"' | '\'' | '`' | '=' | ',' | '(' | ')' | ';' | '|' | '&' | '<' | '>' | '[' | ']'
+        )
 }
 
 pub(super) fn path_like(word: &str) -> bool {

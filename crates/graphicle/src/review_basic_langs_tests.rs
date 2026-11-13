@@ -150,6 +150,93 @@ fn a_dockerfile_stage_is_selected_by_what_it_copies_and_the_stages_it_copies_fro
 }
 
 #[test]
+fn a_build_context_another_file_states_is_where_a_dockerfile_copies_from() {
+    let files = [
+        (
+            "repo/emqx/.ci/compose/docker-compose-db.yaml",
+            "services:\n  db:\n    build:\n      context: ../..\n      dockerfile: .ci/compose/db/Dockerfile\n",
+        ),
+        (
+            "repo/emqx/.ci/compose/db/Dockerfile",
+            "FROM postgres\nCOPY .ci/compose/db/pg_hba.conf /etc/pg_hba.conf\nCOPY apps/certs/ca.pem /certs/\n",
+        ),
+        (
+            "repo/emqx/.ci/compose/db/pg_hba.conf",
+            "local all all trust\n",
+        ),
+        (
+            "repo/emqx/apps/certs/ca.pem",
+            "-----BEGIN CERTIFICATE-----\n",
+        ),
+        (
+            "repo/emqx/docker.mk",
+            "docker:\n\tdocker build --tag x:1 \\\n\t\t-f deploy/Dockerfile .\n",
+        ),
+        (
+            "repo/emqx/deploy/Dockerfile",
+            "FROM alpine\nCOPY deploy/entry.sh /usr/bin/entry.sh\n",
+        ),
+        ("repo/emqx/deploy/entry.sh", "#!/bin/sh\n"),
+    ];
+    let l = links(&files);
+    for link in [
+        "emqx/.ci/compose/db/Dockerfile -> emqx/.ci/compose/db/pg_hba.conf (docker_copy_source)",
+        "emqx/.ci/compose/db/Dockerfile -> emqx/apps/certs/ca.pem (docker_copy_source)",
+        "emqx/deploy/Dockerfile -> emqx/deploy/entry.sh (docker_copy_source)",
+    ] {
+        assert!(l.contains(link), "{link} not in {l:?}");
+    }
+}
+
+#[test]
+fn a_dockerfile_is_selected_by_copied_files_review_does_not_analyse_and_by_image_paths() {
+    let files = [
+        (
+            "repo/Dockerfile",
+            "FROM python:3 AS app\nWORKDIR /srv\nCOPY conf/nginx.conf /etc/nginx/nginx.conf\nCOPY data/words.txt ./\nCOPY . /app\nCOPY --from=tools /out /app/bin\nRUN python /app/tools/migrate.py /app/bin/run.py\nCMD [\"cat\", \"/srv/words.txt\", \"/etc/nginx/nginx.conf\"]\n",
+        ),
+        ("repo/conf/nginx.conf", "events {}\n"),
+        ("repo/data/words.txt", "a\n"),
+        ("repo/tools/migrate.py", "print(1)\n"),
+        ("repo/bin/run.py", "print(1)\n"),
+    ];
+    let l = links(&files);
+    for link in [
+        "Dockerfile#app -> conf/nginx.conf (docker_copy_source)",
+        "Dockerfile#app -> data/words.txt (docker_copy_source)",
+        "Dockerfile#app -> tools/migrate.py (docker_image_path)",
+        "Dockerfile#app -> data/words.txt (docker_image_path)",
+        "Dockerfile#app -> conf/nginx.conf (docker_image_path)",
+    ] {
+        assert!(l.contains(link), "{link} not in {l:?}");
+    }
+    // /app/bin came from another stage, not from bin/ in the context.
+    assert!(!l.iter().any(|x| x.contains("bin/run.py")), "{l:?}");
+    // A text file no reviewer reads still selects the stage that copies it,
+    // through a file node that is only a link target.
+    let words = impact(&files, ("repo/data/words.txt", "b\n"));
+    assert!(words.contains("Dockerfile#app"), "{words:?}");
+    let a = analysis(&input(&files));
+    assert!(
+        !a.inputs.iter().any(|i| i["file"] == "repo/conf/nginx.conf"),
+        "a link target is not an analysed input"
+    );
+    // Linking or unlinking a file that did not change is not a change to it.
+    let mut head = files;
+    head[0].1 = "FROM python:3 AS app\nCOPY conf/nginx.conf /etc/nginx/nginx.conf\n";
+    let r = report(&input(&files), &input(&head));
+    assert!(
+        !r["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c.to_string().contains("data/words.txt")),
+        "{}",
+        r["changes"]
+    );
+}
+
+#[test]
 fn a_make_target_is_selected_by_its_recipe_scripts_and_prerequisites() {
     let files = [
         (

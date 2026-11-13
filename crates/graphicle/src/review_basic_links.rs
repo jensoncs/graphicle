@@ -26,8 +26,8 @@ fn glob(pattern: &str) -> bool {
 
 /// The files under `prefix` (a directory, or a glob's literal head) that
 /// `matches` accepts, in order; None past `limit`.
-fn under(
-    files: &BTreeMap<String, &'static str>,
+fn under<V>(
+    files: &BTreeMap<String, V>,
     prefix: &str,
     limit: usize,
     matches: impl Fn(&str) -> bool,
@@ -43,11 +43,7 @@ fn under(
     (found.len() <= limit).then_some(found)
 }
 
-fn glob_matches(
-    files: &BTreeMap<String, &'static str>,
-    pattern: &str,
-    limit: usize,
-) -> Vec<String> {
+fn glob_matches<V>(files: &BTreeMap<String, V>, pattern: &str, limit: usize) -> Vec<String> {
     let Ok(compiled) = glob::Pattern::new(pattern) else {
         return vec![];
     };
@@ -67,12 +63,7 @@ fn glob_matches(
 
 /// A path written in `file`: beside it, else from its repository root. A
 /// directory means its first `index` file, or, with no index, its files.
-fn paths(
-    files: &BTreeMap<String, &'static str>,
-    file: &str,
-    literal: &str,
-    index: &[&str],
-) -> Vec<String> {
+fn paths<V>(files: &BTreeMap<String, V>, file: &str, literal: &str, index: &[&str]) -> Vec<String> {
     if literal.contains("://") || literal.contains(['$', '{']) {
         return vec![];
     }
@@ -338,6 +329,37 @@ fn include(
         })
 }
 
+/// A text file basic review does not analyse, named by what a Dockerfile
+/// copies: a node that is only a link target, never an analysed input. Its
+/// revision is the file's bytes, so a change to it reaches what copies it;
+/// its text is not repeated, the diff carries the change.
+fn link_target(input: &Input, out: &mut Analysis, path: &str) {
+    let owner = world(path);
+    let id = key(&owner, &file_key(path));
+    if out.symbols.contains_key(&id) {
+        return;
+    }
+    let source = &input.sources[path];
+    let symbol = Symbol {
+        key: file_key(path),
+        file: path.to_owned(),
+        package: path.to_owned(),
+        name: source.path.clone(),
+        kind: "basic_file".into(),
+        parent: String::new(),
+        start: 0,
+        end: 0,
+        body_start: 0,
+        line: 1,
+        end_line: 1,
+        revision: source.sha.clone(),
+        signature: String::new(),
+        implementation: source.sha.clone(),
+        correspondence: String::new(),
+    };
+    out.symbols.insert(id, (owner, symbol));
+}
+
 /// The innermost declaration of `file` around `at`, else the file.
 fn owner(file: &str, facts: &Facts, at: usize, declared: &BTreeSet<String>) -> String {
     facts
@@ -357,6 +379,26 @@ pub(super) fn references(
     declared: &BTreeSet<String>,
     out: &mut Analysis,
 ) -> Result<()> {
+    // Every text source, for what may name a file no reviewer analyses, and
+    // the build contexts other files state for a Dockerfile.
+    let any_file = facts.values().any(|f| {
+        f.refs
+            .iter()
+            .any(|r| matches!(r.to, To::Path { any_file: true, .. }))
+    });
+    let texts: BTreeMap<String, ()> = input
+        .sources
+        .iter()
+        .filter(|(_, s)| any_file && s.content.text().is_some())
+        .map(|(p, _)| (p.clone(), ()))
+        .collect();
+    let contexts = if any_file {
+        super::basic_build::contexts(files.iter().filter_map(|(path, lang)| {
+            Some((path.as_str(), *lang, input.sources[path].content.text()?))
+        }))
+    } else {
+        HashMap::new()
+    };
     let mut by_name = HashMap::<(&str, &str), Vec<&str>>::new();
     for (file, f) in facts {
         for d in &f.decls {
@@ -385,8 +427,22 @@ pub(super) fn references(
                     literal,
                     index,
                     required,
+                    any_file,
                 } => {
-                    let found = paths(files, file, literal, index);
+                    let found = if *any_file {
+                        contexts
+                            .get(*file)
+                            .into_iter()
+                            .flatten()
+                            .map(|context| paths(&texts, &format!("{context}/_"), literal, index))
+                            .find(|found| !found.is_empty())
+                            .unwrap_or_else(|| paths(&texts, file, literal, index))
+                    } else {
+                        paths(files, file, literal, index)
+                    };
+                    for target in found.iter().filter(|t| !files.contains_key(*t)) {
+                        link_target(input, out, target);
+                    }
                     if found.is_empty() && *required {
                         out.issues.push(issue(
                             "basic_unresolved_dependency",

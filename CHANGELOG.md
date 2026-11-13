@@ -131,6 +131,19 @@ versioned together at 0.2.0.
   a directory holds it. Shell script-to-script recall on three ShareChat
   repositories: 4 to 56 of 60, every link correct by hand; beyla's BPF
   includes: 32 to 710 of 1,095.
+- A Dockerfile is selected when a file it copies changes, whatever its
+  language: a COPY or ADD source can name any text file in the snapshot, and
+  a file no review language analyses becomes a link target that is not
+  analysed (an unchanged one is never reported as added or deleted). A path
+  in RUN, CMD or ENTRYPOINT that a literal COPY put in the image links to the
+  file it came from, through WORKDIR and stages built `FROM` another. A build
+  context stated by docker-compose, or by a `docker build -f FILE CONTEXT` in
+  a Makefile, workflow or Jenkinsfile, is searched first. Kubernetes
+  RoleBinding and ClusterRoleBinding ServiceAccount subjects and v1beta1
+  Ingress `serviceName` backends are references, and when both sides state a
+  namespace, candidates in other namespaces are dropped. On the build corpora,
+  at precision 1.0: COPY source recall 0.44 to 0.79, image-path recall 0.57
+  to 0.96, Kubernetes reference recall 0.69 to 0.95. `COPY .` stays file-less.
 - Basic review covers Protocol Buffers. Messages, enums, services, rpcs and
   extensions are declarations, and a message or enum names its generated Go
   type and `.pb.go` file when they are in the snapshot. A field's, rpc's or

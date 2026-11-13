@@ -1064,6 +1064,13 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     let mut seeds_b = BTreeSet::new();
     let mut unmatched_a = BTreeSet::new();
     let mut unmatched_b = BTreeSet::new();
+    // A file node one side alone links (a copy added or removed) is no
+    // change to a file whose bytes are the same on both sides.
+    let same_file = |symbol: &Symbol| {
+        symbol.kind == "basic_file"
+            && base.sources.get(&symbol.file).map(|s| &s.sha)
+                == head.sources.get(&symbol.file).map(|s| &s.sha)
+    };
     for (id, (_, old)) in &a.symbols {
         if let Some((_, new)) = b.symbols.get(id) {
             if old.revision != new.revision {
@@ -1075,12 +1082,12 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                 seeds_a.insert(id.clone());
                 seeds_b.insert(id.clone());
             }
-        } else {
+        } else if !same_file(old) {
             unmatched_a.insert(id.clone());
         }
     }
-    for id in b.symbols.keys() {
-        if !a.symbols.contains_key(id) {
+    for (id, (_, new)) in &b.symbols {
+        if !a.symbols.contains_key(id) && !same_file(new) {
             unmatched_b.insert(id.clone());
         }
     }

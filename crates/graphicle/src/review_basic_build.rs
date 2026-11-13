@@ -1,6 +1,9 @@
 //! Dockerfiles, Makefiles and GitHub Actions workflows: stages, targets and
 //! jobs are declarations; what they copy, run, include, need or use is named.
-use super::basic_refs::{Decl, Facts, Ref, To, path_like, shell_paths};
+use super::basic::relative;
+use super::basic_refs::{Decl, Facts, Ref, To, path_like, separator, shell_paths};
+use std::collections::HashMap;
+use std::sync::LazyLock;
 
 /// Lines with their byte offsets.
 fn lines(content: &str) -> impl Iterator<Item = (usize, &str)> {
@@ -33,9 +36,115 @@ fn instructions(content: &str) -> Vec<(usize, &str)> {
     out.into_iter().map(|(s, e)| (s, &content[s..e])).collect()
 }
 
+/// What COPY and ADD put in a stage's filesystem, oldest first, and its
+/// working directory (empty: `/`).
+#[derive(Clone, Default)]
+struct Image {
+    workdir: String,
+    copies: Vec<Copied>,
+}
+
+#[derive(Clone)]
+struct Copied {
+    /// Absolute and normalized.
+    dest: String,
+    /// The destination is a directory the sources go into.
+    dir: bool,
+    /// Context paths as written; none when copied from a stage or a URL.
+    sources: Vec<String>,
+}
+
+/// `path` made absolute against `base` and normalized; None when it uses a
+/// variable.
+fn absolute(base: &str, path: &str) -> Option<String> {
+    if path.contains('$') {
+        return None;
+    }
+    let mut parts: Vec<&str> = if path.starts_with('/') {
+        vec![]
+    } else {
+        base.split('/').filter(|p| !p.is_empty()).collect()
+    };
+    for part in path.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            _ => parts.push(part),
+        }
+    }
+    Some(format!("/{}", parts.join("/")))
+}
+
+/// The context paths an absolute image path came from: the newest copy that
+/// provides it decides; one from a stage or a URL maps to nothing.
+fn origins(image: &Image, path: &str) -> Vec<String> {
+    for copy in image.copies.iter().rev() {
+        if path == copy.dest {
+            if copy.dir {
+                return vec![];
+            }
+            return copy
+                .sources
+                .iter()
+                .filter(|s| path_like(s))
+                .cloned()
+                .collect();
+        }
+        let Some(rest) = path
+            .strip_prefix(copy.dest.trim_end_matches('/'))
+            .and_then(|r| r.strip_prefix('/'))
+        else {
+            continue;
+        };
+        if copy.sources.is_empty() {
+            return vec![];
+        }
+        let provided: Vec<String> = copy
+            .sources
+            .iter()
+            .filter_map(|source| {
+                let s = source.trim_end_matches('/');
+                let (parent, name) = s.rsplit_once('/').unwrap_or(("", s));
+                let join = |dir: &str| {
+                    if dir.is_empty() || dir == "." {
+                        rest.to_owned()
+                    } else {
+                        format!("{dir}/{rest}")
+                    }
+                };
+                if s.contains(['*', '?', '[']) {
+                    // A pattern copies the files it matches into `dest`.
+                    let matches = glob::Pattern::new(name).is_ok_and(|p| p.matches(rest));
+                    (!rest.contains('/') && matches).then(|| join(parent))
+                } else if !copy.dir
+                    || source.ends_with('/')
+                    || s.is_empty()
+                    || s == "."
+                    || !path_like(s)
+                {
+                    // A directory's contents land in `dest`.
+                    Some(join(s))
+                } else {
+                    // A file lands in `dest` under its own name.
+                    (name == rest).then(|| s.to_owned())
+                }
+            })
+            .collect();
+        if !provided.is_empty() {
+            return provided.into_iter().filter(|p| path_like(p)).collect();
+        }
+    }
+    vec![]
+}
+
 pub(super) fn dockerfile(content: &str) -> Facts {
     let mut f = Facts::default();
     let mut stages: Vec<String> = vec![];
+    // Each named stage's filesystem when it ends; the current stage's own.
+    let mut images: Vec<(String, Image)> = vec![];
+    let mut current: (Option<String>, Image) = (None, Image::default());
     for (start, text) in instructions(content) {
         let body = text.trim_start();
         let Some((keyword, args)) = body.split_once(char::is_whitespace) else {
@@ -52,6 +161,17 @@ pub(super) fn dockerfile(content: &str) -> Facts {
                     open.end = start;
                 }
                 let plain: Vec<_> = words.iter().filter(|(_, w)| !w.starts_with("--")).collect();
+                if let (Some(name), image) = std::mem::take(&mut current) {
+                    images.push((name, image));
+                }
+                if let Some((_, base)) = plain.first() {
+                    current.1 = images
+                        .iter()
+                        .rev()
+                        .find(|(n, _)| n == base)
+                        .map(|(_, i)| i.clone())
+                        .unwrap_or_default();
+                }
                 if let Some((at, image)) = plain.first()
                     && stages.iter().any(|s| s == image)
                 {
@@ -67,6 +187,7 @@ pub(super) fn dockerfile(content: &str) -> Facts {
                 if let [_, (_, r#as), (_, name)] = plain[..]
                     && r#as.eq_ignore_ascii_case("as")
                 {
+                    current.0 = Some(name.to_string());
                     stages.push(name.to_string());
                     f.decls.push(Decl {
                         name: name.to_string(),
@@ -81,6 +202,32 @@ pub(super) fn dockerfile(content: &str) -> Facts {
                 let from = words
                     .iter()
                     .find_map(|(at, w)| w.strip_prefix("--from=").map(|s| (at + 7, s)));
+                let plain: Vec<&str> = words
+                    .iter()
+                    .map(|(_, w)| *w)
+                    .filter(|w| !w.starts_with("--"))
+                    .collect();
+                if let Some((dest, sources)) = plain.split_last()
+                    && let Some(dest_path) = absolute(&current.1.workdir, dest)
+                {
+                    let workdir = absolute("/", &current.1.workdir).unwrap_or_default();
+                    current.1.copies.push(Copied {
+                        dir: dest.ends_with('/')
+                            || matches!(dest.rsplit('/').next(), Some("." | ".."))
+                            || sources.len() > 1
+                            || dest_path == workdir,
+                        dest: dest_path,
+                        sources: if from.is_some() {
+                            vec![]
+                        } else {
+                            sources
+                                .iter()
+                                .filter(|s| !s.contains("://"))
+                                .map(|s| s.to_string())
+                                .collect()
+                        },
+                    });
+                }
                 if let Some((at, stage)) = from {
                     f.decl_ref(
                         stage,
@@ -103,6 +250,7 @@ pub(super) fn dockerfile(content: &str) -> Facts {
                                 literal: source.to_string(),
                                 index: &[],
                                 required: false,
+                                any_file: true,
                             },
                             start: *at,
                             end: at + source.len(),
@@ -112,13 +260,188 @@ pub(super) fn dockerfile(content: &str) -> Facts {
                     }
                 }
             }
-            _ => shell_paths(&mut f, args, args_at),
+            keyword => {
+                shell_paths(&mut f, args, args_at);
+                if keyword == "WORKDIR"
+                    && let Some(dir) = absolute(&current.1.workdir, args.trim())
+                {
+                    current.1.workdir = dir;
+                }
+                if matches!(keyword, "RUN" | "CMD" | "ENTRYPOINT") {
+                    image_paths(&mut f, &current.1, args, args_at);
+                }
+            }
         }
     }
     if let Some(open) = f.decls.last_mut().filter(|d| d.end == usize::MAX) {
         open.end = content.trim_end().len().max(open.body_start);
     }
     f
+}
+
+/// Paths a command names inside the image, absolute or from the working
+/// directory, linked to the context file the copy that put them there came
+/// from.
+fn image_paths(f: &mut Facts, image: &Image, text: &str, offset: usize) {
+    for word in text
+        .split(separator)
+        .filter(|w| w.starts_with('/') || path_like(w))
+    {
+        let Some(path) = absolute(&image.workdir, word) else {
+            continue;
+        };
+        let start = offset + offset_in(text, word);
+        for origin in origins(image, &path) {
+            f.refs.push(Ref {
+                to: To::Path {
+                    literal: origin,
+                    index: &[],
+                    required: false,
+                    any_file: true,
+                },
+                start,
+                end: start + word.len(),
+                relation: "potential_import",
+                evidence: "docker_image_path",
+            });
+        }
+    }
+}
+
+static DOCKER_BUILD: LazyLock<regex::Regex> =
+    LazyLock::new(|| regex::Regex::new(r"\b(?:docker|podman)\s+(?:buildx\s+)?build\s").unwrap());
+
+/// `docker build` options that take a value; its one other argument is the
+/// context.
+const BUILD_OPTIONS: &[&str] = &[
+    "-t",
+    "--tag",
+    "--build-arg",
+    "--target",
+    "--platform",
+    "--label",
+    "--secret",
+    "--ssh",
+    "--cache-from",
+    "--cache-to",
+    "-o",
+    "--output",
+    "--network",
+    "--progress",
+    "--iidfile",
+    "--add-host",
+    "--build-context",
+    "--metadata-file",
+    "--shm-size",
+    "-m",
+    "--memory",
+    "--ulimit",
+    "--builder",
+    "--annotation",
+    "--attest",
+    "--allow",
+];
+
+/// Each `docker build` (buildx, podman) command's `-f` file and context,
+/// where both are literal.
+pub(super) fn docker_builds(content: &str) -> Vec<(Option<&str>, &str)> {
+    let mut out = vec![];
+    for m in DOCKER_BUILD.find_iter(content) {
+        let rest = &content[m.end()..];
+        // The command ends at a shell operator, a quote or an unescaped
+        // newline; `$(...)` is a variable, so `)` does not end it.
+        let end = rest
+            .char_indices()
+            .find(|(i, c)| match c {
+                '\n' => !rest[..*i].ends_with('\\'),
+                ';' | '|' | '&' | '"' | '\'' | '`' => true,
+                _ => false,
+            })
+            .map_or(rest.len(), |(i, _)| i);
+        let mut words = rest[..end].split_whitespace().filter(|w| *w != "\\");
+        let (mut file, mut positional) = (None, vec![]);
+        while let Some(word) = words.next() {
+            if let Some(f) = word.strip_prefix("--file=").or(word.strip_prefix("-f=")) {
+                file = Some(f);
+            } else if word == "-f" || word == "--file" {
+                file = words.next();
+            } else if word.starts_with('-') {
+                if BUILD_OPTIONS.contains(&word) {
+                    words.next();
+                }
+            } else {
+                positional.push(word);
+            }
+        }
+        if let [context] = positional[..]
+            && !context.contains('$')
+            && file.is_none_or(|f| !f.contains('$'))
+        {
+            out.push((file, context));
+        }
+    }
+    out
+}
+
+/// The build contexts other files state for a Dockerfile, by its path: a
+/// compose service's `build`, and a `docker build` in a Makefile recipe (run
+/// in the Makefile's directory), a workflow or a Jenkinsfile (run at the
+/// repository root).
+pub(super) fn contexts<'a>(
+    sources: impl Iterator<Item = (&'a str, &'a str, &'a str)>,
+) -> HashMap<String, Vec<String>> {
+    let mut out = HashMap::<String, Vec<String>>::new();
+    for (path, lang, content) in sources {
+        // (Dockerfile, context directory)
+        let mut stated: Vec<(Option<String>, String)> = vec![];
+        let name = path.rsplit('/').next().unwrap_or(path);
+        if lang == "yaml" && name.contains("compose") && content.contains("build") {
+            let Ok(doc) = graphicle::extractors::yaml_frontmatter::parse(content) else {
+                continue;
+            };
+            for service in doc["services"]
+                .as_object()
+                .into_iter()
+                .flat_map(|s| s.values())
+            {
+                let build = &service["build"];
+                let (context, file) = match build.as_str() {
+                    Some(context) => (Some(context), None),
+                    None if build.is_object() => (
+                        Some(build["context"].as_str().unwrap_or(".")),
+                        build["dockerfile"].as_str(),
+                    ),
+                    None => (None, None),
+                };
+                if let Some(context) = context.and_then(|c| relative(path, c)) {
+                    let file = relative(&format!("{context}/_"), file.unwrap_or("Dockerfile"));
+                    stated.push((file, context));
+                }
+            }
+        }
+        if matches!(lang, "make" | "github_actions" | "groovy") && content.contains("build") {
+            let root = format!("{}/_", path.split('/').next().unwrap_or(""));
+            let cwd = if lang == "make" { path } else { &root };
+            for (file, context) in docker_builds(content) {
+                let Some(context) = relative(cwd, context) else {
+                    continue;
+                };
+                let file = match file {
+                    Some(f) => relative(cwd, f),
+                    None => relative(&format!("{context}/_"), "Dockerfile"),
+                };
+                stated.push((file, context));
+            }
+        }
+        for (file, context) in stated {
+            let Some(file) = file else { continue };
+            let known = out.entry(file).or_default();
+            if !known.contains(&context) {
+                known.push(context);
+            }
+        }
+    }
+    out
 }
 
 /// Where `word`, a subslice of `text`, starts in it.
@@ -275,6 +598,7 @@ pub(super) fn workflow(content: &str) -> Facts {
                         literal: local.into(),
                         index: ACTION_FILES,
                         required: true,
+                        any_file: false,
                     },
                     start: at,
                     end: at + local.len(),
@@ -341,6 +665,29 @@ mod tests {
     }
 
     #[test]
+    fn an_image_path_maps_back_through_the_copy_that_put_it_there() {
+        let text = "FROM alpine AS base\nWORKDIR /srv\nCOPY . /app\nCOPY entrypoint.sh /\nCOPY conf/ app.cfg ./\nCOPY *.ini /etc/\nCOPY --from=x /out/ /app/gen/\nFROM base\nRUN /app/a/b.py /app/gen/c.py /srv/n.conf /srv/app.cfg /srv/x.yaml /etc/z.ini /app/docs m.yaml\nENTRYPOINT [\"/entrypoint.sh\", \"$HOME/x.sh\"]\n";
+        let mapped: Vec<_> = refs(&dockerfile(text))
+            .into_iter()
+            .filter(|(_, e)| *e == "docker_image_path")
+            .map(|(l, _)| l)
+            .collect();
+        assert_eq!(
+            mapped,
+            [
+                "a/b.py",
+                "conf/n.conf",
+                "conf/app.cfg",
+                "app.cfg",
+                "conf/x.yaml",
+                "z.ini",
+                "conf/m.yaml",
+                "entrypoint.sh"
+            ]
+        );
+    }
+
+    #[test]
     fn a_comment_ending_in_a_backslash_continues_nothing() {
         let text = "# run: docker run x \\\nFROM alpine\nRUN a \\\n# note \\\n  ./b.sh\nCMD c\n";
         let found = instructions(text);
@@ -376,6 +723,21 @@ mod tests {
         assert!(r.contains(&("#build".into(), "make_prerequisite")));
         assert!(r.contains(&("lib/x.c".into(), "make_prerequisite_file")));
         assert!(r.contains(&("./run.sh".into(), "literal_path_in_command")));
+    }
+
+    #[test]
+    fn docker_build_commands_state_a_dockerfile_and_its_context() {
+        let text = "a:\n\tdocker buildx build --platform linux/amd64 -t a:b --build-arg X=1 \\\n\t  -f ci/Dockerfile .. && echo done\n\tpodman build sub\n\tdocker build -t x $(CTX)\n\t@docker build --build-arg A=$(B) \\\n\t\t--tag $(T):b-$(OS) -f d/Dockerfile .\n\tdocker build --file=a/Dockerfile --no-cache --push sub2; true\nsh \"docker build -f x/Dockerfile .\"\n";
+        assert_eq!(
+            docker_builds(text),
+            [
+                (Some("ci/Dockerfile"), ".."),
+                (None, "sub"),
+                (Some("d/Dockerfile"), "."),
+                (Some("a/Dockerfile"), "sub2"),
+                (Some("x/Dockerfile"), "."),
+            ]
+        );
     }
 
     #[test]
