@@ -59,6 +59,17 @@ versioned together at 0.2.0.
   sqlc's `Querier` included; a message selects its `.pb.go` type and the Go
   code that uses it. A trigger (`CREATE TRIGGER ... ON t`) touches its
   table, and a trigger's `UPDATE ON`/`UPDATE OF` no longer reads as a table.
+- Basic review finds a proto's generated Go file wherever protoc wrote it,
+  and names its types as protoc-gen-go does (`Outer.inner` is
+  `OuterInner`, not `Outer_Inner`). It took a `.pb.go` only from the proto's
+  own folder or a folder at the tail of its `go_package`; it now also takes
+  the one whose `// source:` header names the proto from an import root that
+  holds the file: a relative `go_package` such as `./gen-proto` or
+  `/notification`, a separate `paths=source_relative` output root, or
+  `go_package` given on the command line. A header that two same-named protos
+  could match, or two generated files naming one proto, still links nothing.
+  Generated links on 13 ShareChat repositories: recall 0.58 to 0.94 (307 to
+  502 of 532 Go types); four earlier corpora went from 266 to 417 of 417.
 - Basic review covers build, CI, configuration, markup, template, Lua and C
   sources, which were skipped or reported as an unsupported language. A
   change to a file or declaration they name selects them:
