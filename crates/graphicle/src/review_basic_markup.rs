@@ -6,8 +6,14 @@ use std::sync::LazyLock;
 
 static HTML: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"(?i)\b(?:src|href)\s*=\s*["']([^"'#?]+)"#).unwrap());
+// Less import options come first: `@import (reference) "x"`.
 static CSS_IMPORT: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r#"@(?:import|use|forward)\s+(?:url\(\s*)?["']?([^"')\s;]+)"#).unwrap()
+    Regex::new(r#"@(?:import|use|forward)\s+(?:\([^)]*\)\s*)?(?:url\(\s*)?["']?([^"')\s;]+)"#)
+        .unwrap()
+});
+// Comments and inline script bodies; group 1 is a script's body.
+static UNLOADED: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?is)<!--.*?(?:-->|\z)|<script\b[^>]*>(.*?)(?:</script|\z)").unwrap()
 });
 static CSS_URL: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r#"\burl\(\s*["']?([^"')\s#?]+)"#).unwrap());
@@ -47,37 +53,63 @@ pub(super) fn html(content: &str) -> Facts {
     } else {
         Facts::default()
     };
-    captures(&mut f, &HTML, content, "html_resource");
+    captures(&mut f, &HTML, &unloaded_blanked(content), "html_resource");
     f
 }
 
-pub(super) fn css(content: &str) -> Facts {
+/// `content` with its comments and inline script bodies blanked, offsets
+/// unchanged: a `src` written there is no file the page loads.
+fn unloaded_blanked(content: &str) -> String {
+    let mut out = content.as_bytes().to_vec();
+    for c in UNLOADED.captures_iter(content) {
+        let span = c.get(1).unwrap_or_else(|| c.get(0).unwrap()).range();
+        for b in &mut out[span] {
+            if *b != b'\n' {
+                *b = b' ';
+            }
+        }
+    }
+    // Each span starts and ends at an ASCII byte, so it covers whole
+    // characters and the result stays UTF-8.
+    String::from_utf8(out).unwrap_or_default()
+}
+
+/// The files an import names, as its stylesheet language resolves it: Less
+/// adds `.less` to a bare name; Sass tries the name's extensions, its partial
+/// `_name` and its `_index`; plain CSS loads the name as written.
+fn import_candidates(ext: &str, name: &str) -> Vec<String> {
+    let (dir, file) = name.rsplit_once('/').map_or(("", name), |(d, f)| (d, f));
+    let partial = |file: &str| match dir {
+        "" => format!("_{file}"),
+        dir => format!("{dir}/_{file}"),
+    };
+    let sass = ["scss", "sass", "css"];
+    match ext {
+        "less" if !file.contains('.') => vec![format!("{name}.less")],
+        "scss" | "sass" if !file.contains('.') => sass
+            .iter()
+            .map(|e| format!("{name}.{e}"))
+            .chain(sass.iter().map(|e| partial(&format!("{file}.{e}"))))
+            .chain(
+                ["_index.scss", "index.scss", "_index.sass", "index.sass"]
+                    .iter()
+                    .map(|i| format!("{name}/{i}")),
+            )
+            .collect(),
+        "scss" | "sass" if file.ends_with(".scss") || file.ends_with(".sass") => {
+            vec![name.to_owned(), partial(file)]
+        }
+        _ => vec![name.to_owned()],
+    }
+}
+
+pub(super) fn css(ext: &str, content: &str) -> Facts {
     let mut f = Facts::default();
     for c in CSS_IMPORT.captures_iter(content) {
         let m = c.get(1).unwrap();
-        let name = m.as_str();
-        if !local(name) {
-            continue;
-        }
-        // Sass resolves `base` to base.scss, _base.scss, base.css...
-        let (dir, file) = name.rsplit_once('/').map_or(("", name), |(d, f)| (d, f));
-        let mut candidates = vec![name.to_owned()];
-        if !file.contains('.') {
-            for ext in ["scss", "sass", "css", "less"] {
-                candidates.push(format!("{name}.{ext}"));
-                candidates.push(match dir {
-                    "" => format!("_{file}.{ext}"),
-                    dir => format!("{dir}/_{file}.{ext}"),
-                });
-            }
-        }
-        for candidate in candidates {
+        if local(m.as_str()) {
             f.refs.push(Ref {
-                to: To::Path {
-                    literal: candidate,
-                    index: &[],
-                    required: false,
-                },
+                to: To::Style(import_candidates(ext, m.as_str())),
                 start: m.start(),
                 end: m.end(),
                 relation: "potential_import",
@@ -181,7 +213,7 @@ mod tests {
             .map(|r| match &r.to {
                 To::Path { literal, .. } => literal.clone(),
                 To::Decl { name, .. } => format!("#{name}"),
-                To::Suffix(n) => n.join("|"),
+                To::Suffix(n) | To::Style(n) => n.join("|"),
             })
             .collect()
     }
@@ -193,14 +225,42 @@ mod tests {
         );
         assert_eq!(targets(&page), ["css/a.css", "img/x.png"]);
         let sheet = css(
+            "scss",
             "@import 'b.css';\n@use \"lib/vars\";\n@import url(\"c.css\");\na { background: url(i/bg.png) }\n.x { background: url(data:image/png;base64,AA) }\n",
         );
         let t = targets(&sheet);
         assert_eq!(t[0], "b.css");
-        assert!(t.contains(&"lib/_vars.scss".to_owned()));
+        assert!(t[1].split('|').any(|c| c == "lib/_vars.scss"), "{t:?}");
         assert!(t.contains(&"c.css".to_owned()));
         assert_eq!(t.last().unwrap(), "i/bg.png");
         assert_eq!(t.iter().filter(|x| *x == "c.css").count(), 1);
+    }
+
+    #[test]
+    fn commented_and_scripted_sources_are_not_what_a_page_loads() {
+        let page = html(
+            "<!--[if IE]><script src=\"ie.js\"></script><![endif]-->\n<!-- <a href=\"old.html\"> -->\n<script>var t = '<img src=\"x.png\">';</script>\n<SCRIPT type=\"module\" src=\"a.js\"></SCRIPT><link href=\"é.css\">",
+        );
+        assert_eq!(targets(&page), ["a.js", "é.css"]);
+    }
+
+    #[test]
+    fn imports_name_the_files_their_language_resolves() {
+        let less = targets(&css(
+            "less",
+            "@import \"theme\";\n@import (reference) \"lib/mix.less\";\n",
+        ));
+        assert_eq!(less, ["theme.less", "lib/mix.less"]);
+        let scss = targets(&css(
+            "scss",
+            "@use \"lib/vars\";\n@import \"../t/theme.scss\";\n",
+        ));
+        assert_eq!(
+            scss[0],
+            "lib/vars.scss|lib/vars.sass|lib/vars.css|lib/_vars.scss|lib/_vars.sass|lib/_vars.css|lib/vars/_index.scss|lib/vars/index.scss|lib/vars/_index.sass|lib/vars/index.sass"
+        );
+        assert_eq!(scss[1], "../t/theme.scss|../t/_theme.scss");
+        assert_eq!(targets(&css("css", "@import \"base\";\n")), ["base"]);
     }
 
     #[test]

@@ -221,7 +221,7 @@ mod tests {
             .map(|r| match &r.to {
                 To::Path { literal, .. } => literal.clone(),
                 To::Decl { name, .. } => format!("#{name}"),
-                To::Suffix(n) => n.join("|"),
+                To::Suffix(n) | To::Style(n) => n.join("|"),
             })
             .collect()
     }

@@ -1,6 +1,7 @@
 //! Resolves what `basic_refs` read against the snapshot: a path beside the
-//! file or from its repository root, a search-path suffix, a declaration of
-//! that name. Also the chart files a Helm template loads and the files a Go
+//! file or from its repository root, a stylesheet import also through the
+//! load paths its build states, a search-path suffix, a declaration of that
+//! name. Also the chart files a Helm template loads and the files a Go
 //! `//go:embed` embeds. Every target is a candidate, never a build fact.
 use super::basic::{ancestor_file, edge, file_key, link, relative, symbol_key, world};
 use super::basic_refs::{Facts, To};
@@ -136,6 +137,73 @@ fn suffix(
     })
 }
 
+/// The folders a stylesheet's build adds to its import search: each
+/// `stylePreprocessorOptions.includePaths` of the angular.json projects whose
+/// root holds the file, and of an Nx project.json, from the workspace root.
+fn load_paths(input: &Input, file: &str) -> Vec<String> {
+    let json = |path: &str| {
+        input.sources[path]
+            .content
+            .text()
+            .and_then(|t| serde_json::from_str::<Value>(t).ok())
+            .unwrap_or_default()
+    };
+    let includes = |targets: &Value, root: &str| -> Vec<String> {
+        targets
+            .as_object()
+            .into_iter()
+            .flatten()
+            .flat_map(|(_, t)| {
+                t["options"]["stylePreprocessorOptions"]["includePaths"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+            })
+            .filter_map(|p| relative(&format!("{root}/_"), p.as_str()?))
+            .collect()
+    };
+    let mut found = vec![];
+    if let Some(workspace) = ancestor_file(input, file, "angular.json") {
+        let root = dir(&workspace);
+        let projects = json(&workspace);
+        for (_, project) in projects["projects"].as_object().into_iter().flatten() {
+            let Some(base) = relative(&format!("{root}/_"), project["root"].as_str().unwrap_or(""))
+            else {
+                continue;
+            };
+            if file.starts_with(&format!("{base}/")) {
+                found.extend(includes(&project["architect"], root));
+                found.extend(includes(&project["targets"], root));
+            }
+        }
+    }
+    if let Some(project) = ancestor_file(input, file, "project.json")
+        && let Some(nx) = ancestor_file(input, &project, "nx.json")
+    {
+        found.extend(includes(&json(&project)["targets"], dir(&nx)));
+    }
+    found
+}
+
+/// The first of `names` beside `file`, then in each load path, then from the
+/// repository root: where Sass and Less look for an import, in order.
+fn style(
+    files: &BTreeMap<String, &'static str>,
+    file: &str,
+    names: &[String],
+    load: &[String],
+) -> Option<String> {
+    std::iter::once(dir(file))
+        .chain(load.iter().map(String::as_str))
+        .chain(std::iter::once(repo(file)))
+        .find_map(|base| {
+            names
+                .iter()
+                .filter_map(|name| relative(&format!("{base}/_"), name))
+                .find(|p| files.contains_key(p))
+        })
+}
+
 /// The innermost declaration of `file` around `at`, else the file.
 fn owner(file: &str, facts: &Facts, at: usize, declared: &BTreeSet<String>) -> String {
     facts
@@ -170,6 +238,8 @@ pub(super) fn references(
             .or_default()
             .push(file);
     }
+    // Load paths by folder: every stylesheet of a folder shares its build.
+    let mut load = HashMap::<&str, Vec<String>>::new();
     for (file, f) in facts {
         checkpoint()?;
         let content = input.sources[*file].content.text().unwrap_or("");
@@ -194,6 +264,15 @@ pub(super) fn references(
                     .map(|t| (file_key(&t), t))
                     .into_iter()
                     .collect(),
+                To::Style(names) => {
+                    let load = load
+                        .entry(dir(file))
+                        .or_insert_with(|| load_paths(input, file));
+                    style(files, file, names, load)
+                        .map(|t| (file_key(&t), t))
+                        .into_iter()
+                        .collect()
+                }
                 To::Decl { name, wide } => {
                     let own = symbol_key(file, name);
                     if declared.contains(&own) {

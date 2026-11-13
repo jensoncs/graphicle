@@ -107,6 +107,19 @@ versioned together at 0.2.0.
   had (code reads configuration in ways basic review cannot see) unless
   environment analysis narrows it; its links add to that scope. Six repositories (up to 11,018 files, 10,716 of them YAML)
   analyse in 0.02-1.1 s.
+- Basic review resolves a Less or Sass import through the include paths its
+  build states (angular.json, or an Nx project.json, `stylePreprocessorOptions.includePaths`)
+  after the importing folder and before the repository root, so a component
+  stylesheet's `@import "theme"` reaches the shared theme. An import links
+  the one file its language loads: Less adds `.less` and accepts import
+  options such as `(reference)`; Sass tries its extensions, `_name` partials
+  and `_index`; plain CSS loads the name as written. A page's `src`/`href`
+  in an HTML comment or an inline script body is no longer taken for a file
+  it loads. Less imports in the Flink web dashboard: 4 to 51 of 51, precision
+  1.0. A `.html` file written as a Go or Jinja/Django template, and a
+  `templates/` file outside any chart, are now read as what they are:
+  temporal-orchestrator's 41 `{{template}}` calls 0 to 41, and files taken for
+  Helm with no chart 36 to 1 across 31 repositories.
 - Basic review covers Protocol Buffers. Messages, enums, services, rpcs and
   extensions are declarations, and a message or enum names its generated Go
   type and `.pb.go` file when they are in the snapshot. A field's, rpc's or

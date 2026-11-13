@@ -628,3 +628,39 @@ fn html_pages_written_as_templates_are_selected_by_what_they_call_and_extend() {
     );
     assert!(base.contains("site/page.html"), "{base:?}");
 }
+
+#[test]
+fn stylesheets_import_through_the_load_paths_their_build_states() {
+    let angular = r#"{"projects":{"app":{"root":"","architect":{"build":{"options":{"stylePreprocessorOptions":{"includePaths":["src/styles"]}}}}}}}"#;
+    let nx_project = r#"{"targets":{"build":{"options":{"stylePreprocessorOptions":{"includePaths":["libs/ui/styles"]}}}}}"#;
+    let files = [
+        ("repo/web/angular.json", angular),
+        ("repo/web/src/styles/theme.less", "@c: red;\n"),
+        ("repo/web/src/styles/_vars.scss", "$x: 1;\n"),
+        (
+            "repo/web/src/app/a.component.less",
+            "@import \"theme\";\n.a { color: @c; }\n",
+        ),
+        ("repo/web/src/app/b.component.scss", "@use \"vars\";\n"),
+        // Less has no partials: `_theme.less` is not what `theme` names.
+        ("repo/web/src/app/_theme.less", "@d: 1;\n"),
+        ("repo/other/c.less", "@import \"theme\";\n"),
+        ("repo/nx/nx.json", "{}\n"),
+        ("repo/nx/apps/shop/project.json", nx_project),
+        ("repo/nx/libs/ui/styles/_mixins.scss", "@mixin m {}\n"),
+        ("repo/nx/apps/shop/src/app.scss", "@import \"mixins\";\n"),
+    ];
+    let l = links(&files);
+    for want in [
+        "web/src/app/a.component.less -> web/src/styles/theme.less (css_import)",
+        "web/src/app/b.component.scss -> web/src/styles/_vars.scss (css_import)",
+        "nx/apps/shop/src/app.scss -> nx/libs/ui/styles/_mixins.scss (css_import)",
+    ] {
+        assert!(l.contains(want), "{want}: {l:?}");
+    }
+    assert!(!l.iter().any(|x| x.contains("_theme.less")), "{l:?}");
+    assert!(
+        !l.iter().any(|x| x.starts_with("other/c.less")),
+        "outside the workspace: {l:?}"
+    );
+}

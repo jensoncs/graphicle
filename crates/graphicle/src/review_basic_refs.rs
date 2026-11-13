@@ -16,6 +16,10 @@ pub(super) enum To {
     /// loader's roots, a C include path, Lua's package.path): the one source
     /// in the repository whose path ends with one of these.
     Suffix(Vec<String>),
+    /// A stylesheet import's candidate files, in order: the first found
+    /// beside the file, then in each load path its build states, then from
+    /// the repository root.
+    Style(Vec<String>),
     /// A declaration of this file, or, when `wide`, the one of that name in
     /// the repository.
     Decl { name: String, wide: bool },
@@ -91,7 +95,7 @@ pub(super) fn facts(lang: &str, path: &str, content: &str) -> Facts {
         "yaml" => super::basic_config::yaml(path, content),
         "json" => super::basic_config::json(content),
         "html" => super::basic_markup::html(content),
-        "css" => super::basic_markup::css(content),
+        "css" => super::basic_markup::css(ext, content),
         "template" => super::basic_markup::template(ext, content),
         "lua" => super::basic_lua::lua(content),
         "c" | "cpp" => includes(content),
