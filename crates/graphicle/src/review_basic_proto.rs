@@ -452,21 +452,21 @@ pub(super) fn candidates(package: &str, scope: &str, name: &str) -> Vec<String> 
     }
 }
 
-/// protoc-gen-go's Go name for a nested message or enum: each name's
-/// `GoCamelCase`, parent first, joined by `_`.
+/// protoc-gen-go's Go name for a nested message or enum (`Outer.Inner`,
+/// relative to the package): `strs.GoCamelCase` over the whole dotted name.
+/// A dot becomes `_` unless a lowercase letter follows it, where it is
+/// dropped (`Comment.postType` is `CommentPostType`).
 pub(super) fn go_name(nested: &str) -> String {
-    nested.split('.').map(camel).collect::<Vec<_>>().join("_")
-}
-
-fn camel(name: &str) -> String {
-    let s = name.as_bytes();
+    let s = nested.as_bytes();
     let mut out = String::new();
     let mut i = 0;
     while i < s.len() {
         let c = s[i];
         let lower_next = s.get(i + 1).is_some_and(u8::is_ascii_lowercase);
         match c {
-            b'_' if i == 0 => out.push('X'),
+            b'.' if lower_next => {}
+            b'.' => out.push('_'),
+            b'_' if i == 0 || s[i - 1] == b'.' => out.push('X'),
             b'_' if lower_next => {}
             c if c.is_ascii_digit() => out.push(c as char),
             c => {
@@ -639,7 +639,15 @@ extend google.protobuf.FieldOptions { optional Config field = 1159; }
             go_name("NexusServiceConfig.Proxy"),
             "NexusServiceConfig_Proxy"
         );
-        assert_eq!(go_name("foo_bar.baz_qux"), "FooBar_BazQux");
+        // protoc-gen-go's strs.GoCamelCase over the whole nested name: a dot
+        // before a lowercase letter is dropped, and `_` after a dot becomes `X`.
+        assert_eq!(go_name("foo_bar.baz_qux"), "FooBarBazQux");
+        assert_eq!(
+            go_name("CommentCreated.postDataType"),
+            "CommentCreatedPostDataType"
+        );
+        assert_eq!(go_name("Outer._inner"), "Outer_XInner");
+        assert_eq!(go_name("Outer.Mid.Leaf"), "Outer_Mid_Leaf");
         assert_eq!(go_name("_x"), "XX");
         assert_eq!(go_name("http2Config"), "Http2Config");
         let go = "type Config struct {\ntype Config_Kind int32\ntype isConfig_Choice interface {\n";
