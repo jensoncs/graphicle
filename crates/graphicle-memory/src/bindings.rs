@@ -636,6 +636,84 @@ impl<'a> Declarations<'a> {
         };
         innermost(matches)
     }
+    /// `self.m()` or `cls.m()` in Python, `this.m()` in JavaScript or
+    /// TypeScript: the method `m` of the class the caller is defined in,
+    /// when that class declares it and the receiver is not rebound. An
+    /// inherited method, or an attribute's method (`self.repo.save()`),
+    /// stays unresolved.
+    fn receiver_method(
+        &self,
+        path: &str,
+        name: &str,
+        caller: &str,
+        rebound: &HashMap<&str, Vec<&str>>,
+    ) -> Option<String> {
+        let (head, method) = name.split_once('.')?;
+        let python = path.ends_with(".py") || path.ends_with(".pyi");
+        let script = [".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx", ".mts", ".cts"]
+            .iter()
+            .any(|ext| path.ends_with(ext));
+        let receiver = (python && matches!(head, "self" | "cls")) || (script && head == "this");
+        if !receiver
+            || method.is_empty()
+            || !method
+                .chars()
+                .all(|c| c == '_' || c == '$' || c.is_alphanumeric())
+            || rebound
+                .get(head)
+                .is_some_and(|scopes| scopes.iter().any(|scope| visible(scope, caller)))
+        {
+            return None;
+        }
+        // A Python closure keeps its method's `self`; a JavaScript
+        // `function` rebinds `this`, so only a method's own body counts.
+        let mut scope = caller;
+        loop {
+            let (parent, _) = scope.rsplit_once('.')?;
+            let class = self
+                .full
+                .get(parent)
+                .is_some_and(|symbols| symbols.iter().any(|symbol| symbol["kind"] == "class"));
+            if class {
+                let full = format!("{parent}.{method}");
+                return self.full.contains_key(full.as_str()).then_some(full);
+            }
+            if !python {
+                return None;
+            }
+            scope = parent;
+        }
+    }
+}
+
+/// A CommonJS `const ns = require('./m')` of a file whose `module.exports =
+/// Name`: `ns()` and `new ns()` name `Name`, and `ns.m()` its member
+/// `Name.m`, when `./m` declares it.
+fn default_export_member(
+    import: &Value,
+    name: &str,
+    target: &str,
+    analyses: &serde_json::Map<String, Value>,
+) -> Option<String> {
+    let namespace = s(import, "namespace");
+    let analysis = analyses.get(target)?;
+    let default = s(analysis, "default_export");
+    if namespace.is_empty() || default.is_empty() {
+        return None;
+    }
+    let member = if name == namespace {
+        default.to_owned()
+    } else {
+        let method = name.strip_prefix(namespace)?.strip_prefix('.')?;
+        if method.contains('.') {
+            return None;
+        }
+        format!("{default}.{method}")
+    };
+    items(analysis, "symbols")
+        .iter()
+        .any(|symbol| s(symbol, "name") == member)
+        .then_some(member)
 }
 
 /// Resolve explicit imported callable names. Unknown object receiver types,
@@ -663,11 +741,19 @@ pub(crate) fn resolve_calls(
     for (path, analysis) in analyses {
         let declarations = Declarations::of(analysis);
         let mut shadowed: HashMap<&str, Vec<&str>> = HashMap::new();
+        // Names assigned directly (`self = other`), not through a member.
+        let mut rebound: HashMap<&str, Vec<&str>> = HashMap::new();
         for binding in items(analysis, "shadowed_bindings") {
             shadowed
                 .entry(s(binding, "name"))
                 .or_default()
                 .push(s(binding, "scope"));
+            if s(binding, "kind") == "assignment" {
+                rebound
+                    .entry(s(binding, "name"))
+                    .or_default()
+                    .push(s(binding, "scope"));
+            }
         }
         let imports: Vec<_> = items(analysis, "imports")
             .iter()
@@ -688,16 +774,20 @@ pub(crate) fn resolve_calls(
             let name = s(call, "callee");
             let caller = s(call, "caller");
             let head = name.split(['.', ':']).next().unwrap_or(name);
-            if shadowed
-                .get(head)
-                .is_some_and(|scopes| scopes.iter().any(|scope| visible(scope, caller)))
+            let receiver = declarations.receiver_method(path, name, caller, &rebound);
+            if receiver.is_none()
+                && shadowed
+                    .get(head)
+                    .is_some_and(|scopes| scopes.iter().any(|scope| visible(scope, caller)))
             {
                 unresolved.push(json!({"path":path,"caller":caller,"callee":name,"line":call["line"],"reason":"shadowed_or_dynamic_binding"}));
                 continue;
             }
             let mut candidates = BTreeSet::new();
             let mut incomplete_export = false;
-            if let Some(local) = declarations.find(name, caller) {
+            if let Some(method) = receiver {
+                candidates.insert((path.clone(), method));
+            } else if let Some(local) = declarations.find(name, caller) {
                 candidates.insert((path.clone(), local));
             }
             if candidates.is_empty() {
@@ -706,6 +796,10 @@ pub(crate) fn resolve_calls(
                         continue;
                     }
                     for &(target, submodule) in targets {
+                        if let Some(found) = default_export_member(import, name, target, analyses) {
+                            candidates.insert((target.to_string(), found));
+                            continue;
+                        }
                         let imported = if !submodule.is_empty() {
                             // `from pkg import sub` binds the submodule object, so
                             // `sub.fn()` (or an alias's) names `fn` inside it.
@@ -742,6 +836,20 @@ pub(crate) fn resolve_calls(
                                     name.strip_prefix(&format!("{namespace}."))
                                         .or_else(|| name.strip_prefix(&format!("{namespace}::")))
                                         .map(str::to_string)
+                                })
+                                .or_else(|| {
+                                    // `use crate::cache;` binds the module: `cache::stats()`
+                                    // names `stats` in the module's own file.
+                                    let (local, rest) = name.split_once("::")?;
+                                    let original = import["bindings"].get(local)?.as_str()?;
+                                    let module_file =
+                                        [format!("{original}.rs"), format!("{original}/mod.rs")]
+                                            .iter()
+                                            .any(|file| {
+                                                target == file
+                                                    || target.ends_with(&format!("/{file}"))
+                                            });
+                                    (path.ends_with(".rs") && module_file).then(|| rest.to_string())
                                 })
                         };
                         if let Some(imported) = imported {

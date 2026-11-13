@@ -233,6 +233,22 @@ versioned together at 0.2.0.
   `precise_js_budget`. The analyzer is `basic-source-impact-v2`. Added edges
   per side: livestream-service 4,796 (0.03 s), GitNexus 4,107 (0.4 s), trader
   1,154 (0.1 s).
+- Pinned review finds more Python, JavaScript and Rust callers. A call
+  through a method's own receiver (`self.m()`, `cls.m()`, `this.m()`) binds
+  to the enclosing class's method unless the method reassigns the receiver.
+  A CommonJS `require` binds its namespace and destructured names like an ES
+  import, and `module.exports = X` makes `X` what a whole-module `require`
+  names, so `new X()` and `X.m()` resolve; a reassigned `require` binding is
+  not trusted. In JavaScript files `new X()` is a call. Rust calls inside
+  macro arguments are calls, `crate::` and the crate's own name resolve from
+  the nearest crate root (a workspace member's, or an integration test's
+  crate), and a `use`d module qualifies the calls made through it. Cached
+  analyses are recomputed once (`graphicle-static-rust-12`). Caller recall
+  against SCIP indexes: ds_services (Python) 0.36 to 0.64 and ad-relevance
+  0.45 to 0.63 at precision 1.0; cross-file calls in notification-service-jobs
+  (JavaScript) 0 to 0.54 and tag-chat-service 0 to 0.91; graphicle-memory
+  (Rust) 0.61 to 0.63. Rust method calls and `Type::`/`Self::` paths are
+  still not bound.
 - Pinned review gives TypeScript and JavaScript the basic file-level impact
   Python and Rust have: `.ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs` importers are
   selected through relative and `tsconfig`/`jsconfig` `paths` import

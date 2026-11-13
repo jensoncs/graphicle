@@ -17,7 +17,7 @@ mod python_environment;
 /// the analysis output changes. 10: direct os separator constants and filesystem
 /// encoding calls no longer create false environment-binding escape diagnostics.
 /// 11: package.json and pnpm-workspace.yaml keep what workspace imports resolve by.
-pub const REVISION: &str = "graphicle-static-rust-11";
+pub const REVISION: &str = "graphicle-static-rust-12";
 
 /// Per-file analysis limits. No limit fails an analysis: a
 /// file past one is analysed as far as the limit allows, its analysis is
@@ -322,6 +322,109 @@ fn direct_token(node: Node<'_>, token: &str) -> bool {
 
 // A reassigned module attribute is no longer an unambiguous imported callable.
 // Conservatively withhold bindings in that lexical scope; do not infer data flow.
+/// Calls among a Rust token tree's own tokens: an identifier path followed by
+/// a parenthesised tree, unless it is a method (`.f(`), a macro
+/// metavariable (`$f(`), a definition (`fn f(`) or a keyword. Nested trees
+/// are their own token trees. Returns each callee path and its first token.
+fn token_tree_calls<'t>(tree: Node<'t>, source: &[u8]) -> Vec<(String, Node<'t>)> {
+    let mut cursor = tree.walk();
+    let tokens: Vec<Node<'t>> = tree.children(&mut cursor).collect();
+    let text = |n: Node<'_>| n.utf8_text(source).unwrap_or("");
+    let mut out = Vec::new();
+    for (i, token) in tokens.iter().enumerate() {
+        if token.kind() != "token_tree" || !text(*token).starts_with('(') || i == 0 {
+            continue;
+        }
+        let mut start = i - 1;
+        if tokens[start].kind() != "identifier" {
+            continue;
+        }
+        while start >= 2
+            && text(tokens[start - 1]) == "::"
+            && tokens[start - 2].kind() == "identifier"
+        {
+            start -= 2;
+        }
+        let before = start.checked_sub(1).map(|b| text(tokens[b]));
+        let name = text(tokens[i - 1]);
+        if matches!(before, Some("." | "$" | "fn" | "!" | "::"))
+            || matches!(
+                name,
+                "if" | "while" | "match" | "for" | "return" | "in" | "as"
+            )
+        {
+            continue;
+        }
+        let callee: String = tokens[start..i].iter().map(|t| text(*t)).collect();
+        out.push((callee, tokens[start]));
+    }
+    out
+}
+
+/// The module a `require('m')` or `import('m')` call names, when it is one
+/// string literal.
+fn literal_module<'a>(call: Node<'_>, source: &'a [u8]) -> Option<&'a str> {
+    let arg = field(call, "arguments", source)
+        .trim_start_matches('(')
+        .trim_end_matches(')')
+        .trim();
+    (arg.len() > 1
+        && (arg.starts_with('"') || arg.starts_with('\''))
+        && !arg.contains('\\')
+        && !arg.contains(','))
+    .then(|| arg.trim_matches(['\'', '"']))
+}
+
+/// What a CommonJS `const m = require('./m')` (namespace `m`) or
+/// `const { a, b: c } = require('./m')` (local `c` for exported `b`) binds.
+/// `None` when `call` is not a literal require that a declarator binds.
+fn require_binding(
+    call: Node<'_>,
+    source: &[u8],
+) -> Option<(String, serde_json::Map<String, Value>)> {
+    if call.kind() != "call_expression"
+        || field(call, "function", source) != "require"
+        || literal_module(call, source).is_none()
+    {
+        return None;
+    }
+    let declarator = call
+        .parent()
+        .filter(|p| p.kind() == "variable_declarator")?;
+    if declarator.child_by_field_name("value")?.id() != call.id() {
+        return None;
+    }
+    let name = declarator.child_by_field_name("name")?;
+    let mut bindings = serde_json::Map::new();
+    match name.kind() {
+        "identifier" => return Some((value(name, source).to_owned(), bindings)),
+        "object_pattern" => {
+            let mut cursor = name.walk();
+            for property in name.named_children(&mut cursor) {
+                match property.kind() {
+                    "shorthand_property_identifier_pattern" => {
+                        let local = value(property, source);
+                        bindings.insert(local.to_owned(), json!(local));
+                    }
+                    "pair_pattern"
+                        if property
+                            .child_by_field_name("value")
+                            .is_some_and(|v| v.kind() == "identifier") =>
+                    {
+                        bindings.insert(
+                            field(property, "value", source).to_owned(),
+                            json!(field(property, "key", source)),
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
+        _ => return None,
+    }
+    Some((String::new(), bindings))
+}
+
 fn assignment_names(node: Node<'_>, source: &[u8], out: &mut BTreeSet<String>) {
     if matches!(
         node.kind(),
@@ -646,6 +749,7 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
     let mut links = Vec::new();
     let mut issues = Vec::new();
     let mut shadowed = Vec::new();
+    let mut default_export = String::new();
     let mut environment = Value::Null;
     let mut environment_limited = false;
     let (mut symbols_full, mut imports_full, mut links_full) = (false, false, false);
@@ -769,12 +873,30 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
                 let callable = node
                     .child_by_field_name("value")
                     .is_some_and(|v| matches!(v.kind(), "arrow_function" | "function_expression"));
-                if !callable && let Some(target) = target {
+                // `const m = require('./m')` binds an import (recorded with
+                // the require call), not an unknown value.
+                let required = kind == "variable_declarator"
+                    && node
+                        .child_by_field_name("value")
+                        .is_some_and(|v| require_binding(v, raw).is_some());
+                if !callable
+                    && !required
+                    && let Some(target) = target
+                {
                     let mut names = BTreeSet::new();
                     assignment_names(target, raw, &mut names);
+                    // `self.x = 1` changes the object `self` names, not the
+                    // name itself: receiver calls through it still bind.
+                    let kind = if matches!(
+                        target.kind(),
+                        "attribute" | "member_expression" | "subscript" | "subscript_expression"
+                    ) {
+                        "member_assignment"
+                    } else {
+                        "assignment"
+                    };
                     for name in names {
-                        shadowed
-                            .push(json!({"name":name,"scope":scope.join("."),"kind":"assignment"}));
+                        shadowed.push(json!({"name":name,"scope":scope.join("."),"kind":kind}));
                     }
                 }
             }
@@ -915,8 +1037,42 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
                     );
                 }
             }
-            if matches!(kind, "call" | "call_expression") {
-                let function = field(node, "function", raw);
+            // A macro's arguments are tokens, not syntax: `path(...)` among
+            // them (`json!({"a": f(x)})`, `vec![m::g()]`) is a call.
+            if kind == "token_tree" && ext == "rs" {
+                for (callee, at) in token_tree_calls(node, raw) {
+                    if calls.len() < limits.calls {
+                        calls.push(json!({"caller":scope.join("."),"callee":callee,"line":at.start_position().row + 1,"byte_start":at.start_byte(),"byte_end":at.end_byte(),"basis":"syntactic_call"}));
+                    } else {
+                        calls_truncated = true;
+                    }
+                }
+            }
+            // `module.exports = Name`: what `require` of this file returns.
+            if kind == "assignment_expression"
+                && scope.is_empty()
+                && field(node, "left", raw) == "module.exports"
+                && let Some(right) = node.child_by_field_name("right")
+            {
+                default_export = match right.kind() {
+                    "identifier" => value(right, raw).to_owned(),
+                    "class"
+                    | "class_declaration"
+                    | "function_expression"
+                    | "function_declaration" => field(right, "name", raw).to_owned(),
+                    _ => String::new(),
+                };
+            }
+            if matches!(kind, "call" | "call_expression")
+                || (kind == "new_expression" && matches!(ext, "js" | "jsx" | "mjs" | "cjs"))
+            {
+                // `new X()` calls the class `X`, as Python's `X()` does. In
+                // TypeScript the oxc binder resolves `new` from types.
+                let function = if kind == "new_expression" {
+                    field(node, "constructor", raw)
+                } else {
+                    field(node, "function", raw)
+                };
                 if !function.is_empty() && function.len() < 500 {
                     if calls.len() < limits.calls {
                         calls.push(json!({"caller":scope.join("."),"callee":function,"line":line,"byte_start":node.start_byte(),"byte_end":node.end_byte(),"basis":"syntactic_call"}));
@@ -924,22 +1080,15 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
                         calls_truncated = true;
                     }
                     if matches!(function, "require" | "import") && ext != "py" {
-                        let argument = field(node, "arguments", raw);
-                        let arg = argument
-                            .trim_start_matches('(')
-                            .trim_end_matches(')')
-                            .trim();
-                        if arg.len() > 1
-                            && (arg.starts_with('"') || arg.starts_with('\''))
-                            && !arg.contains('\\')
-                            && !arg.contains(',')
-                        {
-                            push_within(
-                                &mut imports,
-                                limits.symbols,
-                                &mut imports_full,
-                                json!({"module":arg.trim_matches(['\'','"']),"level":0,"names":[],"line":line}),
-                            );
+                        if let Some(module) = literal_module(node, raw) {
+                            let mut import =
+                                json!({"module":module,"level":0,"names":[],"line":line});
+                            if let Some((namespace, bindings)) = require_binding(node, raw) {
+                                import["namespace"] = json!(namespace);
+                                import["bindings"] = Value::Object(bindings);
+                                import["scope"] = json!(scope.join("."));
+                            }
+                            push_within(&mut imports, limits.symbols, &mut imports_full, import);
                         } else {
                             issues.push(format!("Dynamic module reference at line {line}"));
                         }
@@ -1029,6 +1178,9 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
     if ext == "py" {
         result["environment"] = environment;
     }
+    if !default_export.is_empty() {
+        result["default_export"] = json!(default_export);
+    }
     if let Some(kind) = limited_kind(
         nodes_stopped,
         calls_truncated || environment_limited,
@@ -1047,6 +1199,34 @@ fn push_within(list: &mut Vec<Value>, cap: usize, full: &mut bool, item: Value) 
     } else {
         *full = true;
     }
+}
+
+/// The Cargo package directory of a Rust source: its nearest ancestor with
+/// `src/lib.rs` or `src/main.rs` ("" at the repository root, or when none is
+/// found), and, for a nested package, the crate name Cargo derives from that
+/// directory (`graphicle-memory` is `graphicle_memory`).
+// ponytail: the name comes from the directory, not Cargo.toml's [package]
+// or [lib] name, which basic review does not parse; a renamed crate's own
+// name stays unresolved.
+fn rust_crate(path: &str, paths: &BTreeSet<String>) -> (String, Option<String>) {
+    let mut dir = Path::new(path).parent();
+    while let Some(d) = dir {
+        let root = d.to_string_lossy();
+        let src = if root.is_empty() {
+            "src".to_owned()
+        } else {
+            format!("{root}/src")
+        };
+        if paths.contains(&format!("{src}/lib.rs")) || paths.contains(&format!("{src}/main.rs")) {
+            let name = d
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n.replace('-', "_"));
+            return (root.into_owned(), name);
+        }
+        dir = d.parent();
+    }
+    (String::new(), None)
 }
 
 pub(crate) fn normalize(path: &str) -> Option<String> {
@@ -1171,14 +1351,35 @@ pub fn graph(analyses: &Value) -> Result<Value> {
                     }
                 } else if path.ends_with(".rs") && relation == "imports" {
                     let mut base = module.replace("::", "/");
+                    // `crate::` and the crate's own name (from tests/, benches/
+                    // or a binary) start at the crate's src/, not the repository's.
+                    let (root, name) = rust_crate(path, &paths);
+                    let src = if root.is_empty() {
+                        "src".to_owned()
+                    } else {
+                        format!("{root}/src")
+                    };
                     if let Some(rest) = base.strip_prefix("crate/") {
-                        base = format!("src/{rest}");
+                        base = format!("{src}/{rest}");
+                    } else if let Some(rest) = name
+                        .filter(|name| !name.is_empty())
+                        .and_then(|name| base.strip_prefix(&format!("{name}/")))
+                    {
+                        base = format!("{src}/{rest}");
                     } else {
                         let parent = Path::new(path).parent().unwrap_or(Path::new(""));
                         base = parent.join(base).to_string_lossy().into_owned();
                     }
+                    // A module's file; the crate root's when it is src/ itself.
+                    let files = |base: &str| {
+                        let mut files = vec![format!("{base}.rs"), format!("{base}/mod.rs")];
+                        if base == src {
+                            files.extend([format!("{src}/lib.rs"), format!("{src}/main.rs")]);
+                        }
+                        files
+                    };
                     if let Some(base) = normalize(&base) {
-                        for p in [format!("{base}.rs"), format!("{base}/mod.rs")] {
+                        for p in files(&base) {
                             if paths.contains(&p) {
                                 targets.insert(p);
                             }
@@ -1187,7 +1388,7 @@ pub fn graph(analyses: &Value) -> Result<Value> {
                             && item["bindings"].as_object().is_some_and(|v| !v.is_empty())
                             && let Some((base, _)) = base.rsplit_once('/')
                         {
-                            for p in [format!("{base}.rs"), format!("{base}/mod.rs")] {
+                            for p in files(base) {
                                 if paths.contains(&p) {
                                     targets.insert(p);
                                 }
