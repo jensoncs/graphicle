@@ -1008,7 +1008,9 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                     .into_iter()
                     .collect()
             };
-            if targets.is_empty() {
+            // A command run by a path that is not a snapshot file is a tool or
+            // build output, not a missing dependency.
+            if targets.is_empty() && dependency["kind"] != "shell_command" {
                 out.issues.push(issue("basic_unresolved_dependency",json!({"file":file,"line":dependency["line"],"kind":dependency["kind"],"dynamic":dependency["dynamic"],"cause":"dynamic_external_or_missing_pinned_target"})));
             }
             for target in targets {

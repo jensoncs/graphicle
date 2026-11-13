@@ -664,3 +664,46 @@ fn stylesheets_import_through_the_load_paths_their_build_states() {
         "outside the workspace: {l:?}"
     );
 }
+
+#[test]
+fn scripts_run_by_path_or_from_their_own_directory_select_their_callers() {
+    let run = "#!/bin/bash\nDIR=\"$(cd \"$(dirname \"$0\")\" && pwd)\"\nHERE=$(dirname \"${BASH_SOURCE[0]}\")\nUP=\"$(cd \"$(dirname \"$0\")/..\" && pwd)\"\nTOP=$(git rev-parse --show-toplevel)\n\"$DIR\"/install.sh\n${HERE}/lib/test.sh --fast\nOUT=$(./build.sh)\nbash -x check.sh\n\"$UP\"/tools/gen.sh\n\"$TOP\"/ci/top.sh\ndeploy.sh\n/usr/bin/env true\nbash -c \"./never.sh\"\n";
+    let mut files = vec![("repo/ci/run.sh", run)];
+    for script in [
+        "install", "lib/test", "build", "check", "top", "deploy", "never", "moved",
+    ] {
+        files.push((
+            Box::leak(format!("repo/ci/{script}.sh").into_boxed_str()),
+            "echo ok\n",
+        ));
+    }
+    files.push(("repo/tools/gen.sh", "echo ok\n"));
+    files.push((
+        "repo/ci/again.sh",
+        "D=$(dirname \"$0\")\nD=/opt/elsewhere\n\"$D\"/moved.sh\n",
+    ));
+    let got = links(&files);
+    let from_run: BTreeSet<_> = got
+        .iter()
+        .filter(|l| l.starts_with("ci/run.sh -> "))
+        .cloned()
+        .collect();
+    let expect: BTreeSet<_> = [
+        "ci/install.sh",
+        "ci/lib/test.sh",
+        "ci/build.sh",
+        "ci/check.sh",
+        "tools/gen.sh",
+    ]
+    .iter()
+    .map(|t| format!("ci/run.sh -> {t} (literal_shell_path_candidate)"))
+    .collect();
+    assert_eq!(
+        from_run, expect,
+        "$TOP is not the script's directory, deploy.sh is found through PATH, never.sh is a string"
+    );
+    assert!(
+        !got.iter().any(|l| l.starts_with("ci/again.sh")),
+        "a variable assigned anything else stays dynamic: {got:?}"
+    );
+}
