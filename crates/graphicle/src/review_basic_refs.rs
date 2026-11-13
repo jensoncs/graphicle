@@ -175,18 +175,20 @@ pub(super) fn masked(content: &str, line_comment: &str, block: Option<(&str, &st
     let blank = |out: &mut Vec<u8>, part: &[u8]| {
         out.extend(part.iter().map(|b| if *b == b'\n' { b'\n' } else { b' ' }));
     };
+    // Bytes, not `&str` slices: `i` steps through non-ASCII text one byte at a time.
     while i < bytes.len() {
-        let rest = &content[i..];
+        let rest = &bytes[i..];
         if let Some((open, close)) = block
-            && rest.starts_with(open)
+            && rest.starts_with(open.as_bytes())
         {
             let end = rest[open.len()..]
-                .find(close)
+                .windows(close.len())
+                .position(|w| w == close.as_bytes())
                 .map_or(rest.len(), |e| open.len() + e + close.len());
             blank(&mut out, &bytes[i..i + end]);
             i += end;
-        } else if rest.starts_with(line_comment) {
-            let end = rest.find('\n').unwrap_or(rest.len());
+        } else if rest.starts_with(line_comment.as_bytes()) {
+            let end = rest.iter().position(|b| *b == b'\n').unwrap_or(rest.len());
             blank(&mut out, &bytes[i..i + end]);
             i += end;
         } else if matches!(bytes[i], b'"' | b'\'') {
@@ -204,7 +206,8 @@ pub(super) fn masked(content: &str, line_comment: &str, block: Option<(&str, &st
             i += 1;
         }
     }
-    // Only ASCII bytes were replaced, by ASCII: char boundaries are kept.
+    // Each blanked span starts and ends at an ASCII byte, so it covers whole
+    // characters and the result stays UTF-8.
     String::from_utf8(out).unwrap_or_default()
 }
 
@@ -251,5 +254,15 @@ mod tests {
         assert_eq!(m.len(), text.len());
         assert!(!m.contains("end"));
         assert!(m.ends_with(" c"));
+    }
+
+    #[test]
+    fn masking_keeps_non_ascii_code_and_blanks_non_ascii_strings() {
+        let text = "local café = 'naïve' -- été\nx = 1";
+        let m = masked(text, "--", Some(("--[[", "]]")));
+        assert_eq!(m.len(), text.len());
+        assert!(m.starts_with("local café = "));
+        assert!(m.ends_with("\nx = 1"));
+        assert!(!m.contains('ï') && !m.contains("été"));
     }
 }
