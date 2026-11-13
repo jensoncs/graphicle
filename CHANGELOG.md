@@ -292,6 +292,22 @@ versioned together at 0.2.0.
   checked by hand: calls in macro arguments, `self.cmp()` recorded against
   `Ord`). Calls through fields (`self.store.get()`) and untyped receivers
   stay unresolved.
+- An answer that lists a symbol's callers says when the code graph may be
+  missing some. `get_node`, `get_neighbors` and the identifier route of
+  `context` add `possibly_incomplete`, plus one line in the citations or
+  footer: the unresolved calls whose callee ends in the symbol's name (count,
+  count per reason, the first three sites) and the files read with no type
+  information. A function whose only caller sat in a Go package that did not
+  type-check answered "0 references": on platform-rbac, "who calls
+  `RunAthenaServer`" now names the call at `main.go:31` and the file read with
+  no type information. In basic review a changed declaration
+  carries `possibly_missing_callers`, so its packet no longer reads as "no
+  other callers" when its directory has unresolved calls that could name it
+  (`review-risk-v2.json` documents the field). Unresolved Go calls keep their
+  callee text, and the episode's file view lists its unresolved calls and the
+  files with no type information under `coverage.incomplete`. Each report
+  says a call could name the symbol, never that it does; resolution is
+  unchanged.
 - Pinned review gives TypeScript and JavaScript the basic file-level impact
   Python and Rust have: `.ts/.tsx/.mts/.cts/.js/.jsx/.mjs/.cjs` importers are
   selected through relative and `tsconfig`/`jsconfig` `paths` import

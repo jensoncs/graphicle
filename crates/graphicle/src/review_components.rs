@@ -112,6 +112,7 @@ mod tests {
             raw: None,
             package_cache: crate::review_cache::PackageResult::default(),
             services: services::Links::default(),
+            unresolved_callers: BTreeMap::new(),
         }
     }
     fn package(world: &str, path: &str, dependencies: &[&str], role: &str) -> Value {

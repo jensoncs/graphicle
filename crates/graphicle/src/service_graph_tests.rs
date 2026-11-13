@@ -21,6 +21,7 @@ fn fixture(specs: &[(&str, Value)]) -> (Input, Analysis) {
         raw: None,
         package_cache: crate::review_cache::PackageResult::default(),
         services: Links::default(),
+        unresolved_callers: BTreeMap::new(),
     };
     for (dir, bindings) in specs {
         let code = "package main\nfunc Handle() { send() }\n";

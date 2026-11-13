@@ -196,7 +196,19 @@
         "review_basis": {"$ref": "#/$defs/basis"},
         "update": {"enum": ["added", "updated"]},
         "test_classification": {"enum": ["test_file", "non_test_file", "not_analyzed"]},
-        "reasons": {"type": "array", "items": {"$ref": "#/$defs/reason"}}
+        "reasons": {"type": "array", "items": {"$ref": "#/$defs/reason"}},
+        "possibly_missing_callers": {
+          "description": "Basic review, a changed declaration only: the unresolved calls of its directory whose callee's last segment is the declaration's name. Callers this packet may lack, never resolved callers.",
+          "type": "object", "required": ["name", "count", "reasons", "sites", "sites_omitted"],
+          "properties": {
+            "name": {"type": "string"},
+            "count": {"type": "integer", "minimum": 1},
+            "reasons": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 1}},
+            "sites": {"type": "array", "maxItems": 3, "items": {"type": "object", "required": ["file", "line"],
+              "properties": {"file": {"type": "string"}, "line": {"type": ["integer", "null"]}, "callee": {"type": ["string", "null"]}, "reason": {"type": ["string", "null"]}}}},
+            "sites_omitted": {"type": "integer", "minimum": 0}
+          }
+        }
       }
     }
   }

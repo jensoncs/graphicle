@@ -952,6 +952,24 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 json!({"directory":repo,"calls":unresolved_calls}),
             ));
         }
+        // Per declaration here, the unresolved calls whose callee ends in its
+        // name: callers a changed declaration's packet may lack ([`annotate`]).
+        let named = crate::possibly_incomplete::by_name(
+            graph["unresolved_calls"].as_array().into_iter().flatten(),
+        );
+        let owner = world(&repo);
+        for (id, (symbol_world, symbol)) in &out.symbols {
+            let short = symbol.name.rsplit('.').next().unwrap_or(&symbol.name);
+            if *symbol_world == owner
+                && symbol.kind != "basic_file"
+                && let Some(calls) = named.get(short)
+            {
+                out.unresolved_callers.insert(
+                    id.clone(),
+                    crate::possibly_incomplete::summary(short, calls),
+                );
+            }
+        }
         for unresolved in graph["unresolved"].as_array().into_iter().flatten() {
             out.issues.push(issue(
                 "basic_unresolved_import",
@@ -1319,6 +1337,15 @@ pub(super) fn annotate(entry: &mut Value, analysis: &Analysis, file: &str) {
                 entry["generated"] = generated.clone();
             }
         }
+        // A changed declaration names the unresolved calls that could reach
+        // it, so its packet does not read as "no other callers".
+        if entry["reasons"]
+            .as_array()
+            .is_some_and(|reasons| reasons.iter().any(|r| r["reason"] == "change_seed"))
+            && let Some(callers) = analysis.unresolved_callers.get(s(entry, "symbol_id"))
+        {
+            entry["possibly_missing_callers"] = callers.clone();
+        }
         entry["analysis_level"] = json!("basic_symbol");
         entry["test_classification"] = json!("not_analyzed");
         entry["test"] = Value::Null;
@@ -1485,6 +1512,66 @@ mod tests {
             changes
                 .iter()
                 .any(|c| c["signature_changed"] == false && c["implementation_changed"] == true)
+        );
+    }
+
+    /// A changed declaration says which unresolved calls could name it, so
+    /// the packet does not read as "no callers"; the directory's count stays.
+    #[test]
+    fn a_changed_declaration_names_the_unresolved_calls_that_could_reach_it() {
+        let app = "def run(service):\n    return service.calculate()\n\n\ndef other(service):\n    return service.total()\n";
+        let base = input(&[
+            ("repo/app.py", app),
+            (
+                "repo/tax.py",
+                "def calculate():\n    return 1\n\n\ndef total():\n    return 3\n",
+            ),
+        ]);
+        let head = input(&[
+            ("repo/app.py", app),
+            (
+                "repo/tax.py",
+                "def calculate():\n    return 2\n\n\ndef total():\n    return 3\n",
+            ),
+        ]);
+        let r = report(&base, &head);
+        let declaration = |name: &str| {
+            r["entries"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|e| e["file"] == "tax.py" && e["side"] == "head" && e["name"] == name)
+                .cloned()
+        };
+        let changed = declaration("calculate").unwrap();
+        let missing = &changed["possibly_missing_callers"];
+        assert_eq!(missing["name"], "calculate", "{changed:#}");
+        assert_eq!(missing["count"], 1, "{changed:#}");
+        assert_eq!(
+            missing["sites"][0],
+            json!({"file":"app.py","line":2,"callee":"service.calculate","reason":missing["sites"][0]["reason"]}),
+            "{changed:#}"
+        );
+        let schema: Value = serde_json::from_str(super::RISK_SCHEMA_JSON).unwrap();
+        let field = json!({"$defs":schema["$defs"],
+            "$ref":"#/$defs/entry/properties/possibly_missing_callers"});
+        assert!(
+            jsonschema::validator_for(&field).unwrap().is_valid(missing),
+            "{missing:#}"
+        );
+        // An unchanged declaration is not a change seed: no annotation.
+        assert!(
+            declaration("total").is_none_or(|e| e.get("possibly_missing_callers").is_none()),
+            "{r:#}"
+        );
+        assert!(
+            r["coverage"]["issues"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|i| i["reason"] == "basic_unresolved_calls" && i["detail"]["calls"] == 2),
+            "{:#}",
+            r["coverage"]["issues"]
         );
     }
 

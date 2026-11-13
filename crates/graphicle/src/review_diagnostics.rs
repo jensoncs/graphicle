@@ -499,6 +499,7 @@ mod tests {
             raw: None,
             package_cache: crate::review_cache::PackageResult::default(),
             services: super::super::services::Links::default(),
+            unresolved_callers: BTreeMap::new(),
         };
         let first = json!({"reason":"python_environment_incomplete","detail":{"file":"app/a.py","issues":["python_environment_binding_ambiguous","python_environment_binding_ambiguous"],"local_os_module":true}});
         analysis.issues = vec![

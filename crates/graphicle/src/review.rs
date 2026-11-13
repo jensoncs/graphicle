@@ -286,6 +286,9 @@ struct Analysis {
     raw: Option<Value>,
     package_cache: crate::review_cache::PackageResult,
     services: services::Links,
+    /// Basic review: per declaration (its key in `symbols`), the unresolved
+    /// calls that could name it ([`crate::possibly_incomplete::summary`]).
+    unresolved_callers: BTreeMap<String, Value>,
 }
 
 fn issue(reason: &str, detail: Value) -> Value {
@@ -464,6 +467,7 @@ fn analyze_go(
         raw: None,
         package_cache: crate::review_cache::PackageResult::default(),
         services: services::Links::default(),
+        unresolved_callers: BTreeMap::new(),
     };
     out.issues.extend(scope.issues);
     if roots.is_empty() {
@@ -3174,6 +3178,7 @@ mod tests {
             raw: None,
             package_cache: crate::review_cache::PackageResult::default(),
             services: services::Links::default(),
+            unresolved_callers: BTreeMap::new(),
         };
         for name in ["caller", "supplier", "other"] {
             let symbol: Symbol = serde_json::from_value(json!({"key":name,"file":"app/main.go","package":"app","name":name,"kind":"function","parent":"","start":0,"end":1,"body_start":0,"line":1,"end_line":1,"revision":"r","signature":"s","implementation":"i","correspondence":"c"})).unwrap();
