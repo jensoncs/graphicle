@@ -4,7 +4,7 @@ use crate::{Error, Result, local, store};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
 
-const MAX_VENDOR_BYTES: usize = 256 * 1024 * 1024;
+const MAX_VENDOR_BYTES: usize = 1024 * 1024 * 1024;
 
 pub(crate) fn source_limits() -> Value {
     json!({"scope":"owned-and-go-vendor-v1",
@@ -50,7 +50,8 @@ impl SourceBudget {
         }
         if self.files >= super::MAX_FILES {
             return Err(Error::bad(format!(
-                "Review source bound exceeded (20000 files per side, source and vendor combined): files_per_side actual={} limit={}",
+                "Review source bound exceeded ({} files per side, source and vendor combined): files_per_side actual={} limit={}",
+                super::MAX_FILES,
                 self.files + 1,
                 super::MAX_FILES,
             )));
@@ -59,7 +60,7 @@ impl SourceBudget {
             (
                 &mut self.vendor_bytes,
                 MAX_VENDOR_BYTES,
-                "Review source bound exceeded (256 MiB of Go vendor inputs per side): vendor_bytes_per_side",
+                "Review source bound exceeded (1 GiB of Go vendor inputs per side): vendor_bytes_per_side",
             )
         } else {
             (
@@ -268,14 +269,16 @@ mod tests {
                 .message
                 .contains("owned_bytes_per_side actual=67108865 limit=67108864")
         );
-        for bytes in [60, 60, 38] {
-            budget.reserve(bytes * MIB, true).unwrap();
+        for _ in 0..15 {
+            // 98 MiB in above, then 15 x 61 and 11: exactly 1 GiB
+            budget.reserve(61 * MIB, true).unwrap();
         }
+        budget.reserve(11 * MIB, true).unwrap();
         let vendor = budget.reserve(1, true).unwrap_err();
         assert!(
             vendor
                 .message
-                .contains("vendor_bytes_per_side actual=268435457 limit=268435456")
+                .contains("vendor_bytes_per_side actual=1073741825 limit=1073741824")
         );
         assert!(SourceBudget::default().reserve(u64::MAX, true).is_err());
         assert!(SourceBudget::default().reserve(65 * MIB, true).is_err());
@@ -288,7 +291,7 @@ mod tests {
                 .reserve(0, true)
                 .unwrap_err()
                 .message
-                .contains("files_per_side actual=20001 limit=20000")
+                .contains("files_per_side actual=80001 limit=80000")
         );
         assert!(count.reserve(0, false).is_err());
     }

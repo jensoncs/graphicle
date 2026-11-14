@@ -70,7 +70,9 @@ const FORMAT: &str = "graphicle.review.v1";
 pub const RISK_SCHEMA: &str = "graphicle.review-risk.v2";
 pub const RISK_SCHEMA_JSON: &str = include_str!("../../../docs/schemas/review-risk-v2.json");
 const MAX_SOURCE_BYTES: usize = 64 * 1024 * 1024;
-const MAX_FILES: usize = 20_000;
+// Sentinel's ceilings (cra/context/graphicle_review.py LIMITS): nexus with every Go module root vendored is 34,311
+// vendored files and 377 MB at #946, peak 2.6 GB in graph.impact (2026-11-13)
+const MAX_FILES: usize = 80_000;
 fn depth() -> usize {
     8
 }

@@ -579,8 +579,8 @@ Credential filenames, secret directories, VCS and private-tool directories remai
 excluded. Local folder discovery and shared-bundle admission retain their existing
 skip policies.
 
-Each side admits up to 64 MiB of repository source plus 256 MiB
-of Go vendor inputs, with 20,000 files combined and at most 64 MiB per file.
+Each side admits up to 64 MiB of repository source plus 1 GiB
+of Go vendor inputs, with 80,000 files combined and at most 64 MiB per file.
 The vendor allowance applies only below a `vendor/` directory whose parent has
 an admitted `go.mod` and whose `vendor/modules.txt` is also admitted, including
 nested modules. It covers selected embedded and native assets as well as Go
