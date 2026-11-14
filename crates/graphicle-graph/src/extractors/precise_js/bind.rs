@@ -134,13 +134,20 @@ pub(super) fn bind<Fs: FileSystem + 'static, N: Nodes>(
                     let Some(module) = r.module(fi, spec) else {
                         continue;
                     };
-                    let Some((file, Ref::Local { name, line })) = r.export(module, name, 0) else {
-                        continue;
-                    };
-                    (
-                        nodes.function(&summaries[file].key, &name, line),
-                        "oxc_binding",
-                    )
+                    match r.export(module, name, 0) {
+                        Some((file, Ref::Local { name, line })) => (
+                            nodes.function(&summaries[file].key, &name, line),
+                            "oxc_binding",
+                        ),
+                        // CommonJS `module.exports = C`: `m.f()` is C's static method
+                        _ => {
+                            let default = Ref::Import {
+                                spec: spec.clone(),
+                                name: "default".into(),
+                            };
+                            (method(nodes, r, fi, &default, name), "oxc_binding")
+                        }
+                    }
                 }
                 Target::New(class) => {
                     let Some((file, Ref::Local { name, line })) = r.declaration(fi, class) else {
@@ -358,5 +365,71 @@ mod tests {
             .find(|b| b.target == "src/lib/math.ts#twice")
             .unwrap();
         assert_eq!((call.file.as_str(), call.line), ("src/main.ts", 10));
+    }
+
+    #[test]
+    fn binds_commonjs_require_and_module_exports() {
+        let root = Path::new("/snapshot/repo");
+        let files: Vec<(PathBuf, Arc<str>)> = [
+            (
+                "src/util.js",
+                "function add(a, b) { return a + b; }\nfunction twice(x) { return add(x, x); }\nmodule.exports = { add, double: twice };\n",
+            ),
+            (
+                "src/store.js",
+                "class Store {\n  get(k) { return k; }\n  static open() { return new Store(); }\n}\nmodule.exports = Store;\n",
+            ),
+            (
+                "src/fmt.js",
+                "function pad(s) { return s; }\nfunction trim(s) { return s; }\nexports.pad = pad;\nmodule.exports.trim = trim;\n",
+            ),
+            (
+                "src/main.js",
+                "const util = require('./util');\nconst { double: dbl } = require('./util');\nconst Store = require('./store');\nconst fmt = require('./fmt.js');\nfunction run() {\n  util.add(1, 2);\n  dbl(3);\n  const s = new Store();\n  s.get('k');\n  Store.open();\n  fmt.pad('x');\n  return fmt.trim('y');\n}\nmodule.exports = { run };\n",
+            ),
+            (
+                // A local `require` is not CommonJS: nothing binds through it.
+                "src/shadow.js",
+                "function require(x) { return x; }\nconst util = require('./util');\nfunction other() { return util.add(1, 2); }\n",
+            ),
+        ]
+        .into_iter()
+        .map(|(p, t)| (root.join(p), Arc::<str>::from(t)))
+        .collect();
+        let names = Names(
+            [
+                "src/util.js#add",
+                "src/util.js#twice",
+                "src/store.js#Store",
+                "src/store.js#Store.get",
+                "src/store.js#Store.open",
+                "src/fmt.js#pad",
+                "src/fmt.js#trim",
+                "src/main.js#run",
+                "src/shadow.js#other",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        );
+        let bound = bind_snapshot(&files, root, &names);
+        let has = |caller: &str, target: &str| {
+            bound
+                .iter()
+                .any(|b| b.caller == caller && b.target == target)
+        };
+        for target in [
+            "src/util.js#add",
+            // `double` is the exported name; the declaration is `twice`.
+            "src/util.js#twice",
+            "src/store.js#Store",
+            "src/store.js#Store.get",
+            "src/store.js#Store.open",
+            "src/fmt.js#pad",
+            "src/fmt.js#trim",
+        ] {
+            assert!(has("src/main.js#run", target), "{target}: {bound:#?}");
+        }
+        assert!(!has("src/shadow.js#other", "src/util.js#add"), "{bound:#?}");
     }
 }

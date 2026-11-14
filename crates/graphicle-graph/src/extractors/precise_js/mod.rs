@@ -26,7 +26,8 @@ use oxc_allocator::Allocator;
 use oxc_ast::{
     AstKind,
     ast::{
-        BindingPattern, Declaration, ExportDefaultDeclarationKind, Expression, IdentifierReference,
+        Argument, AssignmentExpression, AssignmentTarget, BindingPattern, Declaration,
+        ExportDefaultDeclarationKind, Expression, IdentifierReference, ObjectPropertyKind,
         PropertyKey, TSType, TSTypeName,
     },
 };
@@ -71,7 +72,7 @@ enum Ref {
 enum Target {
     /// `f()`
     Function(Ref),
-    /// `ns.f()` for `import * as ns`
+    /// `ns.f()` for `import * as ns` or `const ns = require(...)`
     Namespace { spec: String, name: String },
     /// `C.m()` (static) or `x.m()` where `x` is an instance of `C` (`typed`)
     Member {
@@ -199,8 +200,28 @@ impl<'a> Reader<'_, 'a> {
             }),
             AstKind::ImportNamespaceSpecifier(_) => Binding::Namespace(self.import_spec(decl)?),
             AstKind::VariableDeclarator(d) => {
-                let name = d.id.get_binding_identifier()?.name.to_string();
                 let init = d.init.as_ref().map(Expression::get_inner_expression);
+                // CommonJS: `const m = require(spec)` is a namespace, and
+                // `const { a: b } = require(spec)` imports `a` as `b`.
+                if let Some(spec) = init.and_then(|e| self.required(e)) {
+                    return Some(match &d.id {
+                        BindingPattern::BindingIdentifier(_) => Binding::Namespace(spec),
+                        BindingPattern::ObjectPattern(p) => {
+                            let name = p.properties.iter().find_map(|prop| match &prop.value {
+                                BindingPattern::BindingIdentifier(b) if b.name == ident.name => {
+                                    prop.key.static_name()
+                                }
+                                _ => None,
+                            })?;
+                            Binding::Decl(Ref::Import {
+                                spec,
+                                name: name.to_string(),
+                            })
+                        }
+                        _ => return None,
+                    });
+                }
+                let name = d.id.get_binding_identifier()?.name.to_string();
                 match init {
                     Some(e) if e.is_function() => Binding::Decl(Ref::Local {
                         name,
@@ -235,7 +256,67 @@ impl<'a> Reader<'_, 'a> {
     fn class_of(&self, ident: &IdentifierReference<'a>) -> Option<Ref> {
         match self.binding(ident, 0)? {
             Binding::Class(r) | Binding::Decl(r @ Ref::Import { .. }) => Some(r),
+            // `const C = require(spec)` where the module's export is a class
+            Binding::Namespace(spec) => Some(default_of(spec)),
             _ => None,
+        }
+    }
+    /// A free (unshadowed) identifier named `name`, such as CommonJS `require`.
+    fn global(&self, e: &Expression<'a>, name: &str) -> bool {
+        matches!(e, Expression::Identifier(i) if i.name == name
+            && i.reference_id.get().is_none_or(|r| self.semantic.scoping().get_reference(r).symbol_id().is_none()))
+    }
+    /// The module `require('spec')` loads, for the free `require` only.
+    fn required(&self, e: &Expression<'a>) -> Option<String> {
+        let Expression::CallExpression(call) = e else {
+            return None;
+        };
+        match call.arguments.as_slice() {
+            [Argument::StringLiteral(spec)]
+                if self.global(call.callee.get_inner_expression(), "require") =>
+            {
+                Some(spec.value.to_string())
+            }
+            _ => None,
+        }
+    }
+    /// CommonJS exports: `module.exports = { a, b: c }`, `module.exports = X`
+    /// (the module's default), and `exports.a = X` / `module.exports.a = X`.
+    fn commonjs_exports(&self, a: &AssignmentExpression<'a>, out: &mut FxHashMap<String, Export>) {
+        let AssignmentTarget::StaticMemberExpression(target) = &a.left else {
+            return;
+        };
+        let object = target.object.get_inner_expression();
+        let module_exports = |e: &Expression<'a>| {
+            matches!(e, Expression::StaticMemberExpression(m)
+                if m.property.name == "exports" && self.global(m.object.get_inner_expression(), "module"))
+        };
+        let local = |e: &Expression<'a>| match e.get_inner_expression() {
+            Expression::Identifier(ident) => self.export_ref(ident),
+            _ => None,
+        };
+        if target.property.name == "exports" && self.global(object, "module") {
+            match a.right.get_inner_expression() {
+                Expression::ObjectExpression(o) => {
+                    for prop in &o.properties {
+                        if let ObjectPropertyKind::ObjectProperty(p) = prop
+                            && let Some(key) = p.key.static_name()
+                            && let Some(r) = local(&p.value)
+                        {
+                            out.insert(key.to_string(), Export::Local(r));
+                        }
+                    }
+                }
+                right => {
+                    if let Some(r) = local(right) {
+                        out.insert("default".into(), Export::Local(r));
+                    }
+                }
+            }
+        } else if (self.global(object, "exports") || module_exports(object))
+            && let Some(r) = local(&a.right)
+        {
+            out.insert(target.property.name.to_string(), Export::Local(r));
         }
     }
     /// `C`, `C | null`, `C | undefined` as a class reference.
@@ -397,6 +478,8 @@ impl<'a> Reader<'_, 'a> {
         match callee.get_inner_expression() {
             Expression::Identifier(ident) => match self.binding(ident, 0)? {
                 Binding::Decl(r) => Some(Target::Function(r)),
+                // `const f = require(spec); f()`: the module's export is a function
+                Binding::Namespace(spec) => Some(Target::Function(default_of(spec))),
                 _ => None,
             },
             Expression::StaticMemberExpression(member) => {
@@ -559,6 +642,7 @@ impl<'a> Reader<'_, 'a> {
                         out.exports.insert("default".into(), Export::Local(r));
                     }
                 }
+                AstKind::AssignmentExpression(a) => self.commonjs_exports(a, &mut out.exports),
                 AstKind::ExportAllDeclaration(e) if e.exported.is_none() => {
                     out.stars.push(e.source.value.to_string());
                 }
@@ -572,6 +656,14 @@ impl<'a> Reader<'_, 'a> {
             Binding::Decl(r) | Binding::Class(r) => Some(r),
             _ => None,
         }
+    }
+}
+
+/// The default export of module `spec` (CommonJS `module.exports = X`).
+fn default_of(spec: String) -> Ref {
+    Ref::Import {
+        spec,
+        name: "default".into(),
     }
 }
 
