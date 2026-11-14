@@ -135,6 +135,8 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
                 std::fs::write(&semantic, include_str!("go_semantic.go")).ok()?;
                 let package_cache = dir.path().join("cache.go");
                 std::fs::write(&package_cache, include_str!("go_review_cache.go")).ok()?;
+                let build_tags = dir.path().join("tags.go");
+                std::fs::write(&build_tags, include_str!("go_review_tags.go")).ok()?;
                 for (name, source) in GO_EXPORT_SOURCES {
                     let target = dir.path().join(name);
                     std::fs::create_dir_all(target.parent()?).ok()?;
@@ -159,6 +161,7 @@ fn helper() -> Option<(tempfile::TempDir, PathBuf)> {
                         .arg(&review)
                         .arg(&semantic)
                         .arg(&package_cache)
+                        .arg(&build_tags)
                         .current_dir(dir.path())
                         .env("GO111MODULE", "on")
                         .env("GOMODCACHE", dir.path().join("modules"))
@@ -258,7 +261,9 @@ pub fn review_encoded(root: &Path, request: &Value) -> Result<Value, ReviewFailu
             .current_dir(root)
             .env("GOMODCACHE", cache.path().join("modules"))
             .env("GOCACHE", cache.path().join("build")),
-        Duration::from_secs(REVIEW_TIMEOUT_SECONDS),
+        // A large module set can need longer than the default; a request that
+        // sets timeout_ms decides how long its compiler analysis may take.
+        crate::process::request_or(Duration::from_secs(REVIEW_TIMEOUT_SECONDS)),
         Some(
             serde_json::to_vec(&json!({"review":request}))
                 .map_err(|_| ReviewFailure::new("invalid_request"))?,
@@ -440,8 +445,15 @@ impl ReviewFailure {
     }
     fn process(error: std::io::Error) -> Self {
         match error.kind() {
+            std::io::ErrorKind::TimedOut
+                if crate::process::request_or(Duration::ZERO).is_zero() =>
+            {
+                Self {
+                    detail: json!({"stage":"go_compiler_analysis","cause":"timeout","limit_seconds":REVIEW_TIMEOUT_SECONDS}),
+                }
+            }
             std::io::ErrorKind::TimedOut => Self {
-                detail: json!({"stage":"go_compiler_analysis","cause":"timeout","limit_seconds":REVIEW_TIMEOUT_SECONDS}),
+                detail: json!({"stage":"go_compiler_analysis","cause":"request_deadline"}),
             },
             std::io::ErrorKind::FileTooLarge => Self {
                 detail: json!({"stage":"go_compiler_analysis","cause":"output_bound","limit_bytes_per_stream":REVIEW_OUTPUT_BYTES}),
@@ -514,7 +526,7 @@ pub fn review_identity() -> crate::Result<Value> {
     Ok(
         json!({"toolchain":serde_json::from_slice::<Value>(&output.stdout)?,
         "helper":include_str!("go_types.go"),"review":include_str!("go_review.go"),"semantic":include_str!("go_semantic.go"),
-        "package_cache":include_str!("go_review_cache.go"),"export_library":GO_EXPORT_SOURCES,"policy":"offline-cgo-disabled-v1"}),
+        "package_cache":include_str!("go_review_cache.go"),"build_tags":include_str!("go_review_tags.go"),"export_library":GO_EXPORT_SOURCES,"policy":"offline-cgo-disabled-v1"}),
     )
 }
 

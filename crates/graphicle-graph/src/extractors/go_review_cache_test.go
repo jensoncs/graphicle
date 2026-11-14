@@ -32,7 +32,7 @@ func TestPackageExportExpansionBound(t *testing.T) {
 func TestDependencyExportsPreserveFactsAndInvalidate(t *testing.T) {
 	root := t.TempDir()
 	helper := filepath.Join(root, "helper")
-	build := exec.Command("go", "build", "-mod=vendor", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go", "go_review_cache.go")
+	build := exec.Command("go", "build", "-mod=vendor", "-o", helper, "go_types.go", "go_review.go", "go_semantic.go", "go_review_cache.go", "go_review_tags.go")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v: %s", err, out)
 	}

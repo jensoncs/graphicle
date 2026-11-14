@@ -144,6 +144,7 @@ type reviewWorld struct {
 	Packages           []reviewPackage           `json:"packages"`
 	Issues             []string                  `json:"issues"`
 	Inputs             []reviewInput             `json:"inputs"`
+	BuildTags          []string                  `json:"build_tags,omitempty"` // inferred from the module's build files
 }
 type reviewInput struct {
 	File    string `json:"file"`
@@ -1442,8 +1443,12 @@ func runReview(req reviewRequest) {
 		if req.Tests {
 			args = append(args, "-test")
 		}
-		if len(req.Tags) > 0 {
-			args = append(args, "-tags="+strings.Join(req.Tags, ","))
+		tags := moduleBuildTags(filepath.Join(root, item.Directory, item.Module), req.Tags)
+		if len(req.Tags) == 0 {
+			world.BuildTags = tags
+		}
+		if len(tags) > 0 {
+			args = append(args, "-tags="+strings.Join(tags, ","))
 		}
 		args = append(args, "./...")
 		doneDiscovery := reviewPhase("discovery")
@@ -1514,7 +1519,7 @@ func runReview(req reviewRequest) {
 			}
 			// The helper lists with CGO_ENABLED=0, so a snapshot package's cgo files
 			// arrive as IgnoredGoFiles. Their code is never analyzed: fail closed.
-			if len(m.CgoFiles) > 0 || (!m.Standard && collector.allowed(m.Dir) && cgoGated(m.Dir, m.IgnoredGoFiles, req.GOOS, req.GOARCH, req.Tags)) {
+			if len(m.CgoFiles) > 0 || (!m.Standard && collector.allowed(m.Dir) && cgoGated(m.Dir, m.IgnoredGoFiles, req.GOOS, req.GOARCH, tags)) {
 				collector.diagnostic(path, "unsupported_cgo", "", 0, "Selected package requires cgo")
 				world.Issues = append(world.Issues, "unsupported_cgo:"+path)
 			}

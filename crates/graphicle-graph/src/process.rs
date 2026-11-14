@@ -45,6 +45,18 @@ pub fn check_deadline() -> io::Result<()> {
     bounded_timeout(Duration::MAX).map(|_| ())
 }
 
+/// A stage's own limit applies only when no request deadline is set. Under a
+/// deadline the caller owns the budget: the stage may use all that is left.
+pub fn request_or(default: Duration) -> Duration {
+    DEADLINE.with(|slot| {
+        if slot.get().is_some() {
+            Duration::MAX
+        } else {
+            default
+        }
+    })
+}
+
 /// Bound a subprocess or blocking storage wait by the current request budget.
 pub fn bounded_timeout(timeout: Duration) -> io::Result<Duration> {
     DEADLINE.with(|slot| match slot.get() {
@@ -424,6 +436,20 @@ mod tests {
         .unwrap();
         assert!(result.success);
         assert_eq!(result.stdout, b"recovered");
+    }
+    #[test]
+    fn a_request_deadline_replaces_the_default_limit() {
+        let default = Duration::from_secs(120);
+        assert_eq!(request_or(default), default);
+        {
+            let _request = deadline_scope(Some(Instant::now() + Duration::from_secs(600)));
+            let left = bounded_timeout(request_or(default)).unwrap();
+            assert!(
+                left > default && left <= Duration::from_secs(600),
+                "{left:?}"
+            );
+        }
+        assert_eq!(request_or(default), default, "the scope does not leak");
     }
     #[test]
     #[cfg(unix)]

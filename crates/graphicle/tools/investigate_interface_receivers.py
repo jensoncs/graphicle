@@ -73,7 +73,7 @@ def main():
     output = args.output.resolve()
     helper = output / 'go-helper'
     native_dir = ROOT / 'crates/graphicle-graph/src/extractors'
-    sources = ['go_types.go', 'go_review.go', 'go_semantic.go', 'go_review_cache.go']
+    sources = ['go_types.go', 'go_review.go', 'go_semantic.go', 'go_review_cache.go', 'go_review_tags.go']
     # Match the production helper's isolated, bundled build layout.
     build_dir = output / 'helper-source'
     build_dir.mkdir()
