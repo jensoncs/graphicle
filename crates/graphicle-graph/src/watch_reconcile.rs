@@ -430,6 +430,16 @@ pub struct Plan {
     /// and their members' presence.
     hyper: Vec<Value>,
     unresolved: Vec<Value>,
+    /// The records dropped only because their source is re-extracted, held
+    /// until the extraction says whether it succeeded: a source that failed
+    /// keeps them (#5189).
+    held: Held,
+}
+#[derive(Default)]
+struct Held {
+    nodes: Vec<Value>,
+    edges: Vec<Value>,
+    unresolved: Vec<Value>,
 }
 /// The part of [`reconcile`] that reads only the stored graph, the file
 /// system and the ignore rules, never the new extraction: every filter is a
@@ -592,6 +602,43 @@ pub fn plan(
         .filter(|u| !sp.evicted(u, &edge_evicted) && !sp.evicted(u, &rebuilt))
         .cloned()
         .collect();
+    // The complements of the filters above for a re-extracted source.
+    // ponytail: incremental updates only; a full rebuild would hold the whole
+    // stored graph through extraction, so a source failing there loses its
+    // records.
+    let held = if o.full {
+        Held::default()
+    } else {
+        let rebuilt_only = |r: &Value| {
+            sp.evicted(r, &rebuilt) && !sp.evicted(r, &edge_evicted) && !sp.evicted(r, &excluded)
+        };
+        let bucket = |key: &str| existing[key].as_array().map_or(&[][..], Vec::as_slice);
+        Held {
+            nodes: bucket("nodes")
+                .iter()
+                .filter(|n| rebuilt_only(n))
+                .cloned()
+                .collect(),
+            edges: bucket(edge_bucket)
+                .iter()
+                .filter(|e| tier_is_ast(e) && rebuilt_only(e))
+                .cloned()
+                .collect(),
+            unresolved: existing
+                .get("unresolved_calls")
+                .or_else(|| {
+                    existing
+                        .get("graph")
+                        .and_then(|g| g.get("unresolved_calls"))
+                })
+                .and_then(Value::as_array)
+                .into_iter()
+                .flatten()
+                .filter(|u| rebuilt_only(u))
+                .cloned()
+                .collect(),
+        }
+    };
     Plan {
         sp,
         deleted_paths,
@@ -600,6 +647,7 @@ pub fn plan(
         edges,
         hyper,
         unresolved,
+        held,
     }
 }
 /// [`reconcile`] of a [`plan`] with the new extraction `result`.
@@ -619,13 +667,38 @@ pub fn finish(
         sp,
         deleted_paths,
         messages: planned,
-        nodes,
-        edges,
+        mut nodes,
+        mut edges,
         hyper,
         mut unresolved,
+        held,
     } = plan;
     o.deleted_paths.extend(deleted_paths);
     messages.extend(planned);
+    let failed = result["failed_sources"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(|f| sp.absolute_identity(f, o.project_root))
+        .collect::<BTreeSet<_>>();
+    if !failed.is_empty() {
+        let before = nodes.len();
+        nodes.extend(held.nodes.into_iter().filter(|n| sp.evicted(n, &failed)));
+        edges.extend(held.edges.into_iter().filter(|e| sp.evicted(e, &failed)));
+        unresolved.extend(
+            held.unresolved
+                .into_iter()
+                .filter(|u| sp.evicted(u, &failed)),
+        );
+        if nodes.len() > before {
+            messages.push(format!(
+                "kept {} node(s) of {} source(s) whose extraction failed; they stay pending for retry",
+                nodes.len() - before,
+                failed.len()
+            ));
+        }
+    }
     for call in &mut unresolved {
         sp.rebase_preserved(call);
     }

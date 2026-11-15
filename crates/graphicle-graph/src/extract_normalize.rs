@@ -846,9 +846,22 @@ pub fn finish<E: Rec>(nodes: &mut [Value], edges: &mut [E], root: &Path, convert
     let mut source_files = FxHashMap::default();
     let sf_entry = |sf: &str| {
         let p = Path::new(sf);
-        let (source, id) = match p.strip_prefix(root) {
-            Ok(rel) => (rel.to_string_lossy().replace('\\', "/"), file_node_id(rel)),
-            Err(_) => {
+        // `root` is resolved and `sf` may not be: under a symlinked scan path
+        // (macOS `/var`, a symlinked checkout) retry with the directory
+        // resolved before calling the file out of root, which keeps only its
+        // name (#4624). Not the file: following a file symlink onto its
+        // target would merge two sources (#2832).
+        let rel = p
+            .strip_prefix(root)
+            .map(Path::to_path_buf)
+            .ok()
+            .or_else(|| {
+                let full = resolved(p.parent()?).join(p.file_name()?);
+                full.strip_prefix(root).ok().map(Path::to_path_buf)
+            });
+        let (source, id) = match rel {
+            Some(rel) => (rel.to_string_lossy().replace('\\', "/"), file_node_id(&rel)),
+            None => {
                 let portable = portable_spelling(p, root, converted);
                 let id = make_id(["ext", portable.as_str()]);
                 (portable, id)

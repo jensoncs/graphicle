@@ -106,7 +106,8 @@ pub fn content_failure(mut result: Value) -> Value {
 /// type is not a runtime import, and `extends` follows a CommonJS `require`.
 /// 8: a Go closure's calls belong to the enclosing function, and a
 /// package-level var initialiser's to the file.
-pub const ASSEMBLY_REVISION: u32 = 8;
+/// 9: `source_file` stays repo-relative under a symlinked scan root.
+pub const ASSEMBLY_REVISION: u32 = 9;
 /// Files whose interface calls the JVM dispatch pass links to implementations.
 const JVM_DISPATCH: &[&str] = &[".java", ".kt", ".kts"];
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes
@@ -1738,6 +1739,21 @@ fn assemble_records(
     .then(|| extractors::resolution_js::source_corpus(corpus_paths));
     let _corpus = extractors::resolution_js::enter_source_corpus(corpus);
     let (failed, skipped) = per_dispatch!(&per, p => failed_sources(&p[..], paths));
+    // A failed producer publishes nothing: a partial payload beside its
+    // last good records would mix two versions of the file (#5189).
+    let failed_set = failed
+        .all
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    for (i, p) in paths.iter().enumerate() {
+        if failed_set.contains(p.to_string_lossy().as_ref()) {
+            per.edit_json(i, |r| {
+                r["nodes"] = json!([]);
+                r["edges"] = json!([]);
+            });
+        }
+    }
     per_dispatch!(&per, p => warn_symbolless_files(&p[..], paths, root));
     for (i, p) in paths.iter().enumerate() {
         if [".tf", ".tfvars", ".hcl"].contains(&languages::suffix(p).as_str()) {
@@ -2058,7 +2074,17 @@ fn assemble_records(
     result.insert("failed_sources".into(), json!(failed.all));
     result.insert("content_failed_sources".into(), json!(failed.content));
     result.insert("skipped_sources".into(), json!(skipped));
-    result.insert("extracted_sources".into(), json!(paths));
+    // Only a successful extraction (or a deliberate decline) may replace a
+    // source's records; a failed one keeps its last good records (#5189).
+    result.insert(
+        "extracted_sources".into(),
+        json!(
+            paths
+                .iter()
+                .filter(|p| !failed_set.contains(p.to_string_lossy().as_ref()))
+                .collect::<Vec<_>>()
+        ),
+    );
     let mut result = Value::Object(result);
     if let Some(mut unresolved) = unresolved_calls {
         for u in &mut unresolved {

@@ -1027,7 +1027,22 @@ pub fn extract(
             }
         }
     }
-    output["extracted_sources"] = json!(input_paths);
+    // A failed source keeps its last good records (#5189).
+    let failed = output["failed_sources"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .map(PathBuf::from)
+        .collect::<BTreeSet<_>>();
+    output["extracted_sources"] = json!(
+        paths
+            .iter()
+            .zip(input_paths)
+            .filter(|(p, _)| !failed.contains(*p))
+            .map(|(_, input)| input)
+            .collect::<Vec<_>>()
+    );
     for key in [
         "failed_sources",
         "content_failed_sources",
