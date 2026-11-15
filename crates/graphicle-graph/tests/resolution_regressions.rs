@@ -608,9 +608,15 @@ fn cached_external_go_dependency_keeps_local_calls_offline() {
             .collect();
         let unresolved = graph["unresolved_calls"].as_array().unwrap();
         if std::env::var_os("GRAPHICLE_GO_CACHE_MISSING").is_some() {
-            assert!(calls.is_empty(), "{graph}");
-            assert_eq!(unresolved.len(), 2, "{graph}");
-            assert!(unresolved.iter().all(|u| u["reason"] == "unresolved_type"));
+            // The package is incomplete without its dependency, but go/types
+            // still identifies the local call exactly. The dependency's call
+            // stays untyped: had extraction downloaded the module, it would
+            // read `target_not_in_graph` instead.
+            assert_eq!(calls.len(), 1, "{graph}");
+            assert_eq!(calls[0]["resolution"], "go_types", "{graph}");
+            assert_eq!(unresolved.len(), 1, "{graph}");
+            assert_eq!(unresolved[0]["reason"], "unresolved_type", "{graph}");
+            assert_eq!(unresolved[0]["callee"], "dep.Equal", "{graph}");
         } else {
             assert_eq!(calls.len(), 1, "{graph}");
             assert_eq!(calls[0]["resolution"], "go_types", "{graph}");
@@ -826,4 +832,46 @@ fn unresolved_go_calls_keep_their_callee_text() {
     };
     assert_eq!(at("L6")["callee"], "server.RunAthenaServer", "{graph}");
     assert!(at("L7").get("callee").is_none(), "{graph}");
+}
+
+/// The helper reports every call it type-checked. A builtin or conversion is
+/// not a function call and leaves nothing unresolved; a call inside a
+/// function literal has no caller node and says so. Neither may report the
+/// file as having no type information.
+#[test]
+fn go_builtins_and_closure_calls_do_not_mark_a_typed_file_incomplete() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    write(&root, "go.mod", "module example/builtins\ngo 1.23\n");
+    write(
+        &root,
+        "main.go",
+        "package main\n\nfunc helper() int { return 1 }\n\nfunc main() {\n\txs := []int{}\n\txs = append(xs, helper())\n\t_ = int64(len(xs))\n\tfunc() { helper() }()\n}\n",
+    );
+    let graph = extract(
+        &[root.join("main.go")],
+        &ExtractOptions {
+            root: Some(root.clone()),
+            use_cache: false,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let unresolved = graph["unresolved_calls"].as_array().unwrap();
+    assert!(
+        unresolved
+            .iter()
+            .all(|u| u["reason"] != "type_information_unavailable"),
+        "{graph}"
+    );
+    for builtin in ["append", "len", "int64"] {
+        assert!(unresolved.iter().all(|u| u["callee"] != builtin), "{graph}");
+    }
+    assert!(
+        unresolved
+            .iter()
+            .any(|u| u["callee"] == "helper" && u["reason"] == "function_literal"),
+        "{graph}"
+    );
 }

@@ -610,10 +610,18 @@ pub fn resolve(
             || !files.contains(&source_key(s(e, "source_file"), root))
     });
     let mut unresolved = BTreeMap::new();
+    // Calls the helper does not report on: inside a function literal or
+    // outside any declaration, by key, with the reason they keep.
+    let mut skipped = BTreeMap::new();
     for path in &paths {
         if let Some(parsed) = parse_cache::parse(path, "go", tree_sitter_go::LANGUAGE.into()) {
-            let mut pending = vec![parsed.tree.root_node()];
-            while let Some(node) = pending.pop() {
+            let mut pending = vec![(parsed.tree.root_node(), "outside_function")];
+            while let Some((node, context)) = pending.pop() {
+                let context = match node.kind() {
+                    "func_literal" => "function_literal",
+                    "function_declaration" | "method_declaration" => "",
+                    _ => context,
+                };
                 if node.kind() == "call_expression" {
                     let row = node.start_position();
                     let key = (
@@ -638,10 +646,16 @@ pub fn resolve(
                         let text: String = text.split_whitespace().collect();
                         call["callee"] = json!(text.chars().take(200).collect::<String>());
                     }
+                    if !context.is_empty() {
+                        skipped.insert(key.clone(), context);
+                    }
                     unresolved.insert(key.clone(), call);
                 }
                 let mut cursor = node.walk();
-                pending.extend(node.named_children(&mut cursor));
+                pending.extend(
+                    node.named_children(&mut cursor)
+                        .map(|child| (child, context)),
+                );
             }
         }
     }
@@ -751,6 +765,20 @@ pub fn resolve(
             });
         }
     }
+    // In a file the helper type-checked, a call it did not report is a
+    // builtin or a conversion (not a function call), or one it skipped.
+    unresolved.retain(|key, value| {
+        if value["reason"] != "type_information_unavailable" || !covered.contains(&key.0) {
+            return true;
+        }
+        match skipped.get(key) {
+            Some(reason) => {
+                value["reason"] = json!(reason);
+                true
+            }
+            None => false,
+        }
+    });
     unresolved.into_values().collect()
 }
 

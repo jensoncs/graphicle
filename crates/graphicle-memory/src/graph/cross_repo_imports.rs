@@ -37,6 +37,13 @@ pub const REASON_NO_EXPORTER: &str = "no_exporter";
 pub const REASON_DECLARED_NOT_INDEXED: &str = "declared_dependency_not_indexed";
 pub const REASON_AMBIGUOUS: &str = "ambiguous_exporters";
 pub const REASON_VERSION: &str = "version_mismatch";
+/// `version_status` of a link to the only exporter, whose current release
+/// the importer's constraint excludes: the importer is pinned to an older one.
+pub const VERSION_PINNED: &str = "pinned";
+/// `version_status` of such a link when the constraint asks for a newer
+/// release than the exporter's manifest states (often a version stamped at
+/// publish time, not in the repository).
+pub const VERSION_AHEAD: &str = "ahead_of_head";
 pub const REASON_MODULE: &str = "module_not_exported";
 pub const REASON_SYMBOL: &str = "symbol_not_exported";
 
@@ -127,6 +134,12 @@ pub struct PackageIdentity {
     /// Python `src/` layout or `package_dir` prefix stripped before module paths.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_prefix: Option<String>,
+    /// Name the package is published under when its manifest names it
+    /// otherwise: the repository slug, set by [`published_as`]. An import of
+    /// it resolves as an import of `name`, `INFERRED`, and only when no
+    /// package's manifest claims the import.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub published_as: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -154,7 +167,9 @@ pub struct ModuleExport {
 
 impl ModuleExport {
     fn exact(&self) -> bool {
-        !self.derivation.starts_with("src_strip") && !self.derivation.contains("build_dir")
+        !self.derivation.starts_with("src_strip")
+            && !self.derivation.contains("build_dir")
+            && !self.derivation.starts_with("proto:")
     }
 }
 
@@ -170,6 +185,9 @@ pub struct ExportIndex {
     /// HTTP routes exported from the same immutable graph episode.
     #[serde(default)]
     pub http_routes: Vec<super::cross_repo_http::RouteExport>,
+    /// Ingress hosts its deployments serve.
+    #[serde(default)]
+    pub app_hosts: Vec<super::cross_repo_http::HostExport>,
 }
 
 impl ExportIndex {
@@ -183,6 +201,179 @@ impl ExportIndex {
                     .iter()
                     .any(|root| owns(ecosystem, root, module_path))
             })
+    }
+    /// The package of this index published as the first segment(s) of
+    /// `module_path` in `ecosystem`, with `module_path` under its own name.
+    fn claims_published(
+        &self,
+        ecosystem: Ecosystem,
+        module_path: &str,
+    ) -> Option<(&PackageIdentity, String)> {
+        self.packages
+            .iter()
+            .filter(|p| p.ecosystem == ecosystem)
+            .find_map(|p| {
+                let slug = p.published_as.as_deref()?;
+                let rest = module_path.strip_prefix(slug)?;
+                (rest.is_empty() || rest.starts_with('/')).then(|| (p, format!("{}{rest}", p.name)))
+            })
+    }
+}
+
+/// `index` with its root Node package also published as `slug` (the
+/// repository's name), when `slug` is an npm package name the manifest does
+/// not already use: internal registries publish some libraries under the
+/// repository name whatever `package.json` says.
+// ponytail: a public package spelled like an internal repository's slug
+// would link to it when no indexed manifest claims the name; check the
+// importer's lockfile registry if that shows up.
+pub fn published_as(index: ExportIndex, slug: &str) -> ExportIndex {
+    let npm_name = !slug.is_empty()
+        && slug.len() <= 214
+        && slug
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || "-._".contains(c))
+        && !slug.starts_with(['.', '_']);
+    let packages = index
+        .packages
+        .into_iter()
+        .map(|p| {
+            if npm_name && p.ecosystem == Ecosystem::Node && p.root.is_empty() && p.name != slug {
+                PackageIdentity {
+                    published_as: Some(slug.to_string()),
+                    ..p
+                }
+            } else {
+                p
+            }
+        })
+        .collect();
+    ExportIndex { packages, ..index }
+}
+
+/// What linking one importer reads from the other repositories' export
+/// indexes: the external modules its import edges name and its HTTP
+/// requests. An index the interest does not [`reads`](LinkInterest::reads)
+/// cannot change that importer's link, so a workspace can relink only the
+/// importers a changed index reaches.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct LinkInterest {
+    /// Each external import's stub id and label, as [`interest_key`]s.
+    pub imports: BTreeSet<String>,
+    /// `(method, path)` of each HTTP request node.
+    pub requests: BTreeSet<(String, String)>,
+    /// Hosts its files' URLs name.
+    #[serde(default)]
+    pub hosts: BTreeSet<String>,
+}
+
+/// A module path, import root or stub id folded to one comparable form:
+/// lowercase, every other character `_`, stub prefixes and edge `_` removed
+/// (`github.com/ShareChat/odin` and `go_pkg_github_com_sharechat_odin` agree).
+fn interest_key(text: &str) -> String {
+    let text = text
+        .strip_prefix("go_pkg_")
+        .or_else(|| text.strip_prefix("ref_"))
+        .unwrap_or(text);
+    text.chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() {
+                c.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('_')
+        .to_string()
+}
+
+/// The [`LinkInterest`] of an importing graph: the inputs [`link`] and the
+/// HTTP linker match against other repositories.
+pub fn link_interest(graph: &Graph) -> LinkInterest {
+    let nodes = graph.nodes();
+    let mut interest = LinkInterest::default();
+    for (_, target, edge) in graph.iter_edges() {
+        let relation = attr(&edge.attributes, "relation").unwrap_or("");
+        if IMPORT_RELATIONS.contains(&relation) && is_external(&nodes[target]) {
+            let node = &nodes[target];
+            for text in [
+                node_id_text(&node.id),
+                attr(&node.attributes, "label").unwrap_or("").to_string(),
+            ] {
+                let key = interest_key(&text);
+                if !key.is_empty() {
+                    interest.imports.insert(key);
+                }
+            }
+        }
+    }
+    for node in nodes {
+        if attr(&node.attributes, "node_kind") == Some("http_request") {
+            interest.requests.insert((
+                attr(&node.attributes, "http_method")
+                    .unwrap_or("")
+                    .to_string(),
+                attr(&node.attributes, "http_path")
+                    .unwrap_or("")
+                    .to_string(),
+            ));
+        }
+    }
+    interest.hosts = super::cross_repo_http::called_hosts(graph)
+        .into_iter()
+        .map(|(_, host, _)| host)
+        .collect();
+    interest
+}
+
+impl LinkInterest {
+    /// Every key under which an index can serve one of these imports: each
+    /// import key and each of its `_`-prefixes (an import lies under its
+    /// module's import root). An index whose [`ExportIndex::interest_keys`]
+    /// meet none of them, and whose routes fit no request
+    /// ([`Self::requests_fit`]), cannot change this importer's link.
+    pub fn reachable_keys(&self) -> BTreeSet<String> {
+        let mut out = BTreeSet::new();
+        for key in &self.imports {
+            out.insert(key.clone());
+            for (at, _) in key.match_indices('_') {
+                out.insert(key[..at].to_string());
+            }
+        }
+        out
+    }
+    /// Whether `index` serves one of the hosts these files call.
+    pub fn hosts_fit(&self, index: &ExportIndex) -> bool {
+        index.app_hosts.iter().any(|h| self.hosts.contains(&h.host))
+    }
+    /// Whether one of these HTTP requests fits a route `index` exports.
+    pub fn requests_fit(&self, index: &ExportIndex) -> bool {
+        index.http_routes.iter().any(|route| {
+            self.requests
+                .iter()
+                .any(|(method, path)| super::cross_repo_http::compatible(method, path, route))
+        })
+    }
+}
+
+impl ExportIndex {
+    /// The [`interest_key`]s of what this index can serve an import under:
+    /// its packages' import roots and names, and its module paths.
+    /// Over-approximate, never under: `_` stands for any separator.
+    pub fn interest_keys(&self) -> BTreeSet<String> {
+        self.packages
+            .iter()
+            .flat_map(|p| {
+                p.import_roots
+                    .iter()
+                    .chain(std::iter::once(&p.name))
+                    .chain(p.published_as.as_ref())
+            })
+            .chain(self.modules.keys())
+            .map(|text| interest_key(text))
+            .filter(|key| !key.is_empty())
+            .collect()
     }
 }
 
@@ -654,12 +845,33 @@ fn node_kind(node: &impl crate::graph::record::Properties) -> String {
     }
 }
 
-pub(super) fn is_test_path(path: &str) -> bool {
+/// Whether a path is test code (`_test.go`, a `tests`/`test`/`__tests__` segment, `test_*`).
+/// A test, fixture or mock file: never a cross-repository caller or export.
+pub fn is_test_path(path: &str) -> bool {
+    const DIRS: &[&str] = &[
+        "tests",
+        "test",
+        "__tests__",
+        "testdata",
+        "fixtures",
+        "__fixtures__",
+        "mocks",
+        "__mocks__",
+        "e2e",
+    ];
     let lower = path.to_ascii_lowercase();
+    let name = lower.rsplit('/').next().unwrap_or(&lower);
+    let stem = name.rsplit_once('.').map_or(name, |(stem, _)| stem);
     lower.ends_with("_test.go")
-        || lower.split('/').any(|seg| {
-            seg == "tests" || seg == "test" || seg == "__tests__" || seg.starts_with("test_")
+        || stem.ends_with(".test")
+        || stem.ends_with(".spec")
+        || stem.ends_with("_test")
+        || path.rsplit('/').next().is_some_and(|n| {
+            n.ends_with("Test.java") || n.ends_with("Tests.java") || n.ends_with("Test.kt")
         })
+        || lower
+            .split('/')
+            .any(|seg| DIRS.contains(&seg) || seg.starts_with("test_"))
 }
 
 fn normalize_py_name(name: &str) -> String {
@@ -671,6 +883,15 @@ fn sanitize_go_id(module_path: &str) -> String {
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect()
+}
+
+/// The id the code graph gives a Go import's stub node: graph ids are
+/// lowercase, module paths are not (`github.com/ShareChat/...`).
+fn go_stub_id(module_path: &str) -> String {
+    format!(
+        "go_pkg_{}",
+        sanitize_go_id(module_path).to_ascii_lowercase()
+    )
 }
 
 fn node_package_of(module_path: &str) -> String {
@@ -811,6 +1032,7 @@ fn parse_pyproject(relpath: &str, text: &str) -> Option<PackageIdentity> {
     let name = name?;
     Some(PackageIdentity {
         ecosystem: Ecosystem::Python,
+        published_as: None,
         import_roots: packages
             .iter()
             .map(|p| p.split('.').next().unwrap_or(p).to_string())
@@ -924,6 +1146,7 @@ fn parse_setup_cfg(relpath: &str, text: &str) -> Option<PackageIdentity> {
     }
     Some(PackageIdentity {
         ecosystem: Ecosystem::Python,
+        published_as: None,
         name: normalize_py_name(&name),
         version,
         root: dir_of(relpath),
@@ -999,6 +1222,7 @@ fn parse_package_json(relpath: &str, text: &str) -> Option<PackageIdentity> {
         .map(stem_of);
     Some(PackageIdentity {
         ecosystem: Ecosystem::Node,
+        published_as: None,
         import_roots: vec![name.clone()],
         name,
         version,
@@ -1082,6 +1306,7 @@ fn parse_go_mod(relpath: &str, text: &str) -> Option<PackageIdentity> {
     let module = module?;
     Some(PackageIdentity {
         ecosystem: Ecosystem::Go,
+        published_as: None,
         import_roots: vec![module.clone()],
         name: module,
         version: None,
@@ -1095,6 +1320,17 @@ fn parse_go_mod(relpath: &str, text: &str) -> Option<PackageIdentity> {
 }
 
 /// Parse the manifests the caller supplied; unreadable or unknown files are skipped.
+/// `text` with the userinfo of every URL removed (`https://user:token@host`
+/// to `https://host`): manifests can pin a dependency to a URL carrying a
+/// credential, and dependency constraints are stored and served.
+fn without_credentials(text: &str) -> String {
+    static USERINFO: OnceLock<Regex> = OnceLock::new();
+    USERINFO
+        .get_or_init(|| Regex::new(r"(://)[^/@\s]+@").unwrap())
+        .replace_all(text, "$1")
+        .into_owned()
+}
+
 pub fn package_identities(manifests: &[PackageManifest]) -> Vec<PackageIdentity> {
     let mut out = Vec::new();
     for manifest in manifests {
@@ -1106,7 +1342,10 @@ pub fn package_identities(manifests: &[PackageManifest]) -> Vec<PackageIdentity>
             "go.mod" => parse_go_mod(&relpath, &manifest.text),
             _ => None,
         };
-        if let Some(identity) = parsed {
+        if let Some(mut identity) = parsed {
+            for constraint in identity.dependencies.values_mut() {
+                *constraint = without_credentials(constraint);
+            }
             // pyproject wins over setup.cfg for the same directory; merge roots.
             if let Some(existing) = out.iter_mut().find(|p: &&mut PackageIdentity| {
                 p.ecosystem == identity.ecosystem && p.root == identity.root
@@ -1184,8 +1423,44 @@ fn file_nodes(graph: &Graph) -> Vec<FileNode> {
         .collect()
 }
 
-fn symbols_of(graph: &Graph, file: &FileNode, ecosystem: Ecosystem) -> BTreeMap<String, SymbolRef> {
+/// File node -> the keys it exports under another name or from another file
+/// (`exports` edges from the precise JavaScript pass) and their declarations.
+fn export_edges(graph: &Graph) -> BTreeMap<usize, Vec<(String, usize)>> {
+    let mut out: BTreeMap<usize, Vec<(String, usize)>> = BTreeMap::new();
+    for (source, target, edge) in graph.iter_edges() {
+        if attr(&edge.attributes, "relation") != Some("exports") {
+            continue;
+        }
+        let names = edge
+            .attributes
+            .get("export_names")
+            .and_then(Value::as_array);
+        for name in names.into_iter().flatten().filter_map(Value::as_str) {
+            out.entry(source)
+                .or_default()
+                .push((name.to_string(), target));
+        }
+    }
+    out
+}
+
+fn symbols_of(
+    graph: &Graph,
+    file: &FileNode,
+    ecosystem: Ecosystem,
+    exported: &BTreeMap<usize, Vec<(String, usize)>>,
+) -> BTreeMap<String, SymbolRef> {
     let mut out = BTreeMap::new();
+    for (name, target) in exported.get(&file.index).into_iter().flatten() {
+        let node = &graph.nodes()[*target];
+        out.entry(name.clone()).or_insert(SymbolRef {
+            name: name.clone(),
+            node_id: node_id_text(&node.id),
+            stable_id: attr(&node.attributes, "stable_id").map(str::to_string),
+            kind: node_kind(&node.attributes),
+            relpath: node_relpath(&node.attributes).unwrap_or_else(|| file.relpath.clone()),
+        });
+    }
     // When no node is labelled with the file name, a symbol node stands in
     // for the file (Go `store/store.go` and `type Store` share one id); it
     // is then both the module node and an exported symbol.
@@ -1315,6 +1590,7 @@ pub fn exports(
         // No Python manifest: identity is the inferred top-level package.
         let stub = PackageIdentity {
             ecosystem: Ecosystem::Python,
+            published_as: None,
             name: String::new(),
             version: None,
             root: String::new(),
@@ -1344,6 +1620,7 @@ pub fn exports(
             }
         }
     }
+    let exported = export_edges(graph);
     let mut modules = BTreeMap::new();
     for file in &files {
         let Some(ecosystem) = Ecosystem::of_file(&file.relpath) else {
@@ -1450,7 +1727,7 @@ pub fn exports(
         if paths.is_empty() {
             continue;
         }
-        let symbols = symbols.get_or_insert_with(|| symbols_of(graph, file, ecosystem));
+        let symbols = symbols.get_or_insert_with(|| symbols_of(graph, file, ecosystem, &exported));
         for (module_path, derivation) in paths {
             let mut export = base.clone();
             export.module_path = module_path.clone();
@@ -1486,6 +1763,7 @@ pub fn exports(
         packages,
         modules,
         http_routes: super::cross_repo_http::exports(graph, repo, episode),
+        app_hosts: super::cross_repo_http::host_exports(graph, repo, episode),
     }
 }
 
@@ -1640,8 +1918,111 @@ fn js_clause_names(clause: &str) -> ImportShape {
     }
 }
 
+/// The members `binding.member` reads in `text` (not `x.binding.member`).
+/// Every `X.member` read in `text`, by `X`: one pass per file, however many
+/// bindings ask.
+fn js_member_reads(text: &str) -> BTreeMap<&str, Vec<String>> {
+    static READ: OnceLock<Regex> = OnceLock::new();
+    let read = READ.get_or_init(|| {
+        Regex::new(r"(?:^|[^\w$.])([A-Za-z_$][\w$]*)\s*\.\s*([A-Za-z_$][\w$]*)").unwrap()
+    });
+    let mut out: BTreeMap<&str, Vec<String>> = BTreeMap::new();
+    for c in read.captures_iter(text) {
+        out.entry(c.get(1).unwrap().as_str())
+            .or_default()
+            .push(c[2].to_string());
+    }
+    out
+}
+
+type MemberReads<'a> = std::cell::OnceCell<BTreeMap<&'a str, Vec<String>>>;
+
+/// The members `binding` is read for (`binding.member`) in `text`.
+fn js_members<'a>(text: &'a str, reads: &MemberReads<'a>, binding: &str) -> Vec<String> {
+    reads
+        .get_or_init(|| js_member_reads(text))
+        .get(binding)
+        .cloned()
+        .unwrap_or_default()
+}
+
+/// Names a destructuring pattern `{ a, b: c, ...rest }` takes from a module.
+fn js_destructured(pattern: &str) -> Vec<String> {
+    pattern
+        .trim()
+        .trim_start_matches('{')
+        .trim_end_matches('}')
+        .split(',')
+        .map(|item| item.split(':').next().unwrap_or("").trim())
+        .filter(|name| !name.is_empty() && !name.starts_with("..."))
+        .map(str::to_string)
+        .collect()
+}
+
+/// A CommonJS `require` names its symbols the way an import clause does:
+/// `const { a } = require(m)`, `require(m).a`, or `const X = require(m)`
+/// followed by `X.a` reads. `prefix` is the text before the call, `rest` the
+/// text after it.
+fn js_require_shape<'a>(
+    text: &'a str,
+    reads: &MemberReads<'a>,
+    prefix: &str,
+    rest: &str,
+) -> ImportShape {
+    static BINDING: OnceLock<(Regex, Regex)> = OnceLock::new();
+    let (binding, member) = BINDING.get_or_init(|| {
+        (
+            Regex::new(r"(?:const|let|var)\s+(\{[^}]*\}|[A-Za-z_$][\w$]*)\s*=\s*$").unwrap(),
+            Regex::new(r"^\s*\.\s*([A-Za-z_$][\w$]*)").unwrap(),
+        )
+    });
+    if let Some(found) = member.captures(rest) {
+        return ImportShape::Named(vec![found[1].to_string()]);
+    }
+    // Only the statement the call ends: a short window, not the whole file.
+    let mut start = prefix.len().saturating_sub(400);
+    while !prefix.is_char_boundary(start) {
+        start += 1;
+    }
+    let names = match binding.captures(&prefix[start..]) {
+        Some(found) if found[1].starts_with('{') => js_destructured(&found[1]),
+        Some(found) => js_members(text, reads, &found[1]),
+        None => vec![],
+    };
+    named_or_whole(names)
+}
+
+fn named_or_whole(names: Vec<String>) -> ImportShape {
+    let names: Vec<String> = names
+        .into_iter()
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    if names.is_empty() {
+        ImportShape::Whole
+    } else {
+        ImportShape::Named(names)
+    }
+}
+
+/// The default or namespace binding of an import clause (`X`, `* as X`).
+fn js_clause_binding(clause: &str) -> Option<&str> {
+    let head = clause.split('{').next().unwrap_or("").trim();
+    if let Some(at) = head.find("* as ") {
+        return head[at + 5..]
+            .split([',', ' '])
+            .next()
+            .filter(|s| !s.is_empty());
+    }
+    head.split(',')
+        .next()
+        .map(str::trim)
+        .filter(|s| !s.is_empty() && !s.contains(['{', '*']))
+}
+
 fn js_imports(text: &str) -> Vec<ImportSpec> {
     let (import_re, require_re, dynamic_re) = js_regexes();
+    let reads: MemberReads = std::cell::OnceCell::new();
     let mut out = Vec::new();
     let bare =
         |spec: &str| !(spec.starts_with('.') || spec.starts_with('/') || spec.starts_with("node:"));
@@ -1650,10 +2031,22 @@ fn js_imports(text: &str) -> Vec<ImportSpec> {
         if !bare(spec) {
             continue;
         }
-        let shape = captures
-            .get(1)
-            .map(|m| js_clause_names(m.as_str()))
-            .unwrap_or(ImportShape::Whole);
+        let shape = match captures.get(1).map(|m| m.as_str()) {
+            Some(clause) => {
+                let shape = js_clause_names(clause);
+                let members = js_clause_binding(clause)
+                    .map(|binding| js_members(text, &reads, binding))
+                    .unwrap_or_default();
+                match shape {
+                    ImportShape::Named(names) => {
+                        named_or_whole(names.into_iter().chain(members).collect())
+                    }
+                    ImportShape::Whole => named_or_whole(members),
+                    other => other,
+                }
+            }
+            None => ImportShape::Whole,
+        };
         out.push(ImportSpec {
             module: spec.to_string(),
             shape,
@@ -1661,19 +2054,30 @@ fn js_imports(text: &str) -> Vec<ImportSpec> {
             alias: None,
         });
     }
-    for re in [require_re, dynamic_re] {
-        for captures in re.captures_iter(text) {
-            let spec = &captures[1];
-            if !bare(spec) {
-                continue;
-            }
-            out.push(ImportSpec {
-                module: spec.to_string(),
-                shape: ImportShape::Whole,
-                line: line_of(text, captures.get(0).unwrap().start()),
-                alias: None,
-            });
+    for captures in require_re.captures_iter(text) {
+        let spec = &captures[1];
+        if !bare(spec) {
+            continue;
         }
+        let call = captures.get(0).unwrap();
+        out.push(ImportSpec {
+            module: spec.to_string(),
+            shape: js_require_shape(text, &reads, &text[..call.start()], &text[call.end()..]),
+            line: line_of(text, call.start()),
+            alias: None,
+        });
+    }
+    for captures in dynamic_re.captures_iter(text) {
+        let spec = &captures[1];
+        if !bare(spec) {
+            continue;
+        }
+        out.push(ImportSpec {
+            module: spec.to_string(),
+            shape: ImportShape::Whole,
+            line: line_of(text, captures.get(0).unwrap().start()),
+            alias: None,
+        });
     }
     out
 }
@@ -1804,10 +2208,7 @@ fn spec_matches_target(
                 || target_id == format!("ref_{}", sanitize_go_id(&package).trim_start_matches('_'))
                 || spec.module == target_label
         }
-        Ecosystem::Go => {
-            format!("go_pkg_{}", sanitize_go_id(&spec.module)) == target_id
-                || target_label == spec.module
-        }
+        Ecosystem::Go => go_stub_id(&spec.module) == target_id || target_label == spec.module,
     }
 }
 
@@ -2040,6 +2441,31 @@ fn go_satisfies(required: &str, version: &Version) -> VersionCheck {
     }
 }
 
+/// Whether an importer whose `constraint` excludes `exporter` is pinned
+/// below it ([`VERSION_PINNED`]) or ahead of it ([`VERSION_AHEAD`]), by the
+/// constraint's first version; `unsatisfied` when either does not parse.
+fn off_version_status(constraint: Option<&str>, exporter: Option<&str>) -> &'static str {
+    let constraint = constraint
+        .map(str::trim)
+        .filter(|c| !(c.contains(':') || c.contains('/')));
+    // Only an upper bound (`<2`, `<=1.9`): the importer stays below it.
+    if constraint.is_some_and(|c| c.starts_with('<')) {
+        return VERSION_PINNED;
+    }
+    let first = constraint.and_then(|c| {
+        let at = c.find(|ch: char| ch.is_ascii_digit())?;
+        let end = c[at..]
+            .find(|ch: char| !(ch.is_ascii_digit() || ch == '.'))
+            .map_or(c.len(), |e| at + e);
+        Version::parse(&c[at..end])
+    });
+    match (first, exporter.and_then(Version::parse)) {
+        (Some(bound), Some(exporter)) if bound < exporter => VERSION_PINNED,
+        (Some(_), Some(_)) => VERSION_AHEAD,
+        _ => "unsatisfied",
+    }
+}
+
 fn check_version(
     ecosystem: Ecosystem,
     constraint: Option<&str>,
@@ -2164,12 +2590,12 @@ fn package_name_of(ecosystem: Ecosystem, module_path: &str) -> String {
 /// Link every external import of `graph` (repository `repo`) against
 /// `indexes`. `manifests` are the importing repository's own manifests (for
 /// declared dependency constraints); `source_of` supplies importing file text.
-pub fn link(
+pub fn link<I: std::borrow::Borrow<ExportIndex>>(
     graph: &Graph,
     repo: &str,
     episode: Option<&str>,
     manifests: &[PackageManifest],
-    indexes: &[ExportIndex],
+    indexes: &[I],
     source_of: &SourceLoader<'_>,
 ) -> LinkReport {
     let importer = Importer {
@@ -2177,14 +2603,21 @@ pub fn link(
         episode,
         packages: package_identities(manifests),
     };
-    let indexes: Vec<&ExportIndex> = indexes.iter().filter(|i| i.repo != repo).collect();
+    let indexes: Vec<&ExportIndex> = indexes
+        .iter()
+        .map(std::borrow::Borrow::borrow)
+        .filter(|i: &&ExportIndex| i.repo != repo)
+        .collect();
+    let keys = stub_keys(&indexes);
     let mut report = LinkReport {
         repo: repo.to_string(),
         episode: episode.map(str::to_string),
         ..Default::default()
     };
     let mut sources: BTreeMap<String, Option<Vec<ImportSpec>>> = BTreeMap::new();
-    let mut seen_edges: BTreeSet<(String, String, String)> = BTreeSet::new();
+    // (source node, target repository, target node, relation, symbol).
+    let mut seen_edges: BTreeSet<(String, String, String, String, Option<String>)> =
+        BTreeSet::new();
     let mut seen_unresolved: BTreeSet<(String, String, Option<String>, String)> = BTreeSet::new();
     // (source node, external target) pairs; a multigraph may repeat them.
     let mut pairs: BTreeSet<(usize, usize)> = BTreeSet::new();
@@ -2240,7 +2673,7 @@ pub fn link(
         };
         let recovered = candidates.is_empty();
         let candidates = if recovered {
-            recover_specs(ecosystem, &indexes, &target_id, &target_label)
+            recover_specs(ecosystem, &keys, &target_id, &target_label)
         } else {
             candidates
         };
@@ -2261,27 +2694,50 @@ pub fn link(
     report
 }
 
+/// The key an import's stub node carries for an exported module path:
+/// the stub id (Python, Go) or label (Node) that [`recover_specs`] matches.
+fn stub_key(ecosystem: Ecosystem, module_path: &str) -> String {
+    match ecosystem {
+        Ecosystem::Python => module_path.replace('.', "_"),
+        Ecosystem::Node => module_path.to_string(),
+        Ecosystem::Go => go_stub_id(module_path),
+    }
+}
+
+/// Stub key -> exported module paths, built once per [`link`] pass: a
+/// recovery is then one lookup, not a scan of every module of every index.
+type StubKeys = BTreeMap<(Ecosystem, String), BTreeSet<String>>;
+
+fn stub_keys(indexes: &[&ExportIndex]) -> StubKeys {
+    let mut keys = StubKeys::new();
+    for index in indexes {
+        for module_path in index.modules.keys() {
+            for ecosystem in [Ecosystem::Python, Ecosystem::Node, Ecosystem::Go] {
+                keys.entry((ecosystem, stub_key(ecosystem, module_path)))
+                    .or_default()
+                    .insert(module_path.clone());
+            }
+        }
+    }
+    keys
+}
+
 /// Without source text the module path is recovered from the stub id when
 /// exactly one exported module path maps onto it.
 fn recover_specs(
     ecosystem: Ecosystem,
-    indexes: &[&ExportIndex],
+    keys: &StubKeys,
     target_id: &str,
     target_label: &str,
 ) -> Vec<ImportSpec> {
-    let mut matches: BTreeSet<String> = BTreeSet::new();
-    for index in indexes {
-        for module_path in index.modules.keys() {
-            let hit = match ecosystem {
-                Ecosystem::Python => module_path.replace('.', "_") == target_id,
-                Ecosystem::Node => module_path == target_label,
-                Ecosystem::Go => format!("go_pkg_{}", sanitize_go_id(module_path)) == target_id,
-            };
-            if hit {
-                matches.insert(module_path.clone());
-            }
-        }
-    }
+    let key = match ecosystem {
+        Ecosystem::Node => target_label,
+        Ecosystem::Python | Ecosystem::Go => target_id,
+    };
+    let mut matches = keys
+        .get(&(ecosystem, key.to_string()))
+        .cloned()
+        .unwrap_or_default();
     if matches.is_empty() && ecosystem == Ecosystem::Node && !target_label.is_empty() {
         matches.insert(target_label.to_string());
     }
@@ -2305,7 +2761,7 @@ fn resolve_spec(
     spec: &ImportSpec,
     recovered: bool,
     report: &mut LinkReport,
-    seen_edges: &mut BTreeSet<(String, String, String)>,
+    seen_edges: &mut BTreeSet<(String, String, String, String, Option<String>)>,
     seen_unresolved: &mut BTreeSet<(String, String, Option<String>, String)>,
 ) {
     let line = (spec.line > 0).then_some(spec.line);
@@ -2341,10 +2797,32 @@ fn resolve_spec(
             });
         }
     };
-    let claimants: Vec<(&ExportIndex, &PackageIdentity)> = indexes
+    let mut claimants: Vec<(&ExportIndex, &PackageIdentity)> = indexes
         .iter()
         .filter_map(|index| index.claims(ecosystem, &spec.module).map(|p| (*index, p)))
         .collect();
+    // A package claimed only from `.proto` sources yields to a repository
+    // that commits Go code for the import.
+    if claimants.len() > 1
+        && claimants
+            .iter()
+            .any(|(_, p)| !p.manifest.ends_with(".proto"))
+    {
+        claimants.retain(|(_, p)| !p.manifest.ends_with(".proto"));
+    }
+    // No manifest claims the import: a package published under the name.
+    let published = claimants.is_empty()
+        && importer.declares(ecosystem, &package)
+        && !is_stdlib(ecosystem, &spec.module);
+    let mut renamed: BTreeMap<String, String> = BTreeMap::new();
+    if published {
+        for index in indexes {
+            if let Some((p, path)) = index.claims_published(ecosystem, &spec.module) {
+                claimants.push((*index, p));
+                renamed.insert(index.repo.clone(), path);
+            }
+        }
+    }
     if claimants.is_empty() {
         let declared = importer.declares(ecosystem, &package);
         if !declared {
@@ -2398,6 +2876,20 @@ fn resolve_spec(
             viable.push((index, exporter, constraint, status));
         }
     }
+    // A consumer whose constraint excludes the one exporter's release still
+    // uses it: link it, `INFERRED`. Pinned below that release, changes at
+    // HEAD read as an upgrade suggestion for it rather than a breakage.
+    // ponytail: a package matched only by its slug links off-version too
+    // (labelled; 20 of 20 such consumers in the benchmark were real, the
+    // repository stating 1.0.0 while its registry publishes 2.x). A public
+    // package spelled like an internal slug would link the same way; list
+    // org slugs that are also public npm names if that shows up.
+    let pinned = viable.is_empty() && mismatched.len() == 1;
+    if pinned {
+        let (index, exporter, constraint) = mismatched.remove(0);
+        let status = off_version_status(constraint.as_deref(), exporter.version.as_deref());
+        viable.push((index, exporter, constraint, status));
+    }
     if viable.is_empty() {
         for (index, exporter, constraint) in mismatched {
             unresolved(
@@ -2428,12 +2920,19 @@ fn resolve_spec(
         return;
     }
     let (index, exporter, constraint, version_status) = viable.remove(0);
-    let Some(module) = index.modules.get(&spec.module) else {
+    let module_path = renamed
+        .remove(&index.repo)
+        .unwrap_or_else(|| spec.module.clone());
+    let Some(module) = index.modules.get(&module_path) else {
         unresolved(
             report,
             &spec.module,
             None,
-            REASON_MODULE,
+            if pinned {
+                REASON_VERSION
+            } else {
+                REASON_MODULE
+            },
             vec![index.repo.clone()],
             constraint,
             exporter.version.clone(),
@@ -2447,10 +2946,14 @@ fn resolve_spec(
                          exact: bool,
                          derivation: String,
                          symbol: Option<String>| {
+        // The symbol is part of the key: names defined in place share their
+        // file's node (`exports.a = function`), and each is its own use.
         if !seen_edges.insert((
             from.node_id.clone(),
+            target.repo.clone(),
             target.node_id.clone(),
             relation.to_string(),
+            symbol.clone(),
         )) {
             return;
         }
@@ -2458,7 +2961,7 @@ fn resolve_spec(
             source: from.clone(),
             target,
             relation: relation.to_string(),
-            confidence: if exact && !recovered && module.exact() {
+            confidence: if exact && !recovered && !pinned && !published && module.exact() {
                 EXTRACTED
             } else {
                 INFERRED
@@ -2480,10 +2983,11 @@ fn resolve_spec(
         episode: index.episode.clone(),
         relpath: Some(module.relpath.clone()),
     };
-    let base_derivation = if recovered {
-        format!("id_match:{}", module.derivation)
-    } else {
-        format!("import_statement:{}", module.derivation)
+    let base_derivation = match (recovered, published) {
+        (true, false) => format!("id_match:{}", module.derivation),
+        (true, true) => format!("id_match:published_as:{}", module.derivation),
+        (false, false) => format!("import_statement:{}", module.derivation),
+        (false, true) => format!("import_statement:published_as:{}", module.derivation),
     };
     match &spec.shape {
         ImportShape::Whole => push_edge(
@@ -2525,8 +3029,8 @@ fn resolve_spec(
                 }
                 // `from pkg.sub import mod` names a submodule, not a symbol.
                 let submodule_path = match ecosystem {
-                    Ecosystem::Python => format!("{}.{name}", spec.module),
-                    _ => format!("{}/{name}", spec.module),
+                    Ecosystem::Python => format!("{module_path}.{name}"),
+                    _ => format!("{module_path}/{name}"),
                 };
                 if let Some(sub) = index.modules.get(&submodule_path) {
                     let target = EdgeEnd {
@@ -2547,6 +3051,10 @@ fn resolve_spec(
                     continue;
                 }
                 missing = true;
+                if pinned {
+                    // HEAD may have dropped what the pinned release exports.
+                    continue;
+                }
                 unresolved(
                     report,
                     &spec.module,
@@ -2681,6 +3189,34 @@ pub fn dispatch(request: &Value) -> Result<Value> {
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn test_fixture_and_mock_files_are_test_paths() {
+        for path in [
+            "svc/user_test.go",
+            "web/src/app.spec.ts",
+            "web/src/app.test.jsx",
+            "api/tests/client.py",
+            "pkg/testdata/x.go",
+            "gitnexus/test/fixtures/src/client.ts",
+            "src/__mocks__/http.js",
+            "e2e/login.ts",
+            "src/main/java/FooTest.java",
+            "py/test_client.py",
+            "py/client_test.py",
+        ] {
+            assert!(is_test_path(path), "{path}");
+        }
+        for path in [
+            "svc/testing.go",
+            "contest/rules.go",
+            "src/latest.ts",
+            "web/specs.ts",
+            "src/main/java/Tester.java",
+        ] {
+            assert!(!is_test_path(path), "{path}");
+        }
+    }
 
     #[test]
     fn sources_join_relpaths_below_the_root() {
@@ -3113,7 +3649,7 @@ mod tests {
     }
 
     #[test]
-    fn python_version_mismatch_is_unresolved() {
+    fn python_pinned_consumer_links_with_a_pinned_label() {
         let (a, a_manifests) = alib("2.0.0");
         let index = exports(&a, "repo-a", None, &a_manifests);
         let (b, b_manifests, sources) = bapp(">=1.0,<2");
@@ -3125,14 +3661,80 @@ mod tests {
             &[index],
             &loader(&sources),
         );
-        assert!(report.edges.iter().all(|e| e.target.repo != "repo-a"));
-        let miss = report
-            .unresolved
+        let pinned: Vec<_> = report
+            .edges
             .iter()
-            .find(|u| u.reason == REASON_VERSION)
-            .unwrap();
-        assert_eq!(miss.candidates, vec!["repo-a".to_string()]);
-        assert_eq!(miss.exporter_version.as_deref(), Some("2.0.0"));
+            .filter(|e| e.target.repo == "repo-a")
+            .collect();
+        assert!(
+            pinned
+                .iter()
+                .any(|e| e.target.node_id == "alib_core_process")
+        );
+        assert!(pinned.iter().all(|e| e.version_status == "pinned"
+            && e.confidence == INFERRED
+            && e.exporter_version.as_deref() == Some("2.0.0")
+            && e.version_constraint.as_deref() == Some(">=1.0,<2")));
+        // The pinned release may still export what HEAD dropped: not a miss.
+        assert!(
+            report
+                .unresolved
+                .iter()
+                .all(|u| u.reason != REASON_SYMBOL && u.reason != REASON_VERSION)
+        );
+    }
+
+    #[test]
+    fn off_version_labels_follow_the_constraint() {
+        assert_eq!(
+            off_version_status(Some("^2.8.0"), Some("4.0.4")),
+            VERSION_PINNED
+        );
+        assert_eq!(
+            off_version_status(Some("<2"), Some("2.0.0")),
+            VERSION_PINNED
+        );
+        assert_eq!(
+            off_version_status(Some(">=1.0,<2"), Some("2.0.0")),
+            VERSION_PINNED
+        );
+        assert_eq!(
+            off_version_status(Some("^5.0.0"), Some("4.0.4")),
+            VERSION_AHEAD
+        );
+        // A URL or alias is not a version range: no direction is read from it.
+        assert_eq!(
+            off_version_status(Some("git+https://x/k8s-utils.git#v1.2.0"), Some("2.0.0")),
+            "unsatisfied"
+        );
+        assert_eq!(
+            off_version_status(Some("npm:other@1.0.0"), Some("2.0.0")),
+            "unsatisfied"
+        );
+    }
+
+    #[test]
+    fn a_consumer_ahead_of_the_indexed_release_is_not_pinned() {
+        let (a, a_manifests) = alib("2.0.0");
+        let index = exports(&a, "repo-a", None, &a_manifests);
+        let (b, b_manifests, sources) = bapp(">=3.0");
+        let report = link(
+            &b,
+            "repo-b",
+            None,
+            &b_manifests,
+            &[index],
+            &loader(&sources),
+        );
+        assert!(!report.edges.is_empty());
+        assert!(
+            report
+                .edges
+                .iter()
+                .all(|e| e.version_status == VERSION_AHEAD),
+            "{:#?}",
+            report.edges
+        );
     }
 
     #[test]
@@ -3267,6 +3869,229 @@ mod tests {
         (g, vec![manifest], sources)
     }
 
+    /// An importer of the repository slug a library is published under (its
+    /// manifest names it otherwise).
+    fn slug_app() -> (Graph, Vec<PackageManifest>, BTreeMap<String, String>) {
+        let g = graph(
+            vec![
+                node("src_use", "use.ts", "src/use.ts", json!({})),
+                external("ref_alib_repo", "alib-repo"),
+            ],
+            vec![edge("src_use", "ref_alib_repo", "imports_from")],
+        );
+        let manifest = PackageManifest::new(
+            "package.json",
+            r#"{"name":"bapp","dependencies":{"alib-repo":"^1.0.0"}}"#,
+        );
+        let mut sources = BTreeMap::new();
+        sources.insert(
+            "src/use.ts".to_string(),
+            "import { process } from \"alib-repo/core\";\n".to_string(),
+        );
+        (g, vec![manifest], sources)
+    }
+
+    /// Two libraries whose entry files share a node id (`index`) are two
+    /// targets: a file requiring both links to both.
+    #[test]
+    fn libraries_with_the_same_entry_node_id_both_link() {
+        let lib = |name: &str| {
+            let g = graph(
+                vec![node("index", "index.js", "index.js", json!({}))],
+                vec![],
+            );
+            let manifests = vec![PackageManifest::new(
+                "package.json",
+                format!(r#"{{"name":"{name}","version":"1.0.0","main":"index.js"}}"#),
+            )];
+            exports(&g, name, None, &manifests)
+        };
+        let app = graph(
+            vec![
+                node("server", "server.js", "server.js", json!({})),
+                external("ref_alpha", "alpha"),
+                external("ref_beta", "beta"),
+            ],
+            vec![
+                edge("server", "ref_alpha", "imports_from"),
+                edge("server", "ref_beta", "imports_from"),
+            ],
+        );
+        let manifests = vec![PackageManifest::new(
+            "package.json",
+            r#"{"name":"app","dependencies":{"alpha":"^1.0.0","beta":"^1.0.0"}}"#,
+        )];
+        let mut sources = BTreeMap::new();
+        sources.insert(
+            "server.js".to_string(),
+            "const a = require('alpha');\nconst b = require('beta');\n".to_string(),
+        );
+        let report = link(
+            &app,
+            "app",
+            None,
+            &manifests,
+            &[lib("alpha"), lib("beta")],
+            &loader(&sources),
+        );
+        let targets: BTreeSet<&str> = report
+            .edges
+            .iter()
+            .map(|e| e.target.repo.as_str())
+            .collect();
+        assert_eq!(
+            targets,
+            BTreeSet::from(["alpha", "beta"]),
+            "{:#?}",
+            report.edges
+        );
+    }
+
+    /// Symbols defined in place share their file's node; each still links.
+    #[test]
+    fn symbols_sharing_a_target_node_each_link() {
+        let mut exported = edge("index", "index", "exports");
+        exported["export_names"] = json!(["consume", "publish"]);
+        let g = graph(
+            vec![node("index", "index.js", "index.js", json!({}))],
+            vec![exported],
+        );
+        let lib_manifests = vec![PackageManifest::new(
+            "package.json",
+            r#"{"name":"queue-driver","version":"1.0.0","main":"index.js"}"#,
+        )];
+        let lib = exports(&g, "queue-driver", None, &lib_manifests);
+        let app = graph(
+            vec![
+                node("server", "server.js", "server.js", json!({})),
+                external("ref_q", "queue-driver"),
+            ],
+            vec![edge("server", "ref_q", "imports_from")],
+        );
+        let manifests = vec![PackageManifest::new(
+            "package.json",
+            r#"{"name":"app","dependencies":{"queue-driver":"^1.0.0"}}"#,
+        )];
+        let mut sources = BTreeMap::new();
+        sources.insert(
+            "server.js".to_string(),
+            "const { consume, publish } = require('queue-driver');\n".to_string(),
+        );
+        let report = link(&app, "app", None, &manifests, &[lib], &loader(&sources));
+        let symbols: BTreeSet<&str> = report
+            .edges
+            .iter()
+            .filter_map(|e| e.symbol.as_deref())
+            .collect();
+        assert_eq!(
+            symbols,
+            BTreeSet::from(["consume", "publish"]),
+            "{:#?}",
+            report.edges
+        );
+    }
+
+    #[test]
+    fn a_library_links_under_the_slug_it_is_published_as() {
+        let (a, a_manifests) = ts_lib();
+        let index = published_as(exports(&a, "ts-a", None, &a_manifests), "alib-repo");
+        assert!(index.interest_keys().contains(&interest_key("alib-repo")));
+        let (b, b_manifests, sources) = slug_app();
+        let report = link(
+            &b,
+            "ts-b",
+            None,
+            &b_manifests,
+            std::slice::from_ref(&index),
+            &loader(&sources),
+        );
+        let edge = report
+            .edges
+            .iter()
+            .find(|e| e.target.node_id == "src_core_process")
+            .unwrap_or_else(|| panic!("{:#?}", report));
+        assert_eq!(edge.confidence, INFERRED);
+        assert!(
+            edge.derivation.contains("published_as"),
+            "{}",
+            edge.derivation
+        );
+        assert_eq!(edge.version_status, "satisfied");
+        // A package whose manifest really is named so wins over the slug.
+        let named = graph(
+            vec![node("lib_core", "core.ts", "core.ts", json!({}))],
+            vec![],
+        );
+        let named_manifests = vec![PackageManifest::new(
+            "package.json",
+            r#"{"name":"alib-repo","version":"1.0.0","exports":{"./core":"./core.ts"}}"#,
+        )];
+        let real = exports(&named, "ts-real", None, &named_manifests);
+        let report = link(
+            &b,
+            "ts-b",
+            None,
+            &b_manifests,
+            &[index, real],
+            &loader(&sources),
+        );
+        assert!(!report.edges.is_empty());
+        assert!(
+            report.edges.iter().all(|e| e.target.repo == "ts-real"),
+            "{:#?}",
+            report.edges
+        );
+        // The alias is for declared dependencies only: an undeclared import
+        // spelled like the slug (a path alias, a public package) stays out.
+        let undeclared = vec![PackageManifest::new(
+            "package.json",
+            r#"{"name":"bapp","dependencies":{"other":"1"}}"#,
+        )];
+        let (a, a_manifests) = ts_lib();
+        let alias_only = published_as(exports(&a, "ts-a", None, &a_manifests), "alib-repo");
+        let report = link(
+            &b,
+            "ts-b",
+            None,
+            &undeclared,
+            &[alias_only],
+            &loader(&sources),
+        );
+        assert!(report.edges.is_empty(), "{:#?}", report.edges);
+        // A registry that publishes under the slug often stamps the version
+        // too: a consumer asking for a newer release than the manifest says
+        // still links, labelled so (`ahead_of_head`, `published_as`).
+        let mismatched = vec![PackageManifest::new(
+            "package.json",
+            r#"{"name":"bapp","dependencies":{"alib-repo":"^4.0.0"}}"#,
+        )];
+        let (a, a_manifests) = ts_lib();
+        let alias_only = published_as(exports(&a, "ts-a", None, &a_manifests), "alib-repo");
+        let report = link(
+            &b,
+            "ts-b",
+            None,
+            &mismatched,
+            &[alias_only],
+            &loader(&sources),
+        );
+        assert!(!report.edges.is_empty());
+        assert!(
+            report
+                .edges
+                .iter()
+                .all(|e| e.version_status == VERSION_AHEAD
+                    && e.confidence == INFERRED
+                    && e.derivation.contains("published_as")),
+            "{:#?}",
+            report.edges
+        );
+        // A display name that is not an npm package name is no alias.
+        let (a, a_manifests) = ts_lib();
+        let shop = published_as(exports(&a, "ts-a", None, &a_manifests), "Shop Service");
+        assert!(shop.packages.iter().all(|p| p.published_as.is_none()));
+    }
+
     #[test]
     fn node_exports_cover_exports_map_main_and_src_convention() {
         let (g, manifests) = ts_lib();
@@ -3342,17 +4167,17 @@ mod tests {
     }
 
     #[test]
-    fn node_semver_mismatch_is_unresolved() {
+    fn node_semver_mismatch_links_off_version() {
         let (a, a_manifests) = ts_lib();
         let index = exports(&a, "ts-a", None, &a_manifests);
         let (b, b_manifests, sources) = ts_app("^2.0.0");
         let report = link(&b, "ts-b", None, &b_manifests, &[index], &loader(&sources));
-        assert!(report.edges.is_empty());
+        assert!(!report.edges.is_empty());
         assert!(
             report
-                .unresolved
+                .edges
                 .iter()
-                .all(|u| u.reason == REASON_VERSION || u.reason == REASON_NO_EXPORTER)
+                .all(|e| e.version_status == VERSION_AHEAD && e.confidence == INFERRED)
         );
         let (b, b_manifests, sources) = ts_app("workspace:*");
         let (a, a_manifests) = ts_lib();
@@ -3488,7 +4313,7 @@ mod tests {
                     .to_string()
             })
         };
-        let report = link(&g, "go-a", None, &manifests, &[], &source);
+        let report = link::<ExportIndex>(&g, "go-a", None, &manifests, &[], &source);
         assert!(report.edges.is_empty());
         assert!(report.unresolved.is_empty(), "{:?}", report.unresolved);
         assert_eq!(report.skipped_internal, 2);
@@ -3542,6 +4367,159 @@ mod tests {
                 .iter()
                 .all(|e| e.target.episode.as_deref() == Some("ep-go-a"))
         );
+    }
+
+    /// Graph ids are lowercase; Go module paths keep their case
+    /// (`github.com/ShareChat/...`). The import stub must still match.
+    /// A Go package generated from `.proto` sources (not committed): what a
+    /// `proto:` module of an index exports links `INFERRED`, and committed Go
+    /// code another repository exports at the same path wins.
+    #[test]
+    fn a_go_package_from_protos_links_inferred_and_committed_code_wins() {
+        let path = "example.com/other/x";
+        let mut protos = ExportIndex {
+            repo: "protos".into(),
+            ..Default::default()
+        };
+        protos.packages.push(PackageIdentity {
+            ecosystem: Ecosystem::Go,
+            published_as: None,
+            name: path.into(),
+            version: None,
+            root: "x".into(),
+            manifest: "x/x.proto".into(),
+            import_roots: vec![path.into()],
+            dependencies: BTreeMap::new(),
+            exports_map: BTreeMap::new(),
+            main: None,
+            source_prefix: None,
+        });
+        protos.modules.insert(
+            path.into(),
+            ModuleExport {
+                module_path: path.into(),
+                node_id: "proto:x/x.proto".into(),
+                stable_id: None,
+                relpath: "x/x.proto".into(),
+                derivation: "proto:go_package".into(),
+                symbols: BTreeMap::from([(
+                    "Y".to_string(),
+                    SymbolRef {
+                        name: "Y".into(),
+                        node_id: "proto:x/x.proto#Y".into(),
+                        stable_id: None,
+                        kind: "struct".into(),
+                        relpath: "x/x.proto".into(),
+                    },
+                )]),
+            },
+        );
+        let (b, b_manifests, sources) = go_app();
+        let report = link(
+            &b,
+            "go-b",
+            None,
+            &b_manifests,
+            &[protos.clone()],
+            &loader(&sources),
+        );
+        let y = report
+            .edges
+            .iter()
+            .find(|e| e.symbol.as_deref() == Some("Y"))
+            .unwrap_or_else(|| panic!("{:#?}", report));
+        assert_eq!(
+            (y.target.repo.as_str(), y.confidence.as_str()),
+            ("protos", INFERRED)
+        );
+        let real = graph(
+            vec![
+                node("x_x", "x.go", "x/x.go", json!({})),
+                node("x_x_y", "Y", "x/x.go", json!({})),
+            ],
+            vec![],
+        );
+        let real = exports(
+            &real,
+            "real",
+            None,
+            &[PackageManifest::new("go.mod", "module example.com/other\n")],
+        );
+        let report = link(
+            &b,
+            "go-b",
+            None,
+            &b_manifests,
+            &[protos, real],
+            &loader(&sources),
+        );
+        let to_x: Vec<_> = report
+            .edges
+            .iter()
+            .filter(|e| e.module_path == path)
+            .collect();
+        assert!(
+            !to_x.is_empty() && to_x.iter().all(|e| e.target.repo == "real"),
+            "{:#?}",
+            report
+        );
+    }
+
+    #[test]
+    fn go_links_a_module_path_with_upper_case() {
+        let lib = graph(
+            vec![
+                node("k8s_k8s", "k8s.go", "k8s/k8s.go", json!({})),
+                node("k8s_k8s_newsvc", "NewSvc()", "k8s/k8s.go", json!({})),
+            ],
+            vec![],
+        );
+        let lib_manifests = vec![PackageManifest::new(
+            "go.mod",
+            "module github.com/ShareChat/odin\n",
+        )];
+        let index = exports(&lib, "odin", None, &lib_manifests);
+        let app = graph(
+            vec![
+                node("svc_k8s", "k8s.go", "svc/k8s.go", json!({})),
+                external(
+                    "go_pkg_github_com_sharechat_odin_k8s",
+                    "go_pkg_github_com_sharechat_odin_k8s",
+                ),
+            ],
+            vec![edge(
+                "svc_k8s",
+                "go_pkg_github_com_sharechat_odin_k8s",
+                "imports_from",
+            )],
+        );
+        let app_manifests = vec![PackageManifest::new(
+            "go.mod",
+            "module github.com/ShareChat/groot\n\nrequire github.com/ShareChat/odin v0.2.0\n",
+        )];
+        let source = "package svc\n\nimport \"github.com/ShareChat/odin/k8s\"\n\nfunc f() { k8s.NewSvc() }\n";
+        for text in [Some(source), None] {
+            let report = link(
+                &app,
+                "groot",
+                None,
+                &app_manifests,
+                std::slice::from_ref(&index),
+                &|_: &str| text.map(str::to_string),
+            );
+            assert!(
+                report
+                    .edges
+                    .iter()
+                    .any(|e| e.target.node_id == "k8s_k8s_newsvc")
+                    || (text.is_none()
+                        && report.edges.iter().any(|e| e.target.node_id == "k8s_k8s")),
+                "source {}: {:?} {:?}",
+                text.is_some(),
+                report.edges,
+                report.unresolved
+            );
+        }
     }
 
     // ── versions ──
@@ -3700,6 +4678,83 @@ mod tests {
         assert_eq!(go[1].module, "github.com/o/r/v2");
         assert_eq!(go[1].alias.as_deref(), Some("r"));
         assert_eq!(go[1].shape, ImportShape::Named(vec!["New".into()]));
+    }
+
+    #[test]
+    fn export_edges_add_renamed_and_reexported_keys() {
+        let mut renamed = edge("trace", "origin", "exports");
+        renamed["export_names"] = json!(["getReferrer"]);
+        // Keys sharing a target ride on one edge.
+        let mut passed = edge("trace", "observer", "exports");
+        passed["export_names"] = json!(["initObserver", "observe"]);
+        let g = graph(
+            vec![
+                node("trace", "trace.js", "trace.js", json!({})),
+                node("index", "index.js", "v2/src/index.js", json!({})),
+                node("origin", "getOriginModule()", "v2/src/index.js", json!({})),
+                node("observer", "initObserver()", "v2/src/index.js", json!({})),
+            ],
+            vec![renamed, passed],
+        );
+        let manifests = [PackageManifest::new(
+            "package.json",
+            r#"{"name":"tracer-client","main":"trace.js"}"#,
+        )];
+        let index = exports(&g, "repo", None, &manifests);
+        let main = &index.modules["tracer-client"];
+        assert_eq!(main.symbols["getReferrer"].node_id, "origin");
+        assert_eq!(main.symbols["getReferrer"].relpath, "v2/src/index.js");
+        assert_eq!(main.symbols["initObserver"].node_id, "observer");
+        assert_eq!(main.symbols["observe"].node_id, "observer");
+    }
+
+    #[test]
+    fn dependency_urls_lose_their_credentials() {
+        let ids = package_identities(&[PackageManifest {
+            relpath: "package.json".into(),
+            text: r#"{"name":"app","dependencies":{
+                "lib":"git+https://bot:s3cret@github.com/ShareChat/lib.git#v1.2.0",
+                "tok":"https://ghp_abc123@github.com/ShareChat/tok.git",
+                "plain":"^1.0.0"}}"#
+                .into(),
+        }]);
+        let deps = &ids[0].dependencies;
+        assert_eq!(
+            deps["lib"],
+            "git+https://github.com/ShareChat/lib.git#v1.2.0"
+        );
+        assert_eq!(deps["tok"], "https://github.com/ShareChat/tok.git");
+        assert_eq!(deps["plain"], "^1.0.0");
+        let stored = serde_json::to_string(&ids).unwrap();
+        assert!(!stored.contains("s3cret") && !stored.contains("ghp_abc123"));
+    }
+
+    #[test]
+    fn js_bindings_name_the_symbols_a_file_uses() {
+        let js = js_imports(
+            "const { getUser, log: l, ...rest } = require('sharechat-utils');\n\
+             const Q = require(\"queue-driver\");\n\
+             const counter = require('prom-scripts').counter;\n\
+             import * as tr from 'tracer-client';\n\
+             import Sdk, { version } from 'sharechat-sdk';\n\
+             require('side-effect');\n\
+             Q.publish(x); Q.connect(); a.Q.skip(); tr.start(); Sdk.init(); l();\n",
+        );
+        let shape = |module: &str| {
+            js.iter()
+                .find(|s| s.module == module)
+                .map(|s| s.shape.clone())
+                .unwrap()
+        };
+        let named =
+            |names: &[&str]| ImportShape::Named(names.iter().map(|n| n.to_string()).collect());
+        assert_eq!(shape("sharechat-utils"), named(&["getUser", "log"]));
+        assert_eq!(shape("queue-driver"), named(&["connect", "publish"]));
+        assert_eq!(shape("prom-scripts"), named(&["counter"]));
+        assert_eq!(shape("tracer-client"), named(&["start"]));
+        assert_eq!(shape("sharechat-sdk"), named(&["init", "version"]));
+        assert_eq!(shape("side-effect"), ImportShape::Whole);
+        assert_eq!(js.len(), 6);
     }
 
     #[test]

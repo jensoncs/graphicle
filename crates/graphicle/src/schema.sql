@@ -318,7 +318,8 @@
                     repository_id TEXT PRIMARY KEY REFERENCES repo_projects(id) ON DELETE CASCADE,
                     workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
                     episode TEXT NOT NULL, format TEXT NOT NULL, export_index TEXT NOT NULL,
-                    inputs TEXT, edges INTEGER, unresolved INTEGER, created_at TEXT NOT NULL);
+                    inputs TEXT, edges INTEGER, unresolved INTEGER, created_at TEXT NOT NULL,
+                    interest TEXT);
                 CREATE TABLE IF NOT EXISTS gf_repo_access (
                     workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
                     repository_id TEXT NOT NULL REFERENCES repo_projects(id) ON DELETE CASCADE,

@@ -9,7 +9,7 @@ use std::collections::BTreeSet;
 
 /// A message, enum, service, rpc (`Service.Method`) or extension, its name
 /// nested as written (`Outer.Inner`).
-pub(super) struct Decl {
+pub(crate) struct Decl {
     pub name: String,
     pub kind: &'static str,
     pub start: usize,
@@ -19,7 +19,7 @@ pub(super) struct Decl {
 
 /// A type or custom option name as written, the declaration it is in (`None`
 /// at file level) and the nested scope it resolves from.
-pub(super) struct Reference {
+pub(crate) struct Reference {
     pub owner: Option<usize>,
     pub name: String,
     pub scope: String,
@@ -29,7 +29,7 @@ pub(super) struct Reference {
 }
 
 #[derive(Default)]
-pub(super) struct Proto {
+pub(crate) struct Proto {
     pub package: String,
     pub imports: Vec<String>,
     pub go_package: Option<String>,
@@ -374,7 +374,7 @@ impl<'a> Parser<'a> {
     }
 }
 
-pub(super) fn parse(content: &str) -> Proto {
+pub(crate) fn parse(content: &str) -> Proto {
     let mut p = Parser {
         toks: tokens(content),
         i: 0,
@@ -456,7 +456,7 @@ pub(super) fn candidates(package: &str, scope: &str, name: &str) -> Vec<String> 
 /// relative to the package): `strs.GoCamelCase` over the whole dotted name.
 /// A dot becomes `_` unless a lowercase letter follows it, where it is
 /// dropped (`Comment.postType` is `CommentPostType`).
-pub(super) fn go_name(nested: &str) -> String {
+pub(crate) fn go_name(nested: &str) -> String {
     let s = nested.as_bytes();
     let mut out = String::new();
     let mut i = 0;

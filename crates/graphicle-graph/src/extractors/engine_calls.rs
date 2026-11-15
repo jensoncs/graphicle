@@ -338,7 +338,10 @@ impl<'a, 't> Engine<'a, 't> {
             .filter(|c| c.kind_name() == "variable_declarator")
         {
             let value = d.child_by_field_name("value");
-            let Some(call) = find_require_call(value) else {
+            // `require(m).f(...)`: the required module's member called at once.
+            let chained = find_require_call(value).is_none();
+            let Some(call) = find_require_call(value).or_else(|| require_in_call_chain(value))
+            else {
                 continue;
             };
             if call
@@ -379,7 +382,17 @@ impl<'a, 't> Engine<'a, 't> {
             }
             found = true;
             let mut names = vec![];
-            if let Some(name) = d
+            if chained {
+                // What is bound comes from the call's result, not the module:
+                // the module gives the member called.
+                if let Some(p) = call
+                    .parent()
+                    .filter(|p| p.kind_name() == "member_expression")
+                    .and_then(|p| p.child_by_field_name("property"))
+                {
+                    names.push(self.text(p));
+                }
+            } else if let Some(name) = d
                 .child_by_field_name("name")
                 .filter(|n| n.kind_name() == "object_pattern")
             {
@@ -2030,6 +2043,21 @@ fn csharp_member_call_parts(f: Node<'_>) -> Option<(Option<Node<'_>>, Option<Nod
                     f.child_by_field_name("condition"),
                 )
             }),
+        _ => None,
+    }
+}
+
+/// The `identifier(...)` call at the root of a call/member chain such as
+/// `require(m).f(x).g`: what [`find_require_call`] misses when the value is
+/// itself a call of a member of the required module.
+fn require_in_call_chain(node: Option<Node<'_>>) -> Option<Node<'_>> {
+    let n = node?;
+    match n.kind_name() {
+        "call_expression" => match n.child_by_field_name("function") {
+            Some(f) if f.kind_name() == "identifier" => Some(n),
+            f => require_in_call_chain(f),
+        },
+        "member_expression" => require_in_call_chain(n.child_by_field_name("object")),
         _ => None,
     }
 }

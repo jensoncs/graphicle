@@ -44,7 +44,7 @@ mod basic_markup;
 #[path = "review_basic_precise.rs"]
 mod basic_precise;
 #[path = "review_basic_proto.rs"]
-mod basic_proto;
+pub(crate) mod basic_proto;
 #[path = "review_basic_refs.rs"]
 mod basic_refs;
 #[path = "review_basic_sql.rs"]
@@ -2522,6 +2522,13 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     let r: Request = serde_json::from_value(request_args)
         .map_err(|e| Error::bad(format!("Expected pinned base/head review request: {e}")))?;
     validate(&r)?;
+    let r = Request {
+        business_context: r
+            .business_context
+            .map(crate::business_context::admit_facts)
+            .transpose()?,
+        ..r
+    };
     let previous=store.authorized_read(workspace,token,"read",|db,p|{
         let Some(id)=&r.previous_packet_id else{return Ok(None)};
         let row=store::one(db,"SELECT receipt FROM repo_review_packets WHERE id=? AND repository_id=? AND principal_hash=?",params![id,anchor,p.hash])?.ok_or_else(||Error::conflict("Previous packet unavailable; request a full packet"))?;

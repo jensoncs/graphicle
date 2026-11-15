@@ -163,13 +163,14 @@ fn the_identifier_route_says_callers_may_be_missing() {
     assert!(run.get("possibly_incomplete").is_none(), "{run:#}");
 }
 
-/// The measured case: `main.go` imports a module that is not available, so
-/// its package does not type-check and `server.RunAthenaServer()` stays
-/// unresolved. The definition's neighbours list no caller; the answers say
-/// the call at main.go:10 may be one.
+/// `main.go` imports a module that is not available, so its package does not
+/// fully type-check. The call go/types still identified
+/// (`server.RunAthenaServer()`) is a caller; the one through a value of the
+/// missing module's type stays unresolved, and the answers say the call at
+/// main.go:10 may be another.
 #[test]
 fn a_go_call_in_a_package_that_did_not_load_is_named() {
-    let main = "package main\n\nimport (\n\t\"example.com/missing/telemetry\"\n\t\"example.com/rbac/server\"\n)\n\nfunc main() {\n\ttelemetry.Start()\n\tserver.RunAthenaServer()\n}\n";
+    let main = "package main\n\nimport (\n\t\"example.com/missing/telemetry\"\n\t\"example.com/rbac/server\"\n)\n\nfunc main() {\n\ttelemetry.Start()\n\ttelemetry.Remote.RunAthenaServer()\n\tserver.RunAthenaServer()\n}\n";
     let server = "package server\n\nfunc RunAthenaServer() {\n\tlisten()\n}\n\nfunc listen() {}\n";
     let f = Fixture::new(&[
         ("go.mod", "module example.com/rbac\n\ngo 1.23\n"),
@@ -177,7 +178,7 @@ fn a_go_call_in_a_package_that_did_not_load_is_named() {
         ("server/server.go", server),
     ]);
     let reply = f.tool("get_neighbors", json!({"label":"RunAthenaServer"}));
-    assert!(!s(&reply, "text").contains("main"), "{reply:#}");
+    assert!(s(&reply, "text").contains("main.go:L11"), "{reply:#}");
     let site = &reply["possibly_incomplete"]["unresolved_calls"][0]["sites"][0];
     assert_eq!(
         (
@@ -185,7 +186,11 @@ fn a_go_call_in_a_package_that_did_not_load_is_named() {
             site["line"].as_u64(),
             site["callee"].as_str()
         ),
-        (Some("main.go"), Some(10), Some("server.RunAthenaServer")),
+        (
+            Some("main.go"),
+            Some(10),
+            Some("telemetry.Remote.RunAthenaServer")
+        ),
         "{reply:#}"
     );
     assert!(
@@ -196,7 +201,7 @@ fn a_go_call_in_a_package_that_did_not_load_is_named() {
     let packet = f.context("who calls `RunAthenaServer`");
     let markdown = s(&packet, "markdown");
     assert!(
-        markdown.contains("`RunAthenaServer`: 1 definition, 0 references"),
+        markdown.contains("`RunAthenaServer`: 1 definition, 1 reference"),
         "{markdown}"
     );
     assert!(markdown.contains(") at main.go:10."), "{markdown}");

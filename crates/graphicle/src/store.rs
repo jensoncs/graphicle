@@ -423,6 +423,8 @@ impl Store {
         db.execute_batch(include_str!("expansion_schema.sql"))?;
         db.execute_batch(include_str!("projection_schema.sql"))?;
         crate::review::admission::migrate(&db)?;
+        // What a project's link reads from the others (`LinkInterest`).
+        ensure_column(&db, "gf_cross_link_state", "interest", "TEXT")?;
         ensure_column(
             &db,
             "repo_review_package_facts",

@@ -878,3 +878,260 @@ fn linking_projects_that_export_nothing_stores_no_link_state() {
         assert_eq!(count, 0, "{table} must stay empty: {linked}");
     }
 }
+
+const D_PYPROJECT: &str = "[project]\nname = \"dlib\"\nversion = \"2.0.0\"\n";
+const D_UTIL_V1: &str = "def scale(x):\n    return x * 2\n";
+const D_UTIL_V2: &str = "def scale(x):\n    return x * 2\n\ndef shift(x):\n    return x + 1\n";
+const E_PYPROJECT: &str =
+    "[project]\nname = \"eapp\"\nversion = \"0.1.0\"\ndependencies = [\"dlib>=2.0\"]\n";
+const E_RUN: &str = "from dlib.util import scale\n\ndef run(x):\n    return scale(x)\n";
+
+fn d_files(util: &'static str) -> Vec<(&'static str, &'static str)> {
+    vec![
+        ("pyproject.toml", D_PYPROJECT),
+        ("dlib/__init__.py", ""),
+        ("dlib/util.py", util),
+    ]
+}
+
+/// A project relinks only when a project it can import from (one claiming a
+/// module it imports) joins, leaves or changes what it exports. A project
+/// nobody imports joining the workspace relinks itself alone, so a large
+/// workspace does not relink every project on every sync. Every pass leaves
+/// the rows of a full pass.
+#[test]
+fn linking_relinks_only_the_projects_a_change_can_reach() {
+    let f = Fixture::new();
+    let c = f.register("capp", "Application C");
+    let ids = |list: &Value| -> Vec<String> {
+        let mut ids: Vec<String> = list
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|id| id.as_str().unwrap().to_string())
+            .collect();
+        ids.sort();
+        ids
+    };
+    let sorted = |mut list: Vec<String>| {
+        list.sort();
+        list
+    };
+    f.commit(&f.a, &a_files(A_CORE_V1), A_SHA1);
+    f.commit(&f.b, &b_files(), B_SHA1);
+    f.commit(
+        &c,
+        &c_files(C_MAIN_V1),
+        "ccc1110000000000000000000000000000000000",
+    );
+    f.drain_checking_links();
+
+    // D exports dlib, which nobody imports yet: only D is linked.
+    let d = f.register("dlib", "Library D");
+    f.commit(
+        &d,
+        &d_files(D_UTIL_V1),
+        "ddd1110000000000000000000000000000000000",
+    );
+    let links = f.drain_checking_links();
+    assert_eq!(links.len(), 1, "{links:?}");
+    assert_eq!(ids(&links[0]["relinked"]), vec![d.clone()], "{}", links[0]);
+
+    // E imports dlib: E is linked; A, B, C and D are not.
+    let e = f.register("eapp", "Application E");
+    f.commit(
+        &e,
+        &[
+            ("pyproject.toml", E_PYPROJECT),
+            ("eapp/__init__.py", ""),
+            ("eapp/run.py", E_RUN),
+        ],
+        "eee1110000000000000000000000000000000000",
+    );
+    let links = f.drain_checking_links();
+    assert_eq!(ids(&links[0]["relinked"]), vec![e.clone()], "{}", links[0]);
+    assert!(links[0]["edges"].as_u64().unwrap() >= 4, "{}", links[0]);
+
+    // D exports one more function: D itself and E, its only importer.
+    f.commit(
+        &d,
+        &d_files(D_UTIL_V2),
+        "ddd2220000000000000000000000000000000000",
+    );
+    let links = f.drain_checking_links();
+    assert_eq!(
+        ids(&links[0]["relinked"]),
+        sorted(vec![d.clone(), e.clone()]),
+        "{}",
+        links[0]
+    );
+    assert_eq!(
+        ids(&links[0]["reused"]),
+        sorted(vec![f.a.clone(), f.b.clone(), c.clone()]),
+        "{}",
+        links[0]
+    );
+}
+
+const G_PYPROJECT: &str = "[project]\nname = \"gapp\"\nversion = \"0.1.0\"\ndependencies = [\"alib>=1.0\", \"notindexed>=1\"]\n";
+const G_RUN: &str = "from alib.core import process\nimport notindexed\n\ndef run(rows):\n    notindexed.go()\n    return process(rows)\n";
+
+/// An importer's unresolved imports name only the exporters it can read:
+/// a project it cannot import from joining or changing neither rewrites
+/// them nor grows its stored history.
+#[test]
+fn an_unrelated_project_leaves_an_importers_unresolved_rows_alone() {
+    let f = Fixture::new();
+    let g = f.register("gapp", "Application G");
+    f.commit(&f.a, &a_files(A_CORE_V1), A_SHA1);
+    f.commit(
+        &g,
+        &[
+            ("pyproject.toml", G_PYPROJECT),
+            ("gapp/__init__.py", ""),
+            ("gapp/run.py", G_RUN),
+        ],
+        "ggg1110000000000000000000000000000000000",
+    );
+    f.drain_checking_links();
+    let rows = |repo: &str| -> (i64, i64, Vec<String>) {
+        f.store
+            .read(|db| {
+                let (all, live): (i64, i64) = db.query_row(
+                    "SELECT count(*), sum(valid_to_episode IS NULL) FROM gf_cross_unresolved WHERE source_repository_id=?",
+                    [repo],
+                    |r| Ok((r.get(0)?, r.get(1)?)),
+                )?;
+                let mut read = db.prepare(
+                    "SELECT DISTINCT e.key FROM gf_cross_unresolved u, json_each(u.exporter_episodes) e \
+                     WHERE u.source_repository_id=? AND u.valid_to_episode IS NULL ORDER BY 1",
+                )?;
+                let keys = read
+                    .query_map([repo], |r| r.get(0))?
+                    .collect::<std::result::Result<Vec<String>, _>>()?;
+                Ok((all, live, keys))
+            })
+            .unwrap()
+    };
+    let before = rows(&g);
+    assert!(before.1 >= 1, "gapp has an unresolved import: {before:?}");
+    assert_eq!(before.2, vec![f.a.clone()], "only alib is read");
+
+    // dlib joins and changes; gapp cannot import from it.
+    let d = f.register("dlib", "Library D");
+    f.commit(
+        &d,
+        &d_files(D_UTIL_V1),
+        "ddd1110000000000000000000000000000000000",
+    );
+    f.drain_checking_links();
+    f.commit(
+        &d,
+        &d_files(D_UTIL_V2),
+        "ddd2220000000000000000000000000000000000",
+    );
+    f.drain_checking_links();
+    assert_eq!(rows(&g), before, "gapp's unresolved rows were rewritten");
+}
+
+const STUB_GOMOD: &str = "module github.com/acme/protos\n\ngo 1.22\n";
+const STUB_PB: &str = "package userpb\n\ntype UserServiceClient interface{ Get() }\n\ntype UserServiceServer interface{ Get() }\n\nfunc NewUserServiceClient(cc any) UserServiceClient { return nil }\n\nfunc RegisterUserServiceServer(s any, srv UserServiceServer) {}\n";
+const USERS_GOMOD: &str =
+    "module github.com/acme/users\n\ngo 1.22\n\nrequire github.com/acme/protos v1.0.0\n";
+const USERS_SERVE: &str = "package server\n\nimport userpb \"github.com/acme/protos/userpb\"\n\nfunc Serve(s any, impl userpb.UserServiceServer) {\n\tuserpb.RegisterUserServiceServer(s, impl)\n}\n";
+const USERS_IDLE: &str = "package server\n\nimport userpb \"github.com/acme/protos/userpb\"\n\nfunc Serve(s any, impl userpb.UserServiceServer) {\n\t_ = impl\n}\n";
+const FEED_GOMOD: &str =
+    "module github.com/acme/feed\n\ngo 1.22\n\nrequire github.com/acme/protos v1.0.0\n";
+const FEED_DIAL: &str = "package client\n\nimport \"github.com/acme/protos/userpb\"\n\nfunc Dial(conn any) userpb.UserServiceClient {\n\treturn userpb.NewUserServiceClient(conn)\n}\n";
+const FEED_FAKE: &str = "package fake\n\nimport \"github.com/acme/protos/userpb\"\n\nfunc Fake(s any, impl userpb.UserServiceServer) {\n\tuserpb.RegisterUserServiceServer(s, impl)\n}\n";
+
+fn grpc_rows(
+    db: &rusqlite::Connection,
+) -> Vec<(String, String, String, String, String, Option<String>)> {
+    let mut stmt = db
+        .prepare(
+            "SELECT source_repository_id,source_node_id,target_repository_id,target_node_id,symbol,valid_to_repository_id \
+             FROM gf_cross_edges WHERE relation='grpc_calls' ORDER BY id",
+        )
+        .unwrap();
+    stmt.query_map([], |r| {
+        Ok((
+            r.get(0)?,
+            r.get(1)?,
+            r.get(2)?,
+            r.get(3)?,
+            r.get(4)?,
+            r.get(5)?,
+        ))
+    })
+    .unwrap()
+    .map(Result::unwrap)
+    .collect()
+}
+
+/// A client creating `pb.NewUserServiceClient` links to the project calling
+/// `pb.RegisterUserServiceServer` for the same generated package; a fake
+/// server in the client's own tests does not count. Incremental passes keep
+/// the rows a full pass leaves, and the link closes when the server stops
+/// registering the service.
+#[test]
+fn a_grpc_client_links_to_the_project_serving_its_service() {
+    let f = Fixture::new();
+    let protos = f.register("protos", "Protos");
+    let users = f.register("users", "Users");
+    let feed = f.register("feed", "Feed");
+    f.commit(
+        &protos,
+        &[("go.mod", STUB_GOMOD), ("userpb/user.pb.go", STUB_PB)],
+        "ppp1110000000000000000000000000000000000",
+    );
+    f.commit(
+        &users,
+        &[("go.mod", USERS_GOMOD), ("server/serve.go", USERS_SERVE)],
+        "uuu1110000000000000000000000000000000000",
+    );
+    f.commit(
+        &feed,
+        &[
+            ("go.mod", FEED_GOMOD),
+            ("client/dial.go", FEED_DIAL),
+            ("tests/fake.go", FEED_FAKE),
+        ],
+        "fff1110000000000000000000000000000000000",
+    );
+    f.drain_checking_links();
+    let db = f.store.connect().unwrap();
+    let live: Vec<_> = grpc_rows(&db)
+        .into_iter()
+        .filter(|r| r.5.is_none())
+        .collect();
+    assert_eq!(live.len(), 1, "{live:?}");
+    let (source, source_node, target, target_node, service, _) = &live[0];
+    assert_eq!((source, target), (&feed, &users));
+    assert!(source_node.contains("dial"), "{source_node}");
+    assert!(target_node.contains("serve"), "{target_node}");
+    assert_eq!(service, "UserService");
+    let (confidence, derivation): (String, String) = db
+        .query_row(
+            "SELECT confidence,derivation FROM gf_cross_edges WHERE relation='grpc_calls' AND valid_to_episode IS NULL",
+            [],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .unwrap();
+    assert_eq!(confidence, "INFERRED");
+    assert_eq!(
+        derivation,
+        "grpc_service:github.com/acme/protos/userpb#UserService"
+    );
+
+    // The server stops registering the service: the link closes on its side.
+    f.commit(
+        &users,
+        &[("go.mod", USERS_GOMOD), ("server/serve.go", USERS_IDLE)],
+        "uuu2220000000000000000000000000000000000",
+    );
+    f.drain_checking_links();
+    let rows = grpc_rows(&db);
+    assert!(rows.iter().all(|r| r.5.is_some()), "{rows:?}");
+    assert_eq!(rows[0].5.as_deref(), Some(users.as_str()), "{rows:?}");
+}

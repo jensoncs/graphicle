@@ -389,6 +389,70 @@ fn enclosing(mut n: Node, src: &[u8]) -> Option<(String, usize)> {
     None
 }
 
+/// The `do_<METHOD>` method of a class that encloses `n`: (method name, line).
+fn stdlib_handler(n: Node, src: &[u8]) -> Option<(String, usize)> {
+    let mut p = n.parent();
+    while let Some(f) = p {
+        if f.kind() == "function_definition" {
+            let name = f.child_by_field_name("name")?;
+            let method = text(name, src);
+            let verb = method.strip_prefix("do_")?;
+            if verb.is_empty() || !verb.chars().all(|c| c.is_ascii_uppercase()) {
+                return None;
+            }
+            let class = f.parent().filter(|b| b.kind() == "block")?.parent()?;
+            if class.kind() != "class_definition" {
+                return None;
+            }
+            return Some((method.to_string(), name.start_position().row + 1));
+        }
+        p = f.parent();
+    }
+    None
+}
+
+/// The framework label of Python standard-library `http.server` routes.
+const STDLIB_SERVER: &str = "http.server";
+
+/// The name line of a module-level `def name` in the file of `n`.
+fn module_function_line(n: Node, name: &str, src: &[u8]) -> Option<usize> {
+    let mut root = n;
+    while let Some(p) = root.parent() {
+        root = p;
+    }
+    let mut cursor = root.walk();
+    root.named_children(&mut cursor).find_map(|statement| {
+        let f = if statement.kind() == "decorated_definition" {
+            statement.child_by_field_name("definition")?
+        } else {
+            statement
+        };
+        let id = f
+            .child_by_field_name("name")
+            .filter(|_| f.kind() == "function_definition")?;
+        (text(id, src) == name).then(|| id.start_position().row + 1)
+    })
+}
+
+/// The dictionary literal a module-level `name = {...}` binds in the file of `n`.
+fn module_dict<'t>(n: Node<'t>, name: &str, src: &[u8]) -> Option<Node<'t>> {
+    let mut root = n;
+    while let Some(p) = root.parent() {
+        root = p;
+    }
+    let mut cursor = root.walk();
+    let statements: Vec<Node> = root.named_children(&mut cursor).collect();
+    statements.into_iter().rev().find_map(|statement| {
+        let assignment = statement
+            .named_child(0)
+            .filter(|a| a.kind() == "assignment")?;
+        let left = assignment.child_by_field_name("left")?;
+        let right = assignment.child_by_field_name("right")?;
+        (left.kind() == "identifier" && text(left, src) == name && right.kind() == "dictionary")
+            .then_some(right)
+    })
+}
+
 fn client_receiver(name: &str) -> bool {
     let lower = name.to_ascii_lowercase();
     let last = lower.rsplit('.').next().unwrap_or(&lower);
@@ -812,6 +876,108 @@ impl Scan<'_> {
         }
     }
 
+    /// Standard-library `http.server`: `if self.path == "/p"` (or `!=`, or
+    /// `in ("/a", "/b")`) inside a handler class's `do_<METHOD>` is a route.
+    fn stdlib_route(&mut self, n: Node) {
+        let operands: Vec<Node> = {
+            let mut cursor = n.walk();
+            n.named_children(&mut cursor).collect()
+        };
+        let [left, right] = operands.as_slice() else {
+            return;
+        };
+        let operator = text(n, self.src)
+            [left.end_byte() - n.start_byte()..right.start_byte() - n.start_byte()]
+            .trim();
+        let other = match (text(*left, self.src), text(*right, self.src)) {
+            ("self.path", _) => *right,
+            (_, "self.path") => *left,
+            _ => return,
+        };
+        let paths = match operator {
+            "==" | "!=" => literal(other, self.src).into_iter().collect(),
+            "in" | "not in" if matches!(other.kind(), "tuple" | "list" | "set") => {
+                string_list(other, self.src)
+            }
+            _ => return,
+        };
+        let Some((handler, line)) = stdlib_handler(n, self.src) else {
+            return;
+        };
+        let method = handler["do_".len()..].to_string();
+        for path in paths.into_iter().filter(|p| p.starts_with('/')) {
+            self.route(
+                n,
+                vec![method.clone()],
+                path,
+                STDLIB_SERVER,
+                Kind::Declared,
+                Some((handler.clone(), line)),
+            );
+        }
+    }
+
+    /// `TABLE.get(self.path)` / `TABLE[self.path]` in a `do_<METHOD>`, with
+    /// `TABLE = {"/p": handler, ...}` at module level: a route per key, served
+    /// by the function it maps to.
+    fn stdlib_table(&mut self, n: Node) {
+        let (table, key) = if n.kind() == "subscript" {
+            (
+                n.child_by_field_name("value"),
+                n.child_by_field_name("subscript"),
+            )
+        } else {
+            let f = n.child_by_field_name("function");
+            let args = n.child_by_field_name("arguments");
+            (
+                f.and_then(|f| f.child_by_field_name("object")),
+                args.and_then(|a| a.named_child(0)),
+            )
+        };
+        let (Some(table), Some(key)) = (table, key) else {
+            return;
+        };
+        if table.kind() != "identifier" || text(key, self.src) != "self.path" {
+            return;
+        }
+        let Some((handler, _)) = stdlib_handler(n, self.src) else {
+            return;
+        };
+        let method = handler["do_".len()..].to_string();
+        let Some(dict) = module_dict(n, text(table, self.src), self.src) else {
+            return;
+        };
+        let mut cursor = dict.walk();
+        let pairs: Vec<Node> = dict
+            .named_children(&mut cursor)
+            .filter(|p| p.kind() == "pair")
+            .collect();
+        for pair in pairs {
+            let (Some(k), Some(v)) = (
+                pair.child_by_field_name("key"),
+                pair.child_by_field_name("value"),
+            ) else {
+                continue;
+            };
+            let Some(path) = literal(k, self.src).filter(|p| p.starts_with('/')) else {
+                continue;
+            };
+            // The handler's own definition in this file, when it has one.
+            let handler = handler_name(v, self.src).map(|h| {
+                let line = module_function_line(n, &h, self.src).unwrap_or(0);
+                (h, line)
+            });
+            self.route(
+                n,
+                vec![method.clone()],
+                path,
+                STDLIB_SERVER,
+                Kind::Declared,
+                handler,
+            );
+        }
+    }
+
     fn route(
         &mut self,
         site: Node,
@@ -846,6 +1012,8 @@ impl Scan<'_> {
             "function_definition" if self.python => self.factory(n),
             "as_pattern" if self.python => self.with_client(n),
             "call" | "call_expression" => self.call(n),
+            "comparison_operator" if self.python => self.stdlib_route(n),
+            "subscript" if self.python => self.stdlib_table(n),
             "import_statement" | "import_from_statement" if self.python => self.python_import(n),
             "import_statement" => self.js_import(n),
             "export_statement" => self.js_export(n),
@@ -1623,7 +1791,36 @@ impl Scan<'_> {
             }
             return;
         }
+        if self.python
+            && member
+            && name == "get"
+            && pos
+                .first()
+                .is_some_and(|p| text(*p, self.src) == "self.path")
+        {
+            self.stdlib_table(n);
+            return;
+        }
         let first_url = pos.first().and_then(|p| self.request_url(*p));
+        // urllib.request.urlopen(url, data) / urllib.request.Request(url, data, method=).
+        let urllib = member && (obj == "urllib.request" || obj == "request");
+        if self.python
+            && ((urllib && (name == "urlopen" || name == "Request"))
+                || (!member && name == "urlopen"))
+        {
+            let Some(url) = first_url.filter(|u| looks_like_path(u)) else {
+                return;
+            };
+            let body = |a: Option<&Node>| a.is_some_and(|a| a.kind() != "none");
+            let data = body(pos.get(1)) || body(kw.get("data"));
+            let method = kw
+                .get("method")
+                .and_then(|m| literal(*m, self.src))
+                .map(|m| m.to_uppercase())
+                .unwrap_or_else(|| if data { "POST" } else { "GET" }.to_string());
+            self.request(n, Some(method), url);
+            return;
+        }
         let method = if member
             && (client_receiver(obj) || self.facts.clients.contains_key(&self.name(n, obj)))
         {

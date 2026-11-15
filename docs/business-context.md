@@ -49,6 +49,31 @@ subject can remain visible on the **base** symbol even though head blame names
 the new commit. Reuse that base bundle for later pushes; recollect head history
 for the new pin. Do not send duplicate bundles when the two pins are identical.
 
+## Repository facts from merged pull requests
+
+`business_context.facts` carries facts a caller learned from a repository's
+merged pull requests: the rule, flow or intent a change's title and
+description state, with the files and symbols it touched. Each fact has an
+`id`, a `statement` (500 characters at most), a `kind` (`product_rule`,
+`intent`, `flow`, `constraint`, `deployment` or `other`), the `pr`, its
+`merged_commit` and `merged_at`, its `files` (16 at most, under the same
+source admission as history), and optionally `symbols`, each file's
+`file_sha256` at the merge, `corroborations` (later pull requests stating the
+same fact) and `superseded_by`. At most 512 facts per request; more refuses
+the request. A fact that is invalid, names a path source admission excludes,
+or fails the credential scan is dropped and counted in `facts_dropped`; the
+rest of the request stands.
+
+A selected entry carries up to five facts that name it under
+`business_context.repository_facts`, the rest counted in `omitted_facts`:
+a fact on its symbol first, then on its file, then on its directory; within
+those the most corroborated (counted up to five), then the newest. A
+superseded fact is never attached. A fact whose file digest at the merge
+differs from the entry's is marked `possibly_stale`. Every fact is
+`basis: author_claim_unverified`: the caller stored it without review, so it
+may prompt a question or raise attention, and never lowers a finding. The
+report counts `facts_supplied` and `facts_attached_before_packing`.
+
 ## Evidence and limits
 
 The collector reads blobs and blame at the full pinned Git commit, independently

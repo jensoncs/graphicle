@@ -205,6 +205,48 @@ fn loose_sibling(edge: &Value, module: &str, files: &ModuleFiles, root: &Path) -
         && candidates.iter().any(|c| resolved(Path::new(c)) == target)
 }
 
+/// `from src.classifier import X` in `svc/src/server.py`, where sibling
+/// services each ship `src/classifier.py`: Python reaches a module through a
+/// directory on the importer's path, and only a candidate whose import root is
+/// an ancestor of the importer can be that directory without configuration.
+/// Exactly one such candidate, the one the import resolved to, binds; nested
+/// roots answering to the same name stay ambiguous.
+fn only_ancestor_root(edge: &Value, module: &str, files: &ModuleFiles, root: &Path) -> bool {
+    let (target, source) = (s(edge, "target_file"), s(edge, "source_file"));
+    let Some(candidates) = files
+        .get(&make_id([module]))
+        .filter(|_| !target.is_empty() && !source.is_empty())
+    else {
+        return false;
+    };
+    let source = Path::new(source);
+    let source = resolved(&if source.is_absolute() {
+        source.to_path_buf()
+    } else {
+        root.join(source)
+    });
+    let parts: Vec<&str> = module.split('.').collect();
+    let reachable: Vec<PathBuf> = candidates
+        .iter()
+        .map(|c| resolved(Path::new(c)))
+        .filter(|c| {
+            let mut base = if c.file_name().is_some_and(|n| n == "__init__.py") {
+                c.parent().map(Path::to_path_buf).unwrap_or_default()
+            } else {
+                c.with_extension("")
+            };
+            for part in parts.iter().rev() {
+                if base.file_name().is_none_or(|n| n != *part) {
+                    return false;
+                }
+                base.pop();
+            }
+            source.starts_with(&base)
+        })
+        .collect();
+    reachable.len() == 1 && reachable[0] == resolved(Path::new(target))
+}
+
 /// Strip the transient `_python_import_*` keys from every import edge, drop
 /// namespace-package markers, point ambiguous imports at a node-less id so
 /// the graph builder drops them, and flag raw calls whose receiver or callee
@@ -216,6 +258,7 @@ pub fn suppress_ambiguous_imports<P: PerFile>(
     ambiguous: &AmbiguousModules,
     files: &ModuleFiles,
     root: &Path,
+    bind_ancestor_roots: bool,
 ) {
     let node_ids = nodes.iter().map(|n| s(n, "id")).collect::<FxHashSet<_>>();
     let mut bound: FxHashMap<String, FxHashSet<String>> = FxHashMap::default();
@@ -254,7 +297,8 @@ pub fn suppress_ambiguous_imports<P: PerFile>(
         let ambiguous_module = ambiguous.contains(&module_id)
             && !(module_binding
                 && !module.contains('.')
-                && loose_sibling(&edge, &module_id, files, root));
+                && loose_sibling(&edge, &module_id, files, root))
+            && !(bind_ancestor_roots && only_ancestor_root(&edge, &module, files, root));
         if module_binding {
             if ambiguous_module {
                 bound

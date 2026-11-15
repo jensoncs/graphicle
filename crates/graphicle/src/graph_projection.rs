@@ -17,7 +17,7 @@ use rusqlite::{Connection, params};
 use serde::Serialize;
 use serde_json::{Map, Value, json};
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     path::{Path, PathBuf},
     sync::{Mutex, MutexGuard, OnceLock, PoisonError},
 };
@@ -49,9 +49,16 @@ const YAML_IN_CODE_GRAPH: bool = false;
 /// `apm.yml` and `apm.yaml` have an extractor of their own (a package node
 /// and its dependencies), as in 0.1.6, and stay. Only a `.yaml` or `.yml`
 /// name is looked up, so no other file is read for its extractor (a header's
-/// is decided by its content).
+/// is decided by its content). Argus deployment values files
+/// (`infra/<env>/values.yaml`) stay for the hosts they serve.
 fn projected(path: &Path) -> bool {
     if YAML_IN_CODE_GRAPH {
+        return true;
+    }
+    // A deployment's values file stays: the hosts it serves link callers to it.
+    if graphicle::extractors::service_hosts::is_deploy_values(
+        &path.to_string_lossy().replace('\\', "/"),
+    ) {
         return true;
     }
     let name = path
@@ -68,9 +75,10 @@ fn projected(path: &Path) -> bool {
 /// ([`YAML_IN_CODE_GRAPH`]). Part of every episode id ([`episode_of`]).
 pub fn graph_format() -> String {
     format!(
-        "graphify-{}/ast-{}{}",
+        "graphify-{}/ast-{}/asm-{}{}",
         graphicle::UPSTREAM_VERSION,
         graphicle::cache::AST_CACHE_SCHEMA,
+        graphicle::extract::ASSEMBLY_REVISION,
         if YAML_IN_CODE_GRAPH { "" } else { "/no-yaml" }
     )
 }
@@ -246,6 +254,10 @@ impl PreparedGraph {
                     // ambiguous receivers land in `attributes.unresolved_calls`.
                     receiver_resolution: true,
                     test_identities: true,
+                    // Compiler, import and dispatch passes beyond the upstream
+                    // port (CommonJS, Python, JVM interfaces): the agent
+                    // tools answer callers from this graph.
+                    precise: true,
                     ..Default::default()
                 },
                 cache
@@ -1716,6 +1728,25 @@ pub fn manifests(
     Ok(out)
 }
 
+/// The `.proto` sources of the repository's current head set, which may
+/// export Go packages generated at build time.
+fn protos(
+    db: &Connection,
+    repository: &str,
+    heads: &BTreeMap<String, String>,
+) -> Result<Vec<(String, String)>> {
+    let mut out = Vec::new();
+    for (relpath, sha) in heads {
+        if !crate::proto_exports::is_proto(relpath) {
+            continue;
+        }
+        if let Some(text) = blob(db, repository, sha)? {
+            out.push((relpath.clone(), text));
+        }
+    }
+    Ok(out)
+}
+
 /// The episode a repository takes part in linking with: the current head
 /// set when it is recorded, else the latest recorded episode. `None` when
 /// the repository has never been projected.
@@ -1747,28 +1778,49 @@ struct Linkable {
     /// The export index as built from the graph, before the nested-project
     /// filter, when this pass built it (it is then stored for later passes).
     built: Option<String>,
+    /// What linking this project's imports reads from the others, stored
+    /// with its export index; `None` (a state written before it was kept)
+    /// reads every other project.
+    interest: Option<xrepo::LinkInterest>,
 }
 
 /// Version of the stored link state (`gf_cross_link_state`). Another value,
 /// as after an upgrade, rebuilds every export index and relinks every
-/// project once.
-pub const LINK_STATE_FORMAT: &str = concat!("xrepo-link-2-http/", env!("CARGO_PKG_VERSION"));
+/// project once. Bump it when linking changes its output for the same
+/// graphs; a release that does not change linking keeps it, so an upgrade
+/// does not relink a large workspace for nothing. 3: Go module paths match
+/// case-insensitively, stored link interest, JavaScript requires and
+/// default/namespace bindings name symbols. 4: export keys follow `exports`
+/// edges (renamed and re-exported CommonJS names), dependency URLs lose
+/// their credentials, consumers pinned to an older release link as `pinned`,
+/// a root Node package is also importable under the project's slug. 5: Go
+/// packages generated from committed `.proto` sources are exported. 6:
+/// `exports` edges list every key (`export_names`), and each symbol a
+/// consumer uses links even when several share one target node. 7: a file
+/// naming a host one other project serves links to each of its deployments
+/// serving it.
+pub const LINK_STATE_FORMAT: &str = "xrepo-link-7-host-projects";
 
 /// The export index stored for `repository` at `episode`, if any.
 fn stored_export_index(
     db: &Connection,
     repository: &str,
     episode: &str,
-) -> Result<Option<ExportIndex>> {
+) -> Result<Option<(ExportIndex, Option<xrepo::LinkInterest>)>> {
     let Some(row) = one(
         db,
-        "SELECT export_index FROM gf_cross_link_state WHERE repository_id=? AND episode=? AND format=?",
+        "SELECT export_index,interest FROM gf_cross_link_state WHERE repository_id=? AND episode=? AND format=?",
         params![repository, episode, LINK_STATE_FORMAT],
     )?
     else {
         return Ok(None);
     };
-    Ok(serde_json::from_str(s(&row, "export_index")).ok())
+    let interest = row["interest"]
+        .as_str()
+        .and_then(|text| serde_json::from_str(text).ok());
+    Ok(serde_json::from_str(s(&row, "export_index"))
+        .ok()
+        .map(|index| (index, interest)))
 }
 
 /// What other projects can import from `index`: its digest without the
@@ -1790,7 +1842,10 @@ fn previous_report(db: &Connection, repository: &str, episode: &str) -> Result<x
     let line = |row: &Value| row["line"].as_u64().map(|line| line as usize);
     let edges = rows(
         db,
-        "SELECT * FROM gf_cross_edges WHERE source_repository_id=? AND valid_to_episode IS NULL ORDER BY id",
+        &format!(
+            "SELECT * FROM gf_cross_edges WHERE source_repository_id=? AND valid_to_episode IS NULL AND {} ORDER BY id",
+            crate::grpc_links::OWN
+        ),
         [repository],
     )?
     .iter()
@@ -1856,25 +1911,30 @@ fn previous_report(db: &Connection, repository: &str, episode: &str) -> Result<x
     })
 }
 
-fn live_pair_episodes(
+/// The (source, target) episode pairs of `source`'s live cross edges, by
+/// target repository.
+fn live_episodes_from(
     db: &Connection,
     source: &str,
-    target: &str,
-) -> Result<Vec<(String, String)>> {
-    Ok(rows(
+) -> Result<HashMap<String, Vec<(String, String)>>> {
+    let mut out: HashMap<String, Vec<(String, String)>> = HashMap::new();
+    for r in rows(
         db,
-        "SELECT DISTINCT source_episode,target_episode FROM gf_cross_edges \
-         WHERE source_repository_id=? AND target_repository_id=? AND valid_to_episode IS NULL",
-        params![source, target],
-    )?
-    .iter()
-    .map(|r| {
-        (
-            s(r, "source_episode").to_string(),
-            s(r, "target_episode").to_string(),
-        )
-    })
-    .collect())
+        &format!(
+            "SELECT DISTINCT target_repository_id,source_episode,target_episode FROM gf_cross_edges \
+             WHERE source_repository_id=? AND valid_to_episode IS NULL AND {} ORDER BY 1,2,3",
+            crate::grpc_links::OWN
+        ),
+        params![source],
+    )? {
+        out.entry(s(&r, "target_repository_id").to_string())
+            .or_default()
+            .push((
+                s(&r, "source_episode").to_string(),
+                s(&r, "target_episode").to_string(),
+            ));
+    }
+    Ok(out)
 }
 
 fn same_cross_edges(
@@ -1901,7 +1961,7 @@ fn same_cross_edges(
     let mut previous: Vec<String> = rows(db,
         "SELECT source_node_id,source_stable_id,target_node_id,target_stable_id,relation,confidence,derivation,\
          module_path,symbol,line,version_constraint,exporter_version,version_status FROM gf_cross_edges \
-         WHERE source_repository_id=? AND target_repository_id=? AND valid_to_episode IS NULL",
+         WHERE source_repository_id=? AND target_repository_id=? AND valid_to_episode IS NULL AND relation<>'grpc_calls'",
         params![source, target],
     )?.iter().map(|row| json!(FIELDS.iter().map(|field| &row[*field]).collect::<Vec<_>>()).to_string()).collect();
     let mut next: Vec<String> = edges
@@ -2058,13 +2118,23 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
         } else {
             None
         };
-        let (graph, index, built) = match stored {
-            Some(index) => (None, index, None),
+        let (graph, index, built, interest) = match stored {
+            Some((index, interest)) => (None, index, None, interest),
             None => {
                 let graph = resident(db, &id, &episode)?;
-                let index = export_index(&graph, &id, &episode, &manifests);
+                // The project's name ends in the repository slug, the name
+                // an internal registry may publish its package under.
+                let slug = name.rsplit('/').next().unwrap_or(&name);
+                let index =
+                    xrepo::published_as(export_index(&graph, &id, &episode, &manifests), slug);
+                let index = crate::proto_exports::with_proto_packages(
+                    index,
+                    &protos(db, &id, &heads)?,
+                    slug,
+                );
                 let built = json!(index).to_string();
-                (Some(graph), index, Some(built))
+                let interest = xrepo::link_interest(&graph);
+                (Some(graph), index, Some(built), Some(interest))
             }
         };
         repos.push(Linkable {
@@ -2077,6 +2147,7 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
             manifests,
             index,
             built,
+            interest,
         });
     }
     // Nested projects: a project synced from a folder inside
@@ -2096,6 +2167,12 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
             index.http_routes.retain(|route| {
                 route
                     .node
+                    .relpath
+                    .as_deref()
+                    .is_some_and(|path| !prefixes.iter().any(|prefix| below(path, prefix)))
+            });
+            index.app_hosts.retain(|host| {
+                host.node
                     .relpath
                     .as_deref()
                     .is_some_and(|path| !prefixes.iter().any(|prefix| below(path, prefix)))
@@ -2194,16 +2271,18 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
             !repo.index.packages.is_empty()
                 || !repo.index.modules.is_empty()
                 || !repo.index.http_routes.is_empty()
+                || !repo.index.app_hosts.is_empty()
         });
     if keep_state {
         for repo in &repos {
             if let Some(built) = &repo.built {
+                let interest = repo.interest.as_ref().map(|i| json!(i).to_string());
                 db.execute(
-                    "INSERT INTO gf_cross_link_state(repository_id,workspace_id,episode,format,export_index,created_at) \
-                     VALUES(?,?,?,?,?,?) ON CONFLICT(repository_id) DO UPDATE SET workspace_id=excluded.workspace_id,\
+                    "INSERT INTO gf_cross_link_state(repository_id,workspace_id,episode,format,export_index,interest,created_at) \
+                     VALUES(?,?,?,?,?,?,?) ON CONFLICT(repository_id) DO UPDATE SET workspace_id=excluded.workspace_id,\
                      episode=excluded.episode,format=excluded.format,export_index=excluded.export_index,\
-                     created_at=excluded.created_at",
-                    params![repo.id, workspace, repo.episode, LINK_STATE_FORMAT, built, now()],
+                     interest=excluded.interest,created_at=excluded.created_at",
+                    params![repo.id, workspace, repo.episode, LINK_STATE_FORMAT, built, interest, now()],
                 )?;
             }
         }
@@ -2212,6 +2291,52 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
         .iter()
         .map(|repo| export_surface(&repo.index))
         .collect();
+    // Which projects can serve an import under each key, so each importer
+    // finds the projects its link reads by lookup, not by a scan of all.
+    let mut serving: HashMap<String, BTreeSet<usize>> = HashMap::new();
+    for (j, repo) in repos.iter().enumerate() {
+        for key in repo.index.interest_keys() {
+            serving.entry(key).or_default().insert(j);
+        }
+    }
+    // ponytail: HTTP fit is a scan of the projects with routes per importer
+    // with requests; index routes by path segment if that grows.
+    let routed: Vec<usize> = (0..repos.len())
+        .filter(|&j| !repos[j].index.http_routes.is_empty())
+        .collect();
+    let hosted: Vec<usize> = (0..repos.len())
+        .filter(|&j| !repos[j].index.app_hosts.is_empty())
+        .collect();
+    let reads = |i: usize| -> Vec<usize> {
+        let Some(interest) = &repos[i].interest else {
+            return (0..repos.len()).filter(|&j| j != i).collect();
+        };
+        let mut read: BTreeSet<usize> = interest
+            .reachable_keys()
+            .iter()
+            .filter_map(|key| serving.get(key))
+            .flatten()
+            .copied()
+            .collect();
+        if !interest.requests.is_empty() {
+            read.extend(
+                routed
+                    .iter()
+                    .copied()
+                    .filter(|&j| interest.requests_fit(&repos[j].index)),
+            );
+        }
+        if !interest.hosts.is_empty() {
+            read.extend(
+                hosted
+                    .iter()
+                    .copied()
+                    .filter(|&j| interest.hosts_fit(&repos[j].index)),
+            );
+        }
+        read.remove(&i);
+        read.into_iter().collect()
+    };
     let stamp = now();
     let mut pairs = Vec::new();
     let mut edges_total = 0usize;
@@ -2219,18 +2344,17 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
     let mut relinked = Vec::new();
     let mut reused = Vec::new();
     for (i, importer) in repos.iter().enumerate() {
+        let read = reads(i);
         // Everything the importer's link reads besides its own episode: the
-        // other projects taking part, in order, with their export surfaces.
+        // other projects it can import from, in order, with their export
+        // surfaces. A project it cannot import from joining, leaving or
+        // changing leaves its link as it was.
         let inputs = digest(&json!([
             LINK_STATE_FORMAT,
             importer.id,
             importer.episode,
-            repos
-                .iter()
-                .zip(&surfaces)
-                .enumerate()
-                .filter(|(j, _)| *j != i)
-                .map(|(_, (repo, surface))| json!([repo.id, surface]))
+            read.iter()
+                .map(|&j| json!([repos[j].id, surfaces[j]]))
                 .collect::<Vec<_>>(),
         ]));
         let reuse = incremental && keep_state && unchanged_link(db, &importer.id, &inputs)?;
@@ -2239,16 +2363,22 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
             previous_report(db, &importer.id, &importer.episode)?
         } else {
             relinked.push(importer.id.as_str());
-            let others: Vec<ExportIndex> = repos
-                .iter()
-                .enumerate()
-                .filter(|(j, _)| *j != i)
-                .map(|(_, r)| r.index.clone())
-                .collect();
+            // Only the exporters the importer can read: any other index
+            // serves none of its imports or requests (the reuse digest above
+            // rests on the same set).
+            let others: Vec<&ExportIndex> = read.iter().map(|&j| &repos[j].index).collect();
             let graph = match &importer.graph {
                 Some(graph) => graph.clone(),
                 None => resident(db, &importer.id, &importer.episode)?,
             };
+            // A state stored before interests were kept gains one, so the
+            // next pass reads only the projects this one can import from.
+            if importer.interest.is_none() && keep_state {
+                db.execute(
+                    "UPDATE gf_cross_link_state SET interest=?1 WHERE repository_id=?2 AND episode=?3",
+                    params![json!(xrepo::link_interest(&graph)).to_string(), importer.id, importer.episode],
+                )?;
+            }
             let loader = |relpath: &str| -> Option<String> {
                 let sha = importer.heads.get(relpath)?;
                 blob(db, &importer.id, sha).ok().flatten()
@@ -2279,21 +2409,32 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
             unresolved_total += report.unresolved.len();
             continue;
         }
+        // The exporters this importer can read (its link interest), not
+        // every project: an unrelated project's new episode then neither
+        // rewrites these rows nor grows each row with the workspace.
         let exporter_episodes = json!(
-            repos
-                .iter()
-                .enumerate()
-                .filter(|(j, _)| *j != i)
-                .map(|(_, other)| (other.index.repo.clone(), other.index.episode.clone()))
+            read.iter()
+                .map(|&j| (repos[j].index.repo.clone(), repos[j].index.episode.clone()))
                 .collect::<BTreeMap<_, _>>()
         )
         .to_string();
         let mut rewritten_any = false;
+        // Only the exporters this importer has live edges to or links to
+        // now: one query per importer, not one per pair of projects.
+        let mut live_by_target = live_episodes_from(db, &importer.id)?;
+        let linked: HashSet<&str> = report
+            .edges
+            .iter()
+            .map(|e| e.target.repo.as_str())
+            .collect();
         for (j, exporter) in repos.iter().enumerate() {
-            if j == i {
+            if j == i
+                || !(live_by_target.contains_key(&exporter.id)
+                    || linked.contains(exporter.id.as_str()))
+            {
                 continue;
             }
-            let live = live_pair_episodes(db, &importer.id, &exporter.id)?;
+            let live = live_by_target.remove(&exporter.id).unwrap_or_default();
             let current_pair = (importer.episode.clone(), exporter.episode.clone());
             let edges: Vec<&xrepo::CrossEdge> = report
                 .edges
@@ -2321,8 +2462,12 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
                     (&exporter.id, &exporter.episode)
                 };
                 closed += db.execute(
-                    "UPDATE gf_cross_edges SET valid_to_episode=?,valid_to_repository_id=? \
-                     WHERE source_repository_id=? AND target_repository_id=? AND source_episode=? AND valid_to_episode IS NULL",
+                    &format!(
+                        "UPDATE gf_cross_edges SET valid_to_episode=?,valid_to_repository_id=? \
+                         WHERE source_repository_id=? AND target_repository_id=? AND source_episode=? \
+                         AND valid_to_episode IS NULL AND {}",
+                        crate::grpc_links::OWN
+                    ),
                     params![to_episode, to_repo, importer.id, exporter.id, source_episode],
                 )?;
             }
@@ -2411,13 +2556,24 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
         // updates a stored row only, so a workspace without one gains none.
         db.execute(
             "UPDATE gf_cross_link_state SET inputs=?1,\
-             edges=(SELECT count(*) FROM gf_cross_edges WHERE source_repository_id=?2 AND valid_to_episode IS NULL),\
+             edges=(SELECT count(*) FROM gf_cross_edges WHERE source_repository_id=?2 AND valid_to_episode IS NULL AND relation<>'grpc_calls'),\
              unresolved=(SELECT count(*) FROM gf_cross_unresolved WHERE source_repository_id=?2 AND valid_to_episode IS NULL) \
              WHERE repository_id=?2",
             params![inputs, importer.id],
         )?;
         unresolved_total += report.unresolved.len();
     }
+    // gRPC links follow from the import rows just written.
+    let grpc = if hidden == 0 {
+        let episodes: HashMap<String, String> = repos
+            .iter()
+            .map(|r| (r.id.clone(), r.episode.clone()))
+            .collect();
+        let (links, inserted, closed) = crate::grpc_links::relink(db, workspace, &episodes)?;
+        json!({"links": links, "inserted": inserted, "closed": closed})
+    } else {
+        Value::Null
+    };
     let mut summary = json!({
         "repositories": repos.iter().map(|r| json!({
             "id": r.id, "name": r.name, "episode": r.episode, "current": r.current,
@@ -2436,6 +2592,7 @@ fn link_workspace_with(db: &Connection, p: &Principal, incremental: bool) -> Res
         "incremental": incremental,
         "relinked": relinked,
         "reused": reused,
+        "grpc": grpc,
     });
     if !skipped_scratch.is_empty() {
         summary["pr_scratch_skipped"] = json!(skipped_scratch);
@@ -2449,7 +2606,7 @@ fn unchanged_link(db: &Connection, repository: &str, inputs: &str) -> Result<boo
     Ok(one(
         db,
         "SELECT 1 AS same FROM gf_cross_link_state WHERE repository_id=?1 AND inputs=?2 \
-         AND edges=(SELECT count(*) FROM gf_cross_edges WHERE source_repository_id=?1 AND valid_to_episode IS NULL) \
+         AND edges=(SELECT count(*) FROM gf_cross_edges WHERE source_repository_id=?1 AND valid_to_episode IS NULL AND relation<>'grpc_calls') \
          AND unresolved=(SELECT count(*) FROM gf_cross_unresolved WHERE source_repository_id=?1 AND valid_to_episode IS NULL)",
         params![repository, inputs],
     )?
@@ -2587,9 +2744,29 @@ pub fn live_cross_edges(
     repository: &str,
     direction: CrossDirection,
 ) -> Result<Vec<Value>> {
-    let (own, other) = match direction {
-        CrossDirection::Outgoing => ("source_repository_id", "target_repository_id"),
-        CrossDirection::Incoming => ("target_repository_id", "source_repository_id"),
+    live_cross_edges_at(db, p, repository, direction, None)
+}
+
+/// [`live_cross_edges`], only those at node `node` of `repository` when
+/// given (filtered in the query, on the repository-and-node index).
+fn live_cross_edges_at(
+    db: &Connection,
+    p: &Principal,
+    repository: &str,
+    direction: CrossDirection,
+    node: Option<&str>,
+) -> Result<Vec<Value>> {
+    let (own, other, own_node) = match direction {
+        CrossDirection::Outgoing => (
+            "source_repository_id",
+            "target_repository_id",
+            "source_node_id",
+        ),
+        CrossDirection::Incoming => (
+            "target_repository_id",
+            "source_repository_id",
+            "target_node_id",
+        ),
     };
     let mut readable: HashMap<String, bool> = HashMap::new();
     let mut out = Vec::new();
@@ -2597,9 +2774,14 @@ pub fn live_cross_edges(
     for edge in rows(
         db,
         &format!(
-            "SELECT * FROM gf_cross_edges WHERE workspace_id=?1 AND {own}=?2 AND valid_to_episode IS NULL ORDER BY id"
+            "SELECT * FROM gf_cross_edges WHERE workspace_id=?1 AND {own}=?2 AND valid_to_episode IS NULL{} ORDER BY id",
+            if node.is_some() {
+                format!(" AND {own_node}=?3")
+            } else {
+                String::new()
+            }
         ),
-        params![p.workspace, repository],
+        rusqlite::params_from_iter([p.workspace.as_str(), repository].into_iter().chain(node)),
     )? {
         let side = s(&edge, other).to_string();
         let allowed = match readable.get(&side) {
@@ -2629,6 +2811,63 @@ pub fn live_cross_edges(
             }
             out.push(edge);
         }
+    }
+    Ok(out)
+}
+
+/// The other projects that import node `node` of `repository`, one entry
+/// per project: its live incoming cross-repository edges, read through
+/// [`live_cross_edges`] (so only projects the principal may read), grouped by
+/// importing project with the number of imports, the symbols they name, and
+/// the first import's file, line and version labels as its citation.
+pub fn imported_by(
+    db: &Connection,
+    p: &Principal,
+    repository: &str,
+    node: &str,
+) -> Result<Vec<Value>> {
+    let mut out: Vec<Value> = Vec::new();
+    let mut at: HashMap<String, usize> = HashMap::new();
+    let mut symbols: Vec<BTreeSet<String>> = Vec::new();
+    for edge in live_cross_edges_at(db, p, repository, CrossDirection::Incoming, Some(node))? {
+        let source = s(&edge, "source_repository_id");
+        if let Some(&i) = at.get(source) {
+            out[i]["imports"] = json!(out[i]["imports"].as_u64().unwrap_or(0) + 1);
+            symbols[i].extend(edge["symbol"].as_str().map(str::to_string));
+            continue;
+        }
+        let name = one(db, "SELECT name FROM repo_projects WHERE id=?", [source])?;
+        let file = one(
+            db,
+            "SELECT json_extract(attributes,'$.source_file') AS file FROM gf_nodes \
+             WHERE repository_id=?1 AND node_id=?2 AND valid_to_episode IS NULL LIMIT 1",
+            params![source, s(&edge, "source_node_id")],
+        )?;
+        at.insert(source.to_string(), out.len());
+        symbols.push(
+            edge["symbol"]
+                .as_str()
+                .map(str::to_string)
+                .into_iter()
+                .collect(),
+        );
+        out.push(json!({
+            "repository_id": source,
+            "project": name.map_or(Value::Null, |r| r["name"].clone()),
+            "imports": 1,
+            "file": file.map_or(Value::Null, |r| r["file"].clone()),
+            "line": edge["line"],
+            "symbol": edge["symbol"],
+            "relation": edge["relation"],
+            "confidence": edge["confidence"],
+            "derivation": edge["derivation"],
+            "version_status": edge["version_status"],
+            "version_constraint": edge["version_constraint"],
+            "exporter_version": edge["exporter_version"],
+        }));
+    }
+    for (entry, names) in out.iter_mut().zip(symbols) {
+        entry["symbols"] = json!(names);
     }
     Ok(out)
 }

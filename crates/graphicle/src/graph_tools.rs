@@ -547,6 +547,13 @@ pub fn call(store: &Store, workspace: &str, token: &str, args: &Value) -> Result
             )? {
                 reply[crate::possibly_incomplete::FIELD] = report;
             }
+            // The callers in other projects of the workspace: their imports.
+            if let Some(node) = g.nodes()[subject].id.as_str() {
+                let by = crate::graph_projection::imported_by(db, p, identifier, node)?;
+                if !by.is_empty() {
+                    reply["imported_by"] = json!(by);
+                }
+            }
         }
         Ok(reply)
     })
@@ -648,7 +655,79 @@ pub fn citations_text(reply: &Value) -> String {
     {
         out.push_str(&format!("\n{line}"));
     }
+    if let Some(by) = reply["imported_by"].as_array() {
+        let (pinned, current): (Vec<&Value>, Vec<&Value>) = by.iter().partition(|i| {
+            i["version_status"] == graphicle_memory::graph::cross_repo_imports::VERSION_PINNED
+        });
+        if !current.is_empty() {
+            out.push_str(&format!(
+                "\nImported by other projects ({}): {}.",
+                current.len(),
+                importers_text(&current, false)
+            ));
+        }
+        if !pinned.is_empty() {
+            out.push_str(&format!(
+                "\nPinned to an older release ({}; changes here are upgrade suggestions for them): {}.",
+                pinned.len(),
+                importers_text(&pinned, true)
+            ));
+        }
+    }
     out
+}
+
+/// At most [`CITED_IN_TEXT`] importing places, `project file:line (symbol)`,
+/// with the pinned constraint and current version when `versions`.
+fn importers_text(by: &[&Value], versions: bool) -> String {
+    let places: Vec<String> = by
+        .iter()
+        .take(CITED_IN_TEXT)
+        .map(|i| {
+            let mut place = format!(
+                "{} {}:{} ({})",
+                i["project"].as_str().unwrap_or(""),
+                i["file"].as_str().unwrap_or(""),
+                i["line"],
+                i["symbol"].as_str().unwrap_or("")
+            );
+            let more = i["imports"].as_u64().unwrap_or(1).saturating_sub(1);
+            if more > 0 {
+                place.push_str(&format!(
+                    " and {more} more import{}",
+                    if more == 1 { "" } else { "s" }
+                ));
+            }
+            if i["version_status"] == graphicle_memory::graph::cross_repo_imports::VERSION_AHEAD {
+                place.push_str(&format!(
+                    " [asks for {} but this is {}]",
+                    i["version_constraint"].as_str().unwrap_or("?"),
+                    i["exporter_version"].as_str().unwrap_or("?")
+                ));
+            }
+            if i["derivation"]
+                .as_str()
+                .is_some_and(|d| d.contains("published_as"))
+            {
+                place.push_str(" [matched by repository name]");
+            }
+            if versions {
+                format!(
+                    "{place} pinned {}, current {}",
+                    i["version_constraint"].as_str().unwrap_or("?"),
+                    i["exporter_version"].as_str().unwrap_or("?")
+                )
+            } else {
+                place
+            }
+        })
+        .collect();
+    let more = by.len().saturating_sub(places.len());
+    if more > 0 {
+        format!("{}, {more} more", places.join(", "))
+    } else {
+        places.join(", ")
+    }
 }
 
 /// Back-links named per node in the citations block.
@@ -1314,6 +1393,27 @@ fn citation(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Consumers pinned to an older release are named apart from current
+    /// importers, with their constraint and the library's current version.
+    #[test]
+    fn pinned_importers_are_a_separate_upgrade_group() {
+        let reply = json!({"imported_by":[
+            {"project":"Shop","file":"a.js","line":3,"symbol":"push","version_status":"satisfied"},
+            {"project":"Cart","file":"c.js","line":5,"symbol":"pop","imports":3,"version_status":"ahead_of_head",
+             "version_constraint":"^5.0.0","exporter_version":"4.0.4","derivation":"import_statement:published_as:main"},
+            {"project":"Feed","file":"b.js","line":9,"symbol":"push","version_status":"pinned",
+             "version_constraint":"^2.8.0","exporter_version":"4.0.4"}]});
+        let text = citations_text(&reply);
+        assert!(
+            text.contains("Imported by other projects (2): Shop a.js:3 (push), Cart c.js:5 (pop) and 2 more imports [asks for ^5.0.0 but this is 4.0.4] [matched by repository name]."),
+            "{text}"
+        );
+        assert!(
+            text.contains("Pinned to an older release (1; changes here are upgrade suggestions for them): Feed b.js:9 (push) pinned ^2.8.0, current 4.0.4."),
+            "{text}"
+        );
+    }
 
     /// The rewrite is generic over the engine's specs: `project_path` goes,
     /// the pull-request tools' GitHub `repo` becomes `github_repo` (also in

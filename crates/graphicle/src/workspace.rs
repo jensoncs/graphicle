@@ -1075,11 +1075,14 @@ fn step_texts(
         {
             for edge in &edges[i][slot] {
                 let mut file = |repository: &str, side: &str| {
+                    let node = s(edge, &format!("{side}_node_id"));
                     graphs
                         .read(repository, s(edge, &format!("{side}_episode")), |g| {
-                            g.relpath(s(edge, &format!("{side}_node_id")))
+                            g.relpath(node)
                         })
                         .flatten()
+                        // A package generated from `.proto` sources has no node.
+                        .or_else(|| crate::proto_exports::relpath_of(node).map(str::to_string))
                         .map(|path| format!("file:{path}"))
                 };
                 let Some(own_file) = file(&ids[i], own).filter(|f| windows.contains(f.as_str()))

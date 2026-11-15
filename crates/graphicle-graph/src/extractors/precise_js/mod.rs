@@ -115,7 +115,14 @@ struct Site {
 #[derive(Debug)]
 enum Export {
     Local(Ref),
-    From { spec: String, name: String },
+    From {
+        spec: String,
+        name: String,
+    },
+    /// A whole module: `k: require(m)`, or `const m = require(..)` exported as `m`.
+    Module(String),
+    /// A value written in place (`k: function () {}`, `k() {}`, `k: () => ..`).
+    Inline,
 }
 
 #[derive(Debug)]
@@ -280,9 +287,10 @@ impl<'a> Reader<'_, 'a> {
             _ => None,
         }
     }
-    /// CommonJS exports: `module.exports = { a, b: c }`, `module.exports = X`
+    /// CommonJS exports: `module.exports = { a, b: c, ...m }`, `module.exports = X`
     /// (the module's default), and `exports.a = X` / `module.exports.a = X`.
-    fn commonjs_exports(&self, a: &AssignmentExpression<'a>, out: &mut FxHashMap<String, Export>) {
+    /// A spread module re-exports its keys, as `export *` does.
+    fn commonjs_exports(&self, a: &AssignmentExpression<'a>, out: &mut Summary) {
         let AssignmentTarget::StaticMemberExpression(target) = &a.left else {
             return;
         };
@@ -291,32 +299,56 @@ impl<'a> Reader<'_, 'a> {
             matches!(e, Expression::StaticMemberExpression(m)
                 if m.property.name == "exports" && self.global(m.object.get_inner_expression(), "module"))
         };
-        let local = |e: &Expression<'a>| match e.get_inner_expression() {
-            Expression::Identifier(ident) => self.export_ref(ident),
-            _ => None,
-        };
         if target.property.name == "exports" && self.global(object, "module") {
             match a.right.get_inner_expression() {
                 Expression::ObjectExpression(o) => {
                     for prop in &o.properties {
-                        if let ObjectPropertyKind::ObjectProperty(p) = prop
-                            && let Some(key) = p.key.static_name()
-                            && let Some(r) = local(&p.value)
-                        {
-                            out.insert(key.to_string(), Export::Local(r));
+                        match prop {
+                            ObjectPropertyKind::ObjectProperty(p) => {
+                                if let Some(key) = p.key.static_name()
+                                    && let Some(e) = self.exported_value(&p.value)
+                                {
+                                    out.exports.insert(key.to_string(), e);
+                                }
+                            }
+                            ObjectPropertyKind::SpreadProperty(spread) => {
+                                if let Some(Export::Module(spec)) =
+                                    self.exported_value(&spread.argument)
+                                {
+                                    out.stars.push(spec);
+                                }
+                            }
                         }
                     }
                 }
                 right => {
-                    if let Some(r) = local(right) {
-                        out.insert("default".into(), Export::Local(r));
+                    if let Some(e) = self.exported_value(right) {
+                        out.exports.insert("default".into(), e);
                     }
                 }
             }
         } else if (self.global(object, "exports") || module_exports(object))
-            && let Some(r) = local(&a.right)
+            && let Some(e) = self.exported_value(&a.right)
         {
-            out.insert(target.property.name.to_string(), Export::Local(r));
+            out.exports.insert(target.property.name.to_string(), e);
+        }
+    }
+    /// What an exported value is: a declaration, a whole module, or written in place.
+    fn exported_value(&self, e: &Expression<'a>) -> Option<Export> {
+        let e = e.get_inner_expression();
+        if let Some(spec) = self.required(e) {
+            return Some(Export::Module(spec));
+        }
+        match e {
+            Expression::Identifier(ident) => match self.binding(ident, 0)? {
+                Binding::Decl(r) | Binding::Class(r) => Some(Export::Local(r)),
+                Binding::Namespace(spec) => Some(Export::Module(spec)),
+                Binding::Instance(..) => None,
+            },
+            Expression::FunctionExpression(_) | Expression::ArrowFunctionExpression(_) => {
+                Some(Export::Inline)
+            }
+            _ => None,
         }
     }
     /// `C`, `C | null`, `C | undefined` as a class reference.
@@ -642,7 +674,7 @@ impl<'a> Reader<'_, 'a> {
                         out.exports.insert("default".into(), Export::Local(r));
                     }
                 }
-                AstKind::AssignmentExpression(a) => self.commonjs_exports(a, &mut out.exports),
+                AstKind::AssignmentExpression(a) => self.commonjs_exports(a, &mut out),
                 AstKind::ExportAllDeclaration(e) if e.exported.is_none() => {
                     out.stars.push(e.source.value.to_string());
                 }
@@ -955,6 +987,52 @@ pub fn resolve(
             added.push(edge(b.caller, b.target, b.line, &b.file, b.resolution));
         }
     }
+    // Export keys a file re-exports or renames (`module.exports = { k: v }`):
+    // an `exports` edge from the file to the declaration, so a consumer's
+    // `require(lib).k` finds it across repositories.
+    let file_nodes: FxHashMap<String, (&str, &str)> = all_nodes
+        .iter()
+        .filter(|n| {
+            let sf = s(n, "source_file");
+            is_js(Path::new(sf))
+                && Path::new(sf).file_name() == Path::new(s(n, "label")).file_name()
+        })
+        .map(|n| {
+            (
+                source_key(s(n, "source_file"), root),
+                (s(n, "id"), s(n, "source_file")),
+            )
+        })
+        .collect();
+    // One edge per (file, target): the graph keeps one edge of a relation per
+    // pair, so every key resolving to the same target rides on it.
+    let mut by_target: std::collections::BTreeMap<(&str, &str), (&str, Vec<String>)> =
+        Default::default();
+    let found = bind::exported(&mut r, |key| emit.contains(key), &index);
+    for (key, name, target) in &found {
+        let target = match target {
+            bind::Exported::Node(id) => *id,
+            bind::Exported::File(owner) => match file_nodes.get(owner) {
+                Some((id, _)) => *id,
+                None => continue,
+            },
+        };
+        if let Some((file, source_file)) = file_nodes.get(key) {
+            by_target
+                .entry((file, target))
+                .or_insert((source_file, vec![]))
+                .1
+                .push(name.clone());
+        }
+    }
+    for ((file, target), (source_file, names)) in by_target {
+        added.push(
+            json!({"source": file, "target": target, "relation": "exports",
+            "export_names": names, "confidence": "EXTRACTED", "confidence_score": 1.0,
+            "source_file": source_file, "weight": 1.0, "_origin": "ast",
+            "resolution": "oxc_binding"}),
+        );
+    }
     if timing {
         eprintln!(
             "[precise js] files={} parse+semantic={:.0}ms total={:.0}ms added={}",
@@ -971,6 +1049,7 @@ pub fn resolve(
 mod tests {
     use crate::extract::{ExtractOptions, extract};
     use serde_json::Value;
+    use std::collections::BTreeSet;
     use std::path::{Path, PathBuf};
 
     fn write(root: &Path, rel: &str, text: &str) -> PathBuf {
@@ -1062,6 +1141,172 @@ mod tests {
                 .any(|(s, t, r)| s == ".describe()" && t == ".area()" && r != "oxc_type"),
             "{calls:?}"
         );
+    }
+
+    #[test]
+    fn commonjs_export_keys_point_at_the_declarations_they_resolve_to() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = crate::extractors::resolution::resolved(dir.path());
+        let files = vec![
+            write(
+                &root,
+                "v2/src/index.js",
+                "function initObserver() { return 1; }\nfunction getOriginModule() { return 2; }\nmodule.exports = { initObserver, getOriginModule };\n",
+            ),
+            write(
+                &root,
+                "trace.js",
+                "const { initObserver, getOriginModule } = require('./v2/src/index');\nfunction local() { return 3; }\nmodule.exports = { initObserver, getReferrer: getOriginModule, local };\n",
+            ),
+        ];
+        let options = ExtractOptions {
+            root: Some(root.clone()),
+            cache_root: Some(root.clone()),
+            parallel: false,
+            precise: true,
+            ..Default::default()
+        };
+        let _serial = crate::extractors::parse_cache::test_serial();
+        let result = extract(&files, &options).unwrap();
+        let label = |id: &str| {
+            result["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|n| n["id"] == id)
+                .map(|n| n["label"].as_str().unwrap().to_string())
+                .unwrap_or_default()
+        };
+        let mut exports: Vec<(String, String, String)> = result["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["relation"] == "exports")
+            .flat_map(|e| {
+                e["export_names"].as_array().unwrap().iter().map(|name| {
+                    (
+                        label(e["source"].as_str().unwrap()),
+                        name.as_str().unwrap().to_string(),
+                        label(e["target"].as_str().unwrap()),
+                    )
+                })
+            })
+            .collect();
+        exports.sort();
+        // `local` is declared in trace.js under its own name: its node already
+        // carries the export, so it gets no edge.
+        assert_eq!(
+            exports,
+            vec![
+                (
+                    "trace.js".into(),
+                    "getReferrer".into(),
+                    "getOriginModule()".into()
+                ),
+                (
+                    "trace.js".into(),
+                    "initObserver".into(),
+                    "initObserver()".into()
+                ),
+            ]
+        );
+    }
+
+    /// Keys with no declaration of their own (a whole module, a value written
+    /// in place, a spread module) point at the file that defines them.
+    #[test]
+    fn commonjs_export_keys_without_a_declaration_point_at_their_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = crate::extractors::resolution::resolved(dir.path());
+        let files = vec![
+            write(
+                &root,
+                "v2/src/logger.js",
+                "class Logger { info() { return 1; } }\nmodule.exports = new Logger();\n",
+            ),
+            write(
+                &root,
+                "v2/src/index.js",
+                "module.exports = {\n  initTracer: function (config) { return config; },\n  flush: () => 2,\n};\n",
+            ),
+            write(
+                &root,
+                "errors/index.js",
+                "class AppError {}\nmodule.exports = { AppError };\n",
+            ),
+            write(&root, "post-card.js", "module.exports = (x) => x;\n"),
+            write(
+                &root,
+                "prom.js",
+                "module.exports.promMid = require('./post-card');\n",
+            ),
+            write(
+                &root,
+                "trace.js",
+                "const { initTracer, flush } = require('./v2/src/index');\nconst logger = require('./v2/src/logger');\nconst errors = require('./errors');\nmodule.exports = {\n  ...errors,\n  initTracer,\n  flush,\n  logger,\n  makePostCard: require('./post-card'),\n};\n",
+            ),
+        ];
+        let options = ExtractOptions {
+            root: Some(root.clone()),
+            cache_root: Some(root.clone()),
+            parallel: false,
+            precise: true,
+            ..Default::default()
+        };
+        let _serial = crate::extractors::parse_cache::test_serial();
+        let result = extract(&files, &options).unwrap();
+        let node = |id: &str| {
+            result["nodes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|n| n["id"] == id)
+                .map(|n| {
+                    format!(
+                        "{}:{}",
+                        n["source_file"].as_str().unwrap_or(""),
+                        n["label"].as_str().unwrap()
+                    )
+                })
+                .unwrap_or_default()
+        };
+        let exports: BTreeSet<(String, String, String)> = result["edges"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e["relation"] == "exports")
+            .flat_map(|e| {
+                // One edge per target: every key that resolves to it.
+                e["export_names"].as_array().unwrap().iter().map(|name| {
+                    (
+                        node(e["source"].as_str().unwrap()),
+                        name.as_str().unwrap().to_string(),
+                        node(e["target"].as_str().unwrap()),
+                    )
+                })
+            })
+            .collect();
+        let has = |source: &str, key: &str, target: &str| {
+            exports
+                .iter()
+                .any(|(s, k, t)| s.starts_with(source) && k == key && t.starts_with(target))
+        };
+        for (source, key, target) in [
+            ("trace.js:", "AppError", "errors/index.js:AppError"),
+            ("trace.js:", "initTracer", "v2/src/index.js:"),
+            ("trace.js:", "flush", "v2/src/index.js:"),
+            ("trace.js:", "logger", "v2/src/logger.js:logger.js"),
+            ("trace.js:", "makePostCard", "post-card.js:post-card.js"),
+            ("prom.js:", "promMid", "post-card.js:post-card.js"),
+            ("v2/src/index.js:", "flush", "v2/src/index.js:"),
+        ] {
+            assert!(
+                has(source, key, target),
+                "{source} {key} -> {target}: {exports:#?}"
+            );
+        }
+        // A key declared in its own file under its own name gets no edge.
+        assert!(!has("errors/index.js:", "AppError", ""), "{exports:#?}");
     }
 
     #[test]

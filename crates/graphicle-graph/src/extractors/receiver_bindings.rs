@@ -16,6 +16,8 @@ pub enum Evidence {
     Annotation,
     SelfMethod,
     ModuleAttr,
+    /// A constructor parameter named by a dependency-injection registration.
+    Injection,
 }
 impl Evidence {
     pub fn as_str(self) -> &'static str {
@@ -24,6 +26,7 @@ impl Evidence {
             Evidence::Annotation => "annotation",
             Evidence::SelfMethod => "self_method",
             Evidence::ModuleAttr => "module_attr",
+            Evidence::Injection => "di_registration",
         }
     }
 }
@@ -34,6 +37,17 @@ pub enum TypeRef {
     Name(String),
     /// The return type of the named function called on `line` (Go `x := NewFoo()`).
     Return(String, usize),
+    /// Whatever a dependency-injection container registers under this
+    /// constructor parameter's name (Awilix CLASSIC mode: `this.x = eventService`).
+    Injected(String),
+}
+/// What `container.register` registers under a key.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Registered {
+    /// `asClass(require('./path'))`
+    Require(String),
+    /// `asClass(Name)`: a class declared or required in the registering file.
+    Name(String),
 }
 #[derive(Clone, Debug)]
 pub struct Binding {
@@ -92,6 +106,10 @@ pub struct FileFacts {
     pub fields: BTreeMap<String, Vec<Binding>>,
     /// Names declared as interfaces (TypeScript `interface`, Go interface types).
     pub interfaces: BTreeSet<String>,
+    /// JavaScript `const X = require('./x')` and `import X from './x'`: local name to specifier.
+    pub requires: BTreeMap<String, String>,
+    /// JavaScript `container.register('key', asClass(...))` and `register({ key: asClass(...) })`.
+    pub registrations: Vec<(String, Registered)>,
 }
 impl FileFacts {
     fn new(len: usize) -> Self {
@@ -554,6 +572,42 @@ struct JsWalker<'s> {
     facts: FileFacts,
     stack: Vec<usize>,
     classes: Vec<String>,
+    /// Plain parameter names of the constructor being walked.
+    ctor_params: Option<BTreeSet<String>>,
+}
+/// The string of a `'./x'` literal.
+fn js_string(n: Node<'_>, s: &[u8]) -> Option<String> {
+    (n.kind() == "string").then(|| read_text(n, s).trim_matches(['\'', '"', '`']).to_string())
+}
+/// `require('./x')` -> `./x`.
+fn js_require(n: Node<'_>, s: &[u8]) -> Option<String> {
+    if n.kind() != "call_expression"
+        || field(n, "function").is_none_or(|f| read_text(f, s) != "require")
+    {
+        return None;
+    }
+    js_string(*named(field(n, "arguments")?).first()?, s)
+}
+/// `asClass(X)`, `asClass(require('./x'), opts).singleton()`: what is registered.
+fn js_registered(mut n: Node<'_>, s: &[u8]) -> Option<Registered> {
+    loop {
+        if n.kind() != "call_expression" {
+            return None;
+        }
+        let f = field(n, "function")?;
+        if f.kind() == "identifier" && read_text(f, s) == "asClass" {
+            let arg = *named(field(n, "arguments")?).first()?;
+            return match arg.kind() {
+                "identifier" => Some(Registered::Name(read_text(arg, s))),
+                _ => js_require(arg, s).map(Registered::Require),
+            };
+        }
+        // A lifetime call chained on the registration: `.singleton()`, `.scoped()`.
+        if f.kind() != "member_expression" {
+            return None;
+        }
+        n = field(f, "object")?;
+    }
 }
 impl JsWalker<'_> {
     fn scope(&mut self) -> &mut Scope {
@@ -670,6 +724,18 @@ impl JsWalker<'_> {
             } else {
                 None
             };
+            let outer = self.ctor_params.take();
+            if ctor_class.is_some()
+                && let Some(params) = field(n, "parameters")
+            {
+                self.ctor_params = Some(
+                    named(params)
+                        .into_iter()
+                        .filter(|p| p.kind() == "identifier")
+                        .map(|p| read_text(p, self.s))
+                        .collect(),
+                );
+            }
             if let Some(params) = field(n, "parameters") {
                 self.params(params, ctor_class);
             } else if let Some(p) = field(n, "parameter") {
@@ -680,11 +746,41 @@ impl JsWalker<'_> {
             if let Some(body) = field(n, "body") {
                 self.walk(body);
             }
+            self.ctor_params = outer;
             self.stack.pop();
             return;
         }
         match kind {
+            "import_statement" => {
+                if let Some(source) = field(n, "source").and_then(|c| js_string(c, self.s)) {
+                    let clause = children(n)
+                        .into_iter()
+                        .find(|c| c.kind() == "import_clause");
+                    for c in clause.map(children).unwrap_or_default() {
+                        let locals = match c.kind() {
+                            "identifier" => vec![c],
+                            "named_imports" => named(c)
+                                .into_iter()
+                                .filter_map(|spec| {
+                                    field(spec, "alias").or_else(|| field(spec, "name"))
+                                })
+                                .collect(),
+                            _ => vec![],
+                        };
+                        for local in locals {
+                            self.facts
+                                .requires
+                                .insert(read_text(local, self.s), source.clone());
+                        }
+                    }
+                }
+            }
             "variable_declarator" => {
+                if let Some(name) = field(n, "name").filter(|c| c.kind() == "identifier")
+                    && let Some(spec) = field(n, "value").and_then(|v| js_require(v, self.s))
+                {
+                    self.facts.requires.insert(read_text(name, self.s), spec);
+                }
                 if let Some(name) = field(n, "name").filter(|c| c.kind() == "identifier") {
                     let ann = field(n, "type").and_then(|t| ts_type(t, self.s));
                     let value = field(n, "value").and_then(|v| ts_value_type(v, self.s));
@@ -730,10 +826,19 @@ impl JsWalker<'_> {
                         && let Some(prop) = field(left, "property")
                         && let Some(class) = self.classes.last().cloned().filter(|c| !c.is_empty())
                     {
+                        // `this.x = eventService` in a constructor: typed by a
+                        // registration of `eventService`, if the class is one.
+                        let injected = (value.is_none() && right.kind() == "identifier")
+                            .then(|| read_text(right, self.s))
+                            .filter(|p| self.ctor_params.as_ref().is_some_and(|ps| ps.contains(p)));
+                        let (ty, evidence) = match injected {
+                            Some(p) => (Some(TypeRef::Injected(p)), Evidence::Injection),
+                            None => (value, Evidence::Constructor),
+                        };
                         self.facts.fields.entry(class).or_default().push(Binding {
                             name: read_text(prop, self.s),
-                            ty: value,
-                            evidence: Evidence::Constructor,
+                            ty,
+                            evidence,
                             at: n.start_byte(),
                             whole_scope: true,
                         });
@@ -741,6 +846,36 @@ impl JsWalker<'_> {
                 }
             }
             "call_expression" => {
+                if let Some(f) = field(n, "function")
+                    && f.kind() == "member_expression"
+                    && field(f, "property").is_some_and(|p| read_text(p, self.s) == "register")
+                    && let Some(args) = field(n, "arguments")
+                {
+                    let args = named(args);
+                    match args.as_slice() {
+                        [key, value, ..] if key.kind() == "string" => {
+                            if let (Some(key), Some(r)) =
+                                (js_string(*key, self.s), js_registered(*value, self.s))
+                            {
+                                self.facts.registrations.push((key, r));
+                            }
+                        }
+                        [object] if object.kind() == "object" => {
+                            for pair in named(*object).into_iter().filter(|p| p.kind() == "pair") {
+                                let key = field(pair, "key").map(|k| {
+                                    js_string(k, self.s).unwrap_or_else(|| read_text(k, self.s))
+                                });
+                                if let (Some(key), Some(r)) = (
+                                    key,
+                                    field(pair, "value").and_then(|v| js_registered(v, self.s)),
+                                ) {
+                                    self.facts.registrations.push((key, r));
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
                 if let Some(f) = field(n, "function")
                     && f.kind() == "member_expression"
                     && let (Some(obj), Some(prop)) = (field(f, "object"), field(f, "property"))
@@ -767,6 +902,7 @@ pub fn js_facts(root: Node<'_>, source: &[u8]) -> FileFacts {
         facts: FileFacts::new(source.len()),
         stack: vec![0],
         classes: vec![],
+        ctor_params: None,
     };
     w.walk(root);
     w.facts
@@ -908,7 +1044,7 @@ impl GoWalker<'_> {
                     {
                         let class = match &ty {
                             TypeRef::Name(t) => Some(t.clone()),
-                            TypeRef::Return(..) => None,
+                            TypeRef::Return(..) | TypeRef::Injected(_) => None,
                         };
                         scope.class = class;
                         if let Some(name) = field(p, "name") {

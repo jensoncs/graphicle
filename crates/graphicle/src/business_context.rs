@@ -13,6 +13,7 @@ use std::{
 };
 
 pub(crate) mod evolution;
+pub(crate) mod facts;
 
 const FORMAT: &str = "graphicle.business-history.v1";
 const MAX_FILES: usize = 32;
@@ -56,6 +57,36 @@ fn ensure_safe_value(value: &Value) -> Result<()> {
 pub struct Options {
     #[serde(default)]
     pub history: Vec<History>,
+    /// Facts learned from the repository's merged pull requests ([`facts`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub facts: Vec<facts::Fact>,
+    /// Facts [`admit_facts`] dropped from the request.
+    #[serde(skip)]
+    pub facts_dropped: usize,
+}
+
+/// The request's facts less each one that is invalid, names a path source
+/// admission excludes, or that the credential scan rejects: a caller's store
+/// of learned facts holds hundreds, and one bad fact drops itself, counted,
+/// not the review. More than [`facts::MAX_FACTS`] still refuses the request.
+pub(crate) fn admit_facts(options: Options) -> Result<Options> {
+    if options.facts.len() > facts::MAX_FACTS {
+        return Err(Error::bad("Business facts exceed 512"));
+    }
+    let total = options.facts.len();
+    let kept: Vec<facts::Fact> = options
+        .facts
+        .into_iter()
+        .filter(|fact| {
+            facts::validate(std::slice::from_ref(fact), admitted_path).is_ok()
+                && serde_json::to_value(fact).is_ok_and(|v| ensure_safe_value(&v).is_ok())
+        })
+        .collect();
+    Ok(Options {
+        facts_dropped: total - kept.len(),
+        facts: kept,
+        ..options
+    })
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -134,6 +165,7 @@ pub(crate) fn validate(
         return Err(Error::bad("Business history exceeds 128 bundles / 512 KiB"));
     }
     ensure_safe_value(&serde_json::to_value(options)?)?;
+    facts::validate(&options.facts, admitted_path)?;
     let mut seen = BTreeSet::new();
     let mut subjects = BTreeMap::new();
     let mut ranges = 0usize;
@@ -332,6 +364,7 @@ pub(crate) fn annotate(
     let mut omitted_evolution = 0;
     let mut annotated = 0;
     let mut omitted = 0;
+    let mut facts_attached = 0;
     // Spend the optional evidence allowance on current changes first. Base
     // history and statistical peers must not crowd out current-head evidence.
     report["entries"].as_array_mut().unwrap().sort_by_key(|e| {
@@ -401,7 +434,9 @@ pub(crate) fn annotate(
             }
             history_status = json!({"status":"partial","shallow":history.shallow,"collector_omitted_ranges":file.omitted_ranges});
         }
-        if !candidates.is_empty() || !assertions.is_empty() {
+        let (entry_facts, omitted_facts) = facts::for_entry(&options.facts, entry);
+        facts_attached += entry_facts.len();
+        if !candidates.is_empty() || !assertions.is_empty() || !entry_facts.is_empty() {
             annotated += 1;
         }
         omitted += omitted_assertions;
@@ -410,6 +445,7 @@ pub(crate) fn annotate(
         // every conservative dependency candidate.
         if candidates.is_empty()
             && assertions.is_empty()
+            && entry_facts.is_empty()
             && evolution_evidence.is_none()
             && entry["reasons"].as_array().is_some_and(|reasons| {
                 !reasons.is_empty()
@@ -421,6 +457,10 @@ pub(crate) fn annotate(
             continue;
         }
         entry["business_context"] = json!({"candidates":candidates,"historical_assertions":assertions,"history":history_status,"omitted_assertions":omitted_assertions,"criticality":"unknown","runtime_hotness":"unknown","owner_confirmed":false,"dependency_paths":"reasons"});
+        if !entry_facts.is_empty() {
+            entry["business_context"]["repository_facts"] = json!(entry_facts);
+            entry["business_context"]["omitted_facts"] = json!(omitted_facts);
+        }
         if let Some(mut evidence) = evolution_evidence {
             for field in ["similar_changes", "function_history", "cochange"] {
                 while text::count(&evidence.to_string()) + 180 > evolution_budget
@@ -479,7 +519,7 @@ pub(crate) fn annotate(
         entry.as_object_mut().unwrap().remove("revision");
         entry["revision"] = json!(crate::digest(entry));
     }
-    report["business_context"] = json!({"analyzer":"static-business-context-v2","omitted_evolution_entries":omitted_evolution,"annotated_entries_before_packing":annotated,"omitted_assertions_before_packing":omitted,"history_bundles":options.history.len(),"complete":false,"limitations":["lexical_candidates_are_not_business_importance","historical_assertions_are_untrusted_and_may_be_superseded","blame_omits_deleted_lines_and_does_not_prove_constraint_validity","dependency_and_packet_coverage_limits_apply","no_runtime_or_owner_confirmation"]});
+    report["business_context"] = json!({"analyzer":"static-business-context-v2","omitted_evolution_entries":omitted_evolution,"annotated_entries_before_packing":annotated,"omitted_assertions_before_packing":omitted,"history_bundles":options.history.len(),"facts_supplied":options.facts.len() + options.facts_dropped,"facts_dropped":options.facts_dropped,"facts_attached_before_packing":facts_attached,"complete":false,"limitations":["lexical_candidates_are_not_business_importance","repository_facts_are_unverified_author_claims","historical_assertions_are_untrusted_and_may_be_superseded","blame_omits_deleted_lines_and_does_not_prove_constraint_validity","dependency_and_packet_coverage_limits_apply","no_runtime_or_owner_confirmation"]});
 }
 
 /// Statistical context candidates; the caller must match exact pinned native
@@ -863,7 +903,13 @@ pub(crate) fn schema() -> Value {
     let attribution = json!({"type":"object","properties":{"commit":{"type":"string"},"line_start":{"type":"integer","minimum":1},"line_end":{"type":"integer","minimum":1},"subject":{"type":"string","maxLength":512},"author_id":{"type":"string"},"timestamp":{"type":"integer"}},"required":["commit","line_start","line_end","subject"],"additionalProperties":false});
     let file = json!({"type":"object","properties":{"path":{"type":"string"},"file_sha256":{"type":"string"},"line_count":{"type":"integer","minimum":0},"omitted_ranges":{"type":"integer","minimum":0},"attributions":{"type":"array","maxItems":128,"items":attribution}},"required":["path","file_sha256","line_count","omitted_ranges","attributions"],"additionalProperties":false});
     let history = json!({"type":"object","properties":{"format":{"const":FORMAT},"pin":crate::review::pin_schema(),"shallow":{"type":"boolean"},"evolution":evolution::schema(),"files":{"type":"array","maxItems":32,"items":file}},"required":["format","pin","shallow","files"],"additionalProperties":false});
-    json!({"type":"object","properties":{"history":{"type":"array","maxItems":128,"items":history}},"additionalProperties":false})
+    let names = json!({"type":"array","maxItems":16,"items":{"type":"string","maxLength":256}});
+    let fact = json!({"type":"object","properties":{"id":{"type":"string","pattern":"^[A-Za-z0-9._-]{1,64}$"},"statement":{"type":"string","maxLength":500},
+        "kind":{"enum":["product_rule","intent","flow","constraint","deployment","other"]},"pr":{"type":"integer","minimum":0},
+        "merged_commit":{"type":"string","pattern":"^[0-9a-f]{40}$"},"merged_at":{"type":"integer","minimum":0},"files":{"type":"array","minItems":1,"maxItems":16,"items":{"type":"string"}},
+        "symbols":names,"file_sha256":{"type":"object","additionalProperties":{"type":"string"}},"corroborations":{"type":"integer","minimum":0},
+        "superseded_by":{"type":"string"}},"required":["id","statement","kind","pr","merged_commit","merged_at","files"],"additionalProperties":false});
+    json!({"type":"object","properties":{"history":{"type":"array","maxItems":128,"items":history},"facts":{"type":"array","maxItems":facts::MAX_FACTS,"items":fact}},"additionalProperties":false})
 }
 
 #[cfg(test)]
@@ -908,6 +954,8 @@ mod tests {
         let sha = history.files[0].file_sha256.clone();
         validate(
             &Options {
+                facts: vec![],
+                facts_dropped: 0,
                 history: vec![history],
             },
             &[],
@@ -979,6 +1027,8 @@ mod tests {
             old
         );
         let options = Options {
+            facts: vec![],
+            facts_dropped: 0,
             history: vec![bundle.clone()],
         };
         validate(&options, std::slice::from_ref(&pin), &[], |_, _| {
@@ -1181,6 +1231,8 @@ mod tests {
                 .collect(),
         };
         let options = Options {
+            facts: vec![],
+            facts_dropped: 0,
             history: vec![History {
                 format: FORMAT.into(),
                 pin: pin.clone(),

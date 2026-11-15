@@ -85,6 +85,7 @@ struct Index {
     go_imports: FxHashMap<String, FxHashMap<String, String>>,
     go_package: FxHashMap<String, String>,
     interfaces: FxHashSet<String>,
+    di: super::di_registrations::Registry,
 }
 impl Index {
     fn build(per: &[Value], nodes: &[Value], edges: &[Value], root: &Path) -> Index {
@@ -409,6 +410,18 @@ impl Index {
     }
     fn owners_for(&self, lang: Lang, sf: &str, caller: &str, ty: &TypeRef) -> Vec<String> {
         match ty {
+            // Only a class the container constructs gets its parameters by name.
+            TypeRef::Injected(key) => {
+                if self
+                    .parent
+                    .get(caller)
+                    .is_some_and(|c| self.di.classes.contains(c))
+                {
+                    self.di.by_key.get(key).cloned().unwrap_or_default()
+                } else {
+                    vec![]
+                }
+            }
             TypeRef::Return(func, line) => {
                 let name = func.rsplit('.').next().unwrap_or(func);
                 let wanted = format!("{name}()");
@@ -740,6 +753,7 @@ fn resolve_one(
     let type_label = match &ty {
         TypeRef::Name(n) => Some(n.trim_start_matches('*').to_string()),
         TypeRef::Return(f, _) => Some(format!("{f}()")),
+        TypeRef::Injected(_) => None,
     };
     let mut owners = idx.owners_for(lang, sf, caller, &ty);
     if lang == Lang::Go {
@@ -753,6 +767,8 @@ fn resolve_one(
         let external = match &ty {
             TypeRef::Name(_) => true,
             TypeRef::Return(func, line) => !idx.corpus_call(caller, func, *line),
+            // An unregistered parameter is just an unknown receiver.
+            TypeRef::Injected(_) => false,
         };
         let global = idx.global(callee);
         return if external || global.is_empty() || is_language_builtin(callee) {
@@ -928,6 +944,19 @@ pub fn resolve(
         }
         facts_cache.insert(sf.clone(), facts);
     }
+    // ponytail: registrations come from this run's files; an incremental update
+    // that does not re-parse the container file loses them until a full build.
+    let classes: Vec<(String, String, String)> = idx
+        .owners
+        .iter()
+        .flat_map(|(label, ids)| ids.iter().map(move |id| (id, label)))
+        .filter_map(|(id, label)| {
+            let file = idx.owner_file.get(id)?;
+            (Lang::of(Path::new(file)) == Some(Lang::Js))
+                .then(|| (id.clone(), label.clone(), file.clone()))
+        })
+        .collect();
+    idx.di = super::di_registrations::build(&facts_cache, &classes);
     let mut out: Vec<Value> = vec![];
     // One `unresolved_calls` entry per (caller, callee, receiver); repeats add to `occurrences`.
     let mut unresolved_at: BTreeMap<(String, String, String), usize> = BTreeMap::new();
@@ -1338,6 +1367,71 @@ function other() { const c = new Base(); c.ping(); }
         assert_eq!(iface["reason"], "ambiguous");
         assert_eq!(iface["receiver_type"], "Sender");
         assert_eq!(iface["candidates"], serde_json::json!(["types_other_send"]));
+    }
+
+    #[test]
+    fn awilix_constructor_injection_binds_registered_classes() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        let di = write(
+            root,
+            "di/index.js",
+            r#"const { createContainer, asClass, InjectionMode } = require('awilix');
+const container = createContainer({ injectionMode: InjectionMode.CLASSIC });
+const Tracker = require('../services/tracker');
+container.register('eventService', asClass(require('../services/tracker')).singleton());
+container.register({ logoutApi: asClass(require('../api/logout')), auditService: asClass(Tracker) });
+"#,
+        );
+        let tracker = write(
+            root,
+            "services/tracker.js",
+            "class Tracker {\n  sendEvent(a) { return a; }\n}\nmodule.exports = Tracker;\n",
+        );
+        let ctor = "  constructor(eventService, other) { this.eventService = eventService; this.other = other; }\n\
+  run() { this.eventService.sendEvent(1); return this.other.sendEvent(2); }\n";
+        let logout = write(
+            root,
+            "api/logout.js",
+            &format!("class Logout {{\n{ctor}}}\nmodule.exports = Logout;\n"),
+        );
+        // Not registered: the container never constructs it, so its parameter
+        // names say nothing about what it is given.
+        let manual = write(
+            root,
+            "api/manual.js",
+            &format!("class Manual {{\n{ctor}}}\nmodule.exports = Manual;\n"),
+        );
+        let paths = vec![di, tracker, logout, manual];
+        let on = run(root, &paths, true);
+        let c = calls(&on);
+        assert!(
+            has(
+                &c,
+                "api_logout_logout_run",
+                "services_tracker_tracker_sendevent",
+                "di_registration"
+            ),
+            "{c:?}"
+        );
+        assert!(
+            !c.iter().any(|(s, _, _)| s == "api_manual_manual_run"),
+            "{c:?}"
+        );
+        assert_eq!(
+            count_calls(
+                &on,
+                "api_logout_logout_run",
+                "services_tracker_tracker_sendevent"
+            ),
+            1
+        );
+        assert!(
+            unresolved(&on)
+                .iter()
+                .any(|u| u["caller"] == "api_logout_logout_run" && u["receiver"] == "this.other"),
+            "an unregistered parameter stays unresolved"
+        );
     }
 
     #[test]

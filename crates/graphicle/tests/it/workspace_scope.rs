@@ -2277,3 +2277,98 @@ fn conformance_cross_repo_switches_the_import_step_alone() {
         refused.message
     );
 }
+
+/// A library function's neighbours include the other projects that import
+/// it (`graph.link`'s live edges), with the importing file and line, and the
+/// text the model reads says so. The importing side lists none.
+#[test]
+fn get_neighbors_names_the_other_projects_that_import_a_symbol() {
+    use graphicle_runtime::graph_tools;
+    let (f, shop, money) = Fixture::shop_and_money();
+    let call = |repository: &str, label: &str| {
+        graph_tools::call(
+            &f.store,
+            &f.workspace,
+            &f.key,
+            &json!({"tool":"get_neighbors","repository_id":repository,"label":label}),
+        )
+        .unwrap()
+    };
+    let reply = call(&money, "quantize_cents()");
+    let by = reply["imported_by"]
+        .as_array()
+        .unwrap_or_else(|| panic!("{reply:#}"));
+    assert_eq!(by.len(), 1, "{reply:#}");
+    assert_eq!(by[0]["repository_id"], shop.as_str(), "{reply:#}");
+    assert_eq!(by[0]["project"], "Shop", "{reply:#}");
+    assert_eq!(by[0]["file"], "shopapp/invoice.py", "{reply:#}");
+    assert_eq!(by[0]["line"], 1, "{reply:#}");
+    assert!(
+        graph_tools::citations_text(&reply)
+            .contains("Imported by other projects (1): Shop shopapp/invoice.py:1 (quantize_cents)"),
+        "{}",
+        graph_tools::citations_text(&reply)
+    );
+    assert!(call(&shop, "settle_invoice()").get("imported_by").is_none());
+}
+
+/// A project naming another project's ingress host in its config links to
+/// that deployment; the link closes when the host leaves the config.
+#[test]
+fn a_config_url_links_to_the_deployment_serving_its_host() {
+    if std::env::var("GRAPHICLE_HTTP_TEST_CHILD").as_deref() != Ok("1") {
+        let status = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "workspace_scope::a_config_url_links_to_the_deployment_serving_its_host",
+                "--nocapture",
+            ])
+            .env("GRAPHICLE_HTTP_TEST_CHILD", "1")
+            .env("GRAPHICLE_ROUTES", "1")
+            .status()
+            .unwrap();
+        assert!(status.success());
+        return;
+    }
+    let values = "applicationName: siren\ningress:\n  enabled: true\n  hosts:\n    - siren.sharechat.internal\n";
+    let main = "package main\n\nfunc main() {}\n";
+    let config = "{\n  \"siren\": {\n    \"baseUrl\": \"http://siren.sharechat.internal/siren/v1\"\n  }\n}\n";
+    let agent = "import os\n\nBASE = os.environ.get(\"SIREN_URL\", \"\")\n";
+    let f = Fixture::new();
+    let siren = f.project(
+        "siren",
+        "Siren",
+        &[("main.go", main), ("infra/production/values.yaml", values)],
+    );
+    let caller = f.project(
+        "reviewer",
+        "Reviewer",
+        &[("agent.py", agent), ("config/prod.json", config)],
+    );
+    f.store.graph_link(&f.workspace, &f.key).unwrap();
+    let db = f.store.connect().unwrap();
+    let live = |db: &rusqlite::Connection| -> Vec<(String, String, String, String)> {
+        let mut stmt = db
+            .prepare(
+                "SELECT source_repository_id,target_repository_id,derivation,target_node_id FROM gf_cross_edges \
+                 WHERE relation='http_calls' AND valid_to_episode IS NULL",
+            )
+            .unwrap();
+        stmt.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+            .unwrap()
+            .map(Result::unwrap)
+            .collect()
+    };
+    let rows = live(&db);
+    assert_eq!(rows.len(), 1, "{rows:?}");
+    assert_eq!((&rows[0].0, &rows[0].1), (&caller, &siren), "{rows:?}");
+    assert_eq!(rows[0].2, "ingress_host:siren.sharechat.internal");
+    assert!(rows[0].3.contains("values"), "{rows:?}");
+    f.sync(
+        &caller,
+        &[("agent.py", agent), ("config/prod.json", "{}\n")],
+    );
+    jobs::drain_projection(&f.store, &caller).unwrap();
+    f.store.graph_link(&f.workspace, &f.key).unwrap();
+    assert!(live(&db).is_empty(), "{:?}", live(&db));
+}

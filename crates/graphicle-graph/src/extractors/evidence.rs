@@ -60,7 +60,7 @@ fn found(e: &Value) -> usize {
         "points_to" | "oxc_binding" | "dart_import" => 1,
         _ => match s(e, "receiver_evidence") {
             "constructor" | "annotation" | "self_method" => 2,
-            "module_attr" => 1,
+            "module_attr" | "di_registration" => 1,
             _ => 0,
         },
     }

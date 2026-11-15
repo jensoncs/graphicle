@@ -2297,3 +2297,81 @@ fn deleting_a_pinned_dependency_forgets_review_packets_that_name_it() {
     assert_eq!(receipt["removed"]["review_packets"], 1, "{receipt:#}");
     assert_eq!(receipt["verified_local"], true, "{receipt:#}");
 }
+
+/// Facts learned from merged pull requests reach the entries they name, most
+/// relevant first: on the changed symbol, then its file. A superseded fact is
+/// left out, one whose file changed since its merge is possibly stale, and a
+/// fact naming an excluded path or carrying a credential is dropped and
+/// counted while the rest still attach.
+#[test]
+fn repository_facts_attach_to_the_entries_they_name() {
+    let f = Fixture::new();
+    let repo = f.repo("facts");
+    let before = "package tax\nfunc Check(tenant, owner string) bool {\n return tenant == owner\n}\nfunc Authorize(tenant, owner string) bool { return Check(tenant, owner) }\n";
+    let after = before.replace("tenant == owner", "tenant != owner");
+    let base = f.pin(&repo, "app", 'a', &[("go.mod", MOD), ("access.go", before)]);
+    let head = f.pin(&repo, "app", 'b', &[("go.mod", MOD), ("access.go", &after)]);
+    let fact = |id: &str, symbols: Value, extra: Value| {
+        let mut fact = json!({"id":id,"statement":format!("{id}: a tenant never reads another tenant's records"),
+            "kind":"product_rule","pr":41,"merged_commit":"c".repeat(40),"merged_at":1_790_000_000,
+            "files":["access.go"],"symbols":symbols});
+        fact.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        fact
+    };
+    let mut args = request(&repo, vec![base], vec![head]);
+    args["business_context"] = json!({"facts":[
+        fact("on-file", json!([]), json!({"merged_at":1_795_000_000})),
+        fact("on-symbol", json!(["tax.Check"]), json!({})),
+        fact("old-rule", json!(["Check"]), json!({"superseded_by":"on-symbol"})),
+        fact("stale", json!([]), json!({"file_sha256":{"access.go":"f".repeat(64)}})),
+    ]});
+    let packet = f.run(&args);
+    let check = packet["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["side"] == "head" && s(e, "name").ends_with(".Check"))
+        .unwrap();
+    let facts = check["business_context"]["repository_facts"]
+        .as_array()
+        .unwrap();
+    let ids: Vec<_> = facts.iter().map(|f| f["id"].as_str().unwrap()).collect();
+    assert_eq!(ids, ["on-symbol", "on-file", "stale"], "{facts:#?}");
+    assert_eq!(facts[0]["match"], "symbol");
+    assert_eq!(facts[2]["possibly_stale"], true);
+    assert!(
+        facts
+            .iter()
+            .all(|f| f["basis"] == "author_claim_unverified")
+    );
+    assert_eq!(packet["business_context"]["facts_supplied"], 4);
+    assert!(
+        packet["business_context"]["limitations"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("repository_facts_are_unverified_author_claims"))
+    );
+    args["business_context"]["facts"][0]["files"] = json!([".env"]);
+    args["business_context"]["facts"][3]["statement"] = json!(format!(
+        "Deploys pull with ghp_{}",
+        "A1b2C3d4".repeat(4) + "A1b2"
+    ));
+    let packet = f.run(&args);
+    assert_eq!(packet["business_context"]["facts_supplied"], 4);
+    assert_eq!(packet["business_context"]["facts_dropped"], 2);
+    let check = packet["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["side"] == "head" && s(e, "name").ends_with(".Check"))
+        .unwrap();
+    let ids: Vec<_> = check["business_context"]["repository_facts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f["id"].as_str().unwrap())
+        .collect();
+    assert_eq!(ids, ["on-symbol"]);
+}

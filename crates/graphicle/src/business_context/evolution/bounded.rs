@@ -234,6 +234,8 @@ mod tests {
         let mut head = base.clone();
         head.pin.commit = "e".repeat(40);
         let options = Options {
+            facts: vec![],
+            facts_dropped: 0,
             history: vec![base.clone(), head.clone()],
         };
         assert!(serde_json::to_vec(&options).unwrap().len() <= MAX_HISTORY_BYTES);

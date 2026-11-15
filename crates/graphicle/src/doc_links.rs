@@ -1661,6 +1661,10 @@ fn compute(db: &Connection, plan: &Plan) -> Resolved {
     let mut views: HashMap<String, View> = HashMap::new();
     let mut windows: HashMap<(String, String), Option<Window>> = HashMap::new();
     let mut files: Lines = HashMap::new();
+    // Each project's labels are read once per pass: `labels_at`'s process
+    // cache is bounded, and a workspace with more projects than it holds
+    // would otherwise re-read every project for every unmatched mention.
+    let mut labels: Labels = HashMap::new();
     let mut out = Resolved::default();
     for document in &plan.documents {
         let project = &plan.projects[plan.by_id[&document.project]];
@@ -1672,6 +1676,7 @@ fn compute(db: &Connection, plan: &Plan) -> Resolved {
             &mut views,
             &mut windows,
             &mut files,
+            &mut labels,
         ) {
             Ok(Some(computed)) => out.computed.push(computed),
             Ok(None) | Err(_) => out
@@ -1687,6 +1692,10 @@ fn compute(db: &Connection, plan: &Plan) -> Resolved {
     out
 }
 
+/// Project index -> its labels in its planned episode (`None`: unreadable).
+type Labels = HashMap<usize, Option<Arc<HashSet<String>>>>;
+
+#[allow(clippy::too_many_arguments)]
 fn compute_one(
     db: &Connection,
     plan: &Plan,
@@ -1695,6 +1704,7 @@ fn compute_one(
     views: &mut HashMap<String, View>,
     windows: &mut HashMap<(String, String), Option<Window>>,
     files: &mut Lines,
+    labels: &mut Labels,
 ) -> Result<Option<Computed>> {
     let content = match (&document.path, &document.connector) {
         (Some(_), _) => object(db, &project.id, &document.sha)?,
@@ -1753,10 +1763,11 @@ fn compute_one(
                 continue;
             };
             // A project whose labels cannot be read is opened to find out.
-            let defines = match labels_at(db, &other.id, episode) {
-                Ok(labels) => labels.contains(name),
-                Err(_) => true,
-            };
+            let defines = labels
+                .entry(index)
+                .or_insert_with(|| labels_at(db, &other.id, episode).ok())
+                .as_ref()
+                .is_none_or(|labels| labels.contains(name));
             if defines {
                 needed.insert(index);
             }

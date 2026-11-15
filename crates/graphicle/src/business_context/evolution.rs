@@ -486,6 +486,8 @@ mod tests {
         };
         let pin: Pin = serde_json::from_value(json!({"repository_id":"repo","directory":"app","commit":"a".repeat(40),"snapshot":"b".repeat(64),"policy_sha256":"c".repeat(64)})).unwrap();
         let options = Options {
+            facts: vec![],
+            facts_dropped: 0,
             history: vec![History {
                 format: FORMAT.into(),
                 pin: pin.clone(),

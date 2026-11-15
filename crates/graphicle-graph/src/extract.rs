@@ -84,6 +84,24 @@ pub fn content_failure(mut result: Value) -> Value {
     }
     result
 }
+/// Revision of the graph-wide passes that run after the per-file records
+/// (resolvers, receiver resolution, the precise passes). Per-file records are
+/// versioned by [`crate::cache::AST_CACHE_SCHEMA`]; a change here alters the
+/// graph without touching them, so the runtime folds this into its episode
+/// identity and an upgraded engine re-projects an unchanged head set. Bump it
+/// when such a pass changes its output. 1: partial Go packages keep exact
+/// targets, Python service-root binding, Awilix DI, JVM interface dispatch,
+/// Go package-level constants and variables (`go_values`). 2: precise
+/// JavaScript `exports` edges from each exported name to its declaration.
+/// 3: CommonJS whole-module, in-place and spread exports point at the file
+/// that defines them; one edge per target lists its keys (`export_names`).
+/// Routes (when enabled) include Python `http.server` handlers and
+/// `urllib.request` requests.
+/// 4: with routes enabled, file nodes carry the ingress hosts a deployment
+/// serves (`deploy_hosts`) and the URL hosts a file calls (`url_hosts`).
+pub const ASSEMBLY_REVISION: u32 = 4;
+/// Files whose interface calls the JVM dispatch pass links to implementations.
+const JVM_DISPATCH: &[&str] = &[".java", ".kt", ".kts"];
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes
 /// beyond the upstream port's, which change the graph and so are off by default.
 pub static PRECISE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
@@ -1754,6 +1772,7 @@ fn assemble_records(
         &ambiguous,
         &module_files,
         root,
+        options.receiver_resolution,
     ));
     drop(module_files);
     drop(profiled);
@@ -1916,6 +1935,14 @@ fn assemble_records(
         None
     };
     if options.precise {
+        // Java and Kotlin calls through an interface (Spring injection) reach
+        // the implementation only by dispatch; upstream has no JVM pass.
+        crate::interface_dispatch::resolve_interface_dispatch(
+            &[],
+            &nodes,
+            edges.values(),
+            JVM_DISPATCH,
+        )?;
         extractors::precise_python::resolve(
             paths,
             &nodes,
@@ -1930,6 +1957,9 @@ fn assemble_records(
             &options.resolution_context_nodes,
             root,
         );
+        // Package-level Go constants and variables: definitions an importer
+        // names (`pkg.EndpointType`) that upstream emits no node for.
+        extractors::go_values::declare(&mut nodes, edges.values(), root);
         #[cfg(feature = "precise-js")]
         extractors::precise_js::resolve(
             paths,
@@ -2002,6 +2032,7 @@ fn assemble_records(
             &options.resolution_context_nodes,
             root,
         );
+        extractors::service_hosts::annotate(paths, &mut nodes, root);
     }
     drop(profiled);
     let profiled = crate::profile::span("assemble.finish");

@@ -50,6 +50,7 @@ type metadata struct {
 }
 type site struct {
 	Candidate  bool   `json:"candidate,omitempty"`
+	Partial    bool   `json:"partial,omitempty"`
 	File       string `json:"file"`
 	Line       int    `json:"line"`
 	Column     int    `json:"column"`
@@ -189,6 +190,11 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 			l.cache.save(l, path, pkg)
 		}
 	}
+	// A graph build keeps what go/types identified in a package it could not
+	// fully check (a dependency missing offline): an object it records is
+	// exact, and importers still see this package's declarations. Pinned
+	// review keeps requiring complete packages.
+	partial := !valid && l.review == nil
 	var bindings map[types.Object]ast.Expr
 	var flow *callableFlow
 	for _, file := range files {
@@ -248,7 +254,7 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 				if tv, ok := info.Types[call.Fun]; ok && tv.IsType() {
 					return true
 				}
-				if target, ok := obj.(*types.Func); ok && valid {
+				if target, ok := obj.(*types.Func); ok && (valid || partial) {
 					// A concrete struct may promote an embedded interface's
 					// method. That declaration is still dynamic dispatch.
 					sig := target.Type().(*types.Signature)
@@ -259,7 +265,7 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 					if !dynamic {
 						p := l.fset.PositionFor(target.Origin().Pos(), false)
 						if p.IsValid() {
-							s.TargetFile, s.TargetLine, s.Target, s.Reason = p.Filename, p.Line, target.Name(), ""
+							s.TargetFile, s.TargetLine, s.Target, s.Reason, s.Partial = p.Filename, p.Line, target.Name(), "", partial
 						}
 					}
 				}
@@ -291,7 +297,9 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 			})
 		}
 	}
-	if !valid {
+	if partial {
+		l.packages[path] = pkg
+	} else if !valid {
 		return nil, fmt.Errorf("incomplete package %s", path)
 	}
 	return pkg, nil

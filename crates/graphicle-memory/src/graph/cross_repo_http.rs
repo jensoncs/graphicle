@@ -4,6 +4,7 @@
 use super::cross_repo_imports::{CrossEdge, EdgeEnd, ExportIndex, INFERRED, is_test_path};
 use graphicle::{graph::Graph, record::Properties, serve_search::id};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::collections::BTreeSet;
 
 pub const RELATION: &str = "http_calls";
@@ -93,6 +94,108 @@ pub fn exports(graph: &Graph, repo: &str, episode: Option<&str>) -> Vec<RouteExp
     out
 }
 
+/// A host a deployment answers on, from its values file (`deploy_hosts`).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct HostExport {
+    pub host: String,
+    /// The deployment's values file.
+    pub node: EdgeEnd,
+}
+
+fn strings(a: &impl Properties, name: &str) -> Vec<Value> {
+    a.get(name)
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default()
+}
+
+/// The ingress hosts this graph's deployments serve; test fixtures excluded.
+pub fn host_exports(graph: &Graph, repo: &str, episode: Option<&str>) -> Vec<HostExport> {
+    let mut out = Vec::new();
+    for (i, n) in graph.nodes().iter().enumerate() {
+        let hosts = strings(&n.attributes, "deploy_hosts");
+        if hosts.is_empty() {
+            continue;
+        }
+        let node = end(graph, i, repo, episode);
+        if node.relpath.as_deref().is_some_and(is_test_path) {
+            continue;
+        }
+        for host in hosts.iter().filter_map(Value::as_str) {
+            out.push(HostExport {
+                host: host.to_string(),
+                node: node.clone(),
+            });
+        }
+    }
+    out
+}
+
+/// `(file node index, host, line)` of every URL host a non-test file names.
+pub fn called_hosts(graph: &Graph) -> Vec<(usize, String, Option<usize>)> {
+    let mut out = Vec::new();
+    for (i, n) in graph.nodes().iter().enumerate() {
+        if is_test_path(text(&n.attributes, "source_file")) {
+            continue;
+        }
+        for pair in strings(&n.attributes, "url_hosts") {
+            if let Some(host) = pair.get(0).and_then(Value::as_str) {
+                let line = pair.get(1).and_then(Value::as_u64).map(|l| l as usize);
+                out.push((i, host.to_string(), line));
+            }
+        }
+    }
+    out
+}
+
+/// Calls by host: a file naming a host that one other project serves links to
+/// each of its deployments serving it (two during a migration from one to the
+/// other). A host this project serves itself, or several projects serve,
+/// links nowhere.
+fn host_links(
+    graph: &Graph,
+    repo: &str,
+    episode: Option<&str>,
+    indexes: &[&ExportIndex],
+) -> Vec<CrossEdge> {
+    let own: BTreeSet<String> = host_exports(graph, repo, episode)
+        .into_iter()
+        .map(|h| h.host)
+        .collect();
+    let mut out = Vec::new();
+    for (file, host, line) in called_hosts(graph) {
+        if own.contains(&host) {
+            continue;
+        }
+        let owners: Vec<&HostExport> = indexes
+            .iter()
+            .filter(|e| e.repo != repo)
+            .flat_map(|e| &e.app_hosts)
+            .filter(|h| h.host == host)
+            .collect();
+        let repos: BTreeSet<&str> = owners.iter().map(|h| h.node.repo.as_str()).collect();
+        if repos.len() != 1 {
+            continue;
+        }
+        for owner in owners {
+            out.push(CrossEdge {
+                source: end(graph, file, repo, episode),
+                target: owner.node.clone(),
+                relation: RELATION.into(),
+                confidence: INFERRED.into(),
+                derivation: format!("ingress_host:{host}"),
+                module_path: host.clone(),
+                symbol: None,
+                version_constraint: None,
+                exporter_version: None,
+                version_status: "not_applicable".into(),
+                line,
+            });
+        }
+    }
+    out
+}
+
 fn origin(url: &str) -> Option<String> {
     let parsed = url::Url::parse(url).ok()?;
     if !["http", "https"].contains(&parsed.scheme())
@@ -105,7 +208,7 @@ fn origin(url: &str) -> Option<String> {
     Some(parsed.origin().ascii_serialization())
 }
 
-fn compatible(method: &str, request: &str, route: &RouteExport) -> bool {
+pub(crate) fn compatible(method: &str, request: &str, route: &RouteExport) -> bool {
     if method.is_empty() || !(route.method == method || route.method == "ANY") {
         return false;
     }
@@ -126,13 +229,14 @@ pub fn link(
     graph: &Graph,
     repo: &str,
     episode: Option<&str>,
-    indexes: &[ExportIndex],
+    indexes: &[impl std::borrow::Borrow<ExportIndex>],
 ) -> Vec<CrossEdge> {
-    let mut out = Vec::new();
+    let indexes: Vec<&ExportIndex> = indexes.iter().map(std::borrow::Borrow::borrow).collect();
+    let mut out = host_links(graph, repo, episode, &indexes);
     let mut seen = BTreeSet::new();
     for n in graph.nodes() {
         let a = &n.attributes;
-        if text(a, "node_kind") != "http_request" {
+        if text(a, "node_kind") != "http_request" || is_test_path(text(a, "source_file")) {
             continue;
         }
         let (method, path) = (text(a, "http_method"), text(a, "http_path"));
@@ -300,5 +404,73 @@ mod tests {
         );
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].target.repo, "one");
+    }
+    fn hosts(name: &str, served: &[&str]) -> ExportIndex {
+        ExportIndex {
+            repo: name.into(),
+            app_hosts: served
+                .iter()
+                .map(|h| HostExport {
+                    host: h.to_string(),
+                    node: EdgeEnd {
+                        repo: name.into(),
+                        node_id: format!("{name}_values"),
+                        ..Default::default()
+                    },
+                })
+                .collect(),
+            ..Default::default()
+        }
+    }
+    /// A config file naming `siren.sharechat.internal` links to the one
+    /// deployment serving it; a host two deployments serve, the caller's own
+    /// host, and a URL in a test file link nowhere.
+    #[test]
+    fn a_called_host_links_to_the_one_deployment_serving_it() {
+        let graph = Graph::from_node_link(
+            &serde_json::json!({"directed":true,"multigraph":false,"graph":{},
+            "nodes":[
+                {"id":"cfg","label":"prod.json","source_file":"config/prod.json",
+                 "url_hosts":[["siren.sharechat.internal",3],["shared.sharechat.internal",4],["agent.sharechat.internal",5]]},
+                {"id":"values","label":"values.yaml","source_file":"infra/production/values.yaml",
+                 "deploy_hosts":["agent.sharechat.internal"]},
+                {"id":"fixture","label":"client_test.go","source_file":"client_test.go",
+                 "url_hosts":[["siren.sharechat.internal",1]]}],"links":[]}),
+            "links",
+        )
+        .unwrap();
+        let indexes = [
+            hosts(
+                "siren",
+                &["siren.sharechat.internal", "shared.sharechat.internal"],
+            ),
+            hosts("copy", &["shared.sharechat.internal"]),
+            hosts("agent", &["agent.sharechat.internal"]),
+        ];
+        let found = link(&graph, "agent", Some("e1"), &indexes);
+        assert_eq!(found.len(), 1, "{found:#?}");
+        // A second deployment of the same project serving the host (a migration): a link to each.
+        let mut migrating = indexes.clone();
+        let mut second = migrating[0].app_hosts[0].clone();
+        second.node.node_id = "siren_node_values".into();
+        migrating[0].app_hosts.push(second);
+        let both = link(&graph, "agent", Some("e1"), &migrating);
+        assert_eq!(
+            both.iter()
+                .map(|e| e.target.node_id.as_str())
+                .collect::<Vec<_>>(),
+            ["siren_values", "siren_node_values"]
+        );
+        let edge = &found[0];
+        assert_eq!(
+            (edge.source.node_id.as_str(), edge.target.repo.as_str()),
+            ("cfg", "siren")
+        );
+        assert_eq!(edge.target.node_id, "siren_values");
+        assert_eq!(edge.derivation, "ingress_host:siren.sharechat.internal");
+        assert_eq!(edge.line, Some(3));
+        let interest = super::super::cross_repo_imports::link_interest(&graph);
+        assert!(interest.hosts_fit(&indexes[0]));
+        assert!(!interest.hosts_fit(&hosts("other", &["other.sharechat.internal"])));
     }
 }

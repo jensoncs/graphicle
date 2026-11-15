@@ -60,20 +60,36 @@ impl<Fs: FileSystem + 'static> Resolve<'_, Fs> {
     }
     /// The local declaration `name` exported from `file` resolves to.
     fn export(&mut self, file: usize, name: &str, hops: usize) -> Option<(usize, Ref)> {
+        let (file, declaration) = self.located(file, name, hops)?;
+        Some((file, declaration?))
+    }
+    /// The file `name` exported from `file` is defined in, with its local
+    /// declaration when it has one: a whole module (`k: require(m)`) is the
+    /// module, its default declaration when that resolves, and a value
+    /// written in place has none.
+    fn located(&mut self, file: usize, name: &str, hops: usize) -> Option<(usize, Option<Ref>)> {
         if hops > MAX_HOPS {
             return None;
         }
         let summaries = self.summaries;
         match summaries[file].exports.get(name) {
-            Some(Export::Local(r @ Ref::Local { .. })) => Some((file, r.clone())),
+            Some(Export::Local(r @ Ref::Local { .. })) => Some((file, Some(r.clone()))),
+            Some(Export::Inline) => Some((file, None)),
+            Some(Export::Module(spec)) => {
+                let target = self.module(file, spec)?;
+                Some(self.whole(target, hops))
+            }
             Some(Export::Local(Ref::Import { spec, name })) | Some(Export::From { spec, name }) => {
                 let target = self.module(file, spec)?;
-                self.export(target, name, hops + 1)
+                if name == "default" {
+                    return Some(self.whole(target, hops));
+                }
+                self.located(target, name, hops + 1)
             }
             None if name != "default" => {
                 for star in &summaries[file].stars {
                     if let Some(target) = self.module(file, star)
-                        && let Some(found) = self.export(target, name, hops + 1)
+                        && let Some(found) = self.located(target, name, hops + 1)
                     {
                         return Some(found);
                     }
@@ -82,6 +98,31 @@ impl<Fs: FileSystem + 'static> Resolve<'_, Fs> {
             }
             None => None,
         }
+    }
+    /// The export keys of `file` but `default`, with those of the modules it
+    /// re-exports whole (`export *`, `...require(m)`), sorted.
+    fn keys(&mut self, file: usize, hops: usize) -> std::collections::BTreeSet<String> {
+        let summaries = self.summaries;
+        let mut out: std::collections::BTreeSet<String> = summaries[file]
+            .exports
+            .keys()
+            .filter(|k| *k != "default")
+            .cloned()
+            .collect();
+        if hops < MAX_HOPS {
+            for star in &summaries[file].stars {
+                if let Some(target) = self.module(file, star) {
+                    out.extend(self.keys(target, hops + 1));
+                }
+            }
+        }
+        out
+    }
+    /// Module `file` as one value: its default declaration, else the module.
+    fn whole(&mut self, file: usize, hops: usize) -> (usize, Option<Ref>) {
+        self.located(file, "default", hops + 1)
+            .filter(|(_, declaration)| declaration.is_some())
+            .unwrap_or((file, None))
     }
     fn declaration(&mut self, file: usize, r: &Ref) -> Option<(usize, Ref)> {
         match r {
@@ -92,6 +133,55 @@ impl<Fs: FileSystem + 'static> Resolve<'_, Fs> {
             }
         }
     }
+}
+
+/// What an export key resolves to: a declaration's node, or the file (key)
+/// that defines it when it has no declaration of its own.
+#[derive(Debug, PartialEq)]
+pub(super) enum Exported<Id> {
+    Node(Id),
+    File(String),
+}
+
+/// The declaration each export key of a file `emit` accepts resolves to,
+/// through `require` and re-export hops (`module.exports = { k: v, ...m }`,
+/// `export { a as b } from`): `(file key, export key, target)`. Only
+/// keys a declaration's own node does not already carry: renamed, or
+/// declared in another file. A key with no declaration node (a whole
+/// module, a value written in place) targets the file that defines it.
+pub(super) fn exported<Fs: FileSystem + 'static, N: Nodes>(
+    r: &mut Resolve<Fs>,
+    emit: impl Fn(&str) -> bool,
+    nodes: &N,
+) -> Vec<(String, String, Exported<N::Id>)> {
+    let summaries = r.summaries;
+    let mut out = vec![];
+    for (fi, summary) in summaries.iter().enumerate() {
+        if !emit(&summary.key) {
+            continue;
+        }
+        for key in r.keys(fi, 0) {
+            let key = &key;
+            let Some((file, declaration)) = r.located(fi, key, 0) else {
+                continue;
+            };
+            let owner = &summaries[file].key;
+            let target = match &declaration {
+                Some(Ref::Local { name, .. }) if file == fi && name == key => continue,
+                Some(Ref::Local { name, line }) => nodes
+                    .function(owner, name, *line)
+                    .or_else(|| nodes.class(owner, name, *line))
+                    .map(Exported::Node),
+                _ => None,
+            };
+            out.push((
+                summary.key.clone(),
+                key.clone(),
+                target.unwrap_or_else(|| Exported::File(owner.clone())),
+            ));
+        }
+    }
+    out
 }
 
 /// Every call in a file `emit` accepts whose caller and callee are `nodes`.
