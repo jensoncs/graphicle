@@ -628,7 +628,16 @@ impl<'a, 't> Engine<'a, 't> {
                 "method_definition" | "method_signature" | "abstract_method_signature"
             )
         {
-            id = self.js_member_nid(class, n, &sanitized);
+            id = self.member_nid(class, n, &sanitized);
+        } else if let Some(class) = parent
+            && ((self.is("java")
+                && matches!(
+                    n.kind_name(),
+                    "method_declaration" | "constructor_declaration"
+                ))
+                || (self.is("kotlin") && n.kind_name() == "function_declaration"))
+        {
+            id = self.member_nid(class, n, &sanitized);
         }
         let mut meta = Value::Null;
         if let Some((_, _, overload_meta)) = &overload {
@@ -747,23 +756,59 @@ impl<'a, 't> Engine<'a, 't> {
             }
         }
     }
-    /// `_js_member_nid` (0.9.92, #4475): `make_id` drops `_`, `$` and `#`, so
-    /// `updateHash` / `_updateHash`, `close` / `#close` and `set` / `$set` in
-    /// one class body minted one id and the second vanished. The member names
-    /// of the class body (methods, signatures and function-valued fields) are
-    /// grouped by the id they would get; a unique public name keeps the plain
-    /// id and every other colliding name is salted. Getter/setter pairs and
-    /// overloads share one name, so they are no collision.
-    pub fn js_member_nid(&mut self, class: &str, member: Node<'t>, name: &str) -> String {
+    /// `_js_member_nid` (0.9.92, #4475), `_java_member_nid` (#5151) and
+    /// `_kotlin_member_nid` (#5152): `make_id` drops a leading `_` (JS also
+    /// `$` and `#`) and folds case, so `updateHash` / `_updateHash`, `run` /
+    /// `Run` or a Java constructor `Widget` / method `widget` in one class body
+    /// minted one id and the second vanished. The member names of the class
+    /// body (JS: methods, signatures and function-valued fields; Java: methods
+    /// and constructors; Kotlin: functions, with its companion object's, which
+    /// take the class's id) are grouped by the id they would get; a unique
+    /// public name keeps the plain id and every other colliding name is
+    /// salted. Getter/setter pairs and overloads share one name, so they are
+    /// no collision.
+    pub fn member_nid(&mut self, class: &str, member: Node<'t>, name: &str) -> String {
         let plain = make_id([class, name]);
-        let Some(body) = member.parent() else {
+        let Some(mut body) = member.parent() else {
             return plain;
         };
+        if self.is("kotlin") {
+            const BODIES: &[&str] = &["class_body", "enum_class_body"];
+            if !BODIES.contains(&body.kind_name()) {
+                return plain;
+            }
+            if let Some(outer) = body
+                .parent()
+                .filter(|o| o.kind_name() == "companion_object")
+                .and_then(|o| o.parent())
+                .filter(|b| BODIES.contains(&b.kind_name()))
+            {
+                body = outer;
+            }
+        }
         let key = (class.to_string(), body.start_byte(), body.end_byte());
         if !self.js_member_groups.contains_key(&key) {
             let mut names: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
-            for c in children(body) {
+            let mut members = children(body);
+            if self.is("kotlin") {
+                let companions = members
+                    .iter()
+                    .filter(|c| c.kind_name() == "companion_object")
+                    .flat_map(|c| children(*c))
+                    .filter(|b| matches!(b.kind_name(), "class_body" | "enum_class_body"))
+                    .flat_map(children)
+                    .collect::<Vec<_>>();
+                members.extend(companions);
+            }
+            for c in members {
                 let name_node = match c.kind_name() {
+                    "method_declaration" | "constructor_declaration" if self.is("java") => {
+                        c.child_by_field_name("name")
+                    }
+                    "function_declaration" if self.is("kotlin") => c
+                        .child_by_field_name("name")
+                        .or_else(|| first_child(c, &["simple_identifier"])),
+                    _ if !self.js() => continue,
                     "method_definition" | "method_signature" | "abstract_method_signature" => {
                         c.child_by_field_name("name")
                     }
@@ -779,17 +824,25 @@ impl<'a, 't> Engine<'a, 't> {
                     _ => continue,
                 };
                 let text = name_node.map(|n| self.text(n)).unwrap_or_default();
-                if !text.is_empty() {
+                if !text.is_empty() && !crate::ids::normalize_id(&text).is_empty() {
                     names
                         .entry(make_id([class, text.as_str()]))
                         .or_default()
-                        .insert(text);
+                        .insert(text.trim_matches('`').to_string());
                 }
             }
             names.retain(|_, names| names.len() >= 2);
             self.js_member_groups.insert(key.clone(), names);
         }
-        underscore_salted_nid(&plain, name, &self.js_member_groups[&key], &['_', '$', '#'])
+        // A backticked Kotlin name (`` `_case works` ``) is public or not by
+        // its text.
+        let private: &[char] = if self.js() { &['_', '$', '#'] } else { &['_'] };
+        underscore_salted_nid(
+            &plain,
+            name.trim_matches('`'),
+            &self.js_member_groups[&key],
+            private,
+        )
     }
     pub fn nested(&mut self, n: Node<'t>, parent: &str) {
         for c in children(n) {

@@ -265,7 +265,7 @@ impl<'a, 't> Engine<'a, 't> {
             if !name.is_empty() {
                 // Salted apart from a sibling differing only by `_`, `$` or `#`
                 // (0.9.92, #4475).
-                let id = self.js_member_nid(parent, n, &name);
+                let id = self.member_nid(parent, n, &name);
                 self.js_callable(
                     &id,
                     CallableInfo {
