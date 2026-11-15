@@ -1775,6 +1775,17 @@ fn pack_encoding(
         .iter()
         .filter(|e| is_head_change(e) && e["_provided_diff"] == true)
         .count();
+    // The reviewers already read these declarations in their diff; only
+    // their history, if any, can still add to the packet.
+    let covered: Vec<Value> = entries
+        .iter()
+        .filter(|e| e["_provided_diff"] == true && business.contains_key(s(e, "id")))
+        .map(|e| {
+            json!({"id":e["id"],"side":e["side"],"repository_id":e["repository_id"],"file":e["file"],
+                "file_sha256":e["file_sha256"],"name":e["name"],"kind":e["kind"],"line":e["line"],"end_line":e["end_line"],
+                "_head_change":is_head_change(e)})
+        })
+        .collect();
     entries.retain(|e| e["_provided_diff"] != true);
     diffs.retain(|e| e["_provided_diff"] != true);
     let eligible_entries = entries.len();
@@ -2013,6 +2024,20 @@ fn pack_encoding(
         .min()
         .unwrap_or(0);
     let business_allowance = if supplemental {
+        // The diff holds the changed code, not its history: reserve a share
+        // for the history of declarations it covers, after required code.
+        let allowance = optional_capacity
+            .saturating_sub(minimum_hunk)
+            .min(max_tokens / 8);
+        let (kept, cost) = covered_history(&covered, &business, allowance);
+        if !covered.is_empty() {
+            report["business_context"]["packing"]["provided_diff_entries"] = json!({"candidates":covered.len(),
+            "retained":kept.len(),"omitted":covered.len()-kept.len(),"allowance_tokens":allowance,"used_tokens":cost});
+        }
+        if !kept.is_empty() {
+            report["business_context"]["provided_diff_entries"] = json!(kept);
+            used += cost;
+        }
         0
     } else {
         optional_capacity
@@ -2333,6 +2358,35 @@ fn is_head_change(entry: &Value) -> bool {
         && entry["reasons"]
             .as_array()
             .is_some_and(|rs| rs.iter().any(|r| r["reason"] == "change_seed"))
+}
+
+/// The history of diff-covered declarations that fits `allowance`, whole
+/// blocks only: changed head declarations first, then analyzed history, then
+/// the cheaper block. Returns the items and their token cost.
+fn covered_history(
+    covered: &[Value],
+    contexts: &BTreeMap<String, Value>,
+    allowance: usize,
+) -> (Vec<Value>, usize) {
+    let mut items: Vec<(bool, usize, Value)> = covered
+        .iter()
+        .map(|entry| {
+            let mut item = entry.clone();
+            let head = item.as_object_mut().unwrap().remove("_head_change") == Some(json!(true));
+            item["business_context"] = contexts[s(entry, "id")].clone();
+            let cost = packing::count(&item.to_string()) + 1;
+            (head, cost, item)
+        })
+        .collect();
+    items.sort_by(|a, b| (!a.0, a.1, s(&a.2, "id")).cmp(&(!b.0, b.1, s(&b.2, "id"))));
+    let (mut kept, mut used) = (vec![], 0);
+    for (_, cost, item) in items {
+        if used + cost <= allowance {
+            used += cost;
+            kept.push(item);
+        }
+    }
+    (kept, used)
 }
 
 fn fit_business_context(
@@ -3017,6 +3071,39 @@ mod tests {
         assert_eq!(packet["context_order"], delta["context_order"]);
         assert_eq!(receipt["entries"], next["entries"]);
         assert!(text::count(&packet.to_string()) <= 3325);
+    }
+
+    #[test]
+    fn supplemental_packets_keep_the_history_of_code_the_diff_already_shows() {
+        // Sentinel always declares its diff, so the changed declarations that
+        // carry history left the packet, and their history with them.
+        let history = json!({"historical_assertions":[{"commit":"e".repeat(40),"subject":"Fix tenant isolation","kind":"correctness_candidate"}],
+            "evolution":{"function_history":[{"subject":"Fix tenant isolation","commit":"e".repeat(40)}]}});
+        let report = |subject_repeat: usize| {
+            let mut big = history.clone();
+            big["historical_assertions"][0]["subject"] = json!("long subject ".repeat(subject_repeat));
+            json!({"entries":[
+                {"id":"seed","revision":"r","side":"head","repository_id":"repo","file":"svc/a.go","file_sha256":"a".repeat(64),"name":"Load","kind":"function","line":3,"end_line":9,
+                 "text":"func Load() {}","_provided_diff":true,"reasons":[{"reason":"change_seed"}],"business_context":big},
+                {"id":"outside","revision":"r","side":"head","repository_id":"repo","file":"svc/b.go","text":"dependency()","reasons":[{"reason":"dependency","path":["seed","outside"]}]}
+            ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"business_context":{"complete":false},
+                "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":1,"diffs":0}},"impact":"incomplete"})
+        };
+        let (packet, _) = pack(report(1), 4000, None, None).unwrap();
+        let kept = &packet["business_context"]["provided_diff_entries"];
+        assert_eq!(kept.as_array().map(Vec::len), Some(1), "{packet}");
+        assert_eq!(kept[0]["file"], "svc/a.go");
+        assert_eq!((kept[0]["line"].clone(), kept[0]["end_line"].clone()), (json!(3), json!(9)));
+        assert_eq!(kept[0]["business_context"]["historical_assertions"][0]["subject"], "long subject ");
+        assert!(kept[0].get("text").is_none(), "the diff shows the code");
+        assert_eq!(packet["context_order"], json!(["outside"]));
+        assert!(text::count(&packet.to_string()) <= 4000);
+        // History never displaces required code: past its allowance it is
+        // counted as omitted, not truncated.
+        let (packet, _) = pack(report(2000), 4000, None, None).unwrap();
+        assert!(packet["business_context"].get("provided_diff_entries").is_none(), "{packet}");
+        assert_eq!(packet["business_context"]["packing"]["provided_diff_entries"]["omitted"], 1);
+        assert_eq!(packet["context_order"], json!(["outside"]));
     }
 
     #[test]
