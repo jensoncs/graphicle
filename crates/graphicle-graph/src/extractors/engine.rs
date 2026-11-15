@@ -50,6 +50,10 @@ pub(crate) struct Engine<'a, 't> {
     pub csharp_member_groups: BTreeMap<String, BTreeSet<String>>,
     pub labels: Table,
     pub labels_ci: Table,
+    /// Python: `labels` without methods. A bare `f()` in a method body reads
+    /// locals, enclosing functions, module globals, then builtins; a method is
+    /// reachable only through self/cls/the class (Graphify 0.9.101).
+    pub python_free_labels: Table,
     pub seen_calls: BTreeSet<(String, String)>,
     pub seen_indirect: BTreeSet<(String, String)>,
     pub external: BTreeSet<String>,
@@ -932,6 +936,7 @@ pub fn extract_generic(path: &Path, config: &LanguageConfig, source: Option<&[u8
         csharp_member_groups: BTreeMap::new(),
         labels: Table::new(),
         labels_ci: Table::new(),
+        python_free_labels: Table::new(),
         seen_calls: BTreeSet::new(),
         seen_indirect: BTreeSet::new(),
         external: BTreeSet::new(),

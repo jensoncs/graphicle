@@ -1153,6 +1153,15 @@ impl<'a, 't> Engine<'a, 't> {
                             if target.is_none() {
                                 target = self.labels.get(name).cloned();
                             }
+                            // A class-body call (`x = f()` beside `def f`) may
+                            // name the class's own method; a method body may not.
+                            if target.as_ref().is_some_and(|t| {
+                                self.method_owner
+                                    .get(t)
+                                    .is_some_and(|owner| owner != caller)
+                            }) {
+                                target = self.python_free_labels.get(name).cloned();
+                            }
                         } else if self_receiver.is_none() && self.lexical_language() && !call.member
                         {
                             // Unqualified `m()` binds through the caller's class
@@ -1591,6 +1600,15 @@ impl<'a, 't> Engine<'a, 't> {
             .filter(|e| e["relation"] == "case_of")
             .filter_map(|e| e["target"].as_str().map(str::to_string))
             .collect();
+        let python_methods: BTreeSet<&str> = if self.is("python") {
+            self.edges
+                .iter()
+                .filter(|e| e["relation"] == "method")
+                .filter_map(|e| e["target"].as_str())
+                .collect()
+        } else {
+            BTreeSet::new()
+        };
         for n in &self.nodes {
             if n["type"] == "namespace" {
                 continue;
@@ -1621,6 +1639,9 @@ impl<'a, 't> Engine<'a, 't> {
                 self.labels.entry(label.clone()).or_insert(id.clone());
                 self.labels_ci.entry(label.to_lowercase()).or_insert(id);
             } else {
+                if self.is("python") && !python_methods.contains(id.as_str()) {
+                    self.python_free_labels.insert(label.clone(), id.clone());
+                }
                 self.labels.insert(label.clone(), id.clone());
                 self.labels_ci.insert(label.to_lowercase(), id);
             }

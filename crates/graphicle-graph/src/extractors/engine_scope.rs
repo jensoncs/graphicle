@@ -2210,6 +2210,10 @@ impl PythonReceiverShadow {
 
     pub fn is_shadowed(&mut self, call: Node<'_>, receiver: &str, source: &[u8]) -> bool {
         let mut found_module = false;
+        // A class body's names are not visible inside its methods or any
+        // function nested in it: `def get(self): return get()` reads the
+        // module's `get`, not the method the class body binds.
+        let mut crossed_function = false;
         let mut node = Some(call);
         while let Some(current) = node {
             let kind = current.kind_name();
@@ -2222,7 +2226,17 @@ impl PythonReceiverShadow {
                     self.scopes.entry(current.id()).or_insert_with(|| {
                         python_shadow_facts(current, source, dynamic_binding, self.from_imports)
                     });
-                if *unsafe_scope || bound.contains(receiver) {
+                if *unsafe_scope {
+                    return true;
+                }
+                if kind == "class_definition" && crossed_function {
+                    node = current.parent();
+                    continue;
+                }
+                if matches!(kind, "function_definition" | "lambda") {
+                    crossed_function = true;
+                }
+                if bound.contains(receiver) {
                     return true;
                 }
                 if self.from_imports

@@ -100,7 +100,9 @@ pub fn content_failure(mut result: Value) -> Value {
 /// 4: with routes enabled, file nodes carry the ingress hosts a deployment
 /// serves (`deploy_hosts`) and the URL hosts a file calls (`url_hosts`).
 /// 5: Rust module-qualified calls bind to the module file their path names.
-pub const ASSEMBLY_REVISION: u32 = 5;
+/// 6: a builtin-named Python callee needs an import of that exact symbol, and
+/// a class body's names no longer shadow an import inside its methods.
+pub const ASSEMBLY_REVISION: u32 = 6;
 /// Files whose interface calls the JVM dispatch pass links to implementations.
 const JVM_DISPATCH: &[&str] = &[".java", ".kt", ".kts"];
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes
@@ -2526,6 +2528,16 @@ pub fn bind_raw_calls<E: Rec, R: Rec>(
                 }
             }
         };
+        // A bare Python name the caller's module never binds is the builtin:
+        // `raise NotImplementedError` reaches a project class of that name only
+        // through an import of that exact symbol. Importing another name from
+        // its file is not that binding (Graphify 0.9.102, #4989).
+        if effective_suffix(sf) == ".py"
+            && extractors::base::is_python_builtin(callee)
+            && !has_symbol(&target)
+        {
+            continue;
+        }
         if id_source
             .get(target.as_str())
             .is_none_or(|sf| sf.is_empty())

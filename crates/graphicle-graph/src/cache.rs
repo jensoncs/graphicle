@@ -15,7 +15,8 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 /// Bump when AST cache-key semantics change independently of the package
-/// version; 22 records Rust module-qualified calls (`m::f()`) with their
+/// version; 23 keeps a bare Python call in a method off the class's methods
+/// (Graphify 0.9.101). 22 records Rust module-qualified calls (`m::f()`) with their
 /// qualifier and calls inside expression-macro arguments (Graphify 0.9.101).
 /// 21 imports a CommonJS module whose member is called at once
 /// (`require(m).f(...)`).
@@ -52,7 +53,7 @@ use std::{
 /// resolved to; 7 invalidated records whose source paths leaked a walked
 /// directory alias when the extraction root was canonicalized (6 added
 /// receiver shadows).
-pub const AST_CACHE_SCHEMA: i64 = 22;
+pub const AST_CACHE_SCHEMA: i64 = 23;
 /// Where an AST entry lists the `target_file` stamps that named an existing
 /// file when it was written; a hit whose target is gone is a miss (#4185).
 pub const CACHED_TARGETS_KEY: &str = "_cached_target_files";
