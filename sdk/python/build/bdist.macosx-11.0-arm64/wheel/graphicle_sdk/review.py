@@ -131,5 +131,7 @@ def apply_review_delta(previous, packet):
     for collection in ("entries", "diffs"):
         result[collection] = [copy.deepcopy(current[key][1]) for key in order if current[key][0] == collection]
     result["unchanged"], result["invalidated"] = [], []
+    if result["entries"]:
+        result.pop("empty_reason", None)
     result.pop("tokens", None)  # Wire token count is not the reconstructed prompt's cost.
     return materialize_service_provenance(result)
