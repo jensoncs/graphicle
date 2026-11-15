@@ -673,6 +673,45 @@ fn rescued_import(path: &Path, r: &mut Value, raw: &str, relation: &str) {
     }
     arr(r, "edges").push(e);
 }
+/// Offsets in `src` (the file as [`read_source_text`] decodes it) of the
+/// `re` matches in a TypeScript file that are import types rather than
+/// `import()` calls: in a type context, or rewritten by [`normalize_ts`] as a
+/// call's type argument (0.9.103, #4992). Empty for other files, and when the
+/// parsed bytes do not decode to `src` offset for offset.
+fn ts_type_only_imports(path: &Path, src: &str, re: &regex::Regex) -> BTreeSet<usize> {
+    let suffix = effective_suffix(path).to_lowercase();
+    if ![".ts", ".tsx", ".mts", ".cts"].contains(&suffix.as_str()) {
+        return BTreeSet::new();
+    }
+    let Some(tree) = crate::extractors::resolution_facts::parse_js_tree(path) else {
+        return BTreeSet::new();
+    };
+    let raw = &tree.source;
+    // Decoding drops the `\r` of each `\r\n` and turns a lone `\r` into `\n`.
+    let Ok(text) = std::str::from_utf8(raw) else {
+        return BTreeSet::new();
+    };
+    if text.len() - text.matches("\r\n").count() != src.len() {
+        return BTreeSet::new();
+    }
+    let crlf = text
+        .match_indices("\r\n")
+        .map(|(i, _)| i)
+        .collect::<Vec<_>>();
+    let normalized = normalize_ts(raw, suffix == ".tsx");
+    let root = tree.tree.root_node();
+    re.find_iter(text)
+        .filter(|m| {
+            normalized
+                .as_ref()
+                .is_some_and(|n| n.get(m.start()..m.start() + 6) != Some(b"import"))
+                || js::js_import_is_type_only(
+                    root.descendant_for_byte_range(m.start(), m.start() + 1),
+                )
+        })
+        .map(|m| m.start() - crlf.partition_point(|&i| i < m.start()))
+        .collect()
+}
 pub fn rescue_dynamic(path: &Path, r: &mut Value) {
     let Ok(src) = read_source_text(path, false) else {
         return;
@@ -682,6 +721,7 @@ pub fn rescue_dynamic(path: &Path, r: &mut Value) {
             .unwrap()
     });
     let re = &*RE;
+    let type_only = ts_type_only_imports(path, &src, re);
     let file = make_id([path.to_string_lossy().as_ref()]);
     let mut ids = BTreeSet::new();
     let mut files = BTreeSet::new();
@@ -698,7 +738,9 @@ pub fn rescue_dynamic(path: &Path, r: &mut Value) {
     let mut seen = BTreeSet::new();
     for cap in re.captures_iter(&src) {
         let start = cap.get(0).unwrap().start();
-        if src[src[..start].rfind('\n').map(|i| i + 1).unwrap_or(0)..start].contains("//") {
+        if type_only.contains(&start)
+            || src[src[..start].rfind('\n').map(|i| i + 1).unwrap_or(0)..start].contains("//")
+        {
             continue;
         }
         let raw = (1..=3).find_map(|i| cap.get(i)).unwrap().as_str();

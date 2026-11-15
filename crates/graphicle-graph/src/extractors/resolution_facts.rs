@@ -133,7 +133,8 @@ pub fn parse_python_tree(path: &Path) -> Option<parse_cache::Tree> {
     parse(path, "python", tree_sitter_python::LANGUAGE.into(), None)
 }
 /// `_js_module_specifier`: the statement's `source` field; an import may
-/// also name it as a bare string child, but an `export` only with `from`
+/// also name it as a bare string child, or inside the TS `import x =
+/// require("m")` clause (#4688), but an `export` only with `from`
 /// (`export default "x"` exports a string, it names no module).
 pub fn module_specifier(n: Node<'_>, s: &[u8]) -> Option<String> {
     n.child_by_field_name("source")
@@ -141,7 +142,10 @@ pub fn module_specifier(n: Node<'_>, s: &[u8]) -> Option<String> {
             if n.kind_name() == "export_statement" {
                 None
             } else {
-                first_child(n, &["string"])
+                first_child(n, &["string"]).or_else(|| {
+                    first_child(n, &["import_require_clause"])
+                        .and_then(|c| first_child(c, &["string"]))
+                })
             }
         })
         .map(|n| {
@@ -653,8 +657,11 @@ fn js_declarations_imports(path: &Path, parsed: &Parsed, nodes: &[Node<'_>], f: 
                 js::resolve_js_module_path(&raw, path.parent()).map(|p| resolved(&p))
         {
             let specifiers = named_specifiers(n, s, "import_specifier");
-            let default =
-                first_child(n, &["import_clause"]).and_then(|c| first_child(c, &["identifier"]));
+            // TS `import X = require("m")` binds the module like a default
+            // import (#4688).
+            let default = first_child(n, &["import_clause"])
+                .or_else(|| first_child(n, &["import_require_clause"]))
+                .and_then(|c| first_child(c, &["identifier"]));
             if specifiers.is_empty() && default.is_none() {
                 continue;
             }
@@ -678,6 +685,14 @@ fn js_declarations_imports(path: &Path, parsed: &Parsed, nodes: &[Node<'_>], f: 
         }
     }
     for &n in nodes {
+        if matches!(
+            n.kind_name(),
+            "lexical_declaration" | "variable_declaration"
+        ) {
+            cjs_require_imports(path, n, s, f);
+        }
+    }
+    for &n in nodes {
         for (alias, target) in lexical_aliases(n, s) {
             f.aliases.push(JsAlias {
                 alias: alias.into(),
@@ -687,8 +702,163 @@ fn js_declarations_imports(path: &Path, parsed: &Parsed, nodes: &[Node<'_>], f: 
         }
     }
 }
+/// `_js_cjs_require_bindings` (0.9.102, #4688): `const/let/var X =
+/// require('./m')` imports the module as a default import, as ESM `import X
+/// from './m'` does, so `class A extends X` resolves to what the module
+/// exports. Destructured and member requires already get structural edges.
+fn cjs_require_imports(path: &Path, n: Node<'_>, s: &[u8], f: &mut JsFileFacts) {
+    let line = (n.start_position().row + 1) as i64;
+    for d in children(n) {
+        if d.kind_name() != "variable_declarator" {
+            continue;
+        }
+        let Some(name) = d
+            .child_by_field_name("name")
+            .filter(|n| n.kind_name() == "identifier")
+        else {
+            continue;
+        };
+        let Some(call) = d
+            .child_by_field_name("value")
+            .filter(|v| v.kind_name() == "call_expression")
+        else {
+            continue;
+        };
+        if call
+            .child_by_field_name("function")
+            .is_none_or(|c| c.kind_name() != "identifier" || read_text(c, s) != "require")
+        {
+            continue;
+        }
+        let raw = call
+            .child_by_field_name("arguments")
+            .and_then(|a| first_child(a, &["string"]))
+            .map(|a| {
+                read_text(a, s)
+                    .trim_matches(['\'', '"', '`', ' '])
+                    .to_string()
+            })
+            .filter(|r| !r.is_empty());
+        let Some(target) = raw
+            .and_then(|raw| js::resolve_js_module_path(&raw, path.parent()))
+            .map(|p| resolved(&p))
+        else {
+            continue;
+        };
+        let local = read_text(name, s);
+        if local.is_empty() {
+            continue;
+        }
+        let target = f.target(target);
+        f.imports.push(JsImport {
+            local_name: local.into(),
+            imported_name: "default".into(),
+            target,
+            line,
+        });
+    }
+}
+/// `_js_cjs_default_export_local`: the name a `module.exports = <expr>`
+/// exports, through chained assignments to the final value.
+fn cjs_export_local(mut n: Node<'_>, s: &[u8]) -> Option<String> {
+    while n.kind_name() == "assignment_expression" {
+        n = n.child_by_field_name("right")?;
+    }
+    let name = match n.kind_name() {
+        "identifier" => n,
+        "class"
+        | "class_declaration"
+        | "function"
+        | "function_expression"
+        | "function_declaration"
+        | "generator_function"
+        | "generator_function_declaration" => n.child_by_field_name("name")?,
+        _ => return None,
+    };
+    Some(read_text(name, s)).filter(|t| !t.is_empty())
+}
+/// `_js_cjs_export_facts` (0.9.102, #4688): `(exported, local)` of a
+/// CommonJS export statement. `module.exports = Name` is the default export,
+/// and `Name` too; `module.exports = { a, b: c }` and `exports.a = ...` are
+/// named. A bare `exports = Name` only rebinds the local and exports nothing.
+fn cjs_exports(n: Node<'_>, s: &[u8]) -> Vec<(String, String)> {
+    let Some(assign) = first_child(n, &["assignment_expression"]) else {
+        return vec![];
+    };
+    let (Some(left), Some(right)) = (
+        assign.child_by_field_name("left"),
+        assign.child_by_field_name("right"),
+    ) else {
+        return vec![];
+    };
+    if read_text(left, s) == "module.exports" {
+        if let Some(local) = cjs_export_local(right, s) {
+            let mut out = vec![("default".to_string(), local.clone())];
+            if local != "default" {
+                out.push((local.clone(), local));
+            }
+            return out;
+        }
+        if right.kind_name() != "object" {
+            return vec![];
+        }
+        return children(right)
+            .into_iter()
+            .filter_map(|p| match p.kind_name() {
+                "shorthand_property_identifier" => {
+                    let name = read_text(p, s);
+                    Some((name.clone(), name))
+                }
+                "pair" => {
+                    let key = read_text(p.child_by_field_name("key")?, s);
+                    let local = p
+                        .child_by_field_name("value")
+                        .filter(|v| v.kind_name() == "identifier")
+                        .map(|v| read_text(v, s))
+                        .filter(|v| !v.is_empty())
+                        .unwrap_or_else(|| key.clone());
+                    Some((key, local))
+                }
+                _ => None,
+            })
+            .filter(|(name, _)| !name.is_empty())
+            .collect();
+    }
+    if left.kind_name() != "member_expression" {
+        return vec![];
+    }
+    let (Some(object), Some(property)) = (
+        left.child_by_field_name("object"),
+        left.child_by_field_name("property"),
+    ) else {
+        return vec![];
+    };
+    let exported = read_text(property, s);
+    if exported.is_empty() || !matches!(read_text(object, s).as_str(), "exports" | "module.exports")
+    {
+        return vec![];
+    }
+    let local = cjs_export_local(right, s).unwrap_or_else(|| exported.clone());
+    vec![(exported, local)]
+}
 fn js_exports(path: &Path, parsed: &Parsed, nodes: &[Node<'_>], f: &mut JsFileFacts) {
     let s = &parsed.source;
+    for &n in nodes
+        .iter()
+        .filter(|n| n.kind_name() == "expression_statement")
+    {
+        let line = (n.start_position().row + 1) as i64;
+        for (exported, local) in cjs_exports(n, s) {
+            f.exports.push(JsExport {
+                exported_name: exported.into(),
+                local_name: Some(local.into()),
+                target: None,
+                target_name: None,
+                line,
+                type_only: false,
+            });
+        }
+    }
     for &n in nodes.iter().filter(|n| n.kind_name() == "export_statement") {
         let line = (n.start_position().row + 1) as i64;
         let clause = first_child(n, &["export_clause"]);

@@ -102,7 +102,9 @@ pub fn content_failure(mut result: Value) -> Value {
 /// 5: Rust module-qualified calls bind to the module file their path names.
 /// 6: a builtin-named Python callee needs an import of that exact symbol, and
 /// a class body's names no longer shadow an import inside its methods.
-pub const ASSEMBLY_REVISION: u32 = 6;
+/// 7: a JS/TS `?query`/`#fragment` specifier resolves to its file, a TS import
+/// type is not a runtime import, and `extends` follows a CommonJS `require`.
+pub const ASSEMBLY_REVISION: u32 = 7;
 /// Files whose interface calls the JVM dispatch pass links to implementations.
 const JVM_DISPATCH: &[&str] = &[".java", ".kt", ".kts"];
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes

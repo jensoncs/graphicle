@@ -738,12 +738,34 @@ pub fn resolve_package_import(raw: &str, start: &Path) -> Option<PathBuf> {
     let p = resolve_js_import_path(&dir.join(target));
     crate::inputs::is_file(&p).then_some(p)
 }
+/// `_js_import_is_type_only` (0.9.103, #4992): `n` sits in an unambiguous
+/// TypeScript type context, so an `import('m')` there is an import type, not a
+/// runtime dependency. The walk stops at the enclosing block.
+pub fn js_import_is_type_only(mut n: Option<tree_sitter::Node<'_>>) -> bool {
+    while let Some(node) = n {
+        match node.kind() {
+            "type_annotation"
+            | "type_alias_declaration"
+            | "type_query"
+            | "interface_declaration"
+            | "constraint"
+            | "default_type" => return true,
+            "statement_block" | "program" => return false,
+            _ => n = node.parent(),
+        }
+    }
+    false
+}
 pub fn resolve_js_module_path(raw: &str, start: Option<&Path>) -> Option<PathBuf> {
     let Some(start) = start else {
         return Some(resolve_js_import_path(Path::new(raw)));
     };
     if raw.starts_with('.') {
-        return Some(resolve_js_import_path(&start.join(raw)));
+        // A cache-busting query or fragment (`./foo.js?v=1`, `./foo.js#frag`)
+        // is not part of the path; browsers and bundlers drop it (#4860).
+        let spec = raw.split('#').next().unwrap_or(raw);
+        let spec = spec.split('?').next().unwrap_or(spec);
+        return Some(resolve_js_import_path(&start.join(spec)));
     }
     let aliases = load_tsconfig_aliases(start);
     let base = load_tsconfig_base_url(start);
