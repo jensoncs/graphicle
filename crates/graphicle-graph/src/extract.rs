@@ -104,7 +104,9 @@ pub fn content_failure(mut result: Value) -> Value {
 /// a class body's names no longer shadow an import inside its methods.
 /// 7: a JS/TS `?query`/`#fragment` specifier resolves to its file, a TS import
 /// type is not a runtime import, and `extends` follows a CommonJS `require`.
-pub const ASSEMBLY_REVISION: u32 = 7;
+/// 8: a Go closure's calls belong to the enclosing function, and a
+/// package-level var initialiser's to the file.
+pub const ASSEMBLY_REVISION: u32 = 8;
 /// Files whose interface calls the JVM dispatch pass links to implementations.
 const JVM_DISPATCH: &[&str] = &[".java", ".kt", ".kts"];
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes

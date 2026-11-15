@@ -207,22 +207,32 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 			flow = functionValueFlow(files, info, bindings)
 		}
 		for _, decl := range file.Decls {
-			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Body == nil {
+			// A closure has no node of its own: its calls belong to the
+			// function that writes it. A package-level var initialiser runs at
+			// package init, so its calls belong to the file (empty caller).
+			var body ast.Node
+			caller, callerLine := "", 0
+			switch d := decl.(type) {
+			case *ast.FuncDecl:
+				if d.Body == nil {
+					continue
+				}
+				body, caller, callerLine = d.Body, d.Name.Name, l.fset.PositionFor(d.Pos(), false).Line
+			case *ast.GenDecl:
+				if d.Tok != token.VAR {
+					continue
+				}
+				body = d
+			default:
 				continue
 			}
-			ast.Inspect(fn.Body, func(n ast.Node) bool {
-				// A closure has no declaration node in the current graph. Do not
-				// attribute its calls to the enclosing function.
-				if _, ok := n.(*ast.FuncLit); ok {
-					return false
-				}
+			ast.Inspect(body, func(n ast.Node) bool {
 				call, ok := n.(*ast.CallExpr)
 				if !ok {
 					return true
 				}
 				pos := l.fset.PositionFor(call.Pos(), false)
-				s := site{File: filename, Line: pos.Line, Column: pos.Column, Caller: fn.Name.Name, CallerLine: l.fset.PositionFor(fn.Pos(), false).Line, Reason: "unresolved_type"}
+				s := site{File: filename, Line: pos.Line, Column: pos.Column, Caller: caller, CallerLine: callerLine, Reason: "unresolved_type"}
 				fun := boundExpression(call.Fun, bindings, info)
 				if index, ok := fun.(*ast.IndexExpr); ok {
 					fun = unparen(index.X)

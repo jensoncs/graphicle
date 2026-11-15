@@ -836,7 +836,7 @@ fn unresolved_go_calls_keep_their_callee_text() {
 
 /// The helper reports every call it type-checked. A builtin or conversion is
 /// not a function call and leaves nothing unresolved; a call inside a
-/// function literal has no caller node and says so. Neither may report the
+/// function literal belongs to the enclosing function. Neither may report the
 /// file as having no type information.
 #[test]
 fn go_builtins_and_closure_calls_do_not_mark_a_typed_file_incomplete() {
@@ -869,9 +869,126 @@ fn go_builtins_and_closure_calls_do_not_mark_a_typed_file_incomplete() {
         assert!(unresolved.iter().all(|u| u["callee"] != builtin), "{graph}");
     }
     assert!(
-        unresolved
-            .iter()
-            .any(|u| u["callee"] == "helper" && u["reason"] == "function_literal"),
+        unresolved.iter().all(|u| u["callee"] != "helper"),
         "{graph}"
     );
+    assert!(
+        go_calls(&graph).contains(&("main()".into(), "helper()".into(), "L9".into())),
+        "{graph}"
+    );
+}
+
+/// `(caller label, callee label, call line)` of every Go `calls` edge.
+fn go_calls(graph: &Value) -> Vec<(String, String, String)> {
+    let label = |id: &Value| {
+        graph["nodes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|n| n["id"] == *id)
+            .and_then(|n| n["label"].as_str())
+            .unwrap_or("?")
+            .to_string()
+    };
+    graph["edges"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|e| e["relation"] == "calls")
+        .map(|e| {
+            (
+                label(&e["source"]),
+                label(&e["target"]),
+                e["source_location"].as_str().unwrap_or("").to_string(),
+            )
+        })
+        .collect()
+}
+
+fn go_graph(source: &str) -> Value {
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    write(&root, "go.mod", "module example/closures\ngo 1.22\n");
+    write(&root, "p.go", source);
+    extract(
+        &[root.join("p.go")],
+        &ExtractOptions {
+            root: Some(root.clone()),
+            use_cache: false,
+            ..Default::default()
+        },
+    )
+    .unwrap()
+}
+
+/// A closure is part of the function that writes it (upstream's call walk
+/// enters `func_literal` too): callbacks, goroutines, defers, a closure kept
+/// in a local and a closure nested in another all credit that function.
+#[test]
+fn go_closure_calls_belong_to_the_enclosing_function() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let graph = go_graph(concat!(
+        "package p\n",                                                     // 1
+        "\n",                                                              // 2
+        "import \"sort\"\n",                                               // 3
+        "\n",                                                              // 4
+        "func helper() int { return 1 }\n",                                // 5
+        "func other(x int) int { return x }\n",                            // 6
+        "\n",                                                              // 7
+        "func Run(xs []int) {\n",                                          // 8
+        "\tsort.Slice(xs, func(i, j int) bool { return helper() < 0 })\n", // 9
+        "\tgo func() { helper() }()\n",                                    // 10
+        "\tdefer func() { other(2) }()\n",                                 // 11
+        "\tf := func() { other(3) }\n",                                    // 12
+        "\tf()\n",                                                         // 13
+        "\tfunc() { func() { helper() }() }()\n",                          // 14
+        "}\n",
+    ));
+    let calls = go_calls(&graph);
+    for (callee, line) in [
+        ("helper()", "L9"),
+        ("helper()", "L10"),
+        ("other()", "L11"),
+        ("other()", "L12"),
+        ("helper()", "L14"),
+    ] {
+        assert!(
+            calls.contains(&("Run()".into(), callee.into(), line.into())),
+            "{callee} {line}: {calls:?}"
+        );
+    }
+    let unresolved = graph["unresolved_calls"].as_array().unwrap();
+    assert!(
+        unresolved
+            .iter()
+            .all(|u| u["callee"] != "helper" && u["callee"] != "other"),
+        "{graph}"
+    );
+}
+
+/// A call in a package-level `var` initialiser, directly or in a closure it
+/// holds (the swappable-hook pattern), is credited to the file, which owns
+/// the initialiser (upstream #2360).
+#[test]
+fn go_package_var_initialiser_calls_belong_to_the_file() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let graph = go_graph(concat!(
+        "package p\n",                                        // 1
+        "\n",                                                 // 2
+        "func build() int { return 1 }\n",                    // 3
+        "func helper() int { return 2 }\n",                   // 4
+        "\n",                                                 // 5
+        "var value = build()\n",                              // 6
+        "var Hook = func() int { return helper() }\n",        // 7
+        "var (\n\tsize = len(\"x\")\n\tkind = int64(3)\n)\n", // 8-11
+    ));
+    let calls = go_calls(&graph);
+    for (callee, line) in [("build()", "L6"), ("helper()", "L7")] {
+        assert!(
+            calls.contains(&("p.go".into(), callee.into(), line.into())),
+            "{callee} {line}: {calls:?}"
+        );
+    }
+    let unresolved = graph["unresolved_calls"].as_array().unwrap();
+    assert!(unresolved.is_empty(), "{graph}");
 }

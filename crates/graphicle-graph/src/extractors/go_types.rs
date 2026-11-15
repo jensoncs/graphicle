@@ -610,18 +610,10 @@ pub fn resolve(
             || !files.contains(&source_key(s(e, "source_file"), root))
     });
     let mut unresolved = BTreeMap::new();
-    // Calls the helper does not report on: inside a function literal or
-    // outside any declaration, by key, with the reason they keep.
-    let mut skipped = BTreeMap::new();
     for path in &paths {
         if let Some(parsed) = parse_cache::parse(path, "go", tree_sitter_go::LANGUAGE.into()) {
-            let mut pending = vec![(parsed.tree.root_node(), "outside_function")];
-            while let Some((node, context)) = pending.pop() {
-                let context = match node.kind() {
-                    "func_literal" => "function_literal",
-                    "function_declaration" | "method_declaration" => "",
-                    _ => context,
-                };
+            let mut pending = vec![parsed.tree.root_node()];
+            while let Some(node) = pending.pop() {
                 if node.kind() == "call_expression" {
                     let row = node.start_position();
                     let key = (
@@ -646,16 +638,10 @@ pub fn resolve(
                         let text: String = text.split_whitespace().collect();
                         call["callee"] = json!(text.chars().take(200).collect::<String>());
                     }
-                    if !context.is_empty() {
-                        skipped.insert(key.clone(), context);
-                    }
                     unresolved.insert(key.clone(), call);
                 }
                 let mut cursor = node.walk();
-                pending.extend(
-                    node.named_children(&mut cursor)
-                        .map(|child| (child, context)),
-                );
+                pending.extend(node.named_children(&mut cursor));
             }
         }
     }
@@ -713,9 +699,17 @@ pub fn resolve(
             }
         }
     }
-    // File + declaration line + name must select exactly one graph node.
+    // File + declaration line + name must select exactly one graph node; a
+    // package-level initialiser's calls (no caller) belong to the file node.
     let mut declarations: BTreeMap<(String, usize, String), BTreeSet<String>> = BTreeMap::new();
+    let mut file_nodes: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for n in nodes.iter().chain(context) {
+        if crate::build_labels::is_file_node_label_str(s(n, "label"), s(n, "source_file")) {
+            file_nodes
+                .entry(source_key(s(n, "source_file"), root))
+                .or_default()
+                .insert(s(n, "id").into());
+        }
         let Some(line) = s(n, "source_location")
             .strip_prefix('L')
             .and_then(|l| l.parse::<usize>().ok())
@@ -740,7 +734,14 @@ pub fn resolve(
         if !files.contains(&key.0) {
             continue;
         }
-        let from = declaration(&site.file, site.caller_line, &site.caller);
+        let from = if site.caller.is_empty() {
+            file_nodes
+                .get(&key.0)
+                .filter(|ids| ids.len() == 1)
+                .and_then(|ids| ids.first().cloned())
+        } else {
+            declaration(&site.file, site.caller_line, &site.caller)
+        };
         let to = declaration(&site.target_file, site.target_line, &site.target);
         if site.reason.is_empty()
             && let (Some(from), Some(to)) = (from, to)
@@ -766,18 +767,9 @@ pub fn resolve(
         }
     }
     // In a file the helper type-checked, a call it did not report is a
-    // builtin or a conversion (not a function call), or one it skipped.
+    // builtin or a conversion, not a function call.
     unresolved.retain(|key, value| {
-        if value["reason"] != "type_information_unavailable" || !covered.contains(&key.0) {
-            return true;
-        }
-        match skipped.get(key) {
-            Some(reason) => {
-                value["reason"] = json!(reason);
-                true
-            }
-            None => false,
-        }
+        value["reason"] != "type_information_unavailable" || !covered.contains(&key.0)
     });
     unresolved.into_values().collect()
 }
