@@ -1073,6 +1073,21 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             && base.sources.get(&symbol.file).map(|s| &s.sha)
                 == head.sources.get(&symbol.file).map(|s| &s.sha)
     };
+    // Unchanged bytes the other side has no symbol in at all: its analysis
+    // ran out or failed there (nexus #942: one module's compiler pass timed
+    // out on one side), so the difference is coverage, not a change. A file
+    // whose symbols the other side names differently still compares.
+    let analyzed = |analysis: &Analysis| -> BTreeSet<String> {
+        analysis.symbols.values().map(|(_, s)| s.file.clone()).collect()
+    };
+    let (files_a, files_b) = (analyzed(a), analyzed(b));
+    let unanalyzed = |symbol: &Symbol, other: &BTreeSet<String>| {
+        !other.contains(&symbol.file)
+            && base.sources.get(&symbol.file).map(|s| &s.sha).is_some_and(|sha| {
+                head.sources.get(&symbol.file).map(|s| &s.sha) == Some(sha)
+            })
+    };
+    let mut gaps = BTreeSet::new();
     for (id, (_, old)) in &a.symbols {
         if let Some((_, new)) = b.symbols.get(id) {
             if old.revision != new.revision {
@@ -1085,11 +1100,20 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                 seeds_b.insert(id.clone());
             }
         } else if !same_file(old) {
-            unmatched_a.insert(id.clone());
+            if unanalyzed(old, &files_b) {
+                gaps.insert(old.file.clone());
+            } else {
+                unmatched_a.insert(id.clone());
+            }
         }
     }
     for (id, (_, new)) in &b.symbols {
-        if !a.symbols.contains_key(id) && !same_file(new) {
+        if a.symbols.contains_key(id) || same_file(new) {
+            continue;
+        }
+        if unanalyzed(new, &files_a) {
+            gaps.insert(new.file.clone());
+        } else {
             unmatched_b.insert(id.clone());
         }
     }
@@ -1354,6 +1378,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     let (issues_b, admission_b) = admission::assess(head, b, "head");
     issues.extend(issues_b);
     issues.extend(scope_issues);
+    issues.extend(gaps.into_iter().map(|file| issue("analysis_differs_between_sides", json!({"file":file}))));
     issues.extend(selected_a.issues);
     issues.extend(selected_b.issues);
     if !correspondence.is_empty() {
@@ -3757,5 +3782,79 @@ mod tests {
             super::unsupported_source_cause("source.go", "#!/usr/bin/custom"),
             None
         );
+    }
+
+    fn analysis_of(symbols: &[(&str, &str)]) -> Analysis {
+        let mut out = Analysis {
+            package_diagnostics: BTreeMap::new(),
+            diagnostics: vec![],
+            diagnostic_count: 0,
+            symbols: BTreeMap::new(),
+            calls: vec![],
+            packages: vec![],
+            issues: vec![],
+            analyzer: String::new(),
+            toolchain: String::new(),
+            inputs: vec![],
+            raw: None,
+            package_cache: crate::review_cache::PackageResult::default(),
+            services: services::Links::default(),
+            unresolved_callers: BTreeMap::new(),
+        };
+        for (file, name) in symbols {
+            let symbol: Symbol = serde_json::from_value(json!({"key":name,"file":file,"package":"b","name":name,"kind":"function","parent":"","start":0,"end":10,"body_start":0,"line":3,"end_line":3,"revision":"r","signature":"s","implementation":"i","correspondence":"c"})).unwrap();
+            out.symbols.insert(key("b", name), ("b".into(), symbol));
+        }
+        out
+    }
+
+    fn sources_of(files: &[(&str, &str)]) -> Input {
+        let sources = files
+            .iter()
+            .map(|(p, t)| {
+                let source = Source {
+                    repository: "repo".into(),
+                    path: p.strip_prefix("repo/").unwrap().into(),
+                    sha: text::sha256(t.as_bytes()),
+                    content: crate::source_object::Content::Text((*t).into()).into(),
+                };
+                ((*p).into(), source)
+            })
+            .collect();
+        Input {
+            pins: vec![],
+            sources,
+            issues: vec![],
+            bindings: vec![],
+        }
+    }
+
+    #[test]
+    fn an_unchanged_file_analyzed_on_one_side_only_is_no_change() {
+        // nexus #942: a module whose compiler analysis ran out on one side
+        // had every symbol of its unchanged files reported deleted, and those
+        // phantom change seeds filled the packet.
+        let text = "package b\n\nfunc F() {}\n";
+        let side = sources_of(&[("repo/b/f.go", text)]);
+        let request: Request = serde_json::from_value(json!({"repository_id":"repo","base":[],"head":[],
+            "profile":{"goos":"linux","goarch":"amd64","tags":[],"tests":false,"workspace":""}})).unwrap();
+        for (a, b) in [
+            (analysis_of(&[("repo/b/f.go", "F")]), analysis_of(&[])),
+            (analysis_of(&[]), analysis_of(&[("repo/b/f.go", "F")])),
+        ] {
+            let report = compare(&side, &side, &a, &b, &request).unwrap();
+            assert_eq!(report["changes"], json!([]), "{}", report["changes"]);
+            assert!(report["entries"].as_array().unwrap().is_empty());
+            let issues = report["coverage"]["issues"].as_array().unwrap();
+            assert!(issues.iter().any(|i| i["reason"] == "analysis_differs_between_sides"
+                && i["detail"]["file"] == "repo/b/f.go"), "{issues:?}");
+        }
+        // A changed file, or one whose symbols the other side names differently
+        // (a module path renamed), still changes.
+        let edited = sources_of(&[("repo/b/f.go", "package b\n\nfunc F() { g() }\n")]);
+        let report = compare(&side, &edited, &analysis_of(&[("repo/b/f.go", "F")]), &analysis_of(&[]), &request).unwrap();
+        assert_eq!(report["changes"][0]["kind"], "deleted");
+        let renamed = compare(&side, &side, &analysis_of(&[("repo/b/f.go", "F")]), &analysis_of(&[("repo/b/f.go", "G")]), &request).unwrap();
+        assert!(!renamed["changes"].as_array().unwrap().is_empty());
     }
 }
