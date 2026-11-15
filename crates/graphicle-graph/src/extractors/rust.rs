@@ -461,6 +461,17 @@ struct Extractor<'source, 'tree> {
     declared_types: HashMap<String, HashSet<String>>,
     /// The bare type name each `impl` block names, by its start byte.
     impl_bare: HashMap<usize, String>,
+    /// `mod m { .. }` blocks declared in this file: `m::f()` binds in-file
+    /// only for these (or `self::f()`); `mod m;` lives in another file.
+    inline_mods: HashSet<String>,
+    /// Where each `use`-bound name comes from: `crate` for this crate's own
+    /// paths, else the path's first segment (`std`, `serde_json`). A
+    /// module-qualified call through a name bound outside the crate is never
+    /// sent to the cross-file pass (`use std::fs; fs::read()`).
+    use_roots: HashMap<String, HashSet<String>>,
+    /// Calls found inside expression-macro arguments, added after the bodies
+    /// so a parsed call to the same target keeps its EXTRACTED edge.
+    macro_arg_edges: Vec<Value>,
 }
 impl<'tree> Extractor<'_, 'tree> {
     fn node(&mut self, id: &str, label: &str, line: usize) {
@@ -481,6 +492,22 @@ impl<'tree> Extractor<'_, 'tree> {
             e["context"] = json!(c);
         }
         self.edges.push(e);
+    }
+    /// Records where the name a `use` binds comes from (`b as c` binds `c`).
+    fn use_root(&mut self, name: &str, path: &str, scope_mods: &HashSet<String>) {
+        let bound = trim(name.rsplit(" as ").next().unwrap_or("")).to_string();
+        let root = if use_name_in(name, path, scope_mods).is_some() {
+            "crate".to_string()
+        } else {
+            trim(
+                path.trim_start_matches([':', ' '])
+                    .split("::")
+                    .next()
+                    .unwrap_or(""),
+            )
+            .to_string()
+        };
+        self.use_roots.entry(bound).or_default().insert(root);
     }
     /// `file_item_nid` (0.9.92, #4468): distinct names that fold to one id
     /// (`fn ignore` / `struct Ignore`, `fn e` / `fn E`) get distinct ids. The
@@ -858,6 +885,7 @@ impl<'tree> Extractor<'_, 'tree> {
                         if let Some(used) = use_name_in(&name, &written, &scope_mods) {
                             self.edges.last_mut().unwrap()["_rust_use_name"] = json!(used);
                         }
+                        self.use_root(&name, &written, &scope_mods);
                         if grouped {
                             // Call evidence as before; resolution drops it later.
                             self.edges.last_mut().unwrap()["_rust_use_group"] = json!(true);
@@ -879,6 +907,7 @@ impl<'tree> Extractor<'_, 'tree> {
                                 if let Some(used) = use_name_in(&name, &binding, &scope_mods) {
                                     self.edges.last_mut().unwrap()["_rust_use_name"] = json!(used);
                                 }
+                                self.use_root(&name, &binding, &scope_mods);
                                 self.edges.last_mut().unwrap()["_rust_use_binding"] = json!(true);
                             }
                         }
@@ -924,12 +953,17 @@ impl<'tree> Extractor<'_, 'tree> {
                 Some("call"),
             );
         }
+        if node.kind() == "macro_invocation" {
+            self.macro_argument_calls(node, caller);
+        }
         if node.kind() == "call_expression" {
             let mut name = None;
             let mut member = false;
             let mut scoped = false;
             let mut is_self = false;
             let mut qualifier: Option<String> = None;
+            // `m::f()`, `crate::m::f()`: the module path as written.
+            let mut module_path: Option<String> = None;
             if let Some(function) = node.child_by_field_name("function") {
                 match function.kind() {
                     "identifier" => name = Some(read_text(function, self.source)),
@@ -953,6 +987,12 @@ impl<'tree> Extractor<'_, 'tree> {
                             // A trait's default method has no impl type: `""`
                             // matches no method.
                             qualifier = Some(self_type.unwrap_or("").to_string());
+                        }
+                        if qualifier.is_none() {
+                            module_path = function
+                                .child_by_field_name("path")
+                                .map(|p| read_text(p, self.source))
+                                .filter(|p| !p.is_empty());
                         }
                     }
                     _ => {}
@@ -988,6 +1028,14 @@ impl<'tree> Extractor<'_, 'tree> {
                             .cloned();
                     }
                     target
+                } else if let Some(path) = module_path.as_deref() {
+                    // `m::f()` is in this file only for `self::f()` or an inline
+                    // `mod m { .. }`: `crate::b::helper()` never means this
+                    // file's own `helper`.
+                    let head = trim(path.rsplit("::").next().unwrap_or(""));
+                    (path == "self" || self.inline_mods.contains(head))
+                        .then(|| self.labels.get(&name).cloned())
+                        .flatten()
                 } else if member {
                     self.method_labels.get(&name).cloned()
                 } else {
@@ -1005,6 +1053,22 @@ impl<'tree> Extractor<'_, 'tree> {
                             Some(if constructor { "constructor" } else { "call" }),
                         );
                     }
+                } else if let Some(path) = module_path {
+                    // The cross-file pass binds it only where the path matches
+                    // the candidate's module file ([`scoped_call_survivors`]);
+                    // never by bare name (#908). A path through a name `use`d
+                    // from outside the crate (`use std::fs; fs::read()`) is
+                    // never this corpus's module.
+                    let head = trim(path.split("::").next().unwrap_or(""));
+                    let head = trim(head.split('<').next().unwrap_or(""));
+                    let local = self.use_roots.get(head).is_none_or(|roots| {
+                        roots
+                            .iter()
+                            .all(|r| matches!(r.as_str(), "crate" | "super" | "self"))
+                    });
+                    if local {
+                        self.raw_calls.push(json!({"caller_nid":caller,"callee":name,"is_member_call":false,"is_scoped_call":true,"scope_qualifier":path,"source_file":self.path,"source_location":format!("L{}",node.start_position().row+1)}));
+                    }
                 } else if !scoped && !TRAIT_METHOD_BLOCKLIST.contains(&name.to_lowercase().as_str())
                 {
                     let mut call = json!({"caller_nid":caller,"callee":name,"is_member_call":member,"source_file":self.path,"source_location":format!("L{}",node.start_position().row+1)});
@@ -1021,6 +1085,222 @@ impl<'tree> Extractor<'_, 'tree> {
         for n in children(node) {
             self.calls(n, caller, self_type, self_key);
         }
+    }
+    /// Bare `f(...)` calls inside an expression macro's arguments
+    /// (`println!("{}", f())`): an in-file match is INFERRED, since a token
+    /// pattern is weaker evidence than a parsed call; anything else goes to the
+    /// cross-file pass like a bare call (Graphify 0.9.101).
+    fn macro_argument_calls(&mut self, node: Node<'_>, caller: &str) {
+        let invoked = node
+            .child_by_field_name("macro")
+            .and_then(|m| match m.kind() {
+                "scoped_identifier" => m.child_by_field_name("name"),
+                _ => Some(m),
+            });
+        let Some(args) = invoked
+            .filter(|m| EXPRESSION_MACROS.contains(&read_text(*m, self.source).as_str()))
+            .and_then(|_| children(node).find(|c| c.kind() == "token_tree"))
+        else {
+            return;
+        };
+        for (name, line) in macro_arg_calls(args, self.source) {
+            if name.starts_with(|c: char| c.is_uppercase())
+                || is_language_builtin(&name)
+                || RUST_BUILTIN_TYPES.contains(&name.as_str())
+                || TRAIT_METHOD_BLOCKLIST.contains(&name.to_lowercase().as_str())
+            {
+                continue;
+            }
+            match self.labels.get(&name) {
+                Some(target) if self.type_ids.contains(target) => {}
+                Some(target) => {
+                    if target != caller {
+                        self.macro_arg_edges.push(json!({"source":caller,"target":target,"relation":"calls","context":"macro_argument_call","confidence":"INFERRED","confidence_score":0.85,"source_file":self.path,"source_location":format!("L{line}"),"weight":1.0}));
+                    }
+                }
+                None => self.raw_calls.push(json!({"caller_nid":caller,"callee":name,"is_member_call":false,"source_file":self.path,"source_location":format!("L{line}")})),
+            }
+        }
+    }
+}
+/// Macros whose arguments are ordinary Rust expressions. A DSL macro
+/// (`table!`, `quote!`, `html!`) also writes `name(...)` but means something
+/// else by it, so only these are scanned for calls.
+const EXPRESSION_MACROS: &[&str] = &[
+    "assert",
+    "assert_eq",
+    "assert_ne",
+    "debug_assert",
+    "debug_assert_eq",
+    "debug_assert_ne",
+    "dbg",
+    "eprint",
+    "eprintln",
+    "format",
+    "format_args",
+    "panic",
+    "print",
+    "println",
+    "todo",
+    "unimplemented",
+    "unreachable",
+    "vec",
+    "write",
+    "writeln",
+    "debug",
+    "error",
+    "info",
+    "trace",
+    "warn",
+];
+/// `_rust_macro_arg_calls`: an identifier followed by a `(` token tree, in a
+/// macro's flat token tree and the trees nested in it, by line. A name after
+/// `.`, `::`, `fn`, `$` or `#` is not a bare call, and a name followed by `!`
+/// is a nested macro (its own `macro_invocation`).
+fn macro_arg_calls(tree: Node<'_>, source: &[u8]) -> Vec<(String, usize)> {
+    let mut found = vec![];
+    let mut stack = vec![tree];
+    while let Some(tree) = stack.pop() {
+        let kids: Vec<Node<'_>> = children(tree).collect();
+        for (i, child) in kids.iter().enumerate() {
+            if child.kind() == "token_tree" {
+                stack.push(*child);
+                continue;
+            }
+            let opens_call = kids.get(i + 1).is_some_and(|next| {
+                next.kind() == "token_tree" && next.child(0).is_some_and(|c| c.kind() == "(")
+            });
+            let after_path = i > 0 && matches!(kids[i - 1].kind(), "." | "::" | "fn" | "$" | "#");
+            if child.kind() == "identifier" && opens_call && !after_path {
+                let name = read_text(*child, source);
+                if !name.is_empty() {
+                    found.push((name, child.start_position().row + 1));
+                }
+            }
+        }
+    }
+    found.sort_by_key(|(_, line)| *line);
+    found
+}
+/// `rust_scoped_call_survivors` (Graphify 0.9.101): the candidates a
+/// `module::function()` qualifier verifies. The last segment must be the
+/// defining module (`<seg>.rs` or `<seg>/mod.rs`) and each segment before it
+/// the next parent directory, stopping at `crate`/`super`/`self`. Candidates
+/// are Rust free functions in the caller's crate. A bare `crate`/`super`/
+/// `self` names no module file, and an UpperCamelCase segment is a type: both
+/// give none. Callers bind only a single survivor.
+pub fn scoped_call_survivors<'a>(
+    qualifier: &str,
+    candidates: impl IntoIterator<Item = &'a str>,
+    file_of: impl Fn(&str) -> Option<&'a str>,
+    label_of: impl Fn(&str) -> Option<&'a str>,
+    caller_file: &str,
+    crates: &mut CrateRoots,
+) -> Vec<&'a str> {
+    let segments: Vec<&str> = qualifier
+        .split("::")
+        .map(|s| trim(s.split('<').next().unwrap_or("")))
+        .filter(|s| !s.is_empty())
+        .collect();
+    let Some(&last) = segments.last() else {
+        return vec![];
+    };
+    if matches!(last, "crate" | "super" | "self") || last.starts_with(|c: char| c.is_uppercase()) {
+        return vec![];
+    }
+    let caller_crate = crates.of(caller_file);
+    let mut survivors = vec![];
+    for candidate in candidates {
+        let Some(file) = file_of(candidate).filter(|f| f.ends_with(".rs")) else {
+            continue;
+        };
+        if label_of(candidate).is_some_and(|l| l.starts_with('.'))
+            || crates.of(file) != caller_crate
+        {
+            continue;
+        }
+        let path = Path::new(file);
+        let stem = path.file_stem().and_then(|s| s.to_str()).unwrap_or("");
+        let parent = path.parent();
+        let mut cursor = if stem == last {
+            parent
+        } else if stem == "mod"
+            && parent
+                .and_then(|p| p.file_name())
+                .is_some_and(|n| n == last)
+        {
+            parent.and_then(Path::parent)
+        } else {
+            continue;
+        };
+        let mut matched = true;
+        for &segment in segments[..segments.len() - 1].iter().rev() {
+            if matches!(segment, "crate" | "super" | "self") {
+                break;
+            }
+            if cursor
+                .and_then(|c| c.file_name())
+                .is_none_or(|n| n != segment)
+            {
+                matched = false;
+                break;
+            }
+            cursor = cursor.and_then(Path::parent);
+        }
+        if matched {
+            survivors.push(candidate);
+        }
+    }
+    survivors
+}
+/// `_rust_crate_root`: the crate a Rust file belongs to, the nearest directory
+/// holding a `Cargo.toml`, else the directory above the nearest `src`; `None`
+/// for a layout with neither. Relative files are read under `root`.
+pub struct CrateRoots {
+    root: std::path::PathBuf,
+    by_dir: HashMap<std::path::PathBuf, Option<std::path::PathBuf>>,
+}
+impl CrateRoots {
+    pub fn new(root: &Path) -> Self {
+        Self {
+            root: root.to_path_buf(),
+            by_dir: HashMap::new(),
+        }
+    }
+    pub fn of(&mut self, file: &str) -> Option<std::path::PathBuf> {
+        let path = Path::new(file);
+        let path = if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            self.root.join(path)
+        };
+        let dir = path.parent()?.to_path_buf();
+        if let Some(found) = self.by_dir.get(&dir) {
+            return found.clone();
+        }
+        let found = dir
+            .ancestors()
+            .find(|d| d.join("Cargo.toml").is_file())
+            .map(Path::to_path_buf)
+            .or_else(|| {
+                dir.ancestors()
+                    .find(|d| d.file_name().is_some_and(|n| n == "src"))
+                    .and_then(Path::parent)
+                    .map(Path::to_path_buf)
+            });
+        self.by_dir.insert(dir, found.clone());
+        found
+    }
+}
+fn scan_inline_mods(node: Node<'_>, source: &[u8], out: &mut HashSet<String>) {
+    if node.kind() == "mod_item"
+        && node.child_by_field_name("body").is_some()
+        && let Some(name) = node.child_by_field_name("name")
+    {
+        out.insert(read_text(name, source));
+    }
+    for child in children(node) {
+        scan_inline_mods(child, source, out);
     }
 }
 fn scan_local_types(node: Node<'_>, source: &[u8], out: &mut HashSet<String>) {
@@ -1143,8 +1423,12 @@ pub fn extract_rust(path: &Path) -> Value {
         file_items: HashMap::new(),
         declared_types: HashMap::new(),
         impl_bare: HashMap::new(),
+        inline_mods: HashSet::new(),
+        use_roots: HashMap::new(),
+        macro_arg_edges: vec![],
     };
     scan_local_types(tree.root_node(), &source, &mut ex.local_types);
+    scan_inline_mods(tree.root_node(), &source, &mut ex.inline_mods);
     ex.node(&file, &name, 1);
     let mut items: HashMap<String, HashSet<(bool, String)>> = HashMap::new();
     let mut declared: HashMap<String, HashSet<String>> = HashMap::new();
@@ -1204,6 +1488,15 @@ pub fn extract_rust(path: &Path) -> Value {
             body.typ.as_deref(),
             body.key.as_deref(),
         );
+    }
+    for edge in std::mem::take(&mut ex.macro_arg_edges) {
+        let pair = (
+            edge["source"].as_str().unwrap_or("").to_string(),
+            edge["target"].as_str().unwrap_or("").to_string(),
+        );
+        if ex.pairs.insert(pair) {
+            ex.edges.push(edge);
+        }
     }
     ex.edges.retain(|e| {
         e["source"].as_str().is_some_and(|s| ex.seen.contains(s))

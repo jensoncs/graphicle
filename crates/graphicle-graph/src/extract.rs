@@ -99,7 +99,8 @@ pub fn content_failure(mut result: Value) -> Value {
 /// `urllib.request` requests.
 /// 4: with routes enabled, file nodes carry the ingress hosts a deployment
 /// serves (`deploy_hosts`) and the URL hosts a file calls (`url_hosts`).
-pub const ASSEMBLY_REVISION: u32 = 4;
+/// 5: Rust module-qualified calls bind to the module file their path names.
+pub const ASSEMBLY_REVISION: u32 = 5;
 /// Files whose interface calls the JVM dispatch pass links to implementations.
 const JVM_DISPATCH: &[&str] = &[".java", ".kt", ".kts"];
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes
@@ -2268,6 +2269,7 @@ pub fn bind_raw_calls<E: Rec, R: Rec>(
     let mut outer_type: Option<FxHashMap<&str, &str>> = None;
     // The Go package of every candidate's file, read from disk once per pass.
     let mut go_modules = types::GoModules::new(root);
+    let mut crate_roots = extractors::rust::CrateRoots::new(root);
     // The tables borrow from `edges`; new edges are appended after the loop.
     let mut added = vec![];
     for &rc in raw {
@@ -2292,6 +2294,36 @@ pub fn bind_raw_calls<E: Rec, R: Rec>(
             || rc.rec_get("solidity_call").is_some_and(crate::build::truthy)
             || (rs(rc, "language") == "go" && extractors::go::PREDECLARED_FUNCS.contains(&callee))
         {
+            continue;
+        }
+        // A Rust `module::function()` binds only where its qualifier names the
+        // candidate's module file, one survivor or none, and never falls
+        // through to the bare-name tie-breakers below (#908). EXTRACTED: the
+        // source names the module (Graphify 0.9.101).
+        if rc
+            .rec_get("is_scoped_call")
+            .is_some_and(crate::build::truthy)
+        {
+            let survivors = extractors::rust::scoped_call_survivors(
+                rs(rc, "scope_qualifier"),
+                labels.get(callee).into_iter().flatten().map(String::as_str),
+                |id| id_source.get(id).copied(),
+                |id| id_label.get(id).copied(),
+                sf,
+                &mut crate_roots,
+            );
+            let caller = rs(rc, "caller_nid");
+            if let [target] = survivors[..]
+                && target != caller
+                && existing.insert(pair_ids.pair(caller, target))
+            {
+                let mut edge = json!({"source":caller,"target":target,"relation":"calls","context":"call","confidence":"EXTRACTED","confidence_score":1.0,"source_file":sf,"source_location":rc.rec_get("source_location").cloned().unwrap_or(Value::Null),"weight":1.0});
+                tighten(&mut edge);
+                let Value::Object(edge) = edge else {
+                    unreachable!("an edge literal is an object")
+                };
+                added.push(E::from_object(edge));
+            }
             continue;
         }
         let mut cs = labels.get(callee).cloned().unwrap_or_default();

@@ -15,7 +15,9 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 /// Bump when AST cache-key semantics change independently of the package
-/// version; 21 imports a CommonJS module whose member is called at once
+/// version; 22 records Rust module-qualified calls (`m::f()`) with their
+/// qualifier and calls inside expression-macro arguments (Graphify 0.9.101).
+/// 21 imports a CommonJS module whose member is called at once
 /// (`require(m).f(...)`).
 /// 20 adds framework endpoint and Firebase boundary discovery.
 /// 19 propagates immutable JS/TS request URLs and simple local helpers.
@@ -50,7 +52,7 @@ use std::{
 /// resolved to; 7 invalidated records whose source paths leaked a walked
 /// directory alias when the extraction root was canonicalized (6 added
 /// receiver shadows).
-pub const AST_CACHE_SCHEMA: i64 = 21;
+pub const AST_CACHE_SCHEMA: i64 = 22;
 /// Where an AST entry lists the `target_file` stamps that named an existing
 /// file when it was written; a hit whose target is gone is a miss (#4185).
 pub const CACHED_TARGETS_KEY: &str = "_cached_target_files";

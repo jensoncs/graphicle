@@ -301,11 +301,46 @@ pub fn resolve_cross_file_raw_calls(
         .filter(|n| truthy(&n["id"]))
         .map(|n| (text(n, "id"), json!(text(n, "source_file"))))
         .collect();
+    let labels_by_id: HashMap<String, String> = nodes
+        .iter()
+        .filter(|n| truthy(&n["id"]))
+        .map(|n| (text(n, "id"), text(n, "label")))
+        .collect();
+    let mut crate_roots = crate::extractors::rust::CrateRoots::new(Path::new(""));
     let mut resolved = Vec::new();
     for call in iter_raw_calls(per_file) {
         let callee = text(call, "callee");
         let callee = strip(&callee);
         if callee.is_empty() || truthy(&call["is_member_call"]) {
+            continue;
+        }
+        // A Rust `module::function()` never reaches the bare-name branch below
+        // (#908): it binds only to the one candidate its qualifier verifies.
+        if truthy(&call["is_scoped_call"]) {
+            let qualifier = text(call, "scope_qualifier");
+            let survivors = crate::extractors::rust::scoped_call_survivors(
+                qualifier.trim(),
+                labels
+                    .get(&callee.to_lowercase())
+                    .into_iter()
+                    .flatten()
+                    .map(String::as_str),
+                |id| files.get(id).and_then(Value::as_str),
+                |id| labels_by_id.get(id).map(String::as_str),
+                &text(call, "source_file"),
+                &mut crate_roots,
+            );
+            let caller = text(call, "caller_nid");
+            if let [target] = survivors[..]
+                && !caller.is_empty()
+                && caller != target
+                && known.insert((caller.clone(), target.to_string(), "calls".into()))
+            {
+                let metadata = security::sanitize_metadata(Some(
+                    &json!({"resolver":"rust_scoped_module_call","scope_qualifier":qualifier}),
+                ));
+                resolved.push(json!({"source":caller,"target":target,"relation":"calls","context":"call","confidence":"EXTRACTED","confidence_score":1.0,"source_file":get(call,"source_file",json!("")),"source_location":call["source_location"],"weight":1.0,"metadata":metadata}));
+            }
             continue;
         }
         let Some(candidates) = labels.get(&callee.to_lowercase()) else {
