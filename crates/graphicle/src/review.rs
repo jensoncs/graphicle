@@ -1078,14 +1078,20 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     // out on one side), so the difference is coverage, not a change. A file
     // whose symbols the other side names differently still compares.
     let analyzed = |analysis: &Analysis| -> BTreeSet<String> {
-        analysis.symbols.values().map(|(_, s)| s.file.clone()).collect()
+        analysis
+            .symbols
+            .values()
+            .map(|(_, s)| s.file.clone())
+            .collect()
     };
     let (files_a, files_b) = (analyzed(a), analyzed(b));
     let unanalyzed = |symbol: &Symbol, other: &BTreeSet<String>| {
         !other.contains(&symbol.file)
-            && base.sources.get(&symbol.file).map(|s| &s.sha).is_some_and(|sha| {
-                head.sources.get(&symbol.file).map(|s| &s.sha) == Some(sha)
-            })
+            && base
+                .sources
+                .get(&symbol.file)
+                .map(|s| &s.sha)
+                .is_some_and(|sha| head.sources.get(&symbol.file).map(|s| &s.sha) == Some(sha))
     };
     let mut gaps = BTreeSet::new();
     for (id, (_, old)) in &a.symbols {
@@ -1378,7 +1384,10 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     let (issues_b, admission_b) = admission::assess(head, b, "head");
     issues.extend(issues_b);
     issues.extend(scope_issues);
-    issues.extend(gaps.into_iter().map(|file| issue("analysis_differs_between_sides", json!({"file":file}))));
+    issues.extend(
+        gaps.into_iter()
+            .map(|file| issue("analysis_differs_between_sides", json!({"file":file}))),
+    );
     issues.extend(selected_a.issues);
     issues.extend(selected_b.issues);
     if !correspondence.is_empty() {
@@ -2054,8 +2063,11 @@ fn pack_encoding(
         optional_capacity
             .saturating_sub(minimum_hunk)
             .min(max_tokens / 4)
-            .max(history_floor)
     };
+    // The floor is held back from code selection and released to the refill,
+    // which gives history to selected code only; a supplemental packet spent
+    // it on the covered declarations' history above.
+    let history_reserve = if supplemental { 0 } else { history_floor };
     let business_costs = fit_business_context(&mut candidates, &business, business_allowance, true);
     let business_used: usize = business_costs.values().sum();
     let diff_reserve = requested_diff_reserve.min(optional_capacity.saturating_sub(business_used));
@@ -2096,7 +2108,8 @@ fn pack_encoding(
             max_tokens.saturating_sub(diff_reserve)
         } else {
             max_tokens.saturating_sub(flow_reserve)
-        };
+        }
+        .saturating_sub(history_reserve);
         let allowance = limit
             .saturating_sub(used)
             .min(if collection == "diffs" && !supplemental {
@@ -2125,7 +2138,8 @@ fn pack_encoding(
             max_tokens
         } else {
             max_tokens.saturating_sub(flow_reserve)
-        };
+        }
+        .saturating_sub(history_reserve);
         if let Some(cost) = cost.within(
             &entry,
             limit.saturating_sub(used).saturating_sub(shared_cost),
@@ -2183,11 +2197,14 @@ fn pack_encoding(
         &mut report,
         &mut selected,
         &flow_annotations,
-        max_tokens.saturating_sub(used).min(if supplemental {
-            max_tokens / 16
-        } else {
-            flow_reserve
-        }),
+        max_tokens
+            .saturating_sub(used)
+            .saturating_sub(history_reserve)
+            .min(if supplemental {
+                max_tokens / 16
+            } else {
+                flow_reserve
+            }),
     );
     // Reclaim reservations that could not fit a complete cited path. Upgrade
     // selected code only; never spend a history allowance on omitted entries.
@@ -3093,7 +3110,8 @@ mod tests {
             "evolution":{"function_history":[{"subject":"Fix tenant isolation","commit":"e".repeat(40)}]}});
         let report = |subject_repeat: usize| {
             let mut big = history.clone();
-            big["historical_assertions"][0]["subject"] = json!("long subject ".repeat(subject_repeat));
+            big["historical_assertions"][0]["subject"] =
+                json!("long subject ".repeat(subject_repeat));
             json!({"entries":[
                 {"id":"seed","revision":"r","side":"head","repository_id":"repo","file":"svc/a.go","file_sha256":"a".repeat(64),"name":"Load","kind":"function","line":3,"end_line":9,
                  "text":"func Load() {}","_provided_diff":true,"reasons":[{"reason":"change_seed"}],"business_context":big},
@@ -3105,16 +3123,30 @@ mod tests {
         let kept = &packet["business_context"]["provided_diff_entries"];
         assert_eq!(kept.as_array().map(Vec::len), Some(1), "{packet}");
         assert_eq!(kept[0]["file"], "svc/a.go");
-        assert_eq!((kept[0]["line"].clone(), kept[0]["end_line"].clone()), (json!(3), json!(9)));
-        assert_eq!(kept[0]["business_context"]["historical_assertions"][0]["subject"], "long subject ");
+        assert_eq!(
+            (kept[0]["line"].clone(), kept[0]["end_line"].clone()),
+            (json!(3), json!(9))
+        );
+        assert_eq!(
+            kept[0]["business_context"]["historical_assertions"][0]["subject"],
+            "long subject "
+        );
         assert!(kept[0].get("text").is_none(), "the diff shows the code");
         assert_eq!(packet["context_order"], json!(["outside"]));
         assert!(text::count(&packet.to_string()) <= 4000);
         // History never displaces required code: past its allowance it is
         // counted as omitted, not truncated.
         let (packet, _) = pack(report(2000), 4000, None, None).unwrap();
-        assert!(packet["business_context"].get("provided_diff_entries").is_none(), "{packet}");
-        assert_eq!(packet["business_context"]["packing"]["provided_diff_entries"]["omitted"], 1);
+        assert!(
+            packet["business_context"]
+                .get("provided_diff_entries")
+                .is_none(),
+            "{packet}"
+        );
+        assert_eq!(
+            packet["business_context"]["packing"]["provided_diff_entries"]["omitted"],
+            1
+        );
         assert_eq!(packet["context_order"], json!(["outside"]));
         // Required code that alone fills the packet (a partly covered
         // declaration, argus #87) still leaves the reserved share: the
@@ -3124,7 +3156,12 @@ mod tests {
             "file":"svc/c.go","text":"x := 1 // body\n".repeat(2000),"_provided_diff_overlap":true,"reasons":[{"reason":"change_seed"}]}));
         let (packet, _) = pack(full, 4000, None, None).unwrap();
         let kept = &packet["business_context"]["provided_diff_entries"];
-        assert_eq!(kept.as_array().map(Vec::len), Some(1), "{}", packet["business_context"]);
+        assert_eq!(
+            kept.as_array().map(Vec::len),
+            Some(1),
+            "{}",
+            packet["business_context"]
+        );
         assert!(text::count(&packet.to_string()) <= 4000);
     }
 
@@ -3506,18 +3543,23 @@ mod tests {
 
     #[test]
     fn history_keeps_a_share_when_required_code_overflows_the_packet() {
-        // argus #30: 42 head declarations need 64k tokens of a 20k packet;
-        // every history line was dropped although the packet was incomplete
-        // either way.
-        let history = json!({"evolution":{"function_history":[{"subject":"keep tenant isolation","commit":"b".repeat(40)}]}});
-        let entries: Vec<_> = (0..12).map(|i| json!({"id":format!("head{i}"),"revision":"r","repository_id":"repo","side":"head",
-            "text":"perform_work(); ".repeat(400),"reasons":[{"reason":"change_seed"}],"business_context":history})).collect();
+        // argus #30: 42 head declarations needed 64k tokens of a 20k packet.
+        // Code filled the packet to the last gap and every history line was
+        // dropped, though the packet was incomplete either way.
+        let history = json!({"evolution":{"function_history":[{"subject":"keep tenant isolation ".repeat(50),"commit":"b".repeat(40)}]}});
+        let entries: Vec<_> = (0..60).map(|i| json!({"id":format!("head{i}"),"revision":"r","repository_id":"repo","side":"head",
+            "text":"perform_work(); ".repeat(25),"reasons":[{"reason":"change_seed"}],"business_context":history})).collect();
         let report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "business_context":{"complete":false},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
         let (packet, _) = pack(report, 4000, None, None).unwrap();
-        let with_history = packet["entries"].as_array().unwrap().iter().filter(|e| e.get("business_context").is_some()).count();
+        let with_history = packet["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|e| e.get("business_context").is_some())
+            .count();
         assert!(with_history > 0, "{}", packet["business_context"]);
-        assert!(packet["business_context"]["packing"]["allowance_tokens"].as_u64().unwrap() > 0);
+        assert_eq!(packet["coverage"]["current_head"]["complete"], false);
         assert!(text::count(&packet.to_string()) <= 4000);
     }
 
@@ -3962,8 +4004,10 @@ mod tests {
         // phantom change seeds filled the packet.
         let text = "package b\n\nfunc F() {}\n";
         let side = sources_of(&[("repo/b/f.go", text)]);
-        let request: Request = serde_json::from_value(json!({"repository_id":"repo","base":[],"head":[],
-            "profile":{"goos":"linux","goarch":"amd64","tags":[],"tests":false,"workspace":""}})).unwrap();
+        let request: Request =
+            serde_json::from_value(json!({"repository_id":"repo","base":[],"head":[],
+            "profile":{"goos":"linux","goarch":"amd64","tags":[],"tests":false,"workspace":""}}))
+            .unwrap();
         for (a, b) in [
             (analysis_of(&[("repo/b/f.go", "F")]), analysis_of(&[])),
             (analysis_of(&[]), analysis_of(&[("repo/b/f.go", "F")])),
@@ -3972,15 +4016,34 @@ mod tests {
             assert_eq!(report["changes"], json!([]), "{}", report["changes"]);
             assert!(report["entries"].as_array().unwrap().is_empty());
             let issues = report["coverage"]["issues"].as_array().unwrap();
-            assert!(issues.iter().any(|i| i["reason"] == "analysis_differs_between_sides"
-                && i["detail"]["file"] == "repo/b/f.go"), "{issues:?}");
+            assert!(
+                issues
+                    .iter()
+                    .any(|i| i["reason"] == "analysis_differs_between_sides"
+                        && i["detail"]["file"] == "repo/b/f.go"),
+                "{issues:?}"
+            );
         }
         // A changed file, or one whose symbols the other side names differently
         // (a module path renamed), still changes.
         let edited = sources_of(&[("repo/b/f.go", "package b\n\nfunc F() { g() }\n")]);
-        let report = compare(&side, &edited, &analysis_of(&[("repo/b/f.go", "F")]), &analysis_of(&[]), &request).unwrap();
+        let report = compare(
+            &side,
+            &edited,
+            &analysis_of(&[("repo/b/f.go", "F")]),
+            &analysis_of(&[]),
+            &request,
+        )
+        .unwrap();
         assert_eq!(report["changes"][0]["kind"], "deleted");
-        let renamed = compare(&side, &side, &analysis_of(&[("repo/b/f.go", "F")]), &analysis_of(&[("repo/b/f.go", "G")]), &request).unwrap();
+        let renamed = compare(
+            &side,
+            &side,
+            &analysis_of(&[("repo/b/f.go", "F")]),
+            &analysis_of(&[("repo/b/f.go", "G")]),
+            &request,
+        )
+        .unwrap();
         assert!(!renamed["changes"].as_array().unwrap().is_empty());
     }
 }
