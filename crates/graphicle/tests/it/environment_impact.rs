@@ -765,3 +765,159 @@ fn automatic_discovery_does_not_choose_between_workloads_or_override_manifests()
         }
     }
 }
+
+const URL_CODE: &str = r#"package tax
+import env "os"
+func Review() string { return env.Getenv("AGENT_URL") }
+func Caller() string { return Review() }
+func Read() string { return env.Getenv("TIMEOUT") }
+"#;
+const URL_VALUES: &str = "applicationName: app\nnamespace: company\ncontainer:\n  env:\n    - name: TIMEOUT\n      value: \"10\"\n    - name: AGENT_URL\n      value: \"http://agent.company.internal/v1/review\"\n";
+const URL_AGENT: &str = "applicationName: agent\nnamespace: company\ncontainer:\n  env:\n    - name: LIMIT\n      value: \"5\"\ningress:\n  enabled: true\n  hosts:\n    - host: agent.company.internal\n      paths:\n        - path: /*\n";
+fn address_pin(f: &Fixture, repo: &str, commit: char, root: &str, agent: Option<&str>) -> Value {
+    let mut files = vec![
+        ("go.mod", MOD),
+        ("service.go", URL_CODE),
+        ("infra/production/values.yaml", root),
+    ];
+    if let Some(agent) = agent {
+        files.extend([
+            ("agent/infra/production/values.yaml", agent),
+            ("agent/requirements.txt", "requests\n"),
+            (
+                "agent/server.py",
+                "import os\nLIMIT = os.environ.get('LIMIT')\n",
+            ),
+        ]);
+    }
+    f.pin(repo, "app", commit, &files)
+}
+fn address<'a>(packet: &'a Value, side: &str) -> Option<&'a Value> {
+    packet["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["side"] == side && e["kind"] == "service_address")
+}
+fn through_address(packet: &Value, side: &str, name: &str) -> bool {
+    packet["entries"].as_array().unwrap().iter().any(|e| {
+        e["side"] == side
+            && s(e, "name").ends_with(name)
+            && e["reasons"].as_array().unwrap().iter().any(|r| {
+                r["steps"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .any(|step| step["relation"] == "addresses_service")
+            })
+    })
+}
+
+#[test]
+fn a_url_value_addresses_the_application_whose_chart_declares_its_host() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-address");
+    let changed = URL_VALUES.replace("/v1/review", "/v2/review");
+    let packet = run(
+        &f,
+        &repo,
+        address_pin(&f, &repo, 'a', URL_VALUES, Some(URL_AGENT)),
+        address_pin(&f, &repo, 'b', &changed, Some(URL_AGENT)),
+    );
+    let scope = &packet["service_graph"]["head"]["environment"]["scopes"][0];
+    assert_eq!(scope["narrowing_eligible"], true, "{packet}");
+    assert!(has(&packet, "head", ".Review"), "{packet}");
+    assert!(!has(&packet, "head", ".Read"), "{packet}");
+    let target = address(&packet, "head").expect("service address entry");
+    let cited = &target["service_address"];
+    assert_eq!(cited["application"], "agent", "{target}");
+    assert_eq!(cited["namespace"], "company", "{target}");
+    assert_eq!(cited["source_kind"], "chart_values", "{target}");
+    assert!(
+        s(&cited["source"], "file").ends_with("agent/infra/production/values.yaml"),
+        "{target}"
+    );
+}
+
+#[test]
+fn renaming_the_target_host_reaches_the_readers_of_the_url() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-address-rename");
+    let renamed = URL_AGENT.replace("agent.company.internal", "agent2.company.internal");
+    let packet = run(
+        &f,
+        &repo,
+        address_pin(&f, &repo, 'a', URL_VALUES, Some(URL_AGENT)),
+        address_pin(&f, &repo, 'b', URL_VALUES, Some(&renamed)),
+    );
+    // The base address is gone in head: its consumers are the URL's readers.
+    assert!(address(&packet, "base").is_some(), "{packet}");
+    assert!(through_address(&packet, "base", ".Review"), "{packet}");
+    assert!(through_address(&packet, "base", ".Caller"), "{packet}");
+    assert!(!through_address(&packet, "base", ".Read"), "{packet}");
+}
+
+const HOST_MAP: &str = r#"{
+ "format": "graphicle.host-map.v1",
+ "suffixes": [".company.internal"],
+ "hosts": {
+  "agent.company.internal": {
+   "applications": ["agent"],
+   "observed_applications": ["agent"],
+   "routes": [{"namespace": "company", "path": "/*", "service": "agent", "source": "repository"}],
+   "status": "resolved"
+  },
+  "split.company.internal": {
+   "applications": ["one", "two"],
+   "observed_applications": [],
+   "routes": [{"path": "/a", "service": "one", "source": "weaver"}, {"path": "/b", "service": "two", "source": "weaver"}],
+   "status": "ambiguous"
+  }
+ }
+}
+"#;
+
+#[test]
+fn a_host_map_in_another_pin_resolves_hosts_no_admitted_chart_declares() {
+    let f = Fixture::new();
+    let app = f.repo("environment-address-app");
+    let atlas = f.repo("environment-address-map");
+    let values = URL_VALUES.to_owned()
+        + "    - name: SPLIT_URL\n      value: \"http://split.company.internal/a\"\n    - name: GONE_URL\n      value: \"http://gone.company.internal\"\n    - name: EXTERNAL_URL\n      value: \"https://api.example.com/v1\"\n";
+    let changed = values.replace("/v1/review", "/v2/review");
+    let map = |commit| {
+        f.pin(
+            &atlas,
+            "hosts",
+            commit,
+            &[("graphicle-host-map.json", HOST_MAP)],
+        )
+    };
+    let mut args = request(
+        &app,
+        vec![address_pin(&f, &app, 'a', &values, None), map('a')],
+        vec![address_pin(&f, &app, 'b', &changed, None), map('a')],
+    );
+    args["max_tokens"] = json!(64000);
+    let packet = f.run(&args);
+    let target = address(&packet, "head").expect("service address entry");
+    let cited = &target["service_address"];
+    assert_eq!(cited["application"], "agent", "{target}");
+    assert_eq!(cited["source_kind"], "host_map", "{target}");
+    assert_eq!(cited["observed_in_mesh"], true, "{target}");
+    assert_eq!(cited["source"]["repository_id"], atlas, "{target}");
+    assert!(issue(&packet, "environment_host_ambiguous"), "{packet}");
+    assert!(issue(&packet, "environment_host_unmapped"), "{packet}");
+    let unmapped: Vec<_> = packet["coverage"]["issues"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|i| i["reason"] == "environment_host_unmapped")
+        .collect();
+    assert_eq!(
+        unmapped.len(),
+        2,
+        "base and head, GONE_URL only: {unmapped:?}"
+    );
+    assert!(unmapped.iter().all(|i| i["detail"]["key"] == "GONE_URL"));
+}

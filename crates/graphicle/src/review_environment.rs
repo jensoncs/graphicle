@@ -333,6 +333,7 @@ pub(super) fn attach(
             .push(issue("environment_scope_limit", json!({"limit":128})));
         return Ok(());
     }
+    let hosts = addresses::index(input, &mut links.issues);
     let root = |pin: &Pin, scope: &Scope| {
         if scope.module == "." {
             pin.directory.clone()
@@ -364,7 +365,7 @@ pub(super) fn attach(
     // image defaults, indirect library reads and runtime deployment are not proved.
     links.issues.push(issue("environment_analysis_limitations", json!({
         "model":"literal_go_python_reads_and_kubernetes_values_v4",
-        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. ConfigMap `configMapKeyRef` values resolve from the deployment's directory, else from exactly one other admitted pin (such as an Atlas snapshot); secret and pod-field references bind readers without a value; k8s-application chart values are read by that chart's env template (production when several environments exist; workloads nested under `<dir>/infra/` are left out of the root workload's scope); envFrom does not, and Atlas config only through an admitted snapshot. No image defaults, indirect library behavior, general Helm rendering, runtime environment or deployment verification."
+        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. ConfigMap `configMapKeyRef` values resolve from the deployment's directory, else from exactly one other admitted pin (such as an Atlas snapshot); secret and pod-field references bind readers without a value; a URL value's host addresses the one application that admitted chart `ingress.hosts`, else an admitted host map (`graphicle-host-map.json`), names (no edge when several do); k8s-application chart values are read by that chart's env template (production when several environments exist; workloads nested under `<dir>/infra/` are left out of the root workload's scope); envFrom does not, and Atlas config only through an admitted snapshot. No image defaults, indirect library behavior, general Helm rendering, runtime environment or deployment verification."
     })));
     for (pin, scope, inventory_complete) in scopes {
         let world = root(&pin, &scope);
@@ -545,6 +546,7 @@ pub(super) fn attach(
             if !failures.contains("environment_namespace_mismatch") {
                 let literal_inputs = parsed.values.iter().map(|(name, value)| {
                     (
+                        true,
                         name,
                         value,
                         file.clone(),
@@ -556,6 +558,7 @@ pub(super) fn attach(
                 let map_inputs = parsed.references.iter().map(|(name, (map, key))| {
                     let map = &maps[map];
                     (
+                        true,
                         name,
                         &map.data.values[key],
                         map.file.clone(),
@@ -566,9 +569,17 @@ pub(super) fn attach(
                 });
                 // A secret or pod field has no value here; its reference stands in.
                 let opaque_inputs = parsed.opaque.iter().map(|(name, (reference, span))| {
-                    (name, reference, file.clone(), source, content, span.clone())
+                    (
+                        false,
+                        name,
+                        reference,
+                        file.clone(),
+                        source,
+                        content,
+                        span.clone(),
+                    )
                 });
-                for (name, value, file, source, content, span) in
+                for (addressable, name, value, file, source, content, span) in
                     literal_inputs.chain(map_inputs).chain(opaque_inputs)
                 {
                     let id = crate::digest(&json!([
@@ -615,6 +626,22 @@ pub(super) fn attach(
                         "manifest":manifest});
                     a.symbols.insert(id.clone(), (world.clone(), symbol));
                     links.nodes.insert(id.clone(), provenance);
+                    // A secret or pod field has no value to address anything.
+                    if addressable {
+                        addresses::link(
+                            input,
+                            &hosts,
+                            a,
+                            links,
+                            addresses::Address {
+                                input: &id,
+                                world: &world,
+                                key: name,
+                                value,
+                                scope: &scope.id,
+                            },
+                        );
+                    }
                     nodes.insert(name.clone(), id);
                 }
             }

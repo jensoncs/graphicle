@@ -73,7 +73,7 @@ impl MarkedEventReceiver for Guard {
                 if let Some(frame) = self.frames.pop()
                     && frame.mapping
                     && frame.path.len() > 1
-                    && frame.path[frame.path.len() - 2] == "env"
+                    && (frame.path[frame.path.len() - 2] == "env" || ingress_host(&frame.path))
                 {
                     self.spans
                         .insert(frame.path, (frame.start.unwrap(), marker));
@@ -106,6 +106,16 @@ impl MarkedEventReceiver for Guard {
         }
     }
 }
+
+/// `ingress.hosts[i]` / `ingressGrpc.hosts[i]` of k8s-application values.
+fn ingress_host(path: &[String]) -> bool {
+    path.len() == 3 && INGRESS.contains(&path[0].as_str()) && path[1] == "hosts"
+}
+const INGRESS: [&str; 2] = ["ingress", "ingressGrpc"];
+
+#[path = "environment_ingress.rs"]
+mod ingress;
+pub use ingress::{ChartIngress, IngressRoute, application, chart_ingress, host_name};
 
 pub struct DeploymentEnvironment {
     /// Used internally to fingerprint inputs; never emitted as telemetry.

@@ -27,6 +27,8 @@ mod go;
 #[path = "review_diagnostics.rs"]
 mod diagnostics;
 
+#[path = "review_service_address.rs"]
+mod addresses;
 #[path = "review_analysis_coverage.rs"]
 mod analysis_coverage;
 #[path = "review_basic.rs"]
@@ -918,6 +920,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
         "potential_import".into(),
         "configuration_scope".into(),
         "reads_environment".into(),
+        "addresses_service".into(),
         "uses_table".into(),
         "generated_from".into(),
     ];
@@ -1422,6 +1425,10 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                     value["environment_input"] = boundary.clone();
                     value["analysis_level"] = json!("basic_file");
                     value["language"] = json!("kubernetes");
+                    value["test_classification"] = json!("not_analyzed");
+                } else if symbol.kind == "service_address" {
+                    value["service_address"] = boundary.clone();
+                    value["analysis_level"] = json!("basic_file");
                     value["test_classification"] = json!("not_analyzed");
                 } else {
                     value["service_boundary"] = boundary.clone();
