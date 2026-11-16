@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"go/ast"
 	"go/build"
+	"go/constant"
 	"go/format"
 	"go/importer"
 	"go/token"
@@ -1080,7 +1081,11 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 						env.Relation = "writes_environment"
 					}
 					if len(call.Args) > 0 {
-						if literal, ok := unparen(call.Args[0]).(*ast.BasicLit); ok && literal.Kind == token.STRING {
+						// A constant key (`constants.AlertReviewURLKey`, `"A_" + suffix`)
+						// is as fixed as a literal; a variable key stays dynamic.
+						if value := info.Types[call.Args[0]].Value; value != nil && value.Kind() == constant.String {
+							env.Spelling = constant.StringVal(value)
+						} else if literal, ok := unparen(call.Args[0]).(*ast.BasicLit); ok && literal.Kind == token.STRING {
 							env.Spelling, _ = strconv.Unquote(literal.Value)
 						}
 					}

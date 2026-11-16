@@ -158,6 +158,40 @@ fn literal_environment_change_selects_consumers_and_measures_reduction() {
 }
 
 #[test]
+fn a_constant_key_reads_like_a_literal() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-constant");
+    let m = manifest(None);
+    // A named constant (`constants.AlertReviewURLKey`) and constant folding
+    // are compile-time strings; a variable key stays dynamic.
+    let code = CODE.replace(
+        "func Read() string { return env.Getenv(\"TIMEOUT\") }",
+        "const timeoutKey = \"TIME\" + suffix\nconst suffix = \"OUT\"\n\
+         func Read() string { return env.Getenv(timeoutKey) }",
+    );
+    let packet = run(
+        &f,
+        &repo,
+        pin(&f, &repo, 'a', &code, DEPLOY, Some(&m)),
+        pin(
+            &f,
+            &repo,
+            'b',
+            &code,
+            &DEPLOY.replace("\"10\"", "\"20\""),
+            Some(&m),
+        ),
+    );
+    assert!(!issue(&packet, "environment_dynamic_read"), "{packet}");
+    assert!(!issue(&packet, "uncertain_file_scope"), "{packet}");
+    assert!(has(&packet, "head", ".Read"));
+    assert!(has(&packet, "head", ".Caller"));
+    assert!(!has(&packet, "head", ".Other"));
+    let stats = &packet["service_graph"]["head"]["environment"]["scopes"][0];
+    assert_eq!(stats["resolved_reads"], 2, "{stats}");
+}
+
+#[test]
 fn uncertainty_preserves_conservative_scope() {
     let f = Fixture::new();
     let repo = f.repo("environment-uncertain");
