@@ -141,6 +141,19 @@ impl Context {
                 })
     }
 
+    /// Bytes of [start, end) the provided ranges show (they are merged and sorted).
+    fn shown(&self, side: &str, path: &str, sha: &str, start: u64, end: u64) -> u64 {
+        self.files
+            .get(&(side.to_owned(), path.to_owned()))
+            .filter(|file| file.sha == sha)
+            .map_or(0, |file| {
+                file.ranges
+                    .iter()
+                    .map(|&(a, b)| (b as u64).min(end).saturating_sub((a as u64).max(start)))
+                    .sum()
+            })
+    }
+
     pub(super) fn annotate(&self, report: &mut Value) {
         if self.files.is_empty() {
             return;
@@ -173,8 +186,19 @@ impl Context {
                 entry["byte_end"].as_u64().unwrap_or(0),
             ) {
                 // A partial declaration stays intact and eligible. Packing
-                // gives additional graph-linked source the first opportunity.
+                // gives additional graph-linked source the first opportunity,
+                // unless the diff leaves out most of it: then its unseen body
+                // is context the reviewers have nowhere else (nexus #946).
+                let (start, end) = (
+                    entry["byte_start"].as_u64().unwrap_or(0),
+                    entry["byte_end"].as_u64().unwrap_or(0),
+                );
+                let shown = self.shown(side, &path, s(entry, "file_sha256"), start, end);
+                let mostly_unseen = end.saturating_sub(start) > 2 * shown;
                 entry["_provided_diff_overlap"] = json!(true);
+                if mostly_unseen {
+                    entry["_provided_diff_mostly_unseen"] = json!(true);
+                }
             }
         }
         for diff in report["diffs"].as_array_mut().unwrap() {
@@ -239,5 +263,25 @@ mod tests {
         assert!(!context.overlaps("base", "app/code.go", "hash", 10, 20));
         assert!(!context.overlaps("head", "peer/code.go", "hash", 10, 20));
         assert!(!context.overlaps("head", "app/code.go", "other", 10, 20));
+    }
+
+    #[test]
+    fn shown_bytes_count_only_what_the_provided_ranges_cover() {
+        let context = Context {
+            files: BTreeMap::from([(
+                ("head".into(), "app/code.go".into()),
+                File {
+                    sha: "hash".into(),
+                    ranges: vec![(10, 20), (30, 40)],
+                },
+            )]),
+            directories: BTreeMap::new(),
+        };
+        // nexus #946: ProcessDelta 86-447 with hunks at 340-355 and 405-411.
+        assert_eq!(context.shown("head", "app/code.go", "hash", 0, 100), 20);
+        assert_eq!(context.shown("head", "app/code.go", "hash", 15, 35), 10);
+        assert_eq!(context.shown("head", "app/code.go", "hash", 20, 30), 0);
+        assert_eq!(context.shown("head", "app/code.go", "other", 0, 100), 0);
+        assert_eq!(context.shown("base", "app/code.go", "hash", 0, 100), 0);
     }
 }

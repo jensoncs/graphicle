@@ -1709,17 +1709,20 @@ fn pack_encoding(
     let mut entries = std::mem::take(report["entries"].as_array_mut().unwrap());
     let supplemental = report["coverage"].get("provided_diff").is_some();
     let mut overlapping = BTreeSet::new();
+    let mut mostly_unseen = BTreeSet::new();
     for entry in &mut entries {
-        if entry
-            .as_object_mut()
-            .unwrap()
-            .remove("_provided_diff_overlap")
-            == Some(json!(true))
-        {
-            overlapping.insert(s(entry, "id").to_owned());
+        let marks = entry.as_object_mut().unwrap();
+        let unseen = marks.remove("_provided_diff_mostly_unseen") == Some(json!(true));
+        if marks.remove("_provided_diff_overlap") == Some(json!(true)) {
+            let id = s(entry, "id").to_owned();
+            if unseen {
+                mostly_unseen.insert(id.clone());
+            }
+            overlapping.insert(id);
         }
     }
     if supplemental {
+        report["coverage"]["provided_diff"]["mostly_unseen_entries"] = json!(mostly_unseen.len());
         report["coverage"]["provided_diff"]["overlapping_entries"] = json!(overlapping.len());
         report["coverage"]["provided_diff"]["selected_outside_entries"] = json!(0);
         report["coverage"]["provided_diff"]["selected_overlapping_entries"] = json!(0);
@@ -1912,16 +1915,25 @@ fn pack_encoding(
     if supplemental {
         // Stable within each tier: preserve semantic priority and distance.
         // Uncertain scope alone must not outrank known graph-linked context
-        // merely because it lies outside a supplied hunk.
+        // merely because it lies outside a supplied hunk. A changed
+        // declaration the hunks mostly leave out follows required code
+        // (callers, call contracts) and precedes optional context: its unseen
+        // body is in neither the diff nor the block otherwise (nexus #946:
+        // lines a missed defect needed inside a changed function).
         candidates.sort_by_key(|(collection, entry)| {
+            let id = s(entry, "id");
             if *collection == "diffs" {
-                1
+                (1, 0)
             } else if entry_distance(entry) == usize::MAX {
-                2
-            } else if overlapping.contains(s(entry, "id")) {
-                1
+                (2, 0)
+            } else if mostly_unseen.contains(id) {
+                (0, 1)
+            } else if overlapping.contains(id) {
+                (1, 0)
+            } else if is_required_code(entry) {
+                (0, 0)
             } else {
-                0
+                (0, 2)
             }
         });
     }
@@ -3227,6 +3239,29 @@ mod tests {
             packet["business_context"]
         );
         assert!(text::count(&packet.to_string()) <= 4000);
+    }
+
+    #[test]
+    fn a_changed_declaration_the_diff_mostly_leaves_out_ranks_with_outside_context() {
+        // nexus #946: ProcessDelta (86-447) is a changed declaration whose
+        // hunks show 23 of its 362 lines; lines 386-403 a missed defect needed
+        // were in neither the diff nor the block.
+        let report = json!({"entries":[
+            {"id":"seen","revision":"r","side":"head","text":"changed()","_provided_diff_overlap":true,"reasons":[{"reason":"change_seed"}]},
+            {"id":"unseen","revision":"r","side":"head","text":"long_changed()","_provided_diff_overlap":true,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"change_seed"}]},
+            {"id":"outside","revision":"r","side":"head","text":"dependency()","reasons":[{"reason":"dependency","path":["seen","outside"]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":2,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 3500, None, None).unwrap();
+        assert_eq!(
+            packet["context_order"],
+            json!(["unseen", "outside", "seen"])
+        );
+        assert_eq!(
+            packet["coverage"]["provided_diff"]["mostly_unseen_entries"],
+            1
+        );
+        assert!(!packet.to_string().contains("_provided_diff"));
     }
 
     #[test]

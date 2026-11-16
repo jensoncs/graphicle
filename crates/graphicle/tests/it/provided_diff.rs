@@ -157,9 +157,17 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
             extra["coverage"]["packing"]["cost_model"],
             "fixed_hex_identifiers_v1"
         );
-        if budget >= 5000 {
-            assert!(outside_count(&extra) >= 2, "{}", extra["coverage"]);
-            assert!(has(&extra, "head", "Dependency"));
+        // The caller is required code and always precedes overlap. The
+        // changed function Target is shown by one hunk line, so its unseen
+        // body follows required code and precedes the optional dependency
+        // (nexus #946: needed lines inside a changed function were in neither
+        // the diff nor the block): at 5,000 only the dependency fits beside
+        // the caller, at 6,500 Target's body does.
+        if budget == 5000 {
+            assert!(has(&extra, "head", "Dependency"), "{}", extra["coverage"]);
+        }
+        if budget == 6500 {
+            assert!(has(&extra, "head", "Target"), "{}", extra["coverage"]);
         }
         assert!(outside_count(&extra) >= outside_count(&plain));
         assert_eq!(extra["coverage"]["provided_diff"]["entries"], 0);
