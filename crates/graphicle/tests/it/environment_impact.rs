@@ -191,6 +191,98 @@ fn a_constant_key_reads_like_a_literal() {
     assert_eq!(stats["resolved_reads"], 2, "{stats}");
 }
 
+const SETTINGS: &str = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: settings\n  namespace: company\ndata:\n  timeout: \"10\"\n";
+fn config_map_pin(f: &Fixture, repo: &str, commit: char, deploy: &str, settings: &str) -> Value {
+    let m = manifest(None);
+    f.pin(
+        repo,
+        "app",
+        commit,
+        &[
+            ("go.mod", MOD),
+            ("service.go", CODE),
+            ("deployment.yaml", deploy),
+            ("settings.yaml", settings),
+            ("graphicle-services.json", &m),
+        ],
+    )
+}
+fn from_settings(deploy: &str) -> String {
+    deploy.replace(
+        "value: \"10\"",
+        "valueFrom:\n                configMapKeyRef:\n                  name: settings\n                  key: timeout",
+    )
+}
+
+#[test]
+fn a_config_map_value_change_selects_only_its_readers() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-config-map");
+    let deploy = from_settings(DEPLOY);
+    let packet = run(
+        &f,
+        &repo,
+        config_map_pin(&f, &repo, 'a', &deploy, SETTINGS),
+        config_map_pin(
+            &f,
+            &repo,
+            'b',
+            &deploy,
+            &SETTINGS.replace("\"10\"", "\"20\""),
+        ),
+    );
+    assert!(!issue(&packet, "uncertain_file_scope"), "{packet}");
+    assert!(
+        !issue(&packet, "environment_value_from_unresolved"),
+        "{packet}"
+    );
+    assert!(has(&packet, "head", ".Read"));
+    assert!(has(&packet, "head", ".Caller"));
+    assert!(!has(&packet, "head", ".Other"));
+    let stats = &packet["service_graph"]["head"]["environment"]["scopes"][0];
+    assert_eq!(stats["resolved_reads"], 2, "{stats}");
+    let input = packet["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["side"] == "head" && e["environment_input"]["key"] == "TIMEOUT")
+        .expect("TIMEOUT input");
+    assert_eq!(input["file"], "settings.yaml", "{input}");
+    assert!(s(input, "text").contains("timeout: \"20\""), "{input}");
+}
+
+#[test]
+fn a_config_map_used_beyond_the_scoped_keys_stays_broad() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-config-map-shared");
+    let deploy = from_settings(DEPLOY);
+    let mounted = deploy.replace(
+        "      containers:\n",
+        "      volumes:\n        - name: conf\n          configMap:\n            name: settings\n      containers:\n",
+    );
+    let extra_key = SETTINGS.to_owned() + "  unused: \"x\"\n";
+    for (deploy, settings) in [
+        (mounted.as_str(), SETTINGS),
+        (deploy.as_str(), extra_key.as_str()),
+    ] {
+        let packet = run(
+            &f,
+            &repo,
+            config_map_pin(&f, &repo, 'a', deploy, settings),
+            config_map_pin(
+                &f,
+                &repo,
+                'b',
+                deploy,
+                &settings.replace("\"10\"", "\"20\""),
+            ),
+        );
+        assert!(issue(&packet, "uncertain_file_scope"), "{packet}");
+        assert!(has(&packet, "head", ".Read"), "{packet}");
+        assert!(has(&packet, "head", ".Other"), "{packet}");
+    }
+}
+
 #[test]
 fn uncertainty_preserves_conservative_scope() {
     let f = Fixture::new();

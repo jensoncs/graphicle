@@ -34,7 +34,7 @@ impl State {
     }
     pub fn summary(&self) -> Value {
         json!({"enabled":true,"scopes":self.reports,"narrowable_files":self.files.len(),
-            "model":"literal_go_python_reads_and_kubernetes_values_v2","runtime_observed":false})
+            "model":"literal_go_python_reads_and_kubernetes_values_v3","runtime_observed":false})
     }
 }
 pub(super) fn covers_change(file: &str, a: &Analysis, b: &Analysis) -> bool {
@@ -150,6 +150,98 @@ fn discover(input: &Input, a: &Analysis, links: &mut services::Links) -> Vec<(Pi
     scopes
 }
 
+/// A ConfigMap that supplies some of a workload's env values.
+struct MapInput<'a> {
+    /// The source's key in `Input::sources`.
+    file: String,
+    source: &'a Source,
+    data: extract::ConfigMapData,
+    /// Every data key is one of the scoped workload's references and nothing
+    /// else names the ConfigMap, so a data change reaches only those readers.
+    /// ponytail: "names" is a substring test over the directory's sources;
+    /// parse references if shared names cost too much narrowing.
+    narrowable: bool,
+}
+
+/// The one ConfigMap in the deployment's directory, of the workload's
+/// namespace, behind each `configMapKeyRef`. Missing or ambiguous fails closed.
+fn config_maps<'a>(
+    input: &'a Input,
+    directory: &str,
+    deployment: &str,
+    parsed: &extract::DeploymentEnvironment,
+) -> std::result::Result<BTreeMap<String, MapInput<'a>>, &'static str> {
+    let names: BTreeSet<&str> = parsed
+        .references
+        .values()
+        .map(|(map, _)| map.as_str())
+        .collect();
+    if names.is_empty() {
+        return Ok(BTreeMap::new());
+    }
+    let prefix = format!("{directory}/");
+    let mut found = BTreeMap::<String, Vec<(&String, &Source, extract::ConfigMapData)>>::new();
+    for (path, source) in input.sources.iter().filter(|(path, _)| {
+        path.starts_with(&prefix)
+            && *path != deployment
+            && matches!(
+                Path::new(path).extension().and_then(|s| s.to_str()),
+                Some("yaml" | "yml")
+            )
+    }) {
+        let Some(text) = source.content.text() else {
+            continue;
+        };
+        if let Ok(data) = extract::config_map(text)
+            && names.contains(data.name.as_str())
+            && parsed.workload["namespace"] == data.namespace
+        {
+            found
+                .entry(data.name.clone())
+                .or_default()
+                .push((path, source, data));
+        }
+    }
+    let mut maps = BTreeMap::new();
+    for name in names {
+        let Some(mut candidates) = found.remove(name).filter(|c| c.len() == 1) else {
+            return Err("environment_value_from_unresolved");
+        };
+        let (file, source, data) = candidates.pop().unwrap();
+        let referenced: BTreeSet<&str> = parsed
+            .references
+            .values()
+            .filter(|(map, _)| map == name)
+            .map(|(_, key)| key.as_str())
+            .collect();
+        if referenced.iter().any(|key| !data.values.contains_key(*key)) {
+            return Err("environment_value_from_unresolved");
+        }
+        let named_elsewhere = input.sources.iter().any(|(path, other)| {
+            path.starts_with(&prefix)
+                && *path != deployment
+                && path != file
+                && other.content.text().is_none_or(|text| text.contains(name))
+        });
+        let narrowable = !named_elsewhere
+            && !parsed.config_maps_elsewhere.contains(name)
+            && data
+                .values
+                .keys()
+                .all(|key| referenced.contains(key.as_str()));
+        maps.insert(
+            name.to_owned(),
+            MapInput {
+                file: file.clone(),
+                source,
+                data,
+                narrowable,
+            },
+        );
+    }
+    Ok(maps)
+}
+
 pub(super) fn attach(
     input: &Input,
     a: &mut Analysis,
@@ -196,8 +288,8 @@ pub(super) fn attach(
     // This qualifier remains even when direct literal reads resolve. Inherited
     // image defaults, indirect library reads and runtime deployment are not proved.
     links.issues.push(issue("environment_analysis_limitations", json!({
-        "model":"literal_go_python_reads_and_kubernetes_values_v2",
-        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. No image defaults, indirect library behavior, Helm rendering, runtime environment or deployment verification."
+        "model":"literal_go_python_reads_and_kubernetes_values_v3",
+        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. Same-directory ConfigMap `configMapKeyRef` values resolve; envFrom, secrets and Atlas config do not. No image defaults, indirect library behavior, Helm rendering, runtime environment or deployment verification."
     })));
     for (pin, scope, inventory_complete) in scopes {
         let world = root(&pin, &scope);
@@ -272,6 +364,21 @@ pub(super) fn attach(
             }
         } else {
             None
+        };
+        let deployment_directory = scope
+            .deployment
+            .directory
+            .clone()
+            .unwrap_or_else(|| pin.directory.clone());
+        let (parsed, maps) = match parsed
+            .map(|p| config_maps(input, &deployment_directory, &file, &p).map(|maps| (p, maps)))
+        {
+            Some(Ok((parsed, maps))) => (Some(parsed), maps),
+            Some(Err(reason)) => {
+                failures.insert(reason);
+                (None, BTreeMap::new())
+            }
+            None => (None, BTreeMap::new()),
         };
         if let Some(parsed) = parsed {
             let source = source.unwrap();
@@ -354,14 +461,34 @@ pub(super) fn attach(
             let mut nodes = BTreeMap::new();
             // Namespace mismatches are not usable even as potential links.
             if !failures.contains("environment_namespace_mismatch") {
-                for (name, value) in &parsed.values {
+                let literal_inputs = parsed.values.iter().map(|(name, value)| {
+                    (
+                        name,
+                        value,
+                        file.clone(),
+                        source,
+                        content,
+                        parsed.spans[name].clone(),
+                    )
+                });
+                let map_inputs = parsed.references.iter().map(|(name, (map, key))| {
+                    let map = &maps[map];
+                    (
+                        name,
+                        &map.data.values[key],
+                        map.file.clone(),
+                        map.source,
+                        map.source.content.text().unwrap(),
+                        map.data.spans[key].clone(),
+                    )
+                });
+                for (name, value, file, source, content, span) in literal_inputs.chain(map_inputs) {
                     let id = crate::digest(&json!([
                         "environment-input-v1",
                         pin.repository_id,
                         scope.id,
                         name
                     ]));
-                    let span = &parsed.spans[name];
                     let source_pin = input
                         .pins
                         .iter()
@@ -477,7 +604,7 @@ pub(super) fn attach(
                     evidence: json!({"configuration":links.nodes[target],"read":call_evidence(w,call)}),
                 });
             }
-            report["declared_keys"] = json!(parsed.values.len());
+            report["declared_keys"] = json!(parsed.values.len() + parsed.references.len());
             report["literal_reads"] = json!(literal);
             report["resolved_reads"] = json!(resolved);
             report["unresolved_reads"] = json!(unresolved);
@@ -485,8 +612,14 @@ pub(super) fn attach(
             if failures.is_empty() {
                 links.environment.files.insert(
                     file.clone(),
-                    (scope_revision, crate::digest(&parsed.masked)),
+                    (scope_revision.clone(), crate::digest(&parsed.masked)),
                 );
+                for map in maps.values().filter(|map| map.narrowable) {
+                    links.environment.files.insert(
+                        map.file.clone(),
+                        (scope_revision.clone(), crate::digest(&map.data.masked)),
+                    );
+                }
                 report["narrowing_eligible"] = json!(true);
             }
         }

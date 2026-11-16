@@ -25,6 +25,8 @@ struct Guard {
     documents: usize,
     invalid: bool,
     spans: BTreeMap<Vec<String>, (Marker, Marker)>,
+    /// A top-level `data` entry being read: key, start, value seen.
+    data_open: Option<(String, Marker, bool)>,
 }
 impl MarkedEventReceiver for Guard {
     fn on_event(&mut self, event: Event, marker: Marker) {
@@ -32,6 +34,12 @@ impl MarkedEventReceiver for Guard {
         if self.invalid || self.events > 20_000 || self.frames.len() > 64 {
             self.invalid = true;
             return;
+        }
+        // A `data` entry ends where the next event starts.
+        if self.data_open.as_ref().is_some_and(|open| open.2)
+            && let Some((key, start, _)) = self.data_open.take()
+        {
+            self.spans.insert(vec!["data".into(), key], (start, marker));
         }
         let mapping = matches!(&event, Event::MappingStart(..));
         match event {
@@ -74,6 +82,13 @@ impl MarkedEventReceiver for Guard {
             Event::Scalar(text, _, anchor, tag) => {
                 self.invalid |= anchor != 0 || tag.is_some();
                 if let Some(parent) = self.frames.last_mut().filter(|f| f.mapping) {
+                    if parent.path.len() == 1 && parent.path[0] == "data" {
+                        if parent.key {
+                            self.data_open = Some((text.clone(), marker, false));
+                        } else if let Some(open) = self.data_open.as_mut() {
+                            open.2 = true;
+                        }
+                    }
                     if parent.key {
                         if parent.keys.is_empty() {
                             parent.start = Some(marker);
@@ -101,6 +116,133 @@ pub struct DeploymentEnvironment {
     /// other containers, valueFrom, or any other deployment setting.
     pub masked: Value,
     pub workload: Value,
+    /// Env names whose value is a ConfigMap entry: (ConfigMap, data key).
+    pub references: BTreeMap<String, (String, String)>,
+    /// ConfigMaps the workload uses other than through these references
+    /// (volumes, `envFrom`, other containers): their other keys have readers
+    /// this model does not see.
+    pub config_maps_elsewhere: BTreeSet<String>,
+}
+
+/// A ConfigMap's literal `data`, cited like deployment values.
+pub struct ConfigMapData {
+    pub name: String,
+    pub namespace: String,
+    pub values: BTreeMap<String, String>,
+    pub spans: BTreeMap<String, std::ops::Range<usize>>,
+    /// Full document with just the `data` values erased.
+    pub masked: Value,
+}
+
+/// A Kubernetes object name (DNS-1123 subdomain).
+fn resource_name(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 253
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'.')
+}
+/// A ConfigMap data key.
+fn data_key(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 253
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_' | b'.'))
+}
+fn config_map_names(value: &Value, out: &mut BTreeMap<String, usize>) {
+    match value {
+        Value::Object(map) => {
+            for (key, child) in map {
+                if matches!(
+                    key.as_str(),
+                    "configMap" | "configMapRef" | "configMapKeyRef"
+                ) && let Some(name) = child["name"].as_str()
+                {
+                    *out.entry(name.to_owned()).or_default() += 1;
+                }
+                config_map_names(child, out);
+            }
+        }
+        Value::Array(items) => items.iter().for_each(|item| config_map_names(item, out)),
+        _ => {}
+    }
+}
+fn line_starts(content: &str) -> Vec<usize> {
+    std::iter::once(0)
+        .chain(
+            content
+                .bytes()
+                .enumerate()
+                .filter(|(_, b)| *b == b'\n')
+                .map(|(i, _)| i + 1),
+        )
+        .collect()
+}
+// yaml-rust2's absolute index mixes character and byte increments on
+// different scanner paths. Lines with ASCII prefixes give an unambiguous
+// byte column; decline ambiguous inline Unicode instead of mis-citing it.
+fn byte_offset(content: &str, offsets: &[usize], marker: &Marker) -> Result<usize, &'static str> {
+    // The scanner closes block collections after an implicit final newline.
+    if !content.ends_with('\n') && marker.line() == offsets.len() + 1 && marker.col() == 0 {
+        return Ok(content.len());
+    }
+    let line = *offsets
+        .get(
+            marker
+                .line()
+                .checked_sub(1)
+                .ok_or("environment_span_unavailable")?,
+        )
+        .ok_or("environment_span_unavailable")?;
+    let at = line
+        .checked_add(marker.col())
+        .ok_or("environment_span_unavailable")?;
+    let prefix = content
+        .get(line..at)
+        .ok_or("environment_span_unavailable")?;
+    if !prefix.is_ascii() || prefix.contains('\n') {
+        return Err("environment_span_unavailable");
+    }
+    Ok(at)
+}
+fn span(
+    content: &str,
+    offsets: &[usize],
+    guard: &Guard,
+    path: &[String],
+) -> Result<std::ops::Range<usize>, &'static str> {
+    let (start, end) = guard
+        .spans
+        .get(path)
+        .ok_or("environment_span_unavailable")?;
+    let start = byte_offset(content, offsets, start)?;
+    let end = byte_offset(content, offsets, end)?;
+    if start >= end || content.get(start..end).is_none() {
+        return Err("environment_span_unavailable");
+    }
+    Ok(start..end)
+}
+/// The bytes outside the erased spans. Retain exact non-value bytes as well as
+/// structure: YAML scalar coercions or parser normalization must never erase
+/// another change.
+fn outside(
+    content: &str,
+    spans: &BTreeMap<String, std::ops::Range<usize>>,
+) -> Result<String, &'static str> {
+    let mut ranges: Vec<_> = spans.values().cloned().collect();
+    ranges.sort_by_key(|span| span.start);
+    let mut out = String::new();
+    let mut cursor = 0;
+    for span in ranges {
+        if span.start < cursor {
+            return Err("environment_span_ambiguous");
+        }
+        out.push_str(&content[cursor..span.start]);
+        cursor = span.end;
+    }
+    out.push_str(&content[cursor..]);
+    Ok(out)
 }
 
 pub fn key(value: &str) -> bool {
@@ -171,6 +313,8 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
         .ok_or("environment_namespace_missing")?;
     let workload =
         serde_json::json!({"kind":kind,"name":name,"namespace":namespace,"container":container});
+    let mut config_map_uses = BTreeMap::new();
+    config_map_names(&document, &mut config_map_uses);
     let pod = document
         .pointer_mut(pointer)
         .ok_or("environment_workload_unsupported")?;
@@ -197,43 +341,9 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
         return Err("environment_declaration_limit");
     }
     let mut values = BTreeMap::new();
+    let mut references = BTreeMap::<String, (String, String)>::new();
     let mut spans = BTreeMap::new();
-    let offsets: Vec<_> = std::iter::once(0)
-        .chain(
-            content
-                .bytes()
-                .enumerate()
-                .filter(|(_, b)| *b == b'\n')
-                .map(|(i, _)| i + 1),
-        )
-        .collect();
-    // yaml-rust2's absolute index mixes character and byte increments on
-    // different scanner paths. Lines with ASCII prefixes give an unambiguous
-    // byte column; decline ambiguous inline Unicode instead of mis-citing it.
-    let offset = |marker: &Marker| -> Result<usize, &'static str> {
-        // The scanner closes block collections after an implicit final newline.
-        if !content.ends_with('\n') && marker.line() == offsets.len() + 1 && marker.col() == 0 {
-            return Ok(content.len());
-        }
-        let line = *offsets
-            .get(
-                marker
-                    .line()
-                    .checked_sub(1)
-                    .ok_or("environment_span_unavailable")?,
-            )
-            .ok_or("environment_span_unavailable")?;
-        let at = line
-            .checked_add(marker.col())
-            .ok_or("environment_span_unavailable")?;
-        let prefix = content
-            .get(line..at)
-            .ok_or("environment_span_unavailable")?;
-        if !prefix.is_ascii() || prefix.contains('\n') {
-            return Err("environment_span_unavailable");
-        }
-        Ok(at)
-    };
+    let offsets = line_starts(content);
     for (index, item) in env.iter_mut().enumerate() {
         let object = item
             .as_object_mut()
@@ -244,6 +354,35 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
             .filter(|s| key(s))
             .ok_or("environment_key_unresolved")?
             .to_owned();
+        if object.len() == 2 && object.contains_key("valueFrom") {
+            // Only an exact, required `configMapKeyRef` is a reference;
+            // `optional`, secrets and field refs stay unresolved.
+            let reference = object["valueFrom"]
+                .as_object()
+                .filter(|from| from.len() == 1)
+                .and_then(|from| from.get("configMapKeyRef"))
+                .and_then(Value::as_object)
+                .filter(|r| r.len() == 2);
+            let map = reference
+                .and_then(|r| r.get("name"))
+                .and_then(Value::as_str)
+                .filter(|s| resource_name(s));
+            let entry = reference
+                .and_then(|r| r.get("key"))
+                .and_then(Value::as_str)
+                .filter(|s| data_key(s));
+            let (Some(map), Some(entry)) = (map, entry) else {
+                return Err("environment_value_from_unresolved");
+            };
+            if values.contains_key(&name)
+                || references
+                    .insert(name, (map.to_owned(), entry.to_owned()))
+                    .is_some()
+            {
+                return Err("environment_key_ambiguous");
+            }
+            continue;
+        }
         if object.keys().any(|k| k != "name" && k != "value") {
             return Err("environment_value_from_unresolved");
         }
@@ -265,40 +404,79 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
                 index.to_string(),
             ])
             .collect();
-        let (start, end) = guard
-            .spans
-            .get(&path)
-            .ok_or("environment_span_unavailable")?;
-        let start = offset(start)?;
-        let end = offset(end)?;
-        if start >= end || content.get(start..end).is_none() {
-            return Err("environment_span_unavailable");
-        }
-        spans.insert(name.clone(), start..end);
-        if values.insert(name, value.to_owned()).is_some() {
+        spans.insert(name.clone(), span(content, &offsets, &guard, &path)?);
+        if references.contains_key(&name) || values.insert(name, value.to_owned()).is_some() {
             return Err("environment_key_ambiguous");
         }
         object.insert("value".into(), Value::Null);
     }
-    // Retain exact non-env bytes as well as structure. YAML scalar coercions
-    // or parser normalization must never erase another deployment change.
-    let mut ranges: Vec<_> = spans.values().cloned().collect();
-    ranges.sort_by_key(|span| span.start);
-    let mut outside = String::new();
-    let mut cursor = 0;
-    for span in ranges {
-        if span.start < cursor {
-            return Err("environment_span_ambiguous");
-        }
-        outside.push_str(&content[cursor..span.start]);
-        cursor = span.end;
+    let mut own = BTreeMap::<&str, usize>::new();
+    for (map, _) in references.values() {
+        *own.entry(map.as_str()).or_default() += 1;
     }
-    outside.push_str(&content[cursor..]);
+    let config_maps_elsewhere = config_map_uses
+        .into_iter()
+        .filter(|(map, uses)| own.get(map.as_str()) != Some(uses))
+        .map(|(map, _)| map)
+        .collect();
+    let outside = outside(content, &spans)?;
     Ok(DeploymentEnvironment {
         values,
         spans,
         masked: serde_json::json!({"document":document,"outside_environment":outside}),
         workload,
+        references,
+        config_maps_elsewhere,
+    })
+}
+
+pub fn config_map(content: &str) -> Result<ConfigMapData, &'static str> {
+    let (mut document, guard) = document(content)?;
+    if document["apiVersion"] != "v1"
+        || document["kind"] != "ConfigMap"
+        || document.get("binaryData").is_some()
+    {
+        return Err("environment_config_map_unsupported");
+    }
+    let name = document["metadata"]["name"]
+        .as_str()
+        .filter(|s| resource_name(s))
+        .ok_or("environment_config_map_unsupported")?
+        .to_owned();
+    let namespace = document["metadata"]["namespace"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .ok_or("environment_namespace_missing")?
+        .to_owned();
+    let data = document["data"]
+        .as_object_mut()
+        .ok_or("environment_config_map_unsupported")?;
+    if data.len() > 1024 {
+        return Err("environment_declaration_limit");
+    }
+    let offsets = line_starts(content);
+    let mut values = BTreeMap::new();
+    let mut spans = BTreeMap::new();
+    for (entry, value) in data.iter_mut() {
+        if !data_key(entry) {
+            return Err("environment_config_map_unsupported");
+        }
+        let text = value.as_str().ok_or("environment_value_unresolved")?;
+        if text.contains("{{") {
+            return Err("environment_value_unresolved");
+        }
+        let path = ["data".to_owned(), entry.clone()];
+        spans.insert(entry.clone(), span(content, &offsets, &guard, &path)?);
+        values.insert(entry.clone(), text.to_owned());
+        *value = Value::Null;
+    }
+    let outside = outside(content, &spans)?;
+    Ok(ConfigMapData {
+        name,
+        namespace,
+        values,
+        spans,
+        masked: serde_json::json!({"document":document,"outside_environment":outside}),
     })
 }
 
@@ -342,6 +520,65 @@ mod tests {
         assert!(deployment(no_newline, "app").is_ok());
     }
 
+    const MAP: &str = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: settings\n  namespace: test\ndata:\n  timeout: \"10\"\n  retries: \"3\"\n";
+    const REF: &str = "valueFrom:\n                configMapKeyRef:\n                  name: settings\n                  key: timeout";
+
+    #[test]
+    fn config_map_key_refs_are_references_kept_in_the_masked_document() {
+        let parsed = deployment(&YAML.replace("value: \"10\"", REF), "app").unwrap();
+        assert!(parsed.values.is_empty());
+        assert_eq!(
+            parsed.references["TIMEOUT"],
+            ("settings".to_owned(), "timeout".to_owned())
+        );
+        assert!(parsed.config_maps_elsewhere.is_empty());
+        let other_key = deployment(
+            &YAML.replace(
+                "value: \"10\"",
+                &REF.replace("key: timeout", "key: retries"),
+            ),
+            "app",
+        )
+        .unwrap();
+        assert_ne!(parsed.masked, other_key.masked);
+        let mounted = YAML.replace("value: \"10\"", REF).replace(
+            "      containers:\n",
+            "      volumes:\n        - name: conf\n          configMap:\n            name: settings\n      containers:\n",
+        );
+        let mounted = deployment(&mounted, "app").unwrap();
+        assert!(mounted.config_maps_elsewhere.contains("settings"));
+    }
+
+    #[test]
+    fn config_map_data_values_are_the_only_erased_information() {
+        let a = config_map(MAP).unwrap();
+        assert_eq!(
+            (a.name.as_str(), a.namespace.as_str()),
+            ("settings", "test")
+        );
+        assert_eq!(a.values["timeout"], "10");
+        let text = &MAP[a.spans["timeout"].clone()];
+        assert!(
+            text.contains("timeout: \"10\"") && !text.contains("retries"),
+            "{text:?}"
+        );
+        let b = config_map(&MAP.replace("\"10\"", "\"20\"")).unwrap();
+        assert_eq!(a.masked, b.masked);
+        assert_ne!(a.values, b.values);
+        for (from, to) in [("retries", "attempts"), ("name: settings", "name: other")] {
+            assert_ne!(a.masked, config_map(&MAP.replace(from, to)).unwrap().masked);
+        }
+        for content in [
+            MAP.replace("\"3\"", "3"),
+            MAP.replace("data:", "binaryData:\n  blob: AA==\ndata:"),
+            MAP.replace("  namespace: test\n", ""),
+            MAP.replace("kind: ConfigMap", "kind: Secret"),
+            MAP.replace("\"10\"", "\"{{ .Values.timeout }}\""),
+        ] {
+            assert!(config_map(&content).is_err(), "{content}");
+        }
+    }
+
     #[test]
     fn ambiguous_dynamic_or_external_values_never_resolve() {
         for content in [
@@ -362,6 +599,14 @@ mod tests {
             ),
             format!("{YAML}---\n{YAML}"),
             YAML.replace("value: \"10\"", "value: {{ .Values.timeout }}"),
+            YAML.replace(
+                "value: \"10\"",
+                &format!("{REF}\n                  optional: true"),
+            ),
+            YAML.replace(
+                "value: \"10\"",
+                &format!("value: \"10\"\n              {REF}"),
+            ),
         ] {
             assert!(deployment(&content, "app").is_err(), "{content}");
         }
