@@ -88,6 +88,21 @@ fn discover(input: &Input, a: &Analysis, links: &mut services::Links) -> Vec<(Pi
         if candidates.is_empty() {
             continue;
         }
+        // Chart values for several environments describe one workload. Only
+        // production is scoped; the others stay broad file dependencies.
+        let all_chart = candidates
+            .iter()
+            .all(|(_, source, _)| source.content.text().is_some_and(extract::chart_values));
+        let production: Vec<_> = candidates
+            .iter()
+            .filter(|(path, ..)| path.split('/').any(|part| part == "production"))
+            .cloned()
+            .collect();
+        let candidates = if candidates.len() > 1 && all_chart && production.len() == 1 {
+            production
+        } else {
+            candidates
+        };
         let go_modules = input
             .sources
             .keys()
@@ -289,7 +304,7 @@ pub(super) fn attach(
     // image defaults, indirect library reads and runtime deployment are not proved.
     links.issues.push(issue("environment_analysis_limitations", json!({
         "model":"literal_go_python_reads_and_kubernetes_values_v4",
-        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. Same-directory ConfigMap `configMapKeyRef` values resolve; secret and pod-field references bind readers without a value; envFrom and Atlas config do not. No image defaults, indirect library behavior, Helm rendering, runtime environment or deployment verification."
+        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. Same-directory ConfigMap `configMapKeyRef` values resolve; secret and pod-field references bind readers without a value; k8s-application chart values are read by that chart's env template (production when several environments exist); envFrom and Atlas config do not. No image defaults, indirect library behavior, general Helm rendering, runtime environment or deployment verification."
     })));
     for (pin, scope, inventory_complete) in scopes {
         let world = root(&pin, &scope);

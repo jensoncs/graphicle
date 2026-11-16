@@ -300,6 +300,53 @@ fn a_secret_backed_env_binds_its_readers_without_a_value() {
     assert!(has(&reference, "head", ".Other"), "{reference}");
 }
 
+const CHART_VALUES: &str = "applicationName: app\nnamespace: company\ncontainer:\n  env:\n    - name: TIMEOUT\n      value: \"10\"\n    - name: OTHER\n      secretKeyRef:\n        name: app-secrets\n        key: other\n";
+fn chart_pin(f: &Fixture, repo: &str, commit: char, production: &str, staging: &str) -> Value {
+    f.pin(
+        repo,
+        "app",
+        commit,
+        &[
+            ("go.mod", MOD),
+            ("service.go", CODE),
+            ("infra/production/values.yaml", production),
+            ("infra/staging/values.yaml", staging),
+        ],
+    )
+}
+
+#[test]
+fn chart_values_are_discovered_and_production_narrows() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-chart");
+    let changed = CHART_VALUES.replace("\"10\"", "\"20\"");
+    let production = run(
+        &f,
+        &repo,
+        chart_pin(&f, &repo, 'a', CHART_VALUES, CHART_VALUES),
+        chart_pin(&f, &repo, 'b', &changed, CHART_VALUES),
+    );
+    let scope = &production["service_graph"]["head"]["environment"]["scopes"][0];
+    assert_eq!(scope["narrowing_eligible"], true, "{production}");
+    assert!(
+        s(scope, "file").ends_with("infra/production/values.yaml"),
+        "{scope}"
+    );
+    assert_eq!(scope["resolved_reads"], 2, "{scope}");
+    assert!(!issue(&production, "uncertain_file_scope"), "{production}");
+    assert!(has(&production, "head", ".Read"));
+    assert!(has(&production, "head", ".Caller"));
+    assert!(!has(&production, "head", ".Other"));
+    let staging = run(
+        &f,
+        &repo,
+        chart_pin(&f, &repo, 'c', CHART_VALUES, CHART_VALUES),
+        chart_pin(&f, &repo, 'd', CHART_VALUES, &changed),
+    );
+    assert!(issue(&staging, "uncertain_file_scope"), "{staging}");
+    assert!(has(&staging, "head", ".Other"));
+}
+
 #[test]
 fn a_config_map_used_beyond_the_scoped_keys_stays_broad() {
     let f = Fixture::new();

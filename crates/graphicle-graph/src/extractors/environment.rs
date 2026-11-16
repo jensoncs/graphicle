@@ -285,10 +285,53 @@ fn pod_pointer(document: &Value) -> Result<&'static str, &'static str> {
         _ => Err("environment_workload_unsupported"),
     }
 }
+/// What one env entry renders to.
+enum Item {
+    Literal(String),
+    /// (ConfigMap, data key)
+    Reference(String, String),
+    /// Canonical description of a reference filled outside the repository.
+    Opaque(String),
+}
+#[derive(Default)]
+struct Entries {
+    values: BTreeMap<String, String>,
+    references: BTreeMap<String, (String, String)>,
+    opaque: BTreeMap<String, (String, std::ops::Range<usize>)>,
+    spans: BTreeMap<String, std::ops::Range<usize>>,
+}
+type Object = serde_json::Map<String, Value>;
+
+/// Values for ShareChat's k8s-application chart (`applicationName`,
+/// `container.env`): the container the chart renders, else `None`.
+/// ponytail: recognised by shape, not by a chart reference; values for another
+/// chart with these keys would be read with this chart's rules.
+fn chart_container(document: &Value) -> Option<String> {
+    let application = document["applicationName"]
+        .as_str()
+        .filter(|s| !s.is_empty())?;
+    (document.get("apiVersion").is_none()
+        && document.get("kind").is_none()
+        && document["container"]["env"].is_array())
+    .then(|| {
+        document["container"]["name"]
+            .as_str()
+            .filter(|s| !s.is_empty())
+            .unwrap_or(application)
+            .to_owned()
+    })
+}
+/// Whether `content` is k8s-application chart values.
+pub fn chart_values(content: &str) -> bool {
+    document(content).is_ok_and(|(document, _)| chart_container(&document).is_some())
+}
 /// Discover container identities without interpreting ownership or environment.
 /// The caller must refuse ambiguous repository/module/workload associations.
 pub fn containers(content: &str) -> Result<Vec<String>, &'static str> {
     let (document, _) = document(content)?;
+    if let Some(container) = chart_container(&document) {
+        return Ok(vec![container]);
+    }
     let pointer = pod_pointer(&document)?;
     document
         .pointer(pointer)
@@ -306,6 +349,9 @@ pub fn containers(content: &str) -> Result<Vec<String>, &'static str> {
 }
 pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironment, &'static str> {
     let (mut document, guard) = document(content)?;
+    if let Some(rendered) = chart_container(&document) {
+        return chart_deployment(content, document, &guard, container, &rendered);
+    }
     let pointer = pod_pointer(&document)?;
     let kind = document["kind"].as_str().unwrap();
     let name = document["metadata"]["name"]
@@ -342,28 +388,85 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
     let env = c["env"]
         .as_array_mut()
         .ok_or("environment_declarations_missing")?;
+    let prefix: Vec<String> = pointer
+        .split('/')
+        .skip(1)
+        .map(str::to_owned)
+        .chain(["containers".into(), matches[0].to_string(), "env".into()])
+        .collect();
+    let parsed = entries(content, &guard, env, &prefix, pod_item)?;
+    let elsewhere = elsewhere(&parsed, config_map_uses);
+    finish(content, document, workload, parsed, elsewhere)
+}
+
+/// Env the chart renders before `container.env`.
+/// ponytail: not inputs here (their values live in the chart), so a read of
+/// one stays unbound; model them if OTEL readers cost narrowing.
+const CHART_ENV: [&str; 3] = ["HOST_IP", "OTEL_PORT", "OTEL_URL"];
+
+fn chart_deployment(
+    content: &str,
+    mut document: Value,
+    guard: &Guard,
+    container: &str,
+    rendered: &str,
+) -> Result<DeploymentEnvironment, &'static str> {
+    if container != rendered {
+        return Err("environment_container_ambiguous");
+    }
+    let namespace = document["namespace"]
+        .as_str()
+        .filter(|s| !s.is_empty())
+        .ok_or("environment_namespace_missing")?;
+    let workload = serde_json::json!({"kind":"Deployment","chart":"k8s-application",
+        "name":document["applicationName"],"namespace":namespace,"container":container});
+    if document["container"]
+        .get("envFrom")
+        .is_some_and(|from| from.as_array().is_none_or(|from| !from.is_empty()))
+        || document["groot"]["enabled"] == true
+    {
+        return Err("environment_env_from_unresolved");
+    }
+    // These run the same image under another env.
+    if ["job", "cronJob", "shadowing"]
+        .iter()
+        .any(|workload| document[*workload]["enabled"] == true)
+    {
+        return Err("environment_workload_ambiguous");
+    }
+    let mut mentions = BTreeMap::new();
+    strings(&document, &mut mentions);
+    let prefix = ["container".to_owned(), "env".to_owned()];
+    let env = document["container"]["env"].as_array_mut().unwrap();
+    let parsed = entries(content, guard, env, &prefix, chart_item)?;
+    if CHART_ENV.iter().any(|name| {
+        parsed.values.contains_key(*name)
+            || parsed.references.contains_key(*name)
+            || parsed.opaque.contains_key(*name)
+    }) {
+        return Err("environment_key_ambiguous");
+    }
+    // A referenced ConfigMap named anywhere else in the values (volumes,
+    // other containers) has readers this model does not see.
+    let elsewhere = elsewhere(&parsed, mentions);
+    finish(content, document, workload, parsed, elsewhere)
+}
+
+fn entries(
+    content: &str,
+    guard: &Guard,
+    env: &mut [Value],
+    prefix: &[String],
+    item: fn(&Object) -> Result<Item, &'static str>,
+) -> Result<Entries, &'static str> {
     if env.len() > 1024 {
         return Err("environment_declaration_limit");
     }
-    let mut values = BTreeMap::new();
-    let mut references = BTreeMap::<String, (String, String)>::new();
-    let mut opaque = BTreeMap::new();
-    let mut spans = BTreeMap::new();
-    let mut seen = BTreeSet::new();
     let offsets = line_starts(content);
-    for (index, item) in env.iter_mut().enumerate() {
-        let path: Vec<String> = pointer
-            .split('/')
-            .skip(1)
-            .map(str::to_owned)
-            .chain([
-                "containers".into(),
-                matches[0].to_string(),
-                "env".into(),
-                index.to_string(),
-            ])
-            .collect();
-        let object = item
+    let mut out = Entries::default();
+    let mut seen = BTreeSet::new();
+    for (index, entry) in env.iter_mut().enumerate() {
+        let object = entry
             .as_object_mut()
             .ok_or("environment_declaration_invalid")?;
         let name = object
@@ -375,68 +478,147 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
         if !seen.insert(name.clone()) {
             return Err("environment_key_ambiguous");
         }
-        if object.len() == 2
-            && let Some(source) = object.get("valueFrom").and_then(external_source)
-        {
-            opaque.insert(name, (source, span(content, &offsets, &guard, &path)?));
-            continue;
+        let path: Vec<String> = prefix.iter().cloned().chain([index.to_string()]).collect();
+        match item(object)? {
+            Item::Literal(value) => {
+                out.spans
+                    .insert(name.clone(), span(content, &offsets, guard, &path)?);
+                out.values.insert(name, value);
+                object.insert("value".into(), Value::Null);
+            }
+            Item::Reference(map, key) => {
+                out.references.insert(name, (map, key));
+            }
+            Item::Opaque(source) => {
+                let span = span(content, &offsets, guard, &path)?;
+                out.opaque.insert(name, (source, span));
+            }
         }
-        if object.len() == 2 && object.contains_key("valueFrom") {
-            // Only an exact, required `configMapKeyRef` is a reference;
-            // `optional`, secrets and field refs stay unresolved.
-            let reference = object["valueFrom"]
-                .as_object()
-                .filter(|from| from.len() == 1)
-                .and_then(|from| from.get("configMapKeyRef"))
-                .and_then(Value::as_object)
-                .filter(|r| r.len() == 2);
-            let map = reference
-                .and_then(|r| r.get("name"))
-                .and_then(Value::as_str)
-                .filter(|s| resource_name(s));
-            let entry = reference
-                .and_then(|r| r.get("key"))
-                .and_then(Value::as_str)
-                .filter(|s| data_key(s));
-            let (Some(map), Some(entry)) = (map, entry) else {
-                return Err("environment_value_from_unresolved");
-            };
-            references.insert(name, (map.to_owned(), entry.to_owned()));
-            continue;
-        }
-        if object.keys().any(|k| k != "name" && k != "value") {
-            return Err("environment_value_from_unresolved");
-        }
-        let value = object
-            .get("value")
-            .and_then(Value::as_str)
-            .ok_or("environment_value_unresolved")?;
-        if value.contains("$(") || value.contains("{{") {
-            return Err("environment_value_unresolved");
-        }
-        spans.insert(name.clone(), span(content, &offsets, &guard, &path)?);
-        values.insert(name, value.to_owned());
-        object.insert("value".into(), Value::Null);
     }
-    let mut own = BTreeMap::<&str, usize>::new();
-    for (map, _) in references.values() {
-        *own.entry(map.as_str()).or_default() += 1;
-    }
-    let config_maps_elsewhere = config_map_uses
-        .into_iter()
-        .filter(|(map, uses)| own.get(map.as_str()) != Some(uses))
-        .map(|(map, _)| map)
-        .collect();
-    let outside = outside(content, &spans)?;
+    Ok(out)
+}
+fn finish(
+    content: &str,
+    document: Value,
+    workload: Value,
+    parsed: Entries,
+    config_maps_elsewhere: BTreeSet<String>,
+) -> Result<DeploymentEnvironment, &'static str> {
+    let outside = outside(content, &parsed.spans)?;
     Ok(DeploymentEnvironment {
-        values,
-        spans,
+        values: parsed.values,
+        spans: parsed.spans,
         masked: serde_json::json!({"document":document,"outside_environment":outside}),
         workload,
-        references,
-        opaque,
+        references: parsed.references,
+        opaque: parsed.opaque,
         config_maps_elsewhere,
     })
+}
+/// Referenced ConfigMaps named more often than by their references.
+fn elsewhere(parsed: &Entries, uses: BTreeMap<String, usize>) -> BTreeSet<String> {
+    let mut own = BTreeMap::<&str, usize>::new();
+    for (map, _) in parsed.references.values() {
+        *own.entry(map.as_str()).or_default() += 1;
+    }
+    own.into_iter()
+        .filter(|(map, count)| uses.get(*map).is_some_and(|uses| uses > count))
+        .map(|(map, _)| map.to_owned())
+        .collect()
+}
+fn strings(value: &Value, out: &mut BTreeMap<String, usize>) {
+    match value {
+        Value::String(text) => *out.entry(text.clone()).or_default() += 1,
+        Value::Object(map) => map.values().for_each(|child| strings(child, out)),
+        Value::Array(items) => items.iter().for_each(|item| strings(item, out)),
+        _ => {}
+    }
+}
+fn literal(value: Option<&Value>) -> Result<Item, &'static str> {
+    let value = value
+        .and_then(Value::as_str)
+        .ok_or("environment_value_unresolved")?;
+    if value.contains("$(") || value.contains("{{") {
+        return Err("environment_value_unresolved");
+    }
+    Ok(Item::Literal(value.to_owned()))
+}
+fn config_map_ref(reference: Option<&Object>) -> Option<Item> {
+    let map = reference?
+        .get("name")
+        .and_then(Value::as_str)
+        .filter(|s| resource_name(s))?;
+    let entry = reference?
+        .get("key")
+        .and_then(Value::as_str)
+        .filter(|s| data_key(s))?;
+    Some(Item::Reference(map.to_owned(), entry.to_owned()))
+}
+fn pod_item(object: &Object) -> Result<Item, &'static str> {
+    if object.len() == 2
+        && let Some(from) = object.get("valueFrom")
+    {
+        if let Some(source) = external_source(from) {
+            return Ok(Item::Opaque(source));
+        }
+        // Only an exact, required `configMapKeyRef` is a reference.
+        let reference = from
+            .as_object()
+            .filter(|from| from.len() == 1)
+            .and_then(|from| from.get("configMapKeyRef"))
+            .and_then(Value::as_object)
+            .filter(|r| r.len() == 2);
+        return config_map_ref(reference).ok_or("environment_value_from_unresolved");
+    }
+    if object.keys().any(|k| k != "name" && k != "value") {
+        return Err("environment_value_from_unresolved");
+    }
+    literal(object.get("value"))
+}
+/// One entry as k8s-application's `deployment.yaml` renders it (`range
+/// .Values.container.env`): one source, copying only the fields below.
+fn chart_item(object: &Object) -> Result<Item, &'static str> {
+    let mut sources = object.iter().filter(|(key, _)| *key != "name");
+    let (Some((kind, value)), None) = (sources.next(), sources.next()) else {
+        return Err("environment_value_from_unresolved");
+    };
+    let required: &[&str] = match kind.as_str() {
+        // `if .value`: an empty or false value renders no value at all.
+        "value" if value.as_str().is_some_and(|s| !s.is_empty()) => return literal(Some(value)),
+        // `quote` renders `true` as "true". ponytail: numbers stay unresolved;
+        // Helm formats them as float64 (1000000 renders "1e+06").
+        "value" if *value == true => return Ok(Item::Literal("true".into())),
+        "value" => return Err("environment_value_unresolved"),
+        "configMapKeyRef" | "secretKeyRef" => &["name", "key"],
+        "fieldRef" => &["fieldPath"],
+        _ => {
+            let unrendered = serde_json::json!({"unrendered": {kind.as_str(): value}});
+            return Ok(Item::Opaque(serde_json::to_string(&unrendered).unwrap()));
+        }
+    };
+    // The chart drops `optional`, so the rendered reference is required.
+    let reference = value
+        .as_object()
+        .filter(|r| {
+            r.keys()
+                .all(|k| required.contains(&k.as_str()) || k == "optional")
+                && required.iter().all(|f| {
+                    r.get(*f)
+                        .and_then(Value::as_str)
+                        .is_some_and(|s| !s.is_empty())
+                })
+        })
+        .ok_or("environment_value_from_unresolved")?;
+    if kind == "configMapKeyRef" {
+        return config_map_ref(Some(reference)).ok_or("environment_value_from_unresolved");
+    }
+    let rendered: Object = required
+        .iter()
+        .map(|f| ((*f).to_owned(), reference[*f].clone()))
+        .collect();
+    Ok(Item::Opaque(
+        serde_json::to_string(&serde_json::json!({ kind: rendered })).unwrap(),
+    ))
 }
 
 /// A `valueFrom` that Kubernetes fills from outside the repository, as a
@@ -640,6 +822,91 @@ mod tests {
         assert_ne!(parsed.opaque["TOKEN"].0, moved.opaque["TOKEN"].0);
         let literal = deployment(&content.replace("\"10\"", "\"20\""), "app").unwrap();
         assert_eq!(parsed.masked, literal.masked);
+    }
+
+    const CHART: &str = "applicationName: app\nnamespace: test\ncontainer:\n  tag: v1\n  env:\n    - name: TIMEOUT\n      value: \"10\"\n    - name: TOKEN\n      secretKeyRef:\n        name: app-secrets\n        key: token\n    - name: MODE\n      configMapKeyRef:\n        name: settings\n        key: mode\n        optional: true\n    - name: POD_IP\n      fieldRef:\n        fieldPath: status.podIP\n";
+
+    #[test]
+    fn chart_values_render_env_like_the_k8s_application_chart() {
+        assert_eq!(containers(CHART).unwrap(), ["app"]);
+        let named = CHART.replace("  tag: v1\n", "  name: web\n  tag: v1\n");
+        assert_eq!(containers(&named).unwrap(), ["web"]);
+        assert_eq!(containers(MAP), Err("environment_workload_unsupported"));
+        let parsed = deployment(CHART, "app").unwrap();
+        assert_eq!(parsed.values["TIMEOUT"], "10");
+        // The chart renders only `name` and `key`: `optional` never reaches the pod.
+        assert_eq!(
+            parsed.references["MODE"],
+            ("settings".to_owned(), "mode".to_owned())
+        );
+        assert_eq!(
+            parsed.opaque.keys().collect::<Vec<_>>(),
+            ["POD_IP", "TOKEN"]
+        );
+        assert_eq!(parsed.workload["namespace"], "test");
+        assert_eq!(parsed.workload["chart"], "k8s-application");
+        let text = &CHART[parsed.spans["TIMEOUT"].clone()];
+        assert!(
+            text.contains("name: TIMEOUT") && !text.contains("TOKEN"),
+            "{text:?}"
+        );
+        assert!(parsed.config_maps_elsewhere.is_empty());
+        let changed = deployment(&CHART.replace("\"10\"", "\"20\""), "app").unwrap();
+        assert_eq!(parsed.masked, changed.masked);
+        for (from, to) in [("tag: v1", "tag: v2"), ("key: token", "key: other")] {
+            assert_ne!(
+                parsed.masked,
+                deployment(&CHART.replace(from, to), "app").unwrap().masked
+            );
+        }
+        let shared = deployment(
+            &(CHART.to_owned() + "extraConfigMaps:\n  - settings\n"),
+            "app",
+        );
+        assert!(shared.unwrap().config_maps_elsewhere.contains("settings"));
+    }
+
+    #[test]
+    fn chart_values_fail_closed_beyond_the_modelled_template() {
+        let env = "  env:\n";
+        for content in [
+            CHART.replace(
+                env,
+                "  envFrom:\n    - type: configMapRef\n      name: x\n  env:\n",
+            ),
+            CHART.to_owned() + "groot:\n  enabled: true\n",
+            CHART.to_owned() + "cronJob:\n  enabled: true\n",
+            CHART.to_owned() + "job:\n  enabled: true\n",
+            CHART.to_owned() + "shadowing:\n  enabled: true\n",
+            CHART.replace("value: \"10\"", "value: 10"),
+            CHART.replace("value: \"10\"", "value: false"),
+            CHART.replace("value: \"10\"", "value: \"\""),
+            CHART.replace("value: \"10\"", "value: \"$(HOST_IP)\""),
+            CHART.replace(
+                "value: \"10\"",
+                "value: \"10\"\n      fieldRef:\n        fieldPath: x",
+            ),
+            CHART.replace("name: TIMEOUT", "name: OTEL_URL"),
+            CHART.replace("        key: token\n", ""),
+        ] {
+            assert!(deployment(&content, "app").is_err(), "{content}");
+        }
+        let off = CHART.to_owned() + "cronJob:\n  enabled: false\n";
+        assert!(deployment(&off, "app").is_ok());
+        // The template renders no source it does not know (`valueFrom`), so
+        // the entry has no value this model can cite, but it stays bound.
+        let unrendered = CHART.replace(
+            "      fieldRef:\n        fieldPath: status.podIP\n",
+            "      valueFrom:\n        fieldRef:\n          fieldPath: status.podIP\n",
+        );
+        let flag = deployment(&CHART.replace("value: \"10\"", "value: true"), "app").unwrap();
+        assert_eq!(flag.values["TIMEOUT"], "true");
+        let parsed = deployment(&unrendered, "app").unwrap();
+        assert!(
+            parsed.opaque["POD_IP"].0.contains("unrendered"),
+            "{:?}",
+            parsed.opaque
+        );
     }
 
     #[test]
