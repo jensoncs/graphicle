@@ -1715,7 +1715,8 @@ fn pack_encoding(
         let unseen = marks.remove("_provided_diff_mostly_unseen") == Some(json!(true));
         if marks.remove("_provided_diff_overlap") == Some(json!(true)) {
             let id = s(entry, "id").to_owned();
-            if unseen {
+            // Only the head copy: the base body is what the change replaced.
+            if unseen && s(entry, "side") == "head" {
                 mostly_unseen.insert(id.clone());
             }
             overlapping.insert(id);
@@ -3249,13 +3250,14 @@ mod tests {
         let report = json!({"entries":[
             {"id":"seen","revision":"r","side":"head","text":"changed()","_provided_diff_overlap":true,"reasons":[{"reason":"change_seed"}]},
             {"id":"unseen","revision":"r","side":"head","text":"long_changed()","_provided_diff_overlap":true,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"change_seed"}]},
+            {"id":"old","revision":"r","side":"base","text":"long_before()","_provided_diff_overlap":true,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"change_seed"}]},
             {"id":"outside","revision":"r","side":"head","text":"dependency()","reasons":[{"reason":"dependency","path":["seen","outside"]}]}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":2,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 3500, None, None).unwrap();
         assert_eq!(
             packet["context_order"],
-            json!(["unseen", "outside", "seen"])
+            json!(["unseen", "outside", "seen", "old"])
         );
         assert_eq!(
             packet["coverage"]["provided_diff"]["mostly_unseen_entries"],

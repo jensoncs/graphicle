@@ -413,9 +413,11 @@ line bounds are rejected. Overlapping and adjacent ranges merge; a gap remains
 uncovered. Only entries whose complete byte span lies in those lines are
 excluded before packing. A function partially overlapping a diff remains
 eligible at lower priority. With nonempty ranges, packing uses
-`additional_context_then_overlap_v1`: graph-linked entries outside the ranges
-first, then overlapping entries and remaining raw hunks, then entries supported
-only by uncertain scope or history. Each tier preserves the existing semantic
+`additional_context_then_overlap_v1`: required graph-linked entries outside the
+ranges (callers, call contracts) first, then head declarations the ranges show
+less than half of, then other graph-linked entries outside the ranges, then
+overlapping entries and remaining raw hunks, then entries supported only by
+uncertain scope or history. Each tier preserves the existing semantic
 priority and graph-distance order. Source selection precedes optional history
 and execution-flow annotations, with no raw-hunk reservation. Whole declarations
 are retained; this does not slice functions or infer that uncovered lines were

@@ -131,13 +131,13 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
         "supplemental mode must deliver more additional context at a tight budget"
     );
     // Real prompts supply hunks, not entire declarations. The long changed
-    // function stays eligible, but must not spend the extra-context allowance
-    // before its unchanged caller and dependency have been considered.
+    // function's unseen body is context too: it follows the required caller
+    // and precedes the optional dependency.
     let partial_ranges = json!([
         span(&repo, "base", "changed.go", &before, 3, 3),
         span(&repo, "head", "changed.go", &after, 3, 3)
     ]);
-    for budget in [3500, 5000, 6500] {
+    for budget in [3500, 5000, 6500, 9000] {
         args["max_tokens"] = json!(budget);
         args.as_object_mut().unwrap().remove("provided_diff");
         let plain = f.run(&args);
@@ -151,8 +151,7 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
         );
         assert!(has(&extra, "head", "Caller"), "{}", extra["coverage"]);
         // Fixed conservative identifier charges leave room for only the
-        // prioritized caller at 3,500. The larger budgets must also retain
-        // the exact dependency, without replacing it with overlapping code.
+        // prioritized caller at 3,500.
         assert_eq!(
             extra["coverage"]["packing"]["cost_model"],
             "fixed_hex_identifiers_v1"
@@ -162,11 +161,11 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
         // body follows required code and precedes the optional dependency
         // (nexus #946: needed lines inside a changed function were in neither
         // the diff nor the block): at 5,000 only the dependency fits beside
-        // the caller, at 6,500 Target's body does.
-        if budget == 5000 {
+        // the caller, at 6,500 Target's body does, at 9,000 all three.
+        if budget == 5000 || budget == 9000 {
             assert!(has(&extra, "head", "Dependency"), "{}", extra["coverage"]);
         }
-        if budget == 6500 {
+        if budget >= 6500 {
             assert!(has(&extra, "head", "Target"), "{}", extra["coverage"]);
         }
         assert!(outside_count(&extra) >= outside_count(&plain));
