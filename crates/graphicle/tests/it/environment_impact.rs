@@ -560,10 +560,11 @@ fn uncertainty_preserves_conservative_scope() {
         );
         assert!(issue(&packet, reason), "{reason}: {packet}");
         if reason == "environment_value_from_unresolved" {
-            assert!(
-                packet["service_graph"]["head"]["environment"]["scopes"][0]["resolved_reads"]
-                    .is_null()
-            );
+            // The unadmitted ConfigMap's reference stands in: readers stay
+            // bound, never narrowed.
+            let scope = &packet["service_graph"]["head"]["environment"]["scopes"][0];
+            assert_eq!(scope["narrowing_eligible"], false, "{scope}");
+            assert!(scope["resolved_reads"].as_u64() > Some(0), "{scope}");
         }
 
         assert!(issue(&packet, "uncertain_file_scope"), "{reason}: {packet}");
@@ -920,4 +921,85 @@ fn a_host_map_in_another_pin_resolves_hosts_no_admitted_chart_declares() {
         "base and head, GONE_URL only: {unmapped:?}"
     );
     assert!(unmapped.iter().all(|i| i["detail"]["key"] == "GONE_URL"));
+}
+
+#[test]
+fn a_large_vendored_document_does_not_block_workload_discovery() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-vendored-json");
+    // A dependency's API description, past the YAML reader's event bound.
+    let large = format!(
+        "{{\"items\":[{}]}}",
+        (0..30_000)
+            .map(|i| i.to_string())
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    let vendored = |commit, values: &str| {
+        f.pin(
+            &repo,
+            "app",
+            commit,
+            &[
+                ("go.mod", MOD),
+                ("service.go", CODE),
+                ("infra/production/values.yaml", values),
+                ("vendor/example.com/api/api.json", &large),
+            ],
+        )
+    };
+    let changed = CHART_VALUES.replace("\"10\"", "\"20\"");
+    let packet = run(
+        &f,
+        &repo,
+        vendored('a', CHART_VALUES),
+        vendored('b', &changed),
+    );
+    assert!(
+        !issue(&packet, "environment_auto_scope_ambiguous"),
+        "{packet}"
+    );
+    let scope = &packet["service_graph"]["head"]["environment"]["scopes"][0];
+    assert!(
+        s(scope, "file").ends_with("infra/production/values.yaml"),
+        "{packet}"
+    );
+}
+
+#[test]
+fn an_unadmitted_config_map_leaves_its_readers_bound_and_literal_inputs_linked() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-missing-config-map");
+    // TIMEOUT comes from a ConfigMap no admitted pin holds (an Atlas one).
+    let values = URL_VALUES.replace(
+        "value: \"10\"",
+        "configMapKeyRef:\n        name: app-settings\n        key: timeout",
+    );
+    let changed = values.replace("/v1/review", "/v2/review");
+    let packet = run(
+        &f,
+        &repo,
+        address_pin(&f, &repo, 'a', &values, Some(URL_AGENT)),
+        address_pin(&f, &repo, 'b', &changed, Some(URL_AGENT)),
+    );
+    let scope = &packet["service_graph"]["head"]["environment"]["scopes"][0];
+    assert_eq!(scope["narrowing_eligible"], false, "{scope}");
+    assert_eq!(scope["resolved_reads"], 2, "{scope}");
+    assert!(
+        issue(&packet, "environment_value_from_unresolved"),
+        "{packet}"
+    );
+    let target = address(&packet, "head").expect("service address entry");
+    assert_eq!(
+        target["service_address"]["application"], "agent",
+        "{target}"
+    );
+    let timeout = packet["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["environment_input"]["key"] == "TIMEOUT");
+    if let Some(timeout) = timeout {
+        assert!(s(timeout, "text").contains("configMapKeyRef"), "{timeout}");
+    }
 }

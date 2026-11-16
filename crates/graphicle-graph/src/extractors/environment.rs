@@ -128,6 +128,9 @@ pub struct DeploymentEnvironment {
     pub workload: Value,
     /// Env names whose value is a ConfigMap entry: (ConfigMap, data key).
     pub references: BTreeMap<String, (String, String)>,
+    /// Each reference's env entry span, cited when its ConfigMap is not
+    /// admitted and the reference stands in for the value.
+    pub reference_spans: BTreeMap<String, std::ops::Range<usize>>,
     /// Env names set outside the repository (`secretKeyRef`, `fieldRef`,
     /// `resourceFieldRef`): a canonical description of the reference and the
     /// env entry's span. There is no value; the entry stays in `masked`, so a
@@ -307,6 +310,7 @@ enum Item {
 struct Entries {
     values: BTreeMap<String, String>,
     references: BTreeMap<String, (String, String)>,
+    reference_spans: BTreeMap<String, std::ops::Range<usize>>,
     opaque: BTreeMap<String, (String, std::ops::Range<usize>)>,
     spans: BTreeMap<String, std::ops::Range<usize>>,
 }
@@ -497,6 +501,8 @@ fn entries(
                 object.insert("value".into(), Value::Null);
             }
             Item::Reference(map, key) => {
+                out.reference_spans
+                    .insert(name.clone(), span(content, &offsets, guard, &path)?);
                 out.references.insert(name, (map, key));
             }
             Item::Opaque(source) => {
@@ -521,6 +527,7 @@ fn finish(
         masked: serde_json::json!({"document":document,"outside_environment":outside}),
         workload,
         references: parsed.references,
+        reference_spans: parsed.reference_spans,
         opaque: parsed.opaque,
         config_maps_elsewhere,
     })

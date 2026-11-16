@@ -73,7 +73,13 @@ fn discover(input: &Input, a: &Analysis, links: &mut services::Links) -> Vec<(Pi
         let mut candidates = vec![];
         let mut incomplete = false;
         for (path, source) in input.sources.iter().filter(|(path, _)| {
+            // Dependency sources (Go `vendor/`, `node_modules/`) never deploy
+            // this repository; their documents (API descriptions past the
+            // YAML bound) must not make discovery incomplete.
             path.starts_with(&prefix)
+                && !path[prefix.len()..]
+                    .split('/')
+                    .any(|part| part == "vendor" || part == "node_modules")
                 && matches!(
                     Path::new(path).extension().and_then(|s| s.to_str()),
                     Some("yaml" | "yml" | "json")
@@ -224,7 +230,9 @@ struct MapInput<'a> {
 /// The one ConfigMap of the workload's namespace behind each
 /// `configMapKeyRef`: in the deployment's directory, else in exactly one other
 /// admitted pin (an Atlas snapshot, `scripts/atlas_config_snapshot.py`).
-/// Missing or ambiguous fails closed.
+/// A ConfigMap no admitted pin holds is returned as unresolved: its
+/// references stand in for their values. Ambiguous, or a missing key in the
+/// one found, fails closed.
 /// ponytail: name and namespace identify the object within one cluster; a pin
 /// for another cluster's ConfigMap of the same name would be taken as this one.
 fn config_maps<'a>(
@@ -232,14 +240,14 @@ fn config_maps<'a>(
     directory: &str,
     deployment: &str,
     parsed: &extract::DeploymentEnvironment,
-) -> std::result::Result<BTreeMap<String, MapInput<'a>>, &'static str> {
+) -> std::result::Result<(BTreeMap<String, MapInput<'a>>, BTreeSet<String>), &'static str> {
     let names: BTreeSet<&str> = parsed
         .references
         .values()
         .map(|(map, _)| map.as_str())
         .collect();
     if names.is_empty() {
-        return Ok(BTreeMap::new());
+        return Ok(Default::default());
     }
     let prefix = format!("{directory}/");
     let pin_of = |path: &str| {
@@ -273,8 +281,12 @@ fn config_maps<'a>(
         }
     }
     let mut maps = BTreeMap::new();
+    let mut unresolved = BTreeSet::new();
     for name in names {
-        let candidates = found.remove(name).unwrap_or_default();
+        let Some(candidates) = found.remove(name) else {
+            unresolved.insert(name.to_owned());
+            continue;
+        };
         let (local, other): (Vec<_>, Vec<_>) = candidates
             .into_iter()
             .partition(|(path, ..)| path.starts_with(&prefix));
@@ -314,7 +326,7 @@ fn config_maps<'a>(
             },
         );
     }
-    Ok(maps)
+    Ok((maps, unresolved))
 }
 
 pub(super) fn attach(
@@ -365,7 +377,7 @@ pub(super) fn attach(
     // image defaults, indirect library reads and runtime deployment are not proved.
     links.issues.push(issue("environment_analysis_limitations", json!({
         "model":"literal_go_python_reads_and_kubernetes_values_v4",
-        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. ConfigMap `configMapKeyRef` values resolve from the deployment's directory, else from exactly one other admitted pin (such as an Atlas snapshot); secret and pod-field references bind readers without a value; a URL value's host addresses the one application that admitted chart `ingress.hosts`, else an admitted host map (`graphicle-host-map.json`), names (no edge when several do); k8s-application chart values are read by that chart's env template (production when several environments exist; workloads nested under `<dir>/infra/` are left out of the root workload's scope); envFrom does not, and Atlas config only through an admitted snapshot. No image defaults, indirect library behavior, general Helm rendering, runtime environment or deployment verification."
+        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. ConfigMap `configMapKeyRef` values resolve from the deployment's directory, else from exactly one other admitted pin (such as an Atlas snapshot); secret, pod-field and unadmitted ConfigMap references bind readers without a value (narrowing off); a URL value's host addresses the one application that admitted chart `ingress.hosts`, else an admitted host map (`graphicle-host-map.json`), names (no edge when several do); k8s-application chart values are read by that chart's env template (production when several environments exist; workloads nested under `<dir>/infra/` are left out of the root workload's scope); envFrom does not, and Atlas config only through an admitted snapshot. No image defaults, indirect library behavior, general Helm rendering, runtime environment or deployment verification."
     })));
     for (pin, scope, inventory_complete) in scopes {
         let world = root(&pin, &scope);
@@ -449,7 +461,12 @@ pub(super) fn attach(
         let (parsed, maps) = match parsed
             .map(|p| config_maps(input, &deployment_directory, &file, &p).map(|maps| (p, maps)))
         {
-            Some(Ok((parsed, maps))) => (Some(parsed), maps),
+            Some(Ok((parsed, (maps, unresolved)))) => {
+                if !unresolved.is_empty() {
+                    failures.insert("environment_value_from_unresolved");
+                }
+                (Some(parsed), maps)
+            }
             Some(Err(reason)) => {
                 failures.insert(reason);
                 (None, BTreeMap::new())
@@ -555,7 +572,20 @@ pub(super) fn attach(
                         parsed.spans[name].clone(),
                     )
                 });
-                let map_inputs = parsed.references.iter().map(|(name, (map, key))| {
+                let (admitted, unadmitted): (Vec<_>, Vec<_>) = parsed
+                    .references
+                    .iter()
+                    .partition(|(_, (map, _))| maps.contains_key(map));
+                // A ConfigMap no pin admits: the reference stands in, as for a secret.
+                let unadmitted: Vec<_> = unadmitted
+                    .into_iter()
+                    .map(|(name, (map, key))| {
+                        let reference =
+                            json!({"configMapKeyRef":{"name":map,"key":key}}).to_string();
+                        (name, reference, parsed.reference_spans[name].clone())
+                    })
+                    .collect();
+                let map_inputs = admitted.into_iter().map(|(name, (map, key))| {
                     let map = &maps[map];
                     (
                         true,
@@ -579,8 +609,21 @@ pub(super) fn attach(
                         span.clone(),
                     )
                 });
-                for (addressable, name, value, file, source, content, span) in
-                    literal_inputs.chain(map_inputs).chain(opaque_inputs)
+                let unadmitted_inputs = unadmitted.iter().map(|(name, reference, span)| {
+                    (
+                        false,
+                        *name,
+                        reference,
+                        file.clone(),
+                        source,
+                        content,
+                        span.clone(),
+                    )
+                });
+                for (addressable, name, value, file, source, content, span) in literal_inputs
+                    .chain(map_inputs)
+                    .chain(opaque_inputs)
+                    .chain(unadmitted_inputs)
                 {
                     let id = crate::digest(&json!([
                         "environment-input-v1",
