@@ -115,13 +115,14 @@ def apply_review_delta(previous, packet):
                 sha = hashlib.sha256(entry["text"].encode()).hexdigest()
                 if sha != reference.get("sha256") or sha != entry.get("text_sha256"):
                     refuse()
-            if collection == "entries" and "text_sha256" in entry:
+            if collection == "entries" and "text_sha256" in entry and "excerpts" not in entry:
                 if hashlib.sha256(entry.get("text", "").encode()).hexdigest() != entry["text_sha256"]:
                     refuse()
             current[key] = (collection, entry)
     order = packet.get("context_order")
     for collection, entry in current.values():
-        if collection == "entries" and "text_sha256" in entry:
+        # A windowed entry (text_window) has excerpts, not text: its reader checks them against its own bytes.
+        if collection == "entries" and "text_sha256" in entry and "excerpts" not in entry:
             if hashlib.sha256(entry.get("text", "").encode()).hexdigest() != entry["text_sha256"]:
                 refuse()
     if (not isinstance(order, list) or len(set(order)) != len(order)

@@ -160,13 +160,21 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
         // changed function Target is shown by one hunk line, so its unseen
         // body follows required code and precedes the optional dependency
         // (nexus #946: needed lines inside a changed function were in neither
-        // the diff nor the block): at 5,000 only the dependency fits beside
-        // the caller, at 6,500 Target's body does, at 9,000 all three.
-        if budget == 5000 || budget == 9000 {
-            assert!(has(&extra, "head", "Dependency"), "{}", extra["coverage"]);
+        // the diff nor the block). Its 304 lines go as a window around the
+        // changed line and cost that (argus #111): from 5,000 it fits beside
+        // the caller, at 9,000 all three.
+        if budget >= 5000 {
+            let target = extra["entries"].as_array().unwrap().iter()
+                .find(|e| e["side"] == "head" && s(e, "name").ends_with("Target"))
+                .unwrap_or_else(|| panic!("{}", extra["coverage"]));
+            assert!(target.get("text").is_none());
+            let shown: Vec<_> = target["excerpts"].as_array().unwrap().iter()
+                .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
+            assert_eq!(shown, vec![(2, 8)], "the signature and the changed line 3 with five lines either side");
+            assert_eq!(target["text_window"]["lines"], json!(304));
         }
-        if budget >= 6500 {
-            assert!(has(&extra, "head", "Target"), "{}", extra["coverage"]);
+        if budget == 9000 {
+            assert!(has(&extra, "head", "Dependency"), "{}", extra["coverage"]);
         }
         assert!(outside_count(&extra) >= outside_count(&plain));
         assert_eq!(extra["coverage"]["provided_diff"]["entries"], 0);

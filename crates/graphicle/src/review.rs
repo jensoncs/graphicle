@@ -873,6 +873,23 @@ fn add_reason(reasons: &mut Vec<Value>, reason: Value) {
     }
 }
 
+/// Byte ranges, per file, of the calls to a declaration this change seeds.
+fn changed_call_sites(analysis: &Analysis, selection: &BTreeMap<String, Vec<Value>>) -> BTreeMap<String, Vec<(usize, usize)>> {
+    let seeds: BTreeSet<(&str, &str)> = selection
+        .iter()
+        .filter(|(_, reasons)| reasons.iter().any(|r| r["reason"] == "change_seed"))
+        .filter_map(|(id, _)| analysis.symbols.get(id))
+        .map(|(world, symbol)| (world.as_str(), symbol.key.as_str()))
+        .collect();
+    let mut out: BTreeMap<String, Vec<(usize, usize)>> = BTreeMap::new();
+    for (world, call) in &analysis.calls {
+        if call.reason.is_empty() && seeds.contains(&(world.as_str(), call.target.as_str())) {
+            out.entry(call.file.clone()).or_default().push((call.start, call.end));
+        }
+    }
+    out
+}
+
 fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selection> {
     let mut out = Selection {
         reasons: BTreeMap::new(),
@@ -1266,7 +1283,18 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             let last = ops.last().unwrap();
             let range_a = offsets_a[first.old_range().start]..offsets_a[last.old_range().end];
             let range_b = offsets_b[first.new_range().start]..offsets_b[last.new_range().end];
-            diffs.push(json!({"file":file,"hunk":hunk,"base_sha256":old.map(|s|&s.sha),"head_sha256":new.map(|s|&s.sha),"base_bytes":[range_a.start,range_a.end],"head_bytes":[range_b.start,range_b.end],"before":&before[range_a],"after":&after[range_b]}));
+            // The changed lines without the hunk's context, for provided_diff
+            // windows and changed-line tests; stripped before packing.
+            let exact = |old: bool| -> Vec<[usize; 2]> {
+                ops.iter()
+                    .filter(|op| op.tag() != similar::DiffTag::Equal)
+                    .map(|op| if old { [offsets_a[op.old_range().start], offsets_a[op.old_range().end]] }
+                        else { [offsets_b[op.new_range().start], offsets_b[op.new_range().end]] })
+                    .filter(|r| r[0] < r[1])
+                    .collect()
+            };
+            diffs.push(json!({"file":file,"hunk":hunk,"base_sha256":old.map(|s|&s.sha),"head_sha256":new.map(|s|&s.sha),"base_bytes":[range_a.start,range_a.end],"head_bytes":[range_b.start,range_b.end],"before":&before[range_a],"after":&after[range_b],
+                "_changed_base":exact(true),"_changed_head":exact(false)}));
         }
         let provenance: Vec<_> = a
             .inputs
@@ -1448,6 +1476,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
         ("head", head, b, selected_b.reasons),
     ] {
         let bindings:BTreeMap<_,_>=analysis.packages.iter().map(|p|((s(p,"consumer_build"),s(p,"path")),json!({"instance":p["instance"],"content_instance":p["content_instance"],"consumer_build":p["consumer_build"],"module":p["module"],"version":p["version"],"replacement":p["replacement"]}))).collect();
+        let changed_calls = if side == "head" { changed_call_sites(analysis, &selection) } else { BTreeMap::new() };
         for (id, reasons) in selection {
             let (world, symbol) = &analysis.symbols[&id];
             let mut value = entry(
@@ -1462,6 +1491,11 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             );
             if world.starts_with("basic:") {
                 basic::annotate(&mut value, analysis, &symbol.file);
+            }
+            let inside: Vec<_> = changed_calls.get(&symbol.file).into_iter().flatten()
+                .filter(|&&(a, b)| symbol.start <= a && b <= symbol.end).map(|&(a, b)| json!([a, b])).collect();
+            if !inside.is_empty() && is_head_change(&value) {
+                value["_changed_calls"] = json!(inside);   // the window keeps these lines; never on the wire
             }
             if let Some(boundary) = analysis.services.nodes.get(&id) {
                 if symbol.kind == "environment_input" {
@@ -1760,9 +1794,17 @@ fn pack_encoding(
     let supplemental = report["coverage"].get("provided_diff").is_some();
     let mut overlapping = BTreeSet::new();
     let mut mostly_unseen = BTreeSet::new();
+    let mut callees = BTreeSet::new();
     for entry in &mut entries {
         let marks = entry.as_object_mut().unwrap();
-        let unseen = marks.remove("_provided_diff_mostly_unseen") == Some(json!(true));
+        marks.remove("_changed_calls");
+        if marks.remove("_provided_diff_callee") == Some(json!(true)) {
+            callees.insert(s(entry, "id").to_owned());
+        }
+        let marks = entry.as_object_mut().unwrap();
+        // A windowed declaration costs its window: it ranks with the changed
+        // code the diff mostly leaves out (argus #111: ExecuteDeployment).
+        let unseen = marks.remove("_provided_diff_mostly_unseen") == Some(json!(true)) || marks.contains_key("excerpts");
         if marks.remove("_provided_diff_overlap") == Some(json!(true)) {
             let id = s(entry, "id").to_owned();
             // Only the head copy: the base body is what the change replaced.
@@ -1815,6 +1857,8 @@ fn pack_encoding(
     let instances = report["package_instances"].take();
     report["package_instances"] = json!({"digest":crate::digest(&instances),"base_count":instances["base"].as_array().unwrap().len(),"head_count":instances["head"].as_array().unwrap().len()});
     for diff in &mut diffs {
+        diff.as_object_mut().unwrap().remove("_changed_base");
+        diff.as_object_mut().unwrap().remove("_changed_head");
         diff["id"] = json!(crate::digest(&json!(["diff", diff["file"], diff["hunk"]])));
         diff["revision"] = json!(crate::digest(diff));
     }
@@ -1919,10 +1963,13 @@ fn pack_encoding(
         let reasons = entry["reasons"].as_array();
         let seed = reasons.is_some_and(|rs| rs.iter().any(|r| r["reason"] == "change_seed"));
         let consumer = reasons.is_some_and(|rs| {
-            rs.iter()
-                .any(|r| r["reason"] == "potential_consumer" && r["uncertain_scope"] != true)
+            rs.iter().any(|r| {
+                r["reason"] == "potential_consumer" && r["uncertain_scope"] != true && r.get("callee_change").is_none()
+            })
         });
-        let fallback = reasons.is_some_and(|rs| rs.iter().all(|r| r["uncertain_scope"] == true));
+        let fallback = reasons.is_some_and(|rs| {
+            rs.iter().all(|r| r["uncertain_scope"] == true || r.get("callee_change").is_some())
+        });
         let head = entry["side"] == "head";
         let bucket = if head && seed {
             0
@@ -1979,12 +2026,17 @@ fn pack_encoding(
                 (2, 0)
             } else if mostly_unseen.contains(id) {
                 (0, 1)
+            } else if callees.contains(id) && s(entry, "text").lines().count() > 3 {
+                // Called from the changed lines, after the changed code the
+                // diff mostly leaves out; a one-line helper waits with the rest
+                // (argus #111: cerr.New took Submit's place).
+                (0, 2)
             } else if overlapping.contains(id) {
                 (1, 0)
             } else if is_required_code(entry) {
                 (0, 0)
             } else {
-                (0, 2)
+                (0, 3)
             }
         });
     }
@@ -2022,11 +2074,15 @@ fn pack_encoding(
     } else {
         max_tokens / 8
     };
-    if metadata_cost
-        + required_cost(&candidates)
-        + provenance.cost(&required_refs(&candidates))
-        + history_reserve
-        > max_tokens
+    // A supplemental packet always compacts: its reader renders none of the
+    // examples, and windows no longer push required cost over the budget
+    // (argus #111: 11K metadata tokens, more than Submit and its callees).
+    if supplemental
+        || metadata_cost
+            + required_cost(&candidates)
+            + provenance.cost(&required_refs(&candidates))
+            + history_reserve
+            > max_tokens
     {
         compact_required_metadata(&mut report, &mut candidates);
     }
@@ -2372,6 +2428,7 @@ fn pack_encoding(
         });
         if report["text_reuse"] == true
             && collection == "entries"
+            && entry.get("text").is_some()   // a windowed entry's excerpts are sent each time
             && !body.is_null()
             && old
                 .get(id.as_str())
@@ -2456,6 +2513,7 @@ fn is_call_consumer(entry: &Value) -> bool {
             reasons.iter().any(|r| {
                 r["reason"] == "potential_consumer"
                     && r["uncertain_scope"] != true
+                    && r.get("callee_change").is_none()
                     && r["path"].as_array().is_some_and(|p| p.len() == 2)
                     && r["steps"].as_array().is_some_and(|steps| {
                         steps.len() == 1
@@ -2995,7 +3053,10 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
                 let paths: Vec<&Value> = e["reasons"].as_array().into_iter().flatten().map(|r| &r["path"]).collect();
                 json!({"file":e["file"],"line":e["line"],"end_line":e["end_line"],"name":e["name"],"side":e["side"],
                     "distance":entry_distance(e),"required":is_required_code(e),"relations":relations,
-                    "paths":paths,"chars":s(e,"text").len(),"json_chars":e.to_string().len()})
+                    "paths":paths,"chars":s(e,"text").len(),"json_chars":e.to_string().len(),"symbol_id":e["symbol_id"],
+                    "signature_revision":e["signature_revision"],"excerpts":e["excerpts"].as_array().map_or(0, Vec::len),
+                    "marks":e.as_object().map(|o| o.keys().filter(|k| k.starts_with('_')).cloned().collect::<Vec<_>>()),
+                    "callee_change":e["reasons"].as_array().into_iter().flatten().filter_map(|r| r.get("callee_change")).collect::<Vec<_>>()})
             })
             .collect();
         std::fs::write(path, serde_json::to_string(&candidates)?)?;
