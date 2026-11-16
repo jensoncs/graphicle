@@ -156,7 +156,7 @@ fn external_plain_import_member_call_targets_module() {
 }
 
 /// Each body follows `import requests`; every one may rebind `requests`.
-const SHADOWS: [&str; 42] = [
+const SHADOWS: [&str; 45] = [
     "def fetch(requests):\n    return requests.get()\n",
     "def fetch(*, requests=None):\n    return requests.get()\n",
     "def fetch():\n    requests = object()\n    return requests.get()\n",
@@ -196,6 +196,9 @@ const SHADOWS: [&str; 42] = [
     "def fetch():\n    locals()['requests'] = other\n    return requests.get()\n",
     "def fetch():\n    setattr(requests, 'get', other)\n    return requests.get()\n",
     "def fetch():\n    delattr(requests, 'get')\n    return requests.get()\n",
+    "def fetch():\n    vars(requests)['get'] = other\n    return requests.get()\n",
+    "def fetch():\n    vars(requests).update(get=other)\n    return requests.get()\n",
+    "def fetch():\n    vars()['requests'] = other\n    return requests.get()\n",
     "def mutate():\n    global requests\n    requests = other\ndef fetch():\n    return requests.get()\n",
     "import requests\ndef fetch():\n    return requests.get()\n",
     "import other as requests\ndef fetch():\n    return requests.get()\n",
@@ -206,6 +209,49 @@ fn external_module_fallback_rejects_receiver_shadow() {
     for body in SHADOWS {
         let result = extract_caller(&format!("import requests\n{body}"));
         assert!(calls_to(&result, "requests").is_empty(), "{body:?}");
+    }
+}
+
+/// A member or definition that merely shares a namespace builtin's name
+/// (`model.eval()` in PyTorch, `df.eval()` in pandas, a `def eval`), or
+/// `vars(x)` read into a value (argparse), mutates no namespace.
+const MEMBER_NAMED_LIKE_BUILTIN: [&str; 7] = [
+    "def train(model):\n    model.eval()\n",
+    "def train(model):\n    model.exec()\n",
+    "def frame(df):\n    return df.eval('a + b')\n",
+    "def keys(obj):\n    return obj.vars\n",
+    "def eval(model):\n    return model\n",
+    "class exec:\n    pass\n",
+    "def parse(ap):\n    return vars(ap.parse_args())\n",
+];
+
+#[test]
+fn a_member_named_like_a_namespace_builtin_keeps_module_calls() {
+    for body in MEMBER_NAMED_LIKE_BUILTIN {
+        let result = extract_caller(&format!(
+            "import requests\n{body}def fetch():\n    return requests.get()\n"
+        ));
+        assert_eq!(calls_to(&result, "requests").len(), 1, "{body:?}");
+    }
+}
+
+#[test]
+fn a_member_named_like_a_namespace_builtin_keeps_cross_file_and_local_calls() {
+    for body in MEMBER_NAMED_LIKE_BUILTIN {
+        let fx = Fixture::new();
+        let lib = fx.write("lib.py", "def helper():\n    return 1\n");
+        let app = fx.write(
+            "app.py",
+            &format!(
+                "from lib import helper\n\ndef local():\n    return 2\n\n\
+                 def f():\n    return helper() + local()\n\n{body}"
+            ),
+        );
+        let result = fx.extract(&[lib, app]);
+        let helper = node_id(&result, "helper()", "lib.py");
+        let local = node_id(&result, "local()", "app.py");
+        assert_eq!(calls_to(&result, &helper).len(), 1, "{body:?}");
+        assert_eq!(calls_to(&result, &local).len(), 1, "{body:?}");
     }
 }
 

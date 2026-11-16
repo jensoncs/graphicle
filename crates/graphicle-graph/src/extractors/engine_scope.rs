@@ -2161,6 +2161,54 @@ const PYTHON_DYNAMIC_NAMESPACE_NAMES: [&str; 7] = [
     "exec", "eval", "globals", "locals", "vars", "setattr", "delattr",
 ];
 
+/// Is `node` its parent's `field` child (`eval` in `model.eval`, the name of
+/// `def eval`)?
+fn is_field_of(node: Node<'_>, parent_kind: &str, field: &str) -> bool {
+    node.parent().is_some_and(|parent| {
+        parent.kind() == parent_kind
+            && parent
+                .child_by_field_name(field)
+                .is_some_and(|child| child.id() == node.id())
+    })
+}
+
+/// Can this identifier reach a namespace mutator? Fails closed except where
+/// it plainly cannot:
+/// - a member (`model.eval()`, `df.eval()`) unless the file names `builtins`,
+///   the only way a member is the builtin;
+/// - the name a `def`/`class` defines;
+/// - `vars(x)` read into a value (`args = vars(ap.parse_args())`); its result
+///   indexed or used as a receiver (`vars(m)[k] = v`, `.update`) still fails.
+///
+/// ponytail: any mention of `builtins` keeps every member suspect, and a
+/// `vars(x)` result saved and mutated later is missed; track aliases and
+/// flows if either matters.
+fn names_namespace_mutator(node: Node<'_>, source: &[u8], mentions_builtins: bool) -> bool {
+    let text = read_text(node, source);
+    if !PYTHON_DYNAMIC_NAMESPACE_NAMES.contains(&text.as_str()) {
+        return false;
+    }
+    if is_field_of(node, "attribute", "attribute") {
+        return mentions_builtins;
+    }
+    if is_field_of(node, "function_definition", "name")
+        || is_field_of(node, "class_definition", "name")
+    {
+        return false;
+    }
+    if text == "vars" && is_field_of(node, "call", "function") {
+        let call = node.parent().expect("call parent");
+        let has_argument = call
+            .child_by_field_name("arguments")
+            .is_some_and(|args| args.named_child_count() > 0);
+        let result_mutable = call
+            .parent()
+            .is_some_and(|p| matches!(p.kind(), "subscript" | "attribute"));
+        return !has_argument || result_mutable;
+    }
+    true
+}
+
 /// Conservative lexical guard for plain external Python module receivers
 /// (Graphify 6868fff and 33edd89, `_python_receiver_shadow_checker`).
 ///
@@ -2179,6 +2227,7 @@ impl PythonReceiverShadow {
         // A nested function can rebind module or captured names later, and
         // namespace operations can replace an import without an assignment.
         let mut dynamic_binding = false;
+        let mentions_builtins = source.windows(8).any(|w| w == b"builtins");
         let mut pending = vec![root];
         while let Some(node) = pending.pop() {
             // Namespace mutators can be called directly, qualified, or saved
@@ -2186,7 +2235,7 @@ impl PythonReceiverShadow {
             let kind = node.kind_name();
             if matches!(kind, "global_statement" | "nonlocal_statement")
                 || (kind == "identifier"
-                    && PYTHON_DYNAMIC_NAMESPACE_NAMES.contains(&read_text(node, source).as_str()))
+                    && names_namespace_mutator(node, source, mentions_builtins))
             {
                 dynamic_binding = true;
                 break;

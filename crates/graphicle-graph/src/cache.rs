@@ -58,7 +58,9 @@ use std::{
 /// 25: Java anonymous class and Kotlin object literal nodes carry
 /// `metadata.anonymous`, and a Swift/Kotlin member call on another object
 /// no longer binds to its same-named caller.
-pub const AST_CACHE_SCHEMA: i64 = 25;
+/// 26: a Python member named like a namespace builtin (`model.eval()`) no
+/// longer marks the file's receivers as possibly rebound.
+pub const AST_CACHE_SCHEMA: i64 = 26;
 /// Where an AST entry lists the `target_file` stamps that named an existing
 /// file when it was written; a hit whose target is gone is a miss (#4185).
 pub const CACHED_TARGETS_KEY: &str = "_cached_target_files";

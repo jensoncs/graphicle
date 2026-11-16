@@ -110,7 +110,9 @@ pub fn content_failure(mut result: Value) -> Value {
 /// 10: a Python or Kotlin name imported from a package outside the corpus
 /// never binds to a same-named definition in it, and a JS/TS call on a
 /// method call's result or a field binds through the declared class.
-pub const ASSEMBLY_REVISION: u32 = 10;
+/// 11: a Python member named like a namespace builtin (`model.eval()`) no
+/// longer drops the file's imported-name calls.
+pub const ASSEMBLY_REVISION: u32 = 11;
 /// Files whose interface calls the JVM dispatch pass links to implementations.
 const JVM_DISPATCH: &[&str] = &[".java", ".kt", ".kts"];
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes
