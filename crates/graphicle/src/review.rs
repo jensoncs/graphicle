@@ -2023,12 +2023,23 @@ fn pack_encoding(
         .filter(|cost| *cost <= optional_capacity && *cost <= requested_diff_reserve)
         .min()
         .unwrap_or(0);
+    // Required code that cannot all fit leaves the packet incomplete either
+    // way; history then keeps an eighth of what is left instead of nothing
+    // (argus #87: 104 head declarations, every repository fact dropped).
+    let history_floor = if head_cost + contract_cost + caller_cost + required_provenance_cost
+        > max_tokens.saturating_sub(used)
+    {
+        max_tokens.saturating_sub(used) / 8
+    } else {
+        0
+    };
     let business_allowance = if supplemental {
         // The diff holds the changed code, not its history: reserve a share
         // for the history of declarations it covers, after required code.
         let allowance = optional_capacity
             .saturating_sub(minimum_hunk)
-            .min(max_tokens / 8);
+            .min(max_tokens / 8)
+            .max(history_floor);
         let (kept, cost) = covered_history(&covered, &business, allowance);
         if !covered.is_empty() {
             report["business_context"]["packing"]["provided_diff_entries"] = json!({"candidates":covered.len(),
@@ -2043,6 +2054,7 @@ fn pack_encoding(
         optional_capacity
             .saturating_sub(minimum_hunk)
             .min(max_tokens / 4)
+            .max(history_floor)
     };
     let business_costs = fit_business_context(&mut candidates, &business, business_allowance, true);
     let business_used: usize = business_costs.values().sum();
@@ -3104,6 +3116,16 @@ mod tests {
         assert!(packet["business_context"].get("provided_diff_entries").is_none(), "{packet}");
         assert_eq!(packet["business_context"]["packing"]["provided_diff_entries"]["omitted"], 1);
         assert_eq!(packet["context_order"], json!(["outside"]));
+        // Required code that alone fills the packet (a partly covered
+        // declaration, argus #87) still leaves the reserved share: the
+        // reviewers have that code in their diff, not its history.
+        let mut full = report(1);
+        full["entries"].as_array_mut().unwrap().push(json!({"id":"partial","revision":"r","side":"head","repository_id":"repo",
+            "file":"svc/c.go","text":"x := 1 // body\n".repeat(2000),"_provided_diff_overlap":true,"reasons":[{"reason":"change_seed"}]}));
+        let (packet, _) = pack(full, 4000, None, None).unwrap();
+        let kept = &packet["business_context"]["provided_diff_entries"];
+        assert_eq!(kept.as_array().map(Vec::len), Some(1), "{}", packet["business_context"]);
+        assert!(text::count(&packet.to_string()) <= 4000);
     }
 
     #[test]
@@ -3480,6 +3502,23 @@ mod tests {
             assert!(text::count(&full.to_string()) <= budget);
             assert!(text::count(&delta.to_string()) <= budget);
         }
+    }
+
+    #[test]
+    fn history_keeps_a_share_when_required_code_overflows_the_packet() {
+        // argus #30: 42 head declarations need 64k tokens of a 20k packet;
+        // every history line was dropped although the packet was incomplete
+        // either way.
+        let history = json!({"evolution":{"function_history":[{"subject":"keep tenant isolation","commit":"b".repeat(40)}]}});
+        let entries: Vec<_> = (0..12).map(|i| json!({"id":format!("head{i}"),"revision":"r","repository_id":"repo","side":"head",
+            "text":"perform_work(); ".repeat(400),"reasons":[{"reason":"change_seed"}],"business_context":history})).collect();
+        let report = json!({"entries":entries,"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "business_context":{"complete":false},"coverage":{"complete":true,"issues":[]},"impact":"potential_impact"});
+        let (packet, _) = pack(report, 4000, None, None).unwrap();
+        let with_history = packet["entries"].as_array().unwrap().iter().filter(|e| e.get("business_context").is_some()).count();
+        assert!(with_history > 0, "{}", packet["business_context"]);
+        assert!(packet["business_context"]["packing"]["allowance_tokens"].as_u64().unwrap() > 0);
+        assert!(text::count(&packet.to_string()) <= 4000);
     }
 
     #[test]
