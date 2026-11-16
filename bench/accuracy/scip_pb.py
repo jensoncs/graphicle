@@ -114,6 +114,7 @@ def read_index(path):
                         doc["occurrences"].append(occ)
                 elif f2 == 6 and w2 == 0 and v2 in (1, 3):
                     doc["utf16"] = False
+                    doc["utf8"] = v2 == 1
             docs.append(doc)
     return root, docs
 
@@ -195,6 +196,11 @@ def parent_symbol(symbol):
             return symbol[: -len(candidate)]
     idx = symbol.rfind(name)
     return symbol[:idx].rstrip("`") if idx > 0 else None
+
+
+def utf8_to_char(line, units):
+    """Character index of a UTF-8 byte offset into `line` (scip-go)."""
+    return len(line.encode()[:units].decode(errors="ignore"))
 
 
 def utf16_to_byte(line, units):

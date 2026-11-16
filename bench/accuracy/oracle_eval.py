@@ -39,12 +39,20 @@ IDENT = re.compile(r"[A-Za-z_$][\w$]*")
 JSX_OPEN = re.compile(r"(?:^|[(\[{,;:?=&|!>]|\breturn)\s*<$")
 
 
-def is_call(line, end, following=()):
+def is_call(line, end, following=(), go=False):
     """Is the reference ending at `end` of `line` called: `name(` or
     `name<T>(`? Type arguments may run onto the `following` lines."""
     rest = line[end:].lstrip()
     if rest.startswith("("):
         return True
+    if go and rest.startswith("["):
+        # Go generic instantiation `Name[T](`: the `[...]` closes on this line.
+        depth = 0
+        for i, ch in enumerate(rest):
+            depth += {"[": 1, "]": -1}.get(ch, 0)
+            if depth == 0:
+                return rest[i + 1:].lstrip().startswith("(")
+        return False
     if rest.startswith("<"):
         depth = 0
         texts = (rest, *following[:40])
@@ -216,10 +224,11 @@ class Definitions:
                 if sl != el or sl >= len(lines):
                     continue
                 line = lines[sl]
-                a = scip_pb.utf16_to_byte(line, sc) if doc["utf16"] else sc
-                b = scip_pb.utf16_to_byte(line, ec) if doc["utf16"] else ec
+                to_char = (scip_pb.utf16_to_byte if doc["utf16"]
+                           else scip_pb.utf8_to_char if doc.get("utf8") else lambda _, u: u)
+                a, b = to_char(line, sc), to_char(line, ec)
                 jsx = rel.endswith((".tsx", ".jsx", ".js")) and JSX_OPEN.search(line[:a]) is not None
-                if not (jsx or is_call(line, b, lines[sl + 1:sl + 41])):
+                if not (jsx or is_call(line, b, lines[sl + 1:sl + 41], rel.endswith(".go"))):
                     continue
                 written = line[a:b]
                 # scip-python 0.6.6 can give a reference the wrong symbol (see
@@ -342,7 +351,13 @@ def graph_edges(graph, defs, repo, disputed=frozenset(), meta=None):
             loc = str(n.get("source_location") or "")
             m = re.match(r"L(\d+)", loc)
             if m:
-                out = defs.match(sf, bare(n.get("label")), int(m.group(1)) - 1)
+                line = int(m.group(1)) - 1
+                out = defs.match(sf, bare(n.get("label")), line)
+                if out is None and bare(n.get("label")) == "constructor":
+                    # SCIP gives a constructor no definition of its own: its
+                    # calls belong to the class, and so do the tool's.
+                    out = next((d for d in defs.chain(sf, (line, 10 ** 6))
+                                if defs.defs[d]["kind"] == "class"), None)
         mapped[nid] = out
         return out
 
@@ -529,6 +544,9 @@ def main():
                          "scip": (a, b) in own, "trace": (a, b) in trace}
                         for a, b in sorted(edges, key=lambda p: (defs.defs[p[0]]["file"], p))]
                 (args.out / f"{name}-edges.json").write_text(json.dumps(rows, indent=0) + "\n")
+                missed = [{"caller": describe(a), "callee": describe(b)}
+                          for a, b in sorted(own - edges, key=lambda p: (defs.defs[p[0]]["file"], p))]
+                (args.out / f"{name}-missed.json").write_text(json.dumps(missed, indent=0) + "\n")
         results[name] = entry
     summary = {
         "repo": str(repo),
