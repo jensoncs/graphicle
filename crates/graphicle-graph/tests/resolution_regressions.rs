@@ -469,7 +469,14 @@ fn go_calls_use_receiver_identity_and_active_build() {
             assert_eq!(target["source_location"], "L4", "{graph}");
         }
     }
-    for line in [8, 9, 13] {
+    // A promoted method of an embedded named interface is that interface's
+    // method (L12); an anonymous interface's method has no node to name.
+    let promoted = calls
+        .iter()
+        .find(|e| node(&e["source"])["label"] == "Promoted()")
+        .unwrap_or_else(|| panic!("{graph}"));
+    assert_eq!(node(&promoted["target"])["source_location"], "L12");
+    for line in [8, 9] {
         assert!(
             graph["unresolved_calls"]
                 .as_array()
@@ -479,6 +486,92 @@ fn go_calls_use_receiver_identity_and_active_build() {
             "{graph}"
         );
     }
+}
+
+#[test]
+fn go_interface_calls_reach_the_interface_method_and_dispatch_to_its_implementers() {
+    let _serial = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().canonicalize().unwrap();
+    write(&root, "go.mod", "module example/fixture\ngo 1.23\n");
+    write(
+        &root,
+        "main.go",
+        concat!(
+            "package fixture\n",
+            "import \"example/fixture/store\"\n",
+            "type Store interface {\n",
+            "\tLoad() int\n",
+            "}\n",
+            "type mem struct{}\n",
+            "func (*mem) Load() int { return 2 }\n",
+            "type wrong struct{}\n",
+            "func (wrong) Load() string { return \"\" }\n",
+            "type Handlers struct{ store Store }\n",
+            "func (h *Handlers) Get() int { return h.store.Load() }\n",
+            "func Wire() *Handlers { return &Handlers{store: store.Disk{}} }\n",
+        ),
+    );
+    write(
+        &root,
+        "store/disk.go",
+        "package store\ntype Disk struct{}\nfunc (Disk) Load() int { return 1 }\n",
+    );
+    let graph = extract(
+        &[root.join("main.go"), root.join("store/disk.go")],
+        &ExtractOptions {
+            root: Some(root.clone()),
+            use_cache: false,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let nodes = graph["nodes"].as_array().unwrap();
+    let at = |id: &Value| {
+        let n = nodes.iter().find(|n| n["id"] == *id).unwrap();
+        format!("{}:{}", n["source_file"].as_str().unwrap(), n["source_location"].as_str().unwrap())
+    };
+    let edges = graph["edges"].as_array().unwrap();
+    // The call names the interface method: that much is static.
+    let call = edges
+        .iter()
+        .find(|e| e["relation"] == "calls" && at(&e["source"]) == "main.go:L11")
+        .unwrap_or_else(|| panic!("{graph}"));
+    assert_eq!(at(&call["target"]), "main.go:L4");
+    assert_eq!(call["confidence"], "EXTRACTED");
+    assert_eq!(call["evidence"], "type");
+    // Which implementation runs is not: every repository type that satisfies
+    // the interface, never a same-named method with another signature.
+    let dispatch: Vec<_> = edges
+        .iter()
+        .filter(|e| e["relation"] == "dispatches_to")
+        .collect();
+    let mut pairs: Vec<_> = dispatch
+        .iter()
+        .map(|e| (at(&e["source"]), at(&e["target"])))
+        .collect();
+    pairs.sort();
+    assert_eq!(
+        pairs,
+        [
+            ("main.go:L4".to_string(), "main.go:L7".to_string()),
+            ("main.go:L4".to_string(), "store/disk.go:L3".to_string()),
+        ],
+        "{graph}"
+    );
+    for e in &dispatch {
+        assert_eq!(e["confidence"], "INFERRED");
+        assert_eq!(e["confidence_score"], 0.75);
+        assert_eq!(e["resolution"], "go_types");
+    }
+    assert!(
+        !graph["unresolved_calls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|u| u["source_location"] == "L11"),
+        "{graph}"
+    );
 }
 
 #[test]

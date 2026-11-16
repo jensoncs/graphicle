@@ -49,6 +49,8 @@ type metadata struct {
 	CFiles, CXXFiles, MFiles, HFiles, FFiles, SFiles, SwigFiles, SwigCXXFiles, SysoFiles []string
 }
 type site struct {
+	// Dispatch: Caller is an interface method, Target a method implementing it.
+	Dispatch   bool   `json:"dispatch,omitempty"`
 	Candidate  bool   `json:"candidate,omitempty"`
 	Partial    bool   `json:"partial,omitempty"`
 	File       string `json:"file"`
@@ -250,10 +252,9 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 						if p, ok := recv.(*types.Pointer); ok {
 							recv = p.Elem()
 						}
-						// Interface dispatch requires runtime information.
-						if _, dynamic := recv.Underlying().(*types.Interface); !dynamic {
-							obj = sel.Obj()
-						}
+						// A call through an interface value names the interface
+						// method; dispatch() links it to the implementations.
+						obj = sel.Obj()
 					} else {
 						obj = info.Uses[f.Sel]
 					}
@@ -265,18 +266,9 @@ func (l *loader) Import(path string) (result *types.Package, failure error) {
 					return true
 				}
 				if target, ok := obj.(*types.Func); ok && (valid || partial) {
-					// A concrete struct may promote an embedded interface's
-					// method. That declaration is still dynamic dispatch.
-					sig := target.Type().(*types.Signature)
-					dynamic := false
-					if recv := sig.Recv(); recv != nil {
-						_, dynamic = recv.Type().Underlying().(*types.Interface)
-					}
-					if !dynamic {
-						p := l.fset.PositionFor(target.Origin().Pos(), false)
-						if p.IsValid() {
-							s.TargetFile, s.TargetLine, s.Target, s.Reason, s.Partial = p.Filename, p.Line, target.Name(), "", partial
-						}
+					p := l.fset.PositionFor(target.Origin().Pos(), false)
+					if p.IsValid() {
+						s.TargetFile, s.TargetLine, s.Target, s.Reason, s.Partial = p.Filename, p.Line, target.Name(), "", partial
 					}
 				}
 				if valid && s.TargetFile == "" {
@@ -496,7 +488,79 @@ func discover(root string, dirs map[string]bool, module bool, testDirs, wanted m
 	for _, path := range sortedKeys(roots) {
 		_, _ = l.Import(path)
 	}
-	return l.sites
+	return append(l.sites, l.dispatch()...)
+}
+
+// dispatch links each method of a scanned interface to its implementation on
+// every scanned type whose value or pointer satisfies the interface. go/types
+// decides satisfaction, so a same-named method with another signature never
+// counts. Which implementation a call reaches stays a runtime question.
+// ponytail: package-level, non-generic named types only; local and generic
+// types get no dispatch edges.
+func (l *loader) dispatch() []site {
+	type declared struct {
+		named *types.Named
+		where token.Position
+	}
+	var interfaces, concrete []declared
+	paths := make([]string, 0, len(l.packages))
+	for path := range l.packages {
+		paths = append(paths, path)
+	}
+	sort.Strings(paths)
+	for _, path := range paths {
+		scope := l.packages[path].Scope()
+		for _, name := range scope.Names() {
+			tn, ok := scope.Lookup(name).(*types.TypeName)
+			if !ok || tn.IsAlias() {
+				continue
+			}
+			named, ok := tn.Type().(*types.Named)
+			where := l.fset.PositionFor(tn.Pos(), false)
+			if !ok || named.TypeParams().Len() > 0 || !l.wanted[where.Filename] {
+				continue
+			}
+			if iface, ok := named.Underlying().(*types.Interface); ok {
+				if iface.NumMethods() > 0 {
+					interfaces = append(interfaces, declared{named, where})
+				}
+			} else {
+				concrete = append(concrete, declared{named, where})
+			}
+		}
+	}
+	// A test build checks a package again: one pair per source position.
+	seen := map[[2]token.Position]bool{}
+	var out []site
+	for _, i := range interfaces {
+		iface := i.named.Underlying().(*types.Interface)
+		for _, c := range concrete {
+			pointer := types.NewPointer(c.named)
+			if !types.Implements(pointer, iface) {
+				continue
+			}
+			for m := 0; m < iface.NumMethods(); m++ {
+				method := iface.Method(m)
+				obj, _, _ := types.LookupFieldOrMethod(pointer, false, method.Pkg(), method.Name())
+				impl, ok := obj.(*types.Func)
+				if !ok {
+					continue
+				}
+				// A method promoted from an embedded interface is not an implementation.
+				if _, abstract := impl.Type().(*types.Signature).Recv().Type().Underlying().(*types.Interface); abstract {
+					continue
+				}
+				from := l.fset.PositionFor(method.Pos(), false)
+				to := l.fset.PositionFor(impl.Origin().Pos(), false)
+				if !from.IsValid() || !to.IsValid() || !l.wanted[from.Filename] || !l.wanted[to.Filename] || seen[[2]token.Position{from, to}] {
+					continue
+				}
+				seen[[2]token.Position{from, to}] = true
+				out = append(out, site{Dispatch: true, File: from.Filename, Line: from.Line, Caller: method.Name(), CallerLine: from.Line, TargetFile: to.Filename, TargetLine: to.Line, Target: impl.Name()})
+			}
+		}
+	}
+	return out
 }
 
 // goListSlots bounds concurrent go list runs. They contend on the module

@@ -34,6 +34,8 @@ import scip_pb  # noqa: E402
 LINE_SLACK = 3
 JS_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".mts", ".cts", ".mjs", ".cjs")
 IDENT = re.compile(r"[A-Za-z_$][\w$]*")
+# `type Name interface {`, or `Name interface {` inside a `type (...)` group.
+GO_INTERFACE = re.compile(r"\s*(?:type\s+)?\w+(?:\[[^\]]*\])?\s+interface\s*\{")
 # `<Name` opening a JSX element: the `<` starts an expression (line start, or
 # after an operator, bracket or `return`), unlike a type argument `Foo<Name>`.
 JSX_OPEN = re.compile(r"(?:^|[(\[{,;:?=&|!>]|\breturn)\s*<$")
@@ -119,6 +121,20 @@ class Definitions:
                         if alias != occ["symbol"]:
                             self.by_symbol.setdefault(alias, did)
                 self.by_file_name[(rel, name)].append(did)
+        # scip-go names an interface method like a field (`Iface#Method.`). A
+        # call through an interface value calls that method, so a Go term
+        # declared inside `type X interface {...}` is callable.
+        for d in self.defs.values():
+            if d["kind"] != "term" or not d["file"].endswith(".go"):
+                continue
+            parent = self.by_symbol.get(scip_pb.parent_symbol(d["symbol"]) or "")
+            if parent is None:
+                continue
+            p = self.defs[parent]
+            lines = self.text(p["file"])
+            if p["line"] < len(lines) and GO_INTERFACE.match(lines[p["line"]]):
+                d["kind"] = "function"
+                d["interface"] = True
         # Python: every `def`/`class` statement from the source's AST, keyed
         # by qualified name. scip-python records one definition per symbol
         # (the first `@overload`), so overload lines, the implementation's
@@ -503,8 +519,12 @@ def main():
     for name, (edges, ids, skipped) in predicted.items():
         own = edges_for(sites, ids)
         reachable = {e for e in own if e[1] in ids}
+        through = {e for e in own if defs.defs[e[1]].get("interface")}
         entry = {"edges_scored": len(edges), "edges_skipped_at_disputed_sites": skipped,
                  "oracle_edges": len(own),
+                 # Calls through a Go interface value (callee is the interface method).
+                 "oracle_interface_edges": len(through),
+                 "interface_recall": score(edges & through, through)["recall"],
                  "scip": score(edges, own),
                  "scip_recall_callee_is_node": score(edges, reachable)["recall"],
                  "oracle_edges_callee_is_node": len(reachable)}

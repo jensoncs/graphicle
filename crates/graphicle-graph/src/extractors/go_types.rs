@@ -534,6 +534,8 @@ pub fn review_identity() -> crate::Result<Value> {
 struct Site {
     #[serde(default)]
     candidate: bool,
+    #[serde(default)]
+    dispatch: bool,
     file: String,
     line: usize,
     column: usize,
@@ -606,7 +608,7 @@ pub fn resolve(
         .collect();
     // Remove all legacy guesses, including same-file and receiver passes.
     edges.retain(|e| {
-        !matches!(s(e, "relation"), "calls" | "may_call")
+        !matches!(s(e, "relation"), "calls" | "may_call" | "dispatches_to")
             || !files.contains(&source_key(s(e, "source_file"), root))
     });
     let mut unresolved = BTreeMap::new();
@@ -729,9 +731,19 @@ pub fn resolve(
         (ids.len() == 1).then(|| ids.first().unwrap().clone())
     };
     let mut have = BTreeSet::new();
-    for site in sites {
+    let mut dispatch: BTreeMap<String, Vec<(String, &Site)>> = BTreeMap::new();
+    for site in &sites {
         let key = (source_key(&site.file, root), site.line, site.column);
         if !files.contains(&key.0) {
+            continue;
+        }
+        if site.dispatch {
+            if let (Some(from), Some(to)) = (
+                declaration(&site.file, site.caller_line, &site.caller),
+                declaration(&site.target_file, site.target_line, &site.target),
+            ) {
+                dispatch.entry(from).or_default().push((to, site));
+            }
             continue;
         }
         let from = if site.caller.is_empty() {
@@ -764,6 +776,12 @@ pub fn resolve(
             } else {
                 &site.reason
             });
+        }
+    }
+    for (from, targets) in dispatch {
+        let score = crate::interface_dispatch::dispatch_confidence(targets.len());
+        for (to, site) in targets {
+            edges.push(json!({"source":from,"target":to,"relation":crate::interface_dispatch::DISPATCH_RELATION,"confidence":"INFERRED","confidence_score":score,"weight":1.0,"context":"call","source_file":site.target_file,"source_location":format!("L{}",site.target_line),"resolution":"go_types","evidence":"type"}));
         }
     }
     // In a file the helper type-checked, a call it did not report is a

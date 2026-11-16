@@ -1495,14 +1495,20 @@ func main() {
                     .filter(|e| e["relation"] == "calls")
                     .all(|e| e["resolution"] == "go_types")
             );
+            // `s.Send(2)` names the interface method; both types satisfy it.
             assert!(
-                unresolved(&graph)
+                !unresolved(&graph)
                     .iter()
-                    .any(|u| u["source_file"] == "cmd/main.go"
-                        && u["source_location"] == "L5"
-                        && u["reason"] == "unresolved_type"),
+                    .any(|u| u["source_file"] == "cmd/main.go" && u["source_location"] == "L5"),
                 "{graph}"
             );
+            let dispatch = graph["edges"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|e| e["relation"] == "dispatches_to")
+                .count();
+            assert_eq!(dispatch, 2, "{graph}");
         }
     }
 
