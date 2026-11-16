@@ -2397,19 +2397,32 @@ fn covered_history(
     contexts: &BTreeMap<String, Value>,
     allowance: usize,
 ) -> (Vec<Value>, usize) {
-    let mut items: Vec<(bool, usize, Value)> = covered
+    let analyzed = |context: &Value| {
+        context["historical_assertions"]
+            .as_array()
+            .is_some_and(|v| !v.is_empty())
+            || ["function_history", "cochange", "similar_changes"]
+                .iter()
+                .any(|field| {
+                    context["evolution"][field]
+                        .as_array()
+                        .is_some_and(|v| !v.is_empty())
+                })
+    };
+    let mut items: Vec<(bool, bool, usize, Value)> = covered
         .iter()
         .map(|entry| {
             let mut item = entry.clone();
             let head = item.as_object_mut().unwrap().remove("_head_change") == Some(json!(true));
-            item["business_context"] = contexts[s(entry, "id")].clone();
+            let context = &contexts[s(entry, "id")];
+            item["business_context"] = context.clone();
             let cost = packing::count(&item.to_string()) + 1;
-            (head, cost, item)
+            (head, analyzed(context), cost, item)
         })
         .collect();
-    items.sort_by(|a, b| (!a.0, a.1, s(&a.2, "id")).cmp(&(!b.0, b.1, s(&b.2, "id"))));
+    items.sort_by(|a, b| (!a.0, !a.1, a.2, s(&a.3, "id")).cmp(&(!b.0, !b.1, b.2, s(&b.3, "id"))));
     let (mut kept, mut used) = (vec![], 0);
-    for (_, cost, item) in items {
+    for (_, _, cost, item) in items {
         if used + cost <= allowance {
             used += cost;
             kept.push(item);
@@ -3539,6 +3552,41 @@ mod tests {
             assert!(text::count(&full.to_string()) <= budget);
             assert!(text::count(&delta.to_string()) <= budget);
         }
+    }
+
+    #[test]
+    fn covered_history_prefers_declarations_with_history_over_cheaper_fact_only_ones() {
+        // nexus #943: seven declarations carrying the same two directory
+        // facts filled the share and their commit history was left out.
+        let fact = json!({"repository_facts":[{"statement":"zones never repeat"}]});
+        let history = json!({"historical_assertions":[{"commit":"e".repeat(40),"subject":"keep header order stable ".repeat(6)}],
+            "repository_facts":[{"statement":"zones never repeat"}]});
+        let covered: Vec<Value> = (0..6)
+            .map(|i| json!({"id":format!("c{i}"),"file":"route.go","_head_change":true}))
+            .collect();
+        let contexts: BTreeMap<String, Value> = covered
+            .iter()
+            .enumerate()
+            .map(|(i, e)| {
+                (
+                    s(e, "id").to_owned(),
+                    if i == 5 {
+                        history.clone()
+                    } else {
+                        fact.clone()
+                    },
+                )
+            })
+            .collect();
+        let one = packing::count(
+            &json!({"id":"c5","file":"route.go","business_context":history}).to_string(),
+        ) + 1;
+        let (kept, _) = covered_history(&covered, &contexts, one + 4);
+        assert_eq!(
+            kept.first().map(|k| s(k, "id").to_owned()),
+            Some("c5".to_owned()),
+            "{kept:?}"
+        );
     }
 
     #[test]
