@@ -13,8 +13,9 @@ pub const MAX_RECALL_MEMORIES: usize = 20_000;
 pub const MAX_ROWS: usize = crate::ingest::MAX_PASSAGES + MAX_RECALL_MEMORIES;
 /// Most sources one [`rank`] call selects (a reranker's candidate pool).
 pub const MAX_RANK_LIMIT: usize = 60;
-/// Most candidates [`rank`] keeps after fusion and the relationship lift,
-/// best first, ties by identity: selection reads no others.
+/// Most sources, and apart from them most memories, [`rank`] keeps after
+/// fusion and the relationship lift, best first, ties by identity: selection
+/// reads no others.
 pub const MAX_FUSED: usize = 400;
 /// Most candidates a call may ask [`rank`] to keep instead (`fused_cap`):
 /// a long ranking for a caller that fills a large context window.
@@ -833,7 +834,19 @@ pub fn rank(request: &Value) -> Result<Value> {
         .map_or(MAX_FUSED, |cap| {
             (cap as usize).clamp(MAX_FUSED, MAX_FUSED_CAP)
         });
-    remaining.truncate(fused_cap);
+    // The cap counts sources and memories apart: memories get no graph arm
+    // and no relationship lift, so one shared cap let lifted passages push
+    // every memory out before selection.
+    let (mut sources_kept, mut memories_kept) = (0, 0);
+    remaining.retain(|(id, _)| {
+        let kept = if rows[ids[id]]["kind"] == "memory" {
+            &mut memories_kept
+        } else {
+            &mut sources_kept
+        };
+        *kept += 1;
+        *kept <= fused_cap
+    });
     let source_scores: BTreeMap<_, _> = remaining
         .iter()
         .filter(|(id, _)| rows[ids[id]]["kind"] != "memory")
