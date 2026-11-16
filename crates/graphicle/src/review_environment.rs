@@ -20,6 +20,10 @@ pub(super) struct Scope {
     service: Option<services::Service>,
     #[serde(skip)]
     automatic: bool,
+    /// Directories of other workloads nested in this one's code root: their
+    /// code runs in another pod, so it never reads this environment.
+    #[serde(skip)]
+    excluded: Vec<String>,
     module: String,
     deployment: Deployment,
 }
@@ -88,21 +92,57 @@ fn discover(input: &Input, a: &Analysis, links: &mut services::Links) -> Vec<(Pi
         if candidates.is_empty() {
             continue;
         }
-        // Chart values for several environments describe one workload. Only
-        // production is scoped; the others stay broad file dependencies.
+        // Chart values live in `<workload>/infra/<environment>/`. Several
+        // environments describe one workload: only production is scoped, the
+        // others stay broad file dependencies. Values under a subdirectory
+        // belong to a nested workload, left out of this one's scope.
         let all_chart = candidates
             .iter()
             .all(|(_, source, _)| source.content.text().is_some_and(extract::chart_values));
-        let production: Vec<_> = candidates
-            .iter()
-            .filter(|(path, ..)| path.split('/').any(|part| part == "production"))
-            .cloned()
-            .collect();
-        let candidates = if candidates.len() > 1 && all_chart && production.len() == 1 {
-            production
+        let owner = |path: &str| path.split_once("/infra/").map(|(dir, _)| dir.to_owned());
+        let root = if pin.modules.len() == 1 && pin.modules[0] != "." {
+            format!("{}/{}", pin.directory, pin.modules[0])
         } else {
-            candidates
+            pin.directory.clone()
         };
+        let nested: BTreeSet<String> = candidates
+            .iter()
+            .filter_map(|(path, ..)| owner(path))
+            .filter(|dir| dir.starts_with(&format!("{root}/")))
+            .collect();
+        // A nested directory with Go code may build into the root module.
+        let separable = all_chart
+            && candidates.iter().all(|(path, ..)| owner(path).is_some())
+            && !input.sources.keys().any(|path| {
+                path.ends_with(".go")
+                    && nested
+                        .iter()
+                        .any(|dir| path.starts_with(&format!("{dir}/")))
+            });
+        let excluded: Vec<String> = if separable {
+            nested.into_iter().collect()
+        } else {
+            vec![]
+        };
+        let owned = |path: &str| {
+            !excluded
+                .iter()
+                .any(|dir| path.starts_with(&format!("{dir}/")))
+        };
+        if separable {
+            candidates.retain(|(path, ..)| owner(path).as_deref() == Some(root.as_str()));
+            let production: Vec<_> = candidates
+                .iter()
+                .filter(|(path, ..)| path.split('/').any(|part| part == "production"))
+                .cloned()
+                .collect();
+            if candidates.len() > 1 && production.len() == 1 {
+                candidates = production;
+            }
+        }
+        if candidates.is_empty() {
+            continue;
+        }
         let go_modules = input
             .sources
             .keys()
@@ -113,6 +153,7 @@ fn discover(input: &Input, a: &Analysis, links: &mut services::Links) -> Vec<(Pi
             .keys()
             .filter(|path| {
                 path.starts_with(&prefix)
+                    && owned(path)
                     && matches!(
                         Path::new(path).file_name().and_then(|n| n.to_str()),
                         Some("pyproject.toml" | "setup.py" | "setup.cfg" | "requirements.txt")
@@ -122,6 +163,7 @@ fn discover(input: &Input, a: &Analysis, links: &mut services::Links) -> Vec<(Pi
             .collect();
         let has_python = a.inputs.iter().any(|i| {
             s(i, "file").starts_with(&prefix)
+                && owned(s(i, "file"))
                 && s(i, "file").ends_with(".py")
                 && i["language"] == "python"
         });
@@ -152,6 +194,7 @@ fn discover(input: &Input, a: &Analysis, links: &mut services::Links) -> Vec<(Pi
                 ),
                 service: None,
                 automatic: true,
+                excluded: excluded.clone(),
                 module: pin.modules[0].clone(),
                 deployment: Deployment {
                     directory: None,
@@ -304,7 +347,7 @@ pub(super) fn attach(
     // image defaults, indirect library reads and runtime deployment are not proved.
     links.issues.push(issue("environment_analysis_limitations", json!({
         "model":"literal_go_python_reads_and_kubernetes_values_v4",
-        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. Same-directory ConfigMap `configMapKeyRef` values resolve; secret and pod-field references bind readers without a value; k8s-application chart values are read by that chart's env template (production when several environments exist); envFrom and Atlas config do not. No image defaults, indirect library behavior, general Helm rendering, runtime environment or deployment verification."
+        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. Same-directory ConfigMap `configMapKeyRef` values resolve; secret and pod-field references bind readers without a value; k8s-application chart values are read by that chart's env template (production when several environments exist; workloads nested under `<dir>/infra/` are left out of the root workload's scope); envFrom and Atlas config do not. No image defaults, indirect library behavior, general Helm rendering, runtime environment or deployment verification."
     })));
     for (pin, scope, inventory_complete) in scopes {
         let world = root(&pin, &scope);
@@ -412,21 +455,25 @@ pub(super) fn attach(
                 failures.insert("environment_inventory_incomplete");
             }
             let prefix = format!("{world}/");
+            let owns = |path: &str| {
+                path.starts_with(&prefix)
+                    && !scope
+                        .excluded
+                        .iter()
+                        .any(|dir| path.starts_with(&format!("{dir}/")))
+            };
             let has_python = a.inputs.iter().any(|i| {
-                s(i, "file").starts_with(&prefix)
-                    && s(i, "file").ends_with(".py")
-                    && i["language"] == "python"
+                owns(s(i, "file")) && s(i, "file").ends_with(".py") && i["language"] == "python"
             });
             let has_go = input
                 .sources
                 .keys()
-                .any(|path| path.starts_with(&prefix) && path.ends_with(".go"));
+                .any(|path| owns(path) && path.ends_with(".go"));
             if (has_go || !has_python) && !a.packages.iter().any(|p| p["consumer_build"] == world) {
                 failures.insert("environment_compiler_scope_unavailable");
             }
             if a.issues.iter().any(|i| {
-                s(i, "reason") == "python_environment_incomplete"
-                    && s(&i["detail"], "file").starts_with(&prefix)
+                s(i, "reason") == "python_environment_incomplete" && owns(s(&i["detail"], "file"))
             }) {
                 failures.insert("environment_python_analysis_incomplete");
             }
@@ -435,8 +482,11 @@ pub(super) fn attach(
                     s(i, "reason") == "basic_unresolved_import"
                         && s(&i["detail"], "directory") == pin.directory
                         && s(&i["detail"]["input"], "source").ends_with(".py")
-                        && format!("{}/{}", pin.directory, s(&i["detail"]["input"], "source"))
-                            .starts_with(&prefix)
+                        && owns(&format!(
+                            "{}/{}",
+                            pin.directory,
+                            s(&i["detail"]["input"], "source")
+                        ))
                         && s(&i["detail"]["input"], "module") != "os"
                 })
             {
@@ -444,7 +494,7 @@ pub(super) fn attach(
             }
             // Other application languages cannot silently disappear from coverage.
             if input.sources.iter().any(|(path, source)| {
-                path.starts_with(&format!("{world}/"))
+                owns(path)
                     && unsupported_source(path, source.content.text().unwrap_or(""))
                     && !matches!(
                         Path::new(path).extension().and_then(|e| e.to_str()),
@@ -558,8 +608,7 @@ pub(super) fn attach(
             // environment too. Keep broad scope unless the only unresolved
             // call sites are the standard-library environment operations we model.
             let in_scope = |w: &str, call: &Call| {
-                w == world
-                    || (call.evidence == "python_import_binding" && call.file.starts_with(&prefix))
+                w == world || (call.evidence == "python_import_binding" && owns(&call.file))
             };
             let environment_sites: BTreeSet<_> = a
                 .calls

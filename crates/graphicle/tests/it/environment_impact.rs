@@ -347,6 +347,71 @@ fn chart_values_are_discovered_and_production_narrows() {
     assert!(has(&staging, "head", ".Other"));
 }
 
+const AGENT_VALUES: &str = "applicationName: agent\nnamespace: company\ncontainer:\n  env:\n    - name: TIMEOUT\n      value: \"5\"\n";
+fn nested_pin(f: &Fixture, repo: &str, commit: char, root: &str, agent: &str) -> Value {
+    f.pin(
+        repo,
+        "app",
+        commit,
+        &[
+            ("go.mod", MOD),
+            ("service.go", CODE),
+            ("infra/production/values.yaml", root),
+            ("infra/staging/values.yaml", CHART_VALUES),
+            ("agent/infra/production/values.yaml", agent),
+            ("agent/requirements.txt", "requests\n"),
+            (
+                "agent/server.py",
+                "import os\nLIMIT = os.environ.get('TIMEOUT')\n",
+            ),
+        ],
+    )
+}
+
+#[test]
+fn a_nested_workload_is_left_out_of_the_root_workload_scope() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-nested");
+    let changed = CHART_VALUES.replace("\"10\"", "\"20\"");
+    let packet = run(
+        &f,
+        &repo,
+        nested_pin(&f, &repo, 'a', CHART_VALUES, AGENT_VALUES),
+        nested_pin(&f, &repo, 'b', &changed, AGENT_VALUES),
+    );
+    let scope = &packet["service_graph"]["head"]["environment"]["scopes"][0];
+    assert_eq!(scope["narrowing_eligible"], true, "{packet}");
+    let file = s(scope, "file");
+    assert!(
+        file.ends_with("infra/production/values.yaml") && !file.contains("agent/"),
+        "{scope}"
+    );
+    // The agent runs in its own pod: its read is not a reader of this env.
+    assert_eq!(scope["resolved_reads"], 2, "{scope}");
+    assert!(!issue(&packet, "uncertain_file_scope"), "{packet}");
+    assert!(has(&packet, "head", ".Read"));
+    assert!(!has(&packet, "head", ".Other"));
+    let agent_selected = packet["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|e| e["side"] == "head" && s(e, "file").starts_with("agent/server.py"));
+    assert!(!agent_selected, "{packet}");
+    let agent = run(
+        &f,
+        &repo,
+        nested_pin(&f, &repo, 'c', CHART_VALUES, AGENT_VALUES),
+        nested_pin(
+            &f,
+            &repo,
+            'd',
+            CHART_VALUES,
+            &AGENT_VALUES.replace("\"5\"", "\"6\""),
+        ),
+    );
+    assert!(issue(&agent, "uncertain_file_scope"), "{agent}");
+}
+
 #[test]
 fn a_config_map_used_beyond_the_scoped_keys_stays_broad() {
     let f = Fixture::new();
