@@ -14,6 +14,7 @@ CONFIG = {
     "data": [
         {"format": "key-value", "key": "ALERT_REVIEW_URL", "value": "http://a.internal/v1/review"},
         {"format": "key-value", "key": "NOTE", "value": "say \"hi\"\nbye"},
+        {"format": "plaintext", "key": "SCHEDULE", "value": "@every 5m"},
     ],
 }
 
@@ -26,6 +27,7 @@ class SnapshotTest(unittest.TestCase):
         self.assertIn('  atlas-config-version: "2"\n', text)
         self.assertIn('  ALERT_REVIEW_URL: "http://a.internal/v1/review"\n', text)
         self.assertIn('  NOTE: "say \\"hi\\"\\nbye"\n', text)
+        self.assertIn('  SCHEDULE: "@every 5m"\n', text)
         self.assertTrue(text.endswith("\n"))
 
     def test_refuses_what_it_cannot_represent_faithfully(self):

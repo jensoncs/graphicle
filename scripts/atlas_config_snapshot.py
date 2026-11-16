@@ -46,7 +46,8 @@ def snapshot(config, namespace):
     seen = set()
     for item in config.get("data") or []:
         key = item.get("key", "")
-        if item.get("format") != "key-value" or not isinstance(item.get("value"), str):
+        # Both are one string entry of the ConfigMap's `data`.
+        if item.get("format") not in ("key-value", "plaintext") or not isinstance(item.get("value"), str):
             raise ValueError(f"{config['name']}/{key}: unsupported format {item.get('format')}")
         if not DATA_KEY.fullmatch(key) or key in seen:
             raise ValueError(f"{config['name']}: invalid or repeated key {key!r}")
