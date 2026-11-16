@@ -1063,6 +1063,42 @@ fn package_scope(analysis: &Analysis, changed: &BTreeSet<(String, String)>) -> B
         .collect()
 }
 
+/// Closures whose bytes are unchanged but whose ids moved: a closure is named
+/// by its position in its parent (`<closure#N>`), so one inserted or removed
+/// above others renumbers them (argus #111). Base and head closures with the
+/// same text in the same file under the same top-level declaration are paired
+/// in source order, and both sides of each pair are left out of the comparison.
+fn renumbered_closures(a: &Analysis, b: &Analysis) -> (BTreeSet<String>, BTreeSet<String>) {
+    type Group<'a> = BTreeMap<(&'a str, &'a str, &'a str, &'a str), Vec<(usize, &'a String)>>;
+    fn group(analysis: &Analysis) -> Group<'_> {
+        let mut out: Group = BTreeMap::new();
+        for (id, (world, s)) in &analysis.symbols {
+            if s.kind == "closure" {
+                let root = s.key.split("|<closure#").next().unwrap_or(&s.key);
+                out.entry((world, &s.file, root, &s.revision))
+                    .or_default()
+                    .push((s.start, id));
+            }
+        }
+        out
+    }
+    let (ga, gb) = (group(a), group(b));
+    let (mut moved_a, mut moved_b) = (BTreeSet::new(), BTreeSet::new());
+    for (k, mut left) in ga {
+        let Some(right) = gb.get(&k) else { continue };
+        let mut right = right.clone();
+        left.sort();
+        right.sort();
+        for ((_, x), (_, y)) in left.iter().zip(&right) {
+            if x != y {
+                moved_a.insert((*x).clone());
+                moved_b.insert((*y).clone());
+            }
+        }
+    }
+    (moved_a, moved_b)
+}
+
 fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) -> Result<Value> {
     let mut changes = vec![];
     let mut seeds_a = BTreeSet::new();
@@ -1096,9 +1132,13 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                 .map(|s| &s.sha)
                 .is_some_and(|sha| head.sources.get(&symbol.file).map(|s| &s.sha) == Some(sha))
     };
+    let (moved_a, moved_b) = renumbered_closures(a, b);
     let mut gaps = BTreeSet::new();
     for (id, (_, old)) in &a.symbols {
-        if let Some((_, new)) = b.symbols.get(id) {
+        if moved_a.contains(id) {
+            continue;
+        }
+        if let Some((_, new)) = b.symbols.get(id).filter(|_| !moved_b.contains(id)) {
             if old.revision != new.revision {
                 if old.kind == "basic_file" || new.kind == "basic_file" {
                     changes.push(json!({"kind":"modified","base":id,"head":id,"granularity":"file","signature_changed":null,"implementation_changed":null}));
@@ -1117,7 +1157,10 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
         }
     }
     for (id, (_, new)) in &b.symbols {
-        if a.symbols.contains_key(id) || same_file(new) {
+        if moved_b.contains(id)
+            || (a.symbols.contains_key(id) && !moved_a.contains(id))
+            || same_file(new)
+        {
             continue;
         }
         if unanalyzed(new, &files_a) {
@@ -4216,5 +4259,66 @@ mod tests {
         )
         .unwrap();
         assert!(!renamed["changes"].as_array().unwrap().is_empty());
+    }
+
+    #[test]
+    fn closures_renumbered_by_an_inserted_closure_are_not_changes() {
+        // argus #111: a closure inserted above seven others renumbered them
+        // (<closure#N> is by position), and all seven were reported as
+        // changed in the PR though their bytes were the same as at base.
+        let closures = |items: &[(&str, &str)]| {
+            let mut out = analysis_of(&[]);
+            for (name, revision) in items {
+                let (kind, parent) = if *name == "F" {
+                    ("function", "")
+                } else {
+                    ("closure", "b|F")
+                };
+                let id = if *name == "F" {
+                    "b|F".to_owned()
+                } else {
+                    format!("b|F|{name}")
+                };
+                let symbol: Symbol = serde_json::from_value(json!({"key":id,"file":"repo/b/f.go","package":"b",
+                    "name":name,"kind":kind,"parent":parent,"start":0,"end":10,"body_start":0,"line":3,"end_line":3,
+                    "revision":revision,"signature":revision,"implementation":revision,"correspondence":revision})).unwrap();
+                out.symbols.insert(key("b", &id), ("b".into(), symbol));
+            }
+            out
+        };
+        let a = closures(&[("F", "f1"), ("<closure#0>", "x"), ("<closure#1>", "y")]);
+        let b = closures(&[
+            ("F", "f2"),
+            ("<closure#0>", "new"),
+            ("<closure#1>", "x"),
+            ("<closure#2>", "y"),
+        ]);
+        let base = sources_of(&[("repo/b/f.go", "package b\n")]);
+        let head = sources_of(&[("repo/b/f.go", "package b\n\n")]);
+        let request: Request =
+            serde_json::from_value(json!({"repository_id":"repo","base":[],"head":[],
+            "profile":{"goos":"linux","goarch":"amd64","tags":[],"tests":false,"workspace":""}}))
+            .unwrap();
+        let report = compare(&base, &head, &a, &b, &request).unwrap();
+        let mut changed: Vec<String> = report["changes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| {
+                format!(
+                    "{}:{}",
+                    c["kind"].as_str().unwrap(),
+                    c["head"].as_str().or(c["base"].as_str()).unwrap()
+                )
+            })
+            .collect();
+        changed.sort();
+        assert_eq!(
+            changed,
+            [
+                format!("added:{}", key("b", "b|F|<closure#0>")),
+                format!("modified:{}", key("b", "b|F"))
+            ]
+        );
     }
 }
