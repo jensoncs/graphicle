@@ -84,6 +84,19 @@ enum Target {
     Method { class: Ref, name: String },
     /// `new C()`
     New(Ref),
+    /// `recv.m()` where `recv` is a method call's result or a field: `m` of
+    /// the class `recv` is declared to hold.
+    Chain { receiver: Recv, name: String },
+}
+
+/// A receiver whose class comes from declarations: an instance of a class
+/// (or the class itself, for its static fields), what a method call is
+/// declared to return, or a field of either.
+#[derive(Clone, Debug)]
+enum Recv {
+    Class(Ref),
+    Call(Box<Target>),
+    Field(Box<Recv>, String),
 }
 
 #[derive(Clone, Debug)]
@@ -130,6 +143,12 @@ struct ClassInfo {
     name: String,
     line: usize,
     base: Option<Ref>,
+    /// Every method declared on the class, with the class it returns when
+    /// the declaration says (`(): Builder`, `(): this`, `return this`).
+    returns: FxHashMap<String, Option<Ref>>,
+    /// Every field (and constructor parameter property), with its class
+    /// when an annotation or `new` value says.
+    fields: FxHashMap<String, Option<Ref>>,
 }
 
 #[derive(Debug, Default)]
@@ -412,6 +431,8 @@ impl<'a> Reader<'_, 'a> {
     fn callers(&self, node: NodeId) -> Vec<Caller> {
         let nodes = self.semantic.nodes();
         let mut out = vec![];
+        // A field initializer (`static X = Y.get()`) runs as part of its class.
+        let mut in_field = false;
         for id in nodes.ancestor_ids(node) {
             let kind = nodes.kind(id);
             let is_fn = matches!(
@@ -421,6 +442,15 @@ impl<'a> Reader<'_, 'a> {
             if !is_fn {
                 match kind {
                     AstKind::Program(_) => break,
+                    AstKind::PropertyDefinition(_) => in_field = true,
+                    AstKind::Class(c) if in_field => {
+                        if let Some(r) = self.class_local(c)
+                            && let Ref::Local { name, line } = r
+                        {
+                            out.push(Caller::Value { name, line });
+                        }
+                        in_field = false;
+                    }
                     AstKind::VariableDeclarator(d) => {
                         // A function-valued declarator was taken with its function.
                         let fn_init = d
@@ -489,22 +519,53 @@ impl<'a> Reader<'_, 'a> {
         let AstKind::Class(c) = self.kind(class) else {
             return None;
         };
+        self.class_fields(c).remove(field)?
+    }
+    /// The fields of `c` and constructor parameter properties
+    /// (`constructor(private svc: Svc)`), each with its class: from a `new`
+    /// value (untyped evidence) or an annotation (typed).
+    fn class_fields(&self, c: &oxc_ast::ast::Class<'a>) -> FxHashMap<String, Option<(Ref, bool)>> {
+        let mut out = FxHashMap::default();
         for element in &c.body.body {
-            if let oxc_ast::ast::ClassElement::PropertyDefinition(p) = element
-                && p.key.static_name().is_some_and(|n| n == field)
-            {
-                if let Some(Expression::NewExpression(new)) =
-                    p.value.as_ref().map(Expression::get_inner_expression)
-                {
-                    return Some((self.class_ref(&new.callee)?, false));
+            match element {
+                oxc_ast::ast::ClassElement::PropertyDefinition(p) => {
+                    let Some(name) = p.key.static_name() else {
+                        continue;
+                    };
+                    let class = match p.value.as_ref().map(Expression::get_inner_expression) {
+                        Some(Expression::NewExpression(new)) => {
+                            self.class_ref(&new.callee).map(|r| (r, false))
+                        }
+                        _ => p
+                            .type_annotation
+                            .as_ref()
+                            .and_then(|t| self.annotated(&t.type_annotation))
+                            .map(|r| (r, true)),
+                    };
+                    out.entry(name.to_string()).or_insert(class);
                 }
-                return Some((
-                    self.annotated(&p.type_annotation.as_ref()?.type_annotation)?,
-                    true,
-                ));
+                oxc_ast::ast::ClassElement::MethodDefinition(m)
+                    if m.kind == oxc_ast::ast::MethodDefinitionKind::Constructor =>
+                {
+                    for param in &m.value.params.items {
+                        if param.accessibility.is_none() && !param.readonly {
+                            continue;
+                        }
+                        let Some(b) = param.pattern.get_binding_identifier() else {
+                            continue;
+                        };
+                        let class = param
+                            .type_annotation
+                            .as_ref()
+                            .and_then(|t| self.annotated(&t.type_annotation))
+                            .map(|r| (r, true));
+                        out.entry(b.name.to_string()).or_insert(class);
+                    }
+                }
+                _ => {}
             }
         }
-        None
+        out
     }
     fn target(&self, node: NodeId, callee: &Expression<'a>) -> Option<Target> {
         match callee.get_inner_expression() {
@@ -546,6 +607,11 @@ impl<'a> Reader<'_, 'a> {
                         }
                         Binding::Decl(_) => None,
                     },
+                    Expression::NewExpression(new) => Some(Target::Member {
+                        class: self.class_ref(&new.callee)?,
+                        name,
+                        typed: true,
+                    }),
                     Expression::StaticMemberExpression(inner)
                         if matches!(
                             inner.object.get_inner_expression(),
@@ -556,11 +622,37 @@ impl<'a> Reader<'_, 'a> {
                         let (class, typed) = self.field_class(class_node, &inner.property.name)?;
                         Some(Target::Member { class, name, typed })
                     }
-                    _ => None,
+                    other => Some(Target::Chain {
+                        receiver: self.recv(node, other)?,
+                        name,
+                    }),
                 }
             }
             _ => None,
         }
+    }
+    /// What class a call or field receiver holds, from declarations alone.
+    fn recv(&self, node: NodeId, e: &Expression<'a>) -> Option<Recv> {
+        Some(match e.get_inner_expression() {
+            Expression::Identifier(ident) => match self.binding(ident, 0)? {
+                Binding::Instance(class, _)
+                | Binding::Class(class)
+                | Binding::Decl(class @ Ref::Import { .. }) => Recv::Class(class),
+                _ => return None,
+            },
+            Expression::ThisExpression(_) => {
+                Recv::Class(self.class_local(self.enclosing_class(node)?.1)?)
+            }
+            Expression::NewExpression(new) => Recv::Class(self.class_ref(&new.callee)?),
+            Expression::CallExpression(call) => {
+                Recv::Call(Box::new(self.target(node, &call.callee)?))
+            }
+            Expression::StaticMemberExpression(m) => Recv::Field(
+                Box::new(self.recv(node, &m.object)?),
+                m.property.name.to_string(),
+            ),
+            _ => return None,
+        })
     }
     fn summarize(&self, key: String, dir: PathBuf) -> Summary {
         let mut out = Summary {
@@ -600,6 +692,12 @@ impl<'a> Reader<'_, 'a> {
                             name: id.name.to_string(),
                             line: self.line(c.span.start),
                             base: c.super_class.as_ref().and_then(|e| self.class_ref(e)),
+                            returns: self.method_returns(c),
+                            fields: self
+                                .class_fields(c)
+                                .into_iter()
+                                .map(|(k, v)| (k, v.map(|(r, _)| r)))
+                                .collect(),
                         });
                     }
                 }
@@ -680,6 +778,40 @@ impl<'a> Reader<'_, 'a> {
                 }
                 _ => {}
             }
+        }
+        out
+    }
+    /// The class each method of `c` returns, when its declaration says.
+    fn method_returns(&self, c: &oxc_ast::ast::Class<'a>) -> FxHashMap<String, Option<Ref>> {
+        let own = self.class_local(c);
+        let mut out = FxHashMap::default();
+        for element in &c.body.body {
+            let oxc_ast::ast::ClassElement::MethodDefinition(m) = element else {
+                continue;
+            };
+            let Some(name) = m.key.static_name() else {
+                continue;
+            };
+            let f = &m.value;
+            let returned = match f.return_type.as_ref().map(|t| &t.type_annotation) {
+                Some(TSType::TSThisType(_)) => own.clone(),
+                Some(ty) => self.annotated(ty),
+                // ponytail: only a top-level `return this;` types an
+                // unannotated method; a return nested in a branch does not.
+                None => f
+                    .body
+                    .as_ref()
+                    .is_some_and(|b| {
+                        b.statements.iter().any(|s| {
+                            matches!(s, oxc_ast::ast::Statement::ReturnStatement(r)
+                                if matches!(r.argument.as_ref().map(Expression::get_inner_expression),
+                                    Some(Expression::ThisExpression(_))))
+                        })
+                    })
+                    .then(|| own.clone())
+                    .flatten(),
+            };
+            out.insert(name.to_string(), returned);
         }
         out
     }
@@ -1084,6 +1216,105 @@ mod tests {
             .collect::<Vec<_>>();
         out.sort();
         out
+    }
+
+    #[test]
+    fn binds_property_receivers_and_class_field_initializers() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = crate::extractors::resolution::resolved(dir.path());
+        let files = vec![
+            write(
+                &root,
+                "src/role.ts",
+                "export class Role {\n  static getInstance(): Role { return new Role(); }\n  name(): string { return 'r'; }\n}\n",
+            ),
+            write(
+                &root,
+                "src/types.ts",
+                "import { Role } from './role';\nexport class RoleTypes {\n  public static Host: Role = Role.getInstance();\n  static Guest = new Role();\n}\n",
+            ),
+            write(
+                &root,
+                "src/context.ts",
+                "import { Role } from './role';\nexport class Context {\n  role?: Role;\n  constructor(private readonly owner: Role) {}\n  ownerName() { return this.owner.name(); }\n}\n",
+            ),
+            write(
+                &root,
+                "src/main.ts",
+                "import { Context } from './context';\nimport { RoleTypes } from './types';\n\nexport function run(ctx: Context) {\n  ctx.role!.name();\n  return RoleTypes.Host.name();\n}\n",
+            ),
+        ];
+        let options = ExtractOptions {
+            root: Some(root.clone()),
+            cache_root: Some(root.clone()),
+            parallel: false,
+            precise: true,
+            ..Default::default()
+        };
+        let _serial = crate::extractors::parse_cache::test_serial();
+        let result = extract(&files, &options).unwrap();
+        let calls = calls(&result);
+        // A pair the default pass already found keeps its own resolution.
+        let precise = |a: &str, b: &str| calls.iter().any(|(s, t, _)| s == a && t == b);
+        for (a, b) in [
+            ("run()", ".name()"),
+            ("RoleTypes", ".getInstance()"),
+            ("RoleTypes", "Role"),
+            (".ownerName()", ".name()"),
+        ] {
+            assert!(precise(a, b), "missing {a} -> {b}: {calls:?}");
+        }
+    }
+
+    #[test]
+    fn binds_fluent_chains_through_declared_return_types() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = crate::extractors::resolution::resolved(dir.path());
+        let files = vec![
+            write(
+                &root,
+                "src/context.ts",
+                "export class Context {\n  ok(): boolean { return true; }\n}\n",
+            ),
+            write(
+                &root,
+                "src/builder.ts",
+                "import { Context } from './context';\nexport class Builder {\n  static create(): Builder { return new Builder(); }\n  withUser(id: string): Builder { return this; }\n  withRoom(id: string) {\n    return this;\n  }\n  raw(): any { return {}; }\n  build(): Context { return new Context(); }\n}\nexport class Other {\n  build() { return 1; }\n  ok() { return 2; }\n}\n",
+            ),
+            write(
+                &root,
+                "src/main.ts",
+                "import { Builder } from './builder';\n\nexport function run() {\n  return new Builder()\n    .withUser('u')\n    .withRoom('r')\n    .build()\n    .ok();\n}\nexport function made() {\n  return Builder.create().withUser('u');\n}\nexport function untyped() {\n  return new Builder().raw().build();\n}\n",
+            ),
+        ];
+        let options = ExtractOptions {
+            root: Some(root.clone()),
+            cache_root: Some(root.clone()),
+            parallel: false,
+            precise: true,
+            ..Default::default()
+        };
+        let _serial = crate::extractors::parse_cache::test_serial();
+        let result = extract(&files, &options).unwrap();
+        let calls = calls(&result);
+        let typed = |a: &str, b: &str| {
+            calls
+                .iter()
+                .any(|(s, t, r)| s == a && t == b && r.starts_with("oxc_"))
+        };
+        for (a, b) in [
+            ("run()", ".withUser()"),
+            ("run()", ".withRoom()"),
+            ("run()", ".build()"),
+            ("run()", ".ok()"),
+            ("made()", ".create()"),
+            ("made()", ".withUser()"),
+            ("untyped()", ".raw()"),
+        ] {
+            assert!(typed(a, b), "missing {a} -> {b}: {calls:?}");
+        }
+        // `raw(): any` says nothing about its result: no typed guess after it.
+        assert!(!typed("untyped()", ".build()"), "{calls:?}");
     }
 
     #[test]

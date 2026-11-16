@@ -55,7 +55,10 @@ use std::{
 /// resolved to; 7 invalidated records whose source paths leaked a walked
 /// directory alias when the extraction root was canonicalized (6 added
 /// receiver shadows).
-pub const AST_CACHE_SCHEMA: i64 = 24;
+/// 25: Java anonymous class and Kotlin object literal nodes carry
+/// `metadata.anonymous`, and a Swift/Kotlin member call on another object
+/// no longer binds to its same-named caller.
+pub const AST_CACHE_SCHEMA: i64 = 25;
 /// Where an AST entry lists the `target_file` stamps that named an existing
 /// file when it was written; a hit whose target is gone is a miss (#4185).
 pub const CACHED_TARGETS_KEY: &str = "_cached_target_files";

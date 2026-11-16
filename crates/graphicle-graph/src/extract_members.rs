@@ -2375,16 +2375,58 @@ fn python_member_edges<'a, P: PerFile, E: Rec>(
     }
     added
 }
-pub fn kotlin_imports<P: PerFile>(per: &[P], edges: &mut [Value]) {
+pub fn kotlin_imports<P: PerFile>(
+    per: &mut [P],
+    edges: &mut [Value],
+    context_nodes: &[Value],
+    root: &Path,
+) {
     let mut symbols: BTreeMap<(String, String), Vec<String>> = BTreeMap::new();
-    for r in per {
+    // Scanned Kotlin packages, and every trailing run of a JVM source file's
+    // directories read as a package (`src/main/java/com/x` gives `com.x`,
+    // `x`, ...): Java declares its package by directory.
+    let mut packages: FxHashSet<String> = FxHashSet::default();
+    let add_dirs = |packages: &mut FxHashSet<String>, sf: &str| {
+        let dirs = sf.split('/').collect::<Vec<_>>();
+        let dirs = &dirs[..dirs.len().saturating_sub(1)];
+        for i in 0..dirs.len() {
+            packages.insert(dirs[i..].join("."));
+        }
+    };
+    // An incremental rebuild hands unchanged files over as context nodes,
+    // which do not carry their package: read it from the file.
+    // ponytail: one small read per unchanged Kotlin file per rebuild.
+    let mut context_files = FxHashSet::default();
+    for n in context_nodes {
+        let sf = s(n, "source_file");
+        if [".kt", ".kts", ".java"].iter().any(|suf| sf.ends_with(suf)) && context_files.insert(sf)
+        {
+            add_dirs(&mut packages, sf);
+            if !sf.ends_with(".java")
+                && let Ok(text) = std::fs::read_to_string(root.join(sf))
+                && let Some(pkg) = text.lines().find_map(|l| l.trim().strip_prefix("package "))
+            {
+                packages.insert(pkg.trim().trim_end_matches(';').replace('`', ""));
+            }
+        }
+    }
+    for r in per.iter() {
         let pkg = r
             .key("kotlin_package")
             .and_then(Value::as_str)
             .unwrap_or("");
+        for n in r.nodes().into_iter().flatten() {
+            let sf = rs(n, "source_file");
+            if [".kt", ".kts", ".java"].iter().any(|suf| sf.ends_with(suf)) {
+                add_dirs(&mut packages, sf);
+                break;
+            }
+        }
         if pkg.is_empty() {
             continue;
         }
+        // `package `in`.mohalla`: the backticks only escape a keyword.
+        packages.insert(pkg.replace('`', ""));
         for n in r.nodes().into_iter().flatten() {
             let label = rs(n, "label");
             if !rs(n, "source_file").is_empty()
@@ -2399,17 +2441,65 @@ pub fn kotlin_imports<P: PerFile>(per: &[P], edges: &mut [Value]) {
             }
         }
     }
-    for e in edges {
-        if s(e, "relation") == "imports"
-            && [".kt", ".kts"]
+    // `androidx.compose.foundation.layout.Column`: no prefix of the name is a
+    // scanned package, so it is a library's, whatever the repository calls
+    // its own classes.
+    let scanned = |fqn: &str| {
+        let fqn = fqn.replace('`', "");
+        let mut rest = fqn.as_str();
+        while let Some((head, _)) = rest.rsplit_once('.') {
+            if packages.contains(head) {
+                return true;
+            }
+            rest = head;
+        }
+        false
+    };
+    let mut external: FxHashMap<String, FxHashSet<String>> = FxHashMap::default();
+    for e in edges.iter_mut() {
+        if s(e, "relation") != "imports"
+            || ![".kt", ".kts"]
                 .iter()
                 .any(|suf| s(e, "source_file").ends_with(suf))
-            && let Some((pkg, name)) = s(&e["metadata"], "target_fqn").rsplit_once('.')
-            && let Some(c) = symbols
-                .get(&(pkg.into(), name.into()))
-                .filter(|c| c.len() == 1)
+        {
+            continue;
+        }
+        let fqn = s(&e["metadata"], "target_fqn").to_string();
+        let Some((pkg, name)) = fqn.rsplit_once('.') else {
+            continue;
+        };
+        if let Some(c) = symbols
+            .get(&(pkg.into(), name.into()))
+            .filter(|c| c.len() == 1)
         {
             e["target"] = json!(c[0]);
+        } else if !scanned(&fqn) {
+            let local = Some(s(&e["metadata"], "alias"))
+                .filter(|a| !a.is_empty())
+                .unwrap_or(name)
+                .to_string();
+            external
+                .entry(s(e, "source_file").into())
+                .or_default()
+                .insert(local);
+            // An id no repository node can answer to: the build drops it
+            // instead of folding it onto a same-named local node.
+            e["target"] = json!(make_id([format!("ref:{fqn}").as_str()]));
+        }
+    }
+    if external.is_empty() {
+        return;
+    }
+    for r in per.iter_mut() {
+        for call in r.raw_calls_mut().into_iter().flatten() {
+            let Some(names) = external.get(rs(call, "source_file")) else {
+                continue;
+            };
+            if names.contains(rs(call, "callee"))
+                || names.contains(rs(call, "kotlin_object_receiver"))
+            {
+                call.rec_set("_external_import", Value::Bool(true));
+            }
         }
     }
 }
@@ -2592,6 +2682,7 @@ pub fn kotlin_members<P: PerFile, E: Rec>(per: &[P], nodes: &mut [Value], edges:
     let mut added = vec![];
     for raw in raw_calls_of(per) {
         if rs(raw, "lang") != "kotlin"
+            || raw.rec_get("_external_import").is_some_and(truthy)
             || rs(raw, "kotlin_object_receiver").is_empty()
             || rs(raw, "callee").is_empty()
             || rs(raw, "caller_nid").is_empty()

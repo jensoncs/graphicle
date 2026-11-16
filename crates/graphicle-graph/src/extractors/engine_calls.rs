@@ -1222,6 +1222,19 @@ impl<'a, 't> Engine<'a, 't> {
                         {
                             target = None;
                         }
+                        // Swift/Kotlin: `view.load(s)` inside `load(_:)` is
+                        // another object's `load`, and `super.load(s)` the
+                        // base's; only a bare or `self.`/`this.` call is the
+                        // method recursing.
+                        if (self.is("swift") || self.is("kotlin"))
+                            && call.member
+                            && target.as_deref() == Some(caller)
+                            && !n.child(0).and_then(|f| f.child(0)).is_some_and(|r| {
+                                matches!(r.kind_name(), "self_expression" | "this_expression")
+                            })
+                        {
+                            target = None;
+                        }
                     }
                     // C#: the name found one overload; the argument count picks
                     // the one this call means, else the first declared

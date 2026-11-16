@@ -115,6 +115,32 @@ pub fn absolute_import_alias_files(
     (aliases, root_aliases)
 }
 
+/// Every directory name and `.py` stem under `root` among `paths`: a module
+/// whose top-level name is none of them lives outside the corpus.
+pub fn corpus_module_names(paths: &[PathBuf], root: &Path) -> FxHashSet<String> {
+    let root = resolved(root);
+    let mut names = FxHashSet::default();
+    for path in paths {
+        if path
+            .extension()
+            .is_none_or(|e| !e.eq_ignore_ascii_case("py"))
+        {
+            continue;
+        }
+        let path = resolved(path);
+        let Ok(relative) = path.strip_prefix(&root) else {
+            continue;
+        };
+        let relative = relative.with_extension("");
+        names.extend(
+            relative
+                .components()
+                .map(|c| c.as_os_str().to_string_lossy().into_owned()),
+        );
+    }
+    names
+}
+
 /// The Python files an extraction run can bind imports to: its own paths plus
 /// the unchanged files an incremental rebuild hands over as context.
 pub fn scan_paths(paths: &[PathBuf], context_nodes: &[Value], root: &Path) -> Vec<PathBuf> {
@@ -251,12 +277,14 @@ fn only_ancestor_root(edge: &Value, module: &str, files: &ModuleFiles, root: &Pa
 /// namespace-package markers, point ambiguous imports at a node-less id so
 /// the graph builder drops them, and flag raw calls whose receiver or callee
 /// is bound by an ambiguous import (`_ambiguous_python_import`).
+#[allow(clippy::too_many_arguments)]
 pub fn suppress_ambiguous_imports<P: PerFile>(
     edges: &mut Vec<Value>,
     nodes: &[Value],
     per: &mut [P],
     ambiguous: &AmbiguousModules,
     files: &ModuleFiles,
+    corpus_names: &FxHashSet<String>,
     root: &Path,
     bind_ancestor_roots: bool,
 ) {
@@ -307,9 +335,19 @@ pub fn suppress_ambiguous_imports<P: PerFile>(
                     .extend(pairs.into_iter().map(|(_, local)| local));
             }
         } else {
+            // `from sklearn.x import Name`: no scanned directory or file is
+            // named `sklearn`, so `Name` is the package's and a bare call
+            // never binds to a same-named definition in the corpus.
+            let external = !marker
+                && edge.get("target_file").is_none()
+                && !corpus_names.contains(module.split('.').next().unwrap_or(""));
+            let prefix = format!("{module_id}_");
             for (imported, local) in pairs {
+                if external && imported != "*" {
+                    bound.entry(source_file.clone()).or_default().insert(local);
+                    continue;
+                }
                 if imported == "*" {
-                    let prefix = format!("{module_id}_");
                     if ambiguous_module || ambiguous.iter().any(|m| m.starts_with(&prefix)) {
                         star_files.insert(source_file.clone());
                     }

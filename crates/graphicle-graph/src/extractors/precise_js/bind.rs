@@ -1,6 +1,8 @@
 //! Call binding over any set of declarations ([`Nodes`]): graph nodes for the
 //! extractor, review declarations for a pinned snapshot ([`bind_snapshot`]).
-use super::{Caller, Export, MAX_HOPS, Ref, Summary, Target, is_js, resolver_with};
+use super::{
+    Caller, ClassInfo, Export, MAX_HOPS, Recv, Ref, Summary, Target, is_js, resolver_with,
+};
 use crate::extractors::snapshot_fs::SnapshotFs;
 use oxc_resolver::{FileSystem, ResolverGeneric};
 use rustc_hash::FxHashMap;
@@ -255,6 +257,12 @@ pub(super) fn bind<Fs: FileSystem + 'static, N: Nodes>(
                 Target::Method { class, name } => {
                     (method(nodes, r, fi, class, name), "oxc_binding")
                 }
+                Target::Chain { receiver, name } => {
+                    let Some((file, class)) = class_of(r, fi, receiver) else {
+                        continue;
+                    };
+                    (method(nodes, r, file, &class, name), "oxc_type")
+                }
             };
             let Some(target) = target else { continue };
             if target == caller {
@@ -270,6 +278,76 @@ pub(super) fn bind<Fs: FileSystem + 'static, N: Nodes>(
         }
     }
     out
+}
+
+/// The declaration (file, local class) of the class `recv`, read in file
+/// `file`, holds.
+fn class_of<Fs: FileSystem + 'static>(
+    r: &mut Resolve<Fs>,
+    file: usize,
+    recv: &Recv,
+) -> Option<(usize, Ref)> {
+    let (file, class) = match recv {
+        Recv::Class(class) => (file, class.clone()),
+        Recv::Call(target) => returned(r, file, target)?,
+        Recv::Field(inner, field) => {
+            let (file, class) = class_of(r, file, inner)?;
+            member_of(r, file, class, |c| c.fields.get(field).cloned())?
+        }
+    };
+    r.declaration(file, &class)
+}
+
+/// The class a method call `target` made from file `file` is declared to
+/// return, with the file its reference is read in.
+fn returned<Fs: FileSystem + 'static>(
+    r: &mut Resolve<Fs>,
+    file: usize,
+    target: &Target,
+) -> Option<(usize, Ref)> {
+    let (file, class, name) = match target {
+        Target::Member { class, name, .. } | Target::Method { class, name } => {
+            let (file, class) = r.declaration(file, class)?;
+            (file, class, name)
+        }
+        Target::Chain { receiver, name } => {
+            let (file, class) = class_of(r, file, receiver)?;
+            (file, class, name)
+        }
+        _ => return None,
+    };
+    member_of(r, file, class, |c| c.returns.get(name).cloned())
+}
+
+/// The class a member of local class `class` (in file `file`) or of its
+/// nearest base declaring it is typed as: `pick` reads a class's member,
+/// `Some(None)` when declared without a known class.
+fn member_of<Fs: FileSystem + 'static>(
+    r: &mut Resolve<Fs>,
+    mut file: usize,
+    mut class: Ref,
+    pick: impl Fn(&ClassInfo) -> Option<Option<Ref>>,
+) -> Option<(usize, Ref)> {
+    for _ in 0..MAX_HOPS {
+        let Ref::Local {
+            name: class_name,
+            line,
+        } = &class
+        else {
+            return None;
+        };
+        let info = r.summaries[file]
+            .classes
+            .iter()
+            .find(|c| &c.name == class_name && c.line == *line)?;
+        // The nearest declaration of the member decides, typed or not.
+        if let Some(found) = pick(info) {
+            return Some((file, found?));
+        }
+        let base = info.base.clone()?;
+        (file, class) = r.declaration(file, &base)?;
+    }
+    None
 }
 
 /// Method `name` of the class `reference` (from file `file`) or its bases.

@@ -107,7 +107,10 @@ pub fn content_failure(mut result: Value) -> Value {
 /// 8: a Go closure's calls belong to the enclosing function, and a
 /// package-level var initialiser's to the file.
 /// 9: `source_file` stays repo-relative under a symlinked scan root.
-pub const ASSEMBLY_REVISION: u32 = 9;
+/// 10: a Python or Kotlin name imported from a package outside the corpus
+/// never binds to a same-named definition in it, and a JS/TS call on a
+/// method call's result or a field binds through the declared class.
+pub const ASSEMBLY_REVISION: u32 = 10;
 /// Files whose interface calls the JVM dispatch pass links to implementations.
 const JVM_DISPATCH: &[&str] = &[".java", ".kt", ".kts"];
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes
@@ -1572,7 +1575,7 @@ fn language_passes<P: PerFile>(
         restore(per, sh_idx, sh);
         edges.extend(added?);
     }
-    members::kotlin_imports(&*per, edges);
+    members::kotlin_imports(per, edges, &options.resolution_context_nodes, root);
     // Quoted C/C++/ObjC includes outside the including file's directory, to
     // their header file nodes (#4354): after the id remaps, before the
     // import-evidence index of the bare-name pass reads the edges.
@@ -1783,10 +1786,11 @@ fn assemble_records(
     let t = std::time::Instant::now();
     drop(collect_span);
     let profiled = crate::profile::span("assemble.python_modules");
-    let (module_files, root_modules) = extract_python::absolute_import_alias_files(
-        &extract_python::scan_paths(corpus_paths, &options.resolution_context_nodes, root),
-        root,
-    );
+    let python_paths =
+        extract_python::scan_paths(corpus_paths, &options.resolution_context_nodes, root);
+    let (module_files, root_modules) =
+        extract_python::absolute_import_alias_files(&python_paths, root);
+    let corpus_names = extract_python::corpus_module_names(&python_paths, root);
     let ambiguous = extract_python::ambiguous_modules(&module_files, &root_modules);
     per_dispatch!(&mut per, p => extract_python::suppress_ambiguous_imports(
         &mut edges,
@@ -1794,6 +1798,7 @@ fn assemble_records(
         &mut p[..],
         &ambiguous,
         &module_files,
+        &corpus_names,
         root,
         options.receiver_resolution,
     ));
@@ -2190,7 +2195,12 @@ pub fn bind_raw_calls<E: Rec, R: Rec>(
         if !s(n, "id").is_empty() {
             id_label.insert(s(n, "id"), s(n, "label"));
         }
-        if s(n, "file_type") != "rationale" && s(n, "type") != "namespace" {
+        // An anonymous class or object literal carries its base type's name,
+        // but no call by that name constructs it.
+        if s(n, "file_type") != "rationale"
+            && s(n, "type") != "namespace"
+            && n["metadata"]["anonymous"] != Value::Bool(true)
+        {
             let name = s(n, "label")
                 .trim_matches(['(', ')'])
                 .trim_start_matches('.');
@@ -2305,9 +2315,11 @@ pub fn bind_raw_calls<E: Rec, R: Rec>(
     // The tables borrow from `edges`; new edges are appended after the loop.
     let mut added = vec![];
     for &rc in raw {
-        // Bound by an ambiguous absolute import (#3729): never guess a target.
+        // Bound by an ambiguous absolute import (#3729), or a library's name
+        // (a Kotlin import of an unscanned package): never guess a target.
         if rc
             .rec_get("_ambiguous_python_import")
+            .or_else(|| rc.rec_get("_external_import"))
             .is_some_and(crate::build::truthy)
         {
             continue;

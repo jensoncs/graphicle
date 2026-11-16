@@ -686,7 +686,8 @@ impl<'a, 't> Engine<'a, 't> {
                 format!("object:{label}").as_str(),
                 format!("L{line}").as_str(),
             ]);
-            self.add_node(&id, &label, line, None, Value::Null);
+            // Labelled by its base type, but not that type (see bind_raw_calls).
+            self.add_node(&id, &label, line, None, json!({"anonymous": true}));
             self.edge(owner, &id, "contains", line, None, Value::Null);
             self.callable.insert(id.clone());
             self.classes.insert(id.clone());
@@ -1327,7 +1328,7 @@ impl<'a, 't> Engine<'a, 't> {
                 format!("object:{name}").as_str(),
                 format!("L{line}").as_str(),
             ]);
-            self.add_node(&id, &name, line, None, Value::Null);
+            self.add_node(&id, &name, line, None, json!({"anonymous": true}));
             self.edge(owner, &id, "contains", line, None, Value::Null);
             self.callable.insert(id.clone());
             self.classes.insert(id.clone());

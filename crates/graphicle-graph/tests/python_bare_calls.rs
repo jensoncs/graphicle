@@ -296,3 +296,77 @@ fn a_non_builtin_unimported_name_keeps_its_inferred_edge() {
     assert_eq!(found.len(), 1, "{e:?}");
     assert_eq!(found[0].3, "INFERRED", "{e:?}");
 }
+
+// -- a name imported from a package outside the corpus --------------------
+
+const LOCAL_MODEL: &str = "class LogisticRegression:\n    pass\n";
+
+#[test]
+fn a_name_imported_from_an_external_package_has_no_cross_file_edge() {
+    let e = edges(&[
+        ("models/logistic.py", LOCAL_MODEL),
+        (
+            "jobs/calib.py",
+            "from sklearn.linear_model import LogisticRegression\n\ndef fit():\n    return LogisticRegression(C=1.0)\n",
+        ),
+    ]);
+    assert!(
+        between(&e, "jobs/calib.py", "models/logistic.py").is_empty(),
+        "{e:?}"
+    );
+}
+
+#[test]
+fn an_aliased_external_import_shadows_the_local_name_too() {
+    let e = edges(&[
+        ("util/mock.py", "def call():\n    pass\n"),
+        (
+            "tests/t.py",
+            "from unittest.mock import patch as call\n\ndef run():\n    call()\n",
+        ),
+    ]);
+    assert!(
+        between(&e, "tests/t.py", "util/mock.py").is_empty(),
+        "{e:?}"
+    );
+}
+
+#[test]
+fn a_name_imported_from_a_scanned_module_still_binds() {
+    let e = edges(&[
+        ("models/logistic.py", LOCAL_MODEL),
+        (
+            "jobs/calib.py",
+            "from models.logistic import LogisticRegression\n\ndef fit():\n    return LogisticRegression()\n",
+        ),
+    ]);
+    assert_eq!(
+        between(&e, "jobs/calib.py", "models/logistic.py").len(),
+        1,
+        "{e:?}"
+    );
+}
+
+#[test]
+fn a_project_run_from_its_own_directory_keeps_its_sibling_imports() {
+    // `cold-start/` is a package whose name no import can spell: its scripts
+    // run with it on `sys.path`, so `utils.layers` is its own `utils/`.
+    let e = edges(&[
+        ("cold-start/__init__.py", ""),
+        ("cold-start/utils/layers.py", "def embed():\n    return 1\n"),
+        (
+            "cold-start/train/model.py",
+            "from utils.layers import embed\n\ndef build():\n    return embed()\n",
+        ),
+    ]);
+    assert_eq!(
+        between(
+            &e,
+            "cold-start/train/model.py",
+            "cold-start/utils/layers.py"
+        )
+        .len(),
+        1,
+        "{e:?}"
+    );
+}
