@@ -430,6 +430,16 @@ def run_graphify(spec, repo, work):
     return json.loads((out / "graph.json").read_text())
 
 
+CONSTRUCTORS = ("__init__", "constructor")
+
+
+def explicit_call(defs, rel, line, name):
+    """Does `line` (0-based) of `rel` call the constructor by name
+    (`super().__init__(`), which SCIP records against the method itself?"""
+    lines = defs.text(rel)
+    return 0 <= line < len(lines) and f"{name}(" in lines[line]
+
+
 def score(pred, oracle):
     tp = len(pred & oracle)
     p = tp / len(pred) if pred else 1.0
@@ -474,6 +484,11 @@ def main():
         for (cf, cn, cl), (tf, tn, tl), *site in rows["edges"]:
             # Other tools may start a definition at its first decorator.
             a, b = defs.match(cf, cn, cl - 1, forward=8), defs.match(tf, tn, tl - 1, forward=8)
+            if tn in CONSTRUCTORS and not (site and explicit_call(defs, cf, site[0] - 1, tn)):
+                # `Name(...)` bound to the constructor: SCIP references the
+                # class, as graph_edges maps graph constructor nodes.
+                b = next((d for d in defs.chain(tf, (tl - 1, 10 ** 6))
+                          if defs.defs[d]["kind"] == "class"), None)
             if a is None or b is None or a == b or implicit(defs.defs[b]["name"]):
                 continue
             if site and (cf, site[0] - 1, defs.defs[b]["name"]) in disputed:
