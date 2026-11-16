@@ -413,6 +413,63 @@ fn a_nested_workload_is_left_out_of_the_root_workload_scope() {
 }
 
 #[test]
+fn a_config_map_snapshot_in_another_pin_resolves_and_must_be_unique() {
+    let f = Fixture::new();
+    let app = f.repo("environment-snapshot-app");
+    let atlas = f.repo("environment-snapshot-atlas");
+    let copy = f.repo("environment-snapshot-copy");
+    let deploy = from_settings(DEPLOY);
+    let code = f.pin(
+        &app,
+        "app",
+        'a',
+        &[
+            ("go.mod", MOD),
+            ("service.go", CODE),
+            ("deployment.yaml", &deploy),
+        ],
+    );
+    let snapshot =
+        |commit, settings: &str| f.pin(&atlas, "atlas", commit, &[("settings.yaml", settings)]);
+    let changed = SETTINGS.replace("\"10\"", "\"20\"");
+    let mut args = request(
+        &app,
+        vec![code.clone(), snapshot('a', SETTINGS)],
+        vec![code.clone(), snapshot('b', &changed)],
+    );
+    args["max_tokens"] = json!(64000);
+    let packet = f.run(&args);
+    assert!(!issue(&packet, "uncertain_file_scope"), "{packet}");
+    assert!(has(&packet, "head", ".Read"));
+    assert!(has(&packet, "head", ".Caller"));
+    assert!(!has(&packet, "head", ".Other"), "{packet}");
+    let input = packet["entries"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|e| e["side"] == "head" && e["environment_input"]["key"] == "TIMEOUT")
+        .expect("TIMEOUT input");
+    assert_eq!(
+        input["environment_input"]["source"]["repository_id"], atlas,
+        "{input}"
+    );
+    // The same ConfigMap in two pins is two candidates, not a choice.
+    let duplicate = f.pin(&copy, "copy", 'a', &[("settings.yaml", SETTINGS)]);
+    let mut args = request(
+        &app,
+        vec![code.clone(), snapshot('c', SETTINGS), duplicate.clone()],
+        vec![code.clone(), snapshot('d', &changed), duplicate],
+    );
+    args["max_tokens"] = json!(64000);
+    let packet = f.run(&args);
+    assert!(
+        issue(&packet, "environment_value_from_unresolved"),
+        "{packet}"
+    );
+    assert!(issue(&packet, "uncertain_file_scope"), "{packet}");
+}
+
+#[test]
 fn a_config_map_used_beyond_the_scoped_keys_stays_broad() {
     let f = Fixture::new();
     let repo = f.repo("environment-config-map-shared");

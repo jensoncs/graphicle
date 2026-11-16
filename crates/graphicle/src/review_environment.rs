@@ -221,8 +221,12 @@ struct MapInput<'a> {
     narrowable: bool,
 }
 
-/// The one ConfigMap in the deployment's directory, of the workload's
-/// namespace, behind each `configMapKeyRef`. Missing or ambiguous fails closed.
+/// The one ConfigMap of the workload's namespace behind each
+/// `configMapKeyRef`: in the deployment's directory, else in exactly one other
+/// admitted pin (an Atlas snapshot, `scripts/atlas_config_snapshot.py`).
+/// Missing or ambiguous fails closed.
+/// ponytail: name and namespace identify the object within one cluster; a pin
+/// for another cluster's ConfigMap of the same name would be taken as this one.
 fn config_maps<'a>(
     input: &'a Input,
     directory: &str,
@@ -238,9 +242,17 @@ fn config_maps<'a>(
         return Ok(BTreeMap::new());
     }
     let prefix = format!("{directory}/");
+    let pin_of = |path: &str| {
+        input
+            .pins
+            .iter()
+            .map(|pin| &pin.directory)
+            .find(|dir| path.starts_with(&format!("{dir}/")))
+            .cloned()
+    };
     let mut found = BTreeMap::<String, Vec<(&String, &Source, extract::ConfigMapData)>>::new();
     for (path, source) in input.sources.iter().filter(|(path, _)| {
-        path.starts_with(&prefix)
+        pin_of(path).is_some()
             && *path != deployment
             && matches!(
                 Path::new(path).extension().and_then(|s| s.to_str()),
@@ -262,10 +274,15 @@ fn config_maps<'a>(
     }
     let mut maps = BTreeMap::new();
     for name in names {
-        let Some(mut candidates) = found.remove(name).filter(|c| c.len() == 1) else {
+        let candidates = found.remove(name).unwrap_or_default();
+        let (local, other): (Vec<_>, Vec<_>) = candidates
+            .into_iter()
+            .partition(|(path, ..)| path.starts_with(&prefix));
+        let chosen = if local.is_empty() { other } else { local };
+        let Ok([(file, source, data)]) = <[_; 1]>::try_from(chosen) else {
             return Err("environment_value_from_unresolved");
         };
-        let (file, source, data) = candidates.pop().unwrap();
+        let map_prefix = format!("{}/", pin_of(file).unwrap());
         let referenced: BTreeSet<&str> = parsed
             .references
             .values()
@@ -276,7 +293,7 @@ fn config_maps<'a>(
             return Err("environment_value_from_unresolved");
         }
         let named_elsewhere = input.sources.iter().any(|(path, other)| {
-            path.starts_with(&prefix)
+            (path.starts_with(&prefix) || path.starts_with(&map_prefix))
                 && *path != deployment
                 && path != file
                 && other.content.text().is_none_or(|text| text.contains(name))
@@ -347,7 +364,7 @@ pub(super) fn attach(
     // image defaults, indirect library reads and runtime deployment are not proved.
     links.issues.push(issue("environment_analysis_limitations", json!({
         "model":"literal_go_python_reads_and_kubernetes_values_v4",
-        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. Same-directory ConfigMap `configMapKeyRef` values resolve; secret and pod-field references bind readers without a value; k8s-application chart values are read by that chart's env template (production when several environments exist; workloads nested under `<dir>/infra/` are left out of the root workload's scope); envFrom and Atlas config do not. No image defaults, indirect library behavior, general Helm rendering, runtime environment or deployment verification."
+        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. ConfigMap `configMapKeyRef` values resolve from the deployment's directory, else from exactly one other admitted pin (such as an Atlas snapshot); secret and pod-field references bind readers without a value; k8s-application chart values are read by that chart's env template (production when several environments exist; workloads nested under `<dir>/infra/` are left out of the root workload's scope); envFrom does not, and Atlas config only through an admitted snapshot. No image defaults, indirect library behavior, general Helm rendering, runtime environment or deployment verification."
     })));
     for (pin, scope, inventory_complete) in scopes {
         let world = root(&pin, &scope);
@@ -560,16 +577,13 @@ pub(super) fn attach(
                         scope.id,
                         name
                     ]));
+                    // The pin holding the cited file: a ConfigMap may be in another.
                     let source_pin = input
                         .pins
                         .iter()
                         .find(|p| {
-                            p.directory
-                                == *scope
-                                    .deployment
-                                    .directory
-                                    .as_ref()
-                                    .unwrap_or(&pin.directory)
+                            p.repository_id == source.repository
+                                && file.starts_with(&format!("{}/", p.directory))
                         })
                         .unwrap();
                     let symbol = Symbol {
