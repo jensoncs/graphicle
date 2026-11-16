@@ -252,6 +252,55 @@ fn a_config_map_value_change_selects_only_its_readers() {
 }
 
 #[test]
+fn a_secret_backed_env_binds_its_readers_without_a_value() {
+    let f = Fixture::new();
+    let repo = f.repo("environment-secret");
+    let m = manifest(None);
+    let deploy = DEPLOY.replace(
+        "value: \"unchanged\"",
+        "valueFrom:\n                secretKeyRef:\n                  name: app-secrets\n                  key: other",
+    );
+    let literal = run(
+        &f,
+        &repo,
+        pin(&f, &repo, 'a', CODE, &deploy, Some(&m)),
+        pin(
+            &f,
+            &repo,
+            'b',
+            CODE,
+            &deploy.replace("\"10\"", "\"20\""),
+            Some(&m),
+        ),
+    );
+    assert!(!issue(&literal, "uncertain_file_scope"), "{literal}");
+    assert!(
+        !issue(&literal, "environment_value_from_unresolved"),
+        "{literal}"
+    );
+    assert!(has(&literal, "head", ".Read"));
+    assert!(!has(&literal, "head", ".Other"), "{literal}");
+    let stats = &literal["service_graph"]["head"]["environment"]["scopes"][0];
+    assert_eq!(stats["resolved_reads"], 2, "{stats}");
+    assert_eq!(stats["declared_keys"], 2, "{stats}");
+    let reference = run(
+        &f,
+        &repo,
+        pin(&f, &repo, 'c', CODE, &deploy, Some(&m)),
+        pin(
+            &f,
+            &repo,
+            'd',
+            CODE,
+            &deploy.replace("key: other", "key: renamed"),
+            Some(&m),
+        ),
+    );
+    assert!(issue(&reference, "uncertain_file_scope"), "{reference}");
+    assert!(has(&reference, "head", ".Other"), "{reference}");
+}
+
+#[test]
 fn a_config_map_used_beyond_the_scoped_keys_stays_broad() {
     let f = Fixture::new();
     let repo = f.repo("environment-config-map-shared");

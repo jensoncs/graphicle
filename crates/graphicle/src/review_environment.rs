@@ -34,7 +34,7 @@ impl State {
     }
     pub fn summary(&self) -> Value {
         json!({"enabled":true,"scopes":self.reports,"narrowable_files":self.files.len(),
-            "model":"literal_go_python_reads_and_kubernetes_values_v3","runtime_observed":false})
+            "model":"literal_go_python_reads_and_kubernetes_values_v4","runtime_observed":false})
     }
 }
 pub(super) fn covers_change(file: &str, a: &Analysis, b: &Analysis) -> bool {
@@ -288,8 +288,8 @@ pub(super) fn attach(
     // This qualifier remains even when direct literal reads resolve. Inherited
     // image defaults, indirect library reads and runtime deployment are not proved.
     links.issues.push(issue("environment_analysis_limitations", json!({
-        "model":"literal_go_python_reads_and_kubernetes_values_v3",
-        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. Same-directory ConfigMap `configMapKeyRef` values resolve; envFrom, secrets and Atlas config do not. No image defaults, indirect library behavior, Helm rendering, runtime environment or deployment verification."
+        "model":"literal_go_python_reads_and_kubernetes_values_v4",
+        "limitations":"Explicit pinned ownership or single-module/workload source candidates; Typed Go reads and static Python import-bound file consumers only. Same-directory ConfigMap `configMapKeyRef` values resolve; secret and pod-field references bind readers without a value; envFrom and Atlas config do not. No image defaults, indirect library behavior, Helm rendering, runtime environment or deployment verification."
     })));
     for (pin, scope, inventory_complete) in scopes {
         let world = root(&pin, &scope);
@@ -482,7 +482,13 @@ pub(super) fn attach(
                         map.data.spans[key].clone(),
                     )
                 });
-                for (name, value, file, source, content, span) in literal_inputs.chain(map_inputs) {
+                // A secret or pod field has no value here; its reference stands in.
+                let opaque_inputs = parsed.opaque.iter().map(|(name, (reference, span))| {
+                    (name, reference, file.clone(), source, content, span.clone())
+                });
+                for (name, value, file, source, content, span) in
+                    literal_inputs.chain(map_inputs).chain(opaque_inputs)
+                {
                     let id = crate::digest(&json!([
                         "environment-input-v1",
                         pin.repository_id,
@@ -604,7 +610,8 @@ pub(super) fn attach(
                     evidence: json!({"configuration":links.nodes[target],"read":call_evidence(w,call)}),
                 });
             }
-            report["declared_keys"] = json!(parsed.values.len() + parsed.references.len());
+            report["declared_keys"] =
+                json!(parsed.values.len() + parsed.references.len() + parsed.opaque.len());
             report["literal_reads"] = json!(literal);
             report["resolved_reads"] = json!(resolved);
             report["unresolved_reads"] = json!(unresolved);

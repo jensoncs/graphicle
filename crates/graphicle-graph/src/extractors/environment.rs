@@ -118,6 +118,11 @@ pub struct DeploymentEnvironment {
     pub workload: Value,
     /// Env names whose value is a ConfigMap entry: (ConfigMap, data key).
     pub references: BTreeMap<String, (String, String)>,
+    /// Env names set outside the repository (`secretKeyRef`, `fieldRef`,
+    /// `resourceFieldRef`): a canonical description of the reference and the
+    /// env entry's span. There is no value; the entry stays in `masked`, so a
+    /// changed reference is a changed document.
+    pub opaque: BTreeMap<String, (String, std::ops::Range<usize>)>,
     /// ConfigMaps the workload uses other than through these references
     /// (volumes, `envFrom`, other containers): their other keys have readers
     /// this model does not see.
@@ -342,9 +347,22 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
     }
     let mut values = BTreeMap::new();
     let mut references = BTreeMap::<String, (String, String)>::new();
+    let mut opaque = BTreeMap::new();
     let mut spans = BTreeMap::new();
+    let mut seen = BTreeSet::new();
     let offsets = line_starts(content);
     for (index, item) in env.iter_mut().enumerate() {
+        let path: Vec<String> = pointer
+            .split('/')
+            .skip(1)
+            .map(str::to_owned)
+            .chain([
+                "containers".into(),
+                matches[0].to_string(),
+                "env".into(),
+                index.to_string(),
+            ])
+            .collect();
         let object = item
             .as_object_mut()
             .ok_or("environment_declaration_invalid")?;
@@ -354,6 +372,15 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
             .filter(|s| key(s))
             .ok_or("environment_key_unresolved")?
             .to_owned();
+        if !seen.insert(name.clone()) {
+            return Err("environment_key_ambiguous");
+        }
+        if object.len() == 2
+            && let Some(source) = object.get("valueFrom").and_then(external_source)
+        {
+            opaque.insert(name, (source, span(content, &offsets, &guard, &path)?));
+            continue;
+        }
         if object.len() == 2 && object.contains_key("valueFrom") {
             // Only an exact, required `configMapKeyRef` is a reference;
             // `optional`, secrets and field refs stay unresolved.
@@ -374,13 +401,7 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
             let (Some(map), Some(entry)) = (map, entry) else {
                 return Err("environment_value_from_unresolved");
             };
-            if values.contains_key(&name)
-                || references
-                    .insert(name, (map.to_owned(), entry.to_owned()))
-                    .is_some()
-            {
-                return Err("environment_key_ambiguous");
-            }
+            references.insert(name, (map.to_owned(), entry.to_owned()));
             continue;
         }
         if object.keys().any(|k| k != "name" && k != "value") {
@@ -393,21 +414,8 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
         if value.contains("$(") || value.contains("{{") {
             return Err("environment_value_unresolved");
         }
-        let path: Vec<String> = pointer
-            .split('/')
-            .skip(1)
-            .map(str::to_owned)
-            .chain([
-                "containers".into(),
-                matches[0].to_string(),
-                "env".into(),
-                index.to_string(),
-            ])
-            .collect();
         spans.insert(name.clone(), span(content, &offsets, &guard, &path)?);
-        if references.contains_key(&name) || values.insert(name, value.to_owned()).is_some() {
-            return Err("environment_key_ambiguous");
-        }
+        values.insert(name, value.to_owned());
         object.insert("value".into(), Value::Null);
     }
     let mut own = BTreeMap::<&str, usize>::new();
@@ -426,8 +434,37 @@ pub fn deployment(content: &str, container: &str) -> Result<DeploymentEnvironmen
         masked: serde_json::json!({"document":document,"outside_environment":outside}),
         workload,
         references,
+        opaque,
         config_maps_elsewhere,
     })
+}
+
+/// A `valueFrom` that Kubernetes fills from outside the repository, as a
+/// canonical description; `None` for anything else or a malformed reference.
+fn external_source(value_from: &Value) -> Option<String> {
+    let (kind, reference) = value_from.as_object()?.iter().next()?;
+    let reference = reference.as_object()?;
+    let required: &[&str] = match kind.as_str() {
+        "secretKeyRef" => &["name", "key"],
+        "fieldRef" => &["fieldPath"],
+        "resourceFieldRef" => &["resource"],
+        _ => return None,
+    };
+    let fixed = required.iter().all(|field| {
+        reference
+            .get(*field)
+            .and_then(Value::as_str)
+            .is_some_and(|s| !s.is_empty())
+    });
+    let known = reference.keys().all(|field| {
+        required.contains(&field.as_str())
+            || matches!(
+                field.as_str(),
+                "optional" | "apiVersion" | "containerName" | "divisor"
+            )
+    });
+    (value_from.as_object()?.len() == 1 && fixed && known)
+        .then(|| serde_json::to_string(&serde_json::json!({ kind: reference })).unwrap())
 }
 
 pub fn config_map(content: &str) -> Result<ConfigMapData, &'static str> {
@@ -580,12 +617,40 @@ mod tests {
     }
 
     #[test]
+    fn secret_and_field_refs_are_opaque_inputs_cited_at_their_entry() {
+        let content = YAML.to_owned()
+            + "            - name: TOKEN\n              valueFrom: {secretKeyRef: {name: secret, key: token}}\n"
+            + "            - name: HOST\n              valueFrom:\n                fieldRef:\n                  fieldPath: status.hostIP\n";
+        let parsed = deployment(&content, "app").unwrap();
+        assert_eq!(parsed.values.keys().collect::<Vec<_>>(), ["TIMEOUT"]);
+        assert_eq!(parsed.opaque.keys().collect::<Vec<_>>(), ["HOST", "TOKEN"]);
+        let token = &content[parsed.opaque["TOKEN"].1.clone()];
+        assert!(
+            token.contains("name: TOKEN") && token.contains("key: token"),
+            "{token:?}"
+        );
+        assert!(
+            !token.contains("HOST") && !token.contains("TIMEOUT"),
+            "{token:?}"
+        );
+        assert!(parsed.opaque["TOKEN"].0.contains("secretKeyRef"));
+        // The reference is configuration, so changing it is a change.
+        let moved = deployment(&content.replace("key: token", "key: other"), "app").unwrap();
+        assert_ne!(parsed.masked, moved.masked);
+        assert_ne!(parsed.opaque["TOKEN"].0, moved.opaque["TOKEN"].0);
+        let literal = deployment(&content.replace("\"10\"", "\"20\""), "app").unwrap();
+        assert_eq!(parsed.masked, literal.masked);
+    }
+
+    #[test]
     fn ambiguous_dynamic_or_external_values_never_resolve() {
         for content in [
             YAML.replace("value: \"10\"", "value: \"$(OTHER)\""),
+            YAML.replace("value: \"10\"", "valueFrom: {secretKeyRef: {name: secret}}"),
+            YAML.replace("value: \"10\"", "valueFrom: {}"),
             YAML.replace(
                 "value: \"10\"",
-                "valueFrom: {secretKeyRef: {name: secret, key: token}}",
+                "valueFrom: {secretKeyRef: {name: secret, key: token}, fieldRef: {fieldPath: x}}",
             ),
             YAML.replace(
                 "value: \"10\"",
