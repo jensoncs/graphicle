@@ -2130,6 +2130,7 @@ fn pack_encoding(
         selected.push((collection, entry));
     }
     // Reclaim unused reservations in priority order, without re-tokenizing.
+    let mut left_out = vec![];
     for (collection, entry, mut cost) in deferred {
         let refs = provenance.references(&entry, flow_annotations.get(s(&entry, "id")));
         let added: BTreeSet<_> = refs.difference(&selected_refs).cloned().collect();
@@ -2147,51 +2148,9 @@ fn pack_encoding(
             used += cost + shared_cost;
             selected_refs.extend(refs);
             selected.push((collection, entry));
+        } else {
+            left_out.push((collection, entry, cost));
         }
-    }
-    let head_selected = selected
-        .iter()
-        .filter(|(c, e)| *c == "entries" && is_head_change(e))
-        .count();
-    report["coverage"]["current_head"] = json!({"required":required_head,"selected":head_selected,"complete":required_head==head_selected,"minimum_tokens_with_hunk_reserve":minimum_head_tokens,"usable":required_head==0 || head_selected>0 || provided_head>0});
-    if report["coverage"].get("provided_diff").is_some() {
-        report["coverage"]["current_head"]["provided_diff"] = json!(provided_head);
-    }
-    let contracts_selected = selected.iter().filter(|(_, e)| is_call_contract(e)).count();
-    report["coverage"]["call_contracts"]["selected"] = json!(contracts_selected);
-    report["coverage"]["call_contracts"]["complete"] =
-        json!(contracts_selected == required_contracts);
-    if required_callers > 0 {
-        let selected_callers = selected.iter().filter(|(_, e)| is_call_consumer(e)).count();
-        report["coverage"]["callers"]["selected"] = json!(selected_callers);
-        report["coverage"]["callers"]["complete"] = json!(selected_callers == required_callers);
-    }
-    report["coverage"]["budget_omitted"] = json!(total - selected.len());
-    let selected_entries = selected.iter().filter(|(c, _)| *c == "entries").count();
-    if supplemental {
-        let selected_overlapping = selected
-            .iter()
-            .filter(|(c, e)| *c == "entries" && overlapping.contains(s(e, "id")))
-            .count();
-        report["coverage"]["provided_diff"]["selected_overlapping_entries"] =
-            json!(selected_overlapping);
-        report["coverage"]["provided_diff"]["selected_outside_entries"] =
-            json!(selected_entries - selected_overlapping);
-    }
-    report["coverage"]["budget_omitted_entries"] = json!(eligible_entries - selected_entries);
-    report["coverage"]["budget_omitted_diffs"] =
-        json!(eligible_diffs - (selected.len() - selected_entries));
-    let selected_ranks: BTreeSet<_> = selected.iter().map(|(_, e)| ranks[s(e, "id")]).collect();
-    report["coverage"]["packing"]["first_omitted_rank"] =
-        json!((1..=total).find(|rank| !selected_ranks.contains(rank)));
-    report["coverage"]["packing"]["last_selected_rank"] = json!(selected_ranks.last());
-    if total != selected.len() {
-        // Packet coverage and reuse proofs depend on what fits. Impact was
-        // decided by the full analysis and must not depend on this budget.
-        report["coverage"]["complete"] = json!(false);
-    }
-    if let (Some(scopes), Some(required)) = (scopes, scope_requirements.as_ref()) {
-        scopes.finish(required, &mut selected, &mut report);
     }
     let flow_used = flows::pack(
         &mut report,
@@ -2246,6 +2205,67 @@ fn pack_encoding(
         report["business_context"]["packing"]["refill_tokens"] = json!(refilled);
         report["business_context"]["packing"]["used_tokens"] = json!(retained_business + refilled);
         used += refilled;
+    }
+    // What flows and the history refill left unspent goes to the entries that
+    // did not fit, in priority order: the reserves above held it back for
+    // them and nothing returned it to code. DIAGNOSTICS_RESERVE keeps room
+    // for what is added after packing (packet_id, tokens, analysis_cache).
+    for (collection, entry, mut cost) in left_out {
+        let refs = provenance.references(&entry, flow_annotations.get(s(&entry, "id")));
+        let added: BTreeSet<_> = refs.difference(&selected_refs).cloned().collect();
+        let shared_cost = provenance.cost(&added);
+        let room = max_tokens
+            .saturating_sub(DIAGNOSTICS_RESERVE)
+            .saturating_sub(used + flow_used + shared_cost);
+        if let Some(cost) = cost.within(&entry, room) {
+            used += cost + shared_cost;
+            selected_refs.extend(refs);
+            selected.push((collection, entry));
+        }
+    }
+    let head_selected = selected
+        .iter()
+        .filter(|(c, e)| *c == "entries" && is_head_change(e))
+        .count();
+    report["coverage"]["current_head"] = json!({"required":required_head,"selected":head_selected,"complete":required_head==head_selected,"minimum_tokens_with_hunk_reserve":minimum_head_tokens,"usable":required_head==0 || head_selected>0 || provided_head>0});
+    if report["coverage"].get("provided_diff").is_some() {
+        report["coverage"]["current_head"]["provided_diff"] = json!(provided_head);
+    }
+    let contracts_selected = selected.iter().filter(|(_, e)| is_call_contract(e)).count();
+    report["coverage"]["call_contracts"]["selected"] = json!(contracts_selected);
+    report["coverage"]["call_contracts"]["complete"] =
+        json!(contracts_selected == required_contracts);
+    if required_callers > 0 {
+        let selected_callers = selected.iter().filter(|(_, e)| is_call_consumer(e)).count();
+        report["coverage"]["callers"]["selected"] = json!(selected_callers);
+        report["coverage"]["callers"]["complete"] = json!(selected_callers == required_callers);
+    }
+    report["coverage"]["budget_omitted"] = json!(total - selected.len());
+    let selected_entries = selected.iter().filter(|(c, _)| *c == "entries").count();
+    if supplemental {
+        let selected_overlapping = selected
+            .iter()
+            .filter(|(c, e)| *c == "entries" && overlapping.contains(s(e, "id")))
+            .count();
+        report["coverage"]["provided_diff"]["selected_overlapping_entries"] =
+            json!(selected_overlapping);
+        report["coverage"]["provided_diff"]["selected_outside_entries"] =
+            json!(selected_entries - selected_overlapping);
+    }
+    report["coverage"]["budget_omitted_entries"] = json!(eligible_entries - selected_entries);
+    report["coverage"]["budget_omitted_diffs"] =
+        json!(eligible_diffs - (selected.len() - selected_entries));
+    let selected_ranks: BTreeSet<_> = selected.iter().map(|(_, e)| ranks[s(e, "id")]).collect();
+    report["coverage"]["packing"]["first_omitted_rank"] =
+        json!((1..=total).find(|rank| !selected_ranks.contains(rank)));
+    report["coverage"]["packing"]["last_selected_rank"] = json!(selected_ranks.last());
+    if total != selected.len() {
+        // Packet coverage and reuse proofs depend on what fits. Impact was
+        // decided by the full analysis and must not depend on this budget.
+        report["coverage"]["complete"] = json!(false);
+    }
+    if let (Some(scopes), Some(required)) = (scopes, scope_requirements.as_ref()) {
+        scopes.finish(required, &mut selected, &mut report);
     }
     // Include the complete table for this bounded view, including unchanged
     // delta entries. No definition depends on a prior packet's hidden state.
@@ -2343,6 +2363,10 @@ fn pack_encoding(
     let receipt = json!({"packet_id":report["packet_id"],"entries":receipts,"base":report["base"],"head":report["head"],"profile":report["profile"],"coverage_complete":report["coverage"]["complete"],"review_context_sha256":report["review_reuse"]["context_sha256"]});
     Ok((report, receipt, used + flow_used))
 }
+
+/// Tokens kept free for fields added after packing: packet_id, tokens and
+/// run_inner's analysis_cache, which a second check counts against the budget.
+const DIAGNOSTICS_RESERVE: usize = 256;
 
 fn is_call_contract(entry: &Value) -> bool {
     entry["side"] == "head"
@@ -2886,6 +2910,33 @@ fn run_inner(store: &Store, workspace: &str, token: &str, args: &Value) -> Resul
     if r.compact_provenance {
         report["_compact_provenance"] = json!(true);
     }
+    // GRAPHICLE_DEBUG_IMPACT=<file>: every candidate entry before packing,
+    // with its distance and relations (diagnostics only, like
+    // GRAPHICLE_DEBUG_RANK).
+    if let Some(path) = std::env::var_os("GRAPHICLE_DEBUG_IMPACT") {
+        let candidates: Vec<Value> = report["entries"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|e| {
+                let relations: Vec<Vec<&str>> = e["reasons"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|r| {
+                        std::iter::once(s(r, "reason"))
+                            .chain(r["steps"].as_array().into_iter().flatten().map(|x| s(x, "relation")))
+                            .collect()
+                    })
+                    .collect();
+                let paths: Vec<&Value> = e["reasons"].as_array().into_iter().flatten().map(|r| &r["path"]).collect();
+                json!({"file":e["file"],"line":e["line"],"end_line":e["end_line"],"name":e["name"],"side":e["side"],
+                    "distance":entry_distance(e),"required":is_required_code(e),"relations":relations,
+                    "paths":paths,"chars":s(e,"text").len(),"json_chars":e.to_string().len()})
+            })
+            .collect();
+        std::fs::write(path, serde_json::to_string(&candidates)?)?;
+    }
     let (mut report, receipt) = review_phase("review_pack", || {
         pack(report, r.max_tokens, previous.as_ref(), Some(&scopes))
     })?;
@@ -3205,6 +3256,34 @@ mod tests {
         );
         assert_eq!(receipt["entries"], next["entries"]);
         assert_eq!(delta["entries"], json!([]));
+    }
+
+    #[test]
+    fn a_flow_reserve_nothing_spends_goes_back_to_code_that_did_not_fit() {
+        let max = 16_000;
+        let mut reclaimed = false;
+        for words in (13_000..16_000).step_by(50) {
+            let report = json!({"entries":[
+                {"id":"seed","revision":"r","side":"head","text":"changed()","reasons":[{"reason":"change_seed"}]},
+                {"id":"flow","revision":"r","side":"head","text":"flow()","reasons":[{"reason":"dependency","path":["seed","flow"],"execution_flow":{"id":"f"}}]},
+                {"id":"big","revision":"r","side":"head","text":"word ".repeat(words),"reasons":[{"reason":"dependency","path":["seed","big"]}]}
+            ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"coverage":{"complete":true,"issues":[]}});
+            let (packet, _) = pack(report, max, None, None).unwrap();
+            let tokens = text::count(&packet.to_string());
+            assert!(tokens + DIAGNOSTICS_RESERVE / 2 <= max, "{words}: {tokens}");
+            let reserve = packet["execution_flows"]["coverage"]["reserved_tokens"]
+                .as_u64()
+                .unwrap() as usize;
+            let held = packet["context_order"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("big"));
+            reclaimed |= held && reserve > 0 && tokens > max - reserve;
+        }
+        assert!(
+            reclaimed,
+            "no size placed the entry in the unspent flow reserve"
+        );
     }
 
     #[test]
