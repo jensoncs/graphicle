@@ -1,10 +1,10 @@
 //! Call binding over any set of declarations ([`Nodes`]): graph nodes for the
 //! extractor, review declarations for a pinned snapshot ([`bind_snapshot`]).
 use super::{
-    Caller, ClassInfo, Export, MAX_HOPS, Recv, Ref, Summary, Target, is_js, resolver_with,
+    Caller, ClassInfo, Export, MAX_HOPS, Recv, Ref, Summary, Target, is_js,
 };
 use crate::extractors::snapshot_fs::SnapshotFs;
-use oxc_resolver::{FileSystem, ResolverGeneric};
+use oxc_resolver::{Alias, AliasValue, FileSystem, ResolveOptions, ResolverGeneric};
 use rustc_hash::FxHashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -294,8 +294,52 @@ fn class_of<Fs: FileSystem + 'static>(
             let (file, class) = class_of(r, file, inner)?;
             member_of(r, file, class, |c| c.fields.get(field).cloned())?
         }
+        Recv::Api(api) => api_type(r, file, api)?,
+        Recv::Hook(hook) => {
+            let (file, name) = local(r, file, hook)?;
+            let api = r.summaries[file].api_hooks.get(&name)?.clone();
+            api_type(r, file, &api)?
+        }
     };
     r.declaration(file, &class)
+}
+
+/// The file and local name a reference read in `file` is declared as.
+fn local<Fs: FileSystem + 'static>(r: &mut Resolve<Fs>, file: usize, reference: &Ref) -> Option<(usize, String)> {
+    match r.declaration(file, reference)? {
+        (file, Ref::Local { name, .. }) => Some((file, name)),
+        _ => None,
+    }
+}
+
+/// The type `T` of `const api = createApiRef<T>(..)`, with the file it is read in.
+fn api_type<Fs: FileSystem + 'static>(r: &mut Resolve<Fs>, file: usize, api: &Ref) -> Option<(usize, Ref)> {
+    let (file, name) = local(r, file, api)?;
+    Some((file, r.summaries[file].api_refs.get(&name)?.clone()))
+}
+
+/// The one class in the snapshot that `implements` the interface `iface`
+/// (declared in `file`); a class is itself.
+// ponytail: scans every class per call; index implementers if snapshots with
+// many `implements` make binding slow.
+fn implementer<Fs: FileSystem + 'static>(r: &mut Resolve<Fs>, file: usize, iface: Ref) -> Option<(usize, Ref)> {
+    let summaries = r.summaries;
+    let is = |c: &ClassInfo, f: usize| f == file && Ref::Local { name: c.name.clone(), line: c.line } == iface;
+    if summaries[file].classes.iter().any(|c| is(c, file)) {
+        return Some((file, iface));
+    }
+    let mut found = None;
+    for (f, summary) in summaries.iter().enumerate() {
+        for c in &summary.classes {
+            if c.implements.iter().any(|i| r.declaration(f, i) == Some((file, iface.clone()))) {
+                if found.is_some() {
+                    return None;
+                }
+                found = Some((f, Ref::Local { name: c.name.clone(), line: c.line }));
+            }
+        }
+    }
+    found
 }
 
 /// The class a method call `target` made from file `file` is declared to
@@ -358,7 +402,8 @@ fn method<Fs: FileSystem + 'static, N: Nodes>(
     reference: &Ref,
     name: &str,
 ) -> Option<N::Id> {
-    let (mut file, mut class) = r.declaration(file, reference)?;
+    let (file, class) = r.declaration(file, reference)?;
+    let (mut file, mut class) = implementer(r, file, class)?;
     for _ in 0..MAX_HOPS {
         let Ref::Local {
             name: class_name,
@@ -381,6 +426,20 @@ fn method<Fs: FileSystem + 'static, N: Nodes>(
         (file, class) = r.declaration(file, &base)?;
     }
     None
+}
+
+/// Each snapshot package.json `name`, resolving to its directory: what a
+/// workspace's `node_modules` symlinks would, which a snapshot does not have.
+fn workspace_packages(files: &[(PathBuf, Arc<str>)]) -> Alias {
+    files
+        .iter()
+        .filter(|(p, _)| p.ends_with("package.json") && !p.to_string_lossy().contains("/node_modules/"))
+        .filter_map(|(p, text)| {
+            let json: serde_json::Value = serde_json::from_str(text).ok()?;
+            let name = json.get("name")?.as_str()?.to_string();
+            Some((name, vec![AliasValue::Path(p.parent()?.to_string_lossy().into_owned())]))
+        })
+        .collect()
 }
 
 /// Calls among the JS/TS files of a pinned snapshot, keyed by path relative to
@@ -414,13 +473,20 @@ pub fn bind_snapshot<N: Nodes>(
         .collect();
     let fs = SnapshotFs::from_files(files.iter().cloned());
     let root_tsconfig = root.join("tsconfig.json");
+    let packages = workspace_packages(files);
+    let resolver = |tsconfig| {
+        ResolverGeneric::new_with_file_system(
+            fs.clone(),
+            ResolveOptions { fallback: packages.clone(), ..super::resolve_options(tsconfig) },
+        )
+    };
     let mut r = Resolve {
         summaries: &summaries,
         by_path,
-        resolver: resolver_with(fs.clone(), None),
+        resolver: resolver(None),
         root_resolver: texts
             .contains_key(root_tsconfig.as_path())
-            .then(|| resolver_with(fs, Some(root_tsconfig))),
+            .then(|| resolver(Some(root_tsconfig))),
         modules: FxHashMap::default(),
         canonical: Path::to_path_buf,
     };
@@ -533,6 +599,84 @@ mod tests {
             .find(|b| b.target == "src/lib/math.ts#twice")
             .unwrap();
         assert_eq!((call.file.as_str(), call.line), ("src/main.ts", 10));
+    }
+
+    /// atlas-backstage: components reach API clients through `useApi(ref)` or
+    /// a hook wrapping it, and the ref names an interface a class implements.
+    #[test]
+    fn binds_api_ref_receivers_to_the_class_implementing_the_interface() {
+        let root = Path::new("/snapshot/repo");
+        let files: Vec<(PathBuf, Arc<str>)> = [
+            (
+                "api/iam.ts",
+                "import { createApiRef, useApi } from '@backstage/core-plugin-api';\nexport interface IamType {\n  addKey(id: string): Promise<void>;\n}\nclass Base {}\nexport class Iam extends Base implements IamType {\n  async addKey(id: string) {}\n}\nexport const iamRef = createApiRef<IamType>({ id: 'iam' });\nexport const useIam = () => useApi(iamRef);\n",
+            ),
+            ("api/index.ts", "export * from './iam';\n"),
+            (
+                "ui/Keys.tsx",
+                "import { useApi } from '@backstage/core-plugin-api';\nimport { iamRef, useIam, IamType } from '../api';\nexport const Keys = () => {\n  const iam = useApi(iamRef);\n  const viaHook = useIam();\n  const enable = async () => { await iam.addKey('a'); };\n  return viaHook.addKey('b');\n};\nexport function direct(api: IamType) { return api.addKey('c'); }\n",
+            ),
+        ]
+        .into_iter()
+        .map(|(p, t)| (root.join(p), Arc::<str>::from(t)))
+        .collect();
+        let names = Names(
+            [
+                "api/iam.ts#Iam",
+                "api/iam.ts#Iam.addKey",
+                "api/iam.ts#IamType",
+                "ui/Keys.tsx#Keys",
+                "ui/Keys.tsx#Keys.enable",
+                "ui/Keys.tsx#direct",
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect(),
+        );
+        let bound = bind_snapshot(&files, root, &names);
+        let lines: Vec<(&str, usize)> = bound
+            .iter()
+            .filter(|b| b.target == "api/iam.ts#Iam.addKey" && b.resolution == "oxc_type")
+            .map(|b| (b.caller.as_str(), b.line))
+            .collect();
+        assert_eq!(
+            lines,
+            [("ui/Keys.tsx#Keys", 6), ("ui/Keys.tsx#Keys", 7), ("ui/Keys.tsx#direct", 9)],
+            "{bound:#?}"
+        );
+    }
+
+    /// A yarn workspace package is imported by its package.json name; the
+    /// snapshot has no `node_modules` symlinks to reach it through.
+    #[test]
+    fn binds_calls_into_workspace_packages_by_name() {
+        let root = Path::new("/snapshot/repo");
+        let files: Vec<(PathBuf, Arc<str>)> = [
+            (
+                "plugins/svc/package.json",
+                r#"{"name": "@internal/plugin-svc", "main": "src/index.ts", "publishConfig": {"main": "dist/index.js"}}"#,
+            ),
+            ("plugins/svc/src/index.ts", "export * from './api';\n"),
+            ("plugins/svc/src/api.ts", "export class Api {\n  get() {}\n}\n"),
+            (
+                "plugins/ui/src/Page.tsx",
+                "import { Api } from '@internal/plugin-svc';\nexport function page(api: Api) { return api.get(); }\n",
+            ),
+        ]
+        .into_iter()
+        .map(|(p, t)| (root.join(p), Arc::<str>::from(t)))
+        .collect();
+        let names = Names(
+            ["plugins/svc/src/api.ts#Api", "plugins/svc/src/api.ts#Api.get", "plugins/ui/src/Page.tsx#page"]
+                .into_iter()
+                .map(String::from)
+                .collect(),
+        );
+        let bound = bind_snapshot(&files, root, &names);
+        assert!(
+            bound.iter().any(|b| b.caller == "plugins/ui/src/Page.tsx#page" && b.target == "plugins/svc/src/api.ts#Api.get"),
+            "{bound:#?}"
+        );
     }
 
     #[test]

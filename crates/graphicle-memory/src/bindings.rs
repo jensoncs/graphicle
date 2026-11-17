@@ -566,7 +566,12 @@ fn exported(
     if let Some(local) = declaration(analysis, name, "") {
         found.insert((path.to_string(), local));
     }
+    let mut stars = vec![];
     for import in items(analysis, "imports") {
+        if import["star"] == true && import["type_only"] != true {
+            stars.push(import);
+            continue;
+        }
         if !s(import, "scope").is_empty()
             || import["type_only"] == true
             || (!path.ends_with(".py") && import["reexport"] != true)
@@ -592,6 +597,16 @@ fn exported(
                 visiting,
                 remaining,
             )?);
+        }
+    }
+    // `export * from` never re-exports `default` and gives way to the file's
+    // own and named exports; two stars exporting the name stay ambiguous.
+    if found.is_empty() && name != "default" {
+        for import in stars {
+            let key = (path, import["line"].to_string(), s(import, "module"));
+            for &(target, _) in import_edges.get(&key).into_iter().flatten() {
+                found.extend(exported(target, name, analyses, import_edges, visiting, remaining)?);
+            }
         }
     }
     visiting.remove(&key);

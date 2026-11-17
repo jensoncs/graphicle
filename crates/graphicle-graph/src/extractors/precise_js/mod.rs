@@ -97,6 +97,10 @@ enum Recv {
     Class(Ref),
     Call(Box<Target>),
     Field(Box<Recv>, String),
+    /// `useApi(R)`: the API type `R = createApiRef<T>(..)` names (Backstage).
+    Api(Ref),
+    /// `useX()` for `const useX = () => useApi(R)`.
+    Hook(Ref),
 }
 
 #[derive(Clone, Debug)]
@@ -149,6 +153,8 @@ struct ClassInfo {
     /// Every field (and constructor parameter property), with its class
     /// when an annotation or `new` value says.
     fields: FxHashMap<String, Option<Ref>>,
+    /// The interfaces it `implements`.
+    implements: Vec<Ref>,
 }
 
 #[derive(Debug, Default)]
@@ -158,6 +164,10 @@ struct Summary {
     exports: FxHashMap<String, Export>,
     stars: Vec<String>,
     classes: Vec<ClassInfo>,
+    /// `const R = createApiRef<T>(..)`: R -> T.
+    api_refs: FxHashMap<String, Ref>,
+    /// `const useX = () => useApi(R)`: useX -> R.
+    api_hooks: FxHashMap<String, Ref>,
     sites: Vec<Site>,
 }
 
@@ -168,6 +178,8 @@ enum Binding {
     Namespace(String),
     /// An instance of a class (`new C()` or a `C` annotation).
     Instance(Ref, bool),
+    /// A value whose class is found across files when binding.
+    Typed(Recv),
 }
 
 struct Reader<'s, 'a> {
@@ -212,6 +224,10 @@ impl<'a> Reader<'_, 'a> {
             AstKind::Class(c) => Binding::Class(Ref::Local {
                 name: c.id.as_ref()?.name.to_string(),
                 line: self.line(c.span.start),
+            }),
+            AstKind::TSInterfaceDeclaration(i) => Binding::Class(Ref::Local {
+                name: i.id.name.to_string(),
+                line: self.line(i.span.start),
             }),
             AstKind::ImportSpecifier(spec) => {
                 let r = Ref::Import {
@@ -259,6 +275,9 @@ impl<'a> Reader<'_, 'a> {
                     Some(Expression::Identifier(other)) if d.type_annotation.is_none() => {
                         self.binding(other, depth + 1)?
                     }
+                    Some(Expression::CallExpression(call)) if d.type_annotation.is_none() => {
+                        Binding::Typed(self.api_recv(call)?)
+                    }
                     _ => Binding::Instance(
                         self.annotated(&d.type_annotation.as_ref()?.type_annotation)?,
                         true,
@@ -271,6 +290,70 @@ impl<'a> Reader<'_, 'a> {
             ),
             _ => return None,
         })
+    }
+    /// `useApi(R)` or a call of a function-valued `useX`, whose API type is
+    /// found when binding.
+    fn api_recv(&self, call: &oxc_ast::ast::CallExpression<'a>) -> Option<Recv> {
+        let Expression::Identifier(callee) = call.callee.get_inner_expression() else {
+            return None;
+        };
+        if let Some(r) = self.api_ref(call) {
+            return Some(Recv::Api(r));
+        }
+        match self.binding(callee, 0)? {
+            Binding::Decl(r) if call.arguments.is_empty() => Some(Recv::Hook(r)),
+            _ => None,
+        }
+    }
+    /// `R` in `useApi(R)`, by name: the hook comes from node_modules.
+    fn api_ref(&self, call: &oxc_ast::ast::CallExpression<'a>) -> Option<Ref> {
+        match (call.callee.get_inner_expression(), call.arguments.as_slice()) {
+            (Expression::Identifier(f), [Argument::Identifier(r)]) if f.name == "useApi" => {
+                self.value_ref(r)
+            }
+            _ => None,
+        }
+    }
+    /// The declaration a value identifier names: an import or a local `const`.
+    fn value_ref(&self, ident: &IdentifierReference<'a>) -> Option<Ref> {
+        let decl = self.declaration(ident)?;
+        match self.kind(decl) {
+            AstKind::ImportSpecifier(spec) => Some(Ref::Import {
+                spec: self.import_spec(decl)?,
+                name: spec.imported.name().to_string(),
+            }),
+            AstKind::VariableDeclarator(d) => Some(Ref::Local {
+                name: d.id.get_binding_identifier()?.name.to_string(),
+                line: self.line(d.span.start),
+            }),
+            _ => None,
+        }
+    }
+    /// What a module-level `const` records for API receivers.
+    fn api_declarator(&self, d: &oxc_ast::ast::VariableDeclarator<'a>, out: &mut Summary) {
+        let (Some(id), Some(init)) = (d.id.get_binding_identifier(), &d.init) else {
+            return;
+        };
+        match init.get_inner_expression() {
+            Expression::CallExpression(call)
+                if matches!(call.callee.get_inner_expression(), Expression::Identifier(f) if f.name == "createApiRef") =>
+            {
+                if let Some([ty]) = call.type_arguments.as_ref().map(|t| t.params.as_slice())
+                    && let Some(t) = self.annotated(ty)
+                {
+                    out.api_refs.insert(id.name.to_string(), t);
+                }
+            }
+            Expression::ArrowFunctionExpression(f) if f.expression => {
+                if let Some(oxc_ast::ast::Statement::ExpressionStatement(s)) = f.body.statements.first()
+                    && let Expression::CallExpression(call) = s.expression.get_inner_expression()
+                    && let Some(r) = self.api_ref(call)
+                {
+                    out.api_hooks.insert(id.name.to_string(), r);
+                }
+            }
+            _ => {}
+        }
     }
     /// The class a `new` callee or type name names.
     fn class_ref(&self, callee: &Expression<'a>) -> Option<Ref> {
@@ -362,7 +445,7 @@ impl<'a> Reader<'_, 'a> {
             Expression::Identifier(ident) => match self.binding(ident, 0)? {
                 Binding::Decl(r) | Binding::Class(r) => Some(Export::Local(r)),
                 Binding::Namespace(spec) => Some(Export::Module(spec)),
-                Binding::Instance(..) => None,
+                Binding::Instance(..) | Binding::Typed(_) => None,
             },
             Expression::FunctionExpression(_) | Expression::ArrowFunctionExpression(_) => {
                 Some(Export::Inline)
@@ -605,6 +688,7 @@ impl<'a> Reader<'_, 'a> {
                         Binding::Instance(class, typed) => {
                             Some(Target::Member { class, name, typed })
                         }
+                        Binding::Typed(receiver) => Some(Target::Chain { receiver, name }),
                         Binding::Decl(_) => None,
                     },
                     Expression::NewExpression(new) => Some(Target::Member {
@@ -638,6 +722,7 @@ impl<'a> Reader<'_, 'a> {
                 Binding::Instance(class, _)
                 | Binding::Class(class)
                 | Binding::Decl(class @ Ref::Import { .. }) => Recv::Class(class),
+                Binding::Typed(recv) => recv,
                 _ => return None,
             },
             Expression::ThisExpression(_) => {
@@ -698,6 +783,14 @@ impl<'a> Reader<'_, 'a> {
                                 .into_iter()
                                 .map(|(k, v)| (k, v.map(|(r, _)| r)))
                                 .collect(),
+                            implements: c
+                                .implements
+                                .iter()
+                                .filter_map(|i| match &i.expression {
+                                    TSTypeName::IdentifierReference(ident) => self.class_of(ident),
+                                    _ => None,
+                                })
+                                .collect(),
                         });
                     }
                 }
@@ -740,6 +833,15 @@ impl<'a> Reader<'_, 'a> {
                                 out.exports.insert(id.name.to_string(), Export::Local(r));
                             }
                         }
+                        Some(Declaration::TSInterfaceDeclaration(i)) => {
+                            out.exports.insert(
+                                i.id.name.to_string(),
+                                Export::Local(Ref::Local {
+                                    name: i.id.name.to_string(),
+                                    line: self.line(i.span.start),
+                                }),
+                            );
+                        }
                         Some(Declaration::VariableDeclaration(v)) => {
                             for d in &v.declarations {
                                 if let BindingPattern::BindingIdentifier(b) = &d.id {
@@ -773,6 +875,7 @@ impl<'a> Reader<'_, 'a> {
                     }
                 }
                 AstKind::AssignmentExpression(a) => self.commonjs_exports(a, &mut out),
+                AstKind::VariableDeclarator(d) => self.api_declarator(d, &mut out),
                 AstKind::ExportAllDeclaration(e) if e.exported.is_none() => {
                     out.stars.push(e.source.value.to_string());
                 }

@@ -229,6 +229,28 @@ fn named_package_reexports_resolve_to_the_original_callable() {
     );
 }
 
+/// atlas-backstage: `@internal/plugin-*` resolves to an `index.ts` of
+/// `export * from './api'`; the named client never resolved past the barrel.
+#[test]
+fn star_reexports_resolve_through_barrels_and_stay_ambiguous_on_conflict() {
+    let result = relationships(&[
+        ("api/client.ts", "export function getMyAccess() { return 1; }"),
+        ("api/index.ts", "export * from './client';"),
+        ("index.ts", "export * from './api';\nexport * as ns from './other';"),
+        ("other.ts", "export function onlyNamespaced() {}\nexport function both() {}"),
+        ("more.ts", "export function both() {}"),
+        ("conflict.ts", "export * from './other';\nexport * from './more';"),
+        (
+            "app.ts",
+            "import { getMyAccess, onlyNamespaced } from './index';\nimport { both } from './conflict';\nfunction run() { getMyAccess(); onlyNamespaced(); both(); }",
+        ),
+    ]);
+    let calls = result["symbol_calls"].as_array().unwrap();
+    assert_eq!(calls.len(), 1, "{result}");
+    assert_eq!(calls[0]["callee_path"], "api/client.ts");
+    assert_eq!(calls[0]["callee"], "getMyAccess");
+}
+
 #[test]
 fn cyclic_shadowed_and_conflicting_exports_remain_unresolved() {
     let result = relationships(&[

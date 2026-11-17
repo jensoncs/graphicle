@@ -17,7 +17,7 @@ mod python_environment;
 /// the analysis output changes. 10: direct os separator constants and filesystem
 /// encoding calls no longer create false environment-binding escape diagnostics.
 /// 11: package.json and pnpm-workspace.yaml keep what workspace imports resolve by.
-pub const REVISION: &str = "graphicle-static-rust-13";
+pub const REVISION: &str = "graphicle-static-rust-14";
 
 /// Per-file analysis limits. No limit fails an analysis: a
 /// file past one is analysed as far as the limit allows, its analysis is
@@ -1079,7 +1079,9 @@ pub fn analyze_with(path: &str, content: &str, limits: &Limits) -> Result<Value>
                             &mut imports,
                             limits.symbols,
                             &mut imports_full,
-                            json!({"module":source.trim_matches(['\'','"']),"level":0,"names":[],"line":line,"bindings":bindings,"namespace":namespace,"scope":scope.join("."),"reexport":kind=="export_statement","type_only":type_only}),
+                            json!({"module":source.trim_matches(['\'','"']),"level":0,"names":[],"line":line,"bindings":bindings,"namespace":namespace,"scope":scope.join("."),"reexport":kind=="export_statement","type_only":type_only,
+                                // `export * from` (not `export * as ns from`)
+                                "star":kind=="export_statement" && direct_token(node, "*")}),
                         );
                     }
                 }
