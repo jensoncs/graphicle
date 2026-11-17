@@ -703,6 +703,20 @@ impl Context {
                 window_caller(entry, &path);
             }
         }
+        // A generated callee whose source ranks as a callee gives way to it:
+        // the query is the contract the change relies on (odin #196).
+        let replaced: BTreeSet<String> = report["entries"].as_array().unwrap().iter()
+            .filter(|e| e["_provided_diff_callee"] == json!(true) || e["_provided_diff_flow_callee"] == json!(true))
+            .flat_map(|e| e["reasons"].as_array().cloned().unwrap_or_default())
+            .filter(|r| r["steps"].as_array().and_then(|st| st.last()).is_some_and(|st| st["relation"] == "generated_from"))
+            .filter_map(|r| r["path"].as_array().filter(|p| p.len() == 3).map(|p| p[1].as_str().unwrap_or("").to_owned()))
+            .filter(|id| generated_ids.contains(id))
+            .collect();
+        for entry in report["entries"].as_array_mut().unwrap() {
+            if s(entry, "side") == "head" && replaced.contains(s(entry, "symbol_id")) {
+                entry["_generated_with_source"] = json!(true);
+            }
+        }
         for diff in report["diffs"].as_array_mut().unwrap() {
             let covered = ["base", "head"].into_iter().all(|side| {
                 let bytes = &diff[format!("{side}_bytes")];
@@ -1045,6 +1059,10 @@ mod tests {
         assert!(r["entries"][4].get("_provided_diff_callee").is_none());
         assert_eq!(r["entries"][5]["_provided_diff_callee"], json!(true));
         assert!(r["entries"][6].get("_provided_diff_callee").is_none());
+        // odin #196: 15 sqlc wrappers took the block ahead of the queries they
+        // run; the wrapper gives way to its source.
+        assert_eq!(r["entries"][4]["_generated_with_source"], json!(true));
+        assert!(r["entries"][0].get("_generated_with_source").is_none());
         assert_eq!(r["entries"][0]["_provided_diff_callee"], json!(true));
         assert!(r["entries"][1].get("_provided_diff_callee").is_none());
         assert!(r["entries"][2].get("_provided_diff_callee").is_none(), "argus #111: config types crowded out changed code");
