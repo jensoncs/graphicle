@@ -2110,7 +2110,7 @@ fn pack_encoding(
                 (1, 0)
             } else if entry_distance(entry) == usize::MAX {
                 (2, 0)
-            } else if keys::is_test(s(entry, "file")) || import_only(entry) {
+            } else if keys::is_test(s(entry, "file")) || through_import(entry) {
                 // Test code after production context, before what the diff
                 // covers (siren #187: a test file's window and its helpers took
                 // the packet ahead of the readers of the key the change added).
@@ -2647,6 +2647,17 @@ fn import_only(entry: &Value) -> bool {
                     !st.is_empty() && st.iter().all(|st| matches!(st["relation"].as_str(), Some("potential_import" | "configuration_scope")))
                 })
             })
+    })
+}
+
+/// Every reason starts at an import: the entry is what the imported module
+/// reaches, not what the change uses (atlas-backstage #1044: Utils.ts helpers
+/// other code in the imported file calls). A call the change makes into the
+/// module is its own may_call step and keeps its rank.
+fn through_import(entry: &Value) -> bool {
+    entry["reasons"].as_array().is_some_and(|rs| {
+        !rs.is_empty()
+            && rs.iter().all(|r| matches!(r["steps"][0]["relation"].as_str(), Some("potential_import" | "configuration_scope")))
     })
 }
 
@@ -3639,7 +3650,24 @@ mod tests {
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
-        assert_eq!(packet["context_order"], json!(["client", "used", "barrel"]));
+        assert_eq!(packet["context_order"], json!(["client", "barrel", "used"]));
+    }
+
+    #[test]
+    fn code_reached_through_an_import_ranks_after_the_code_the_change_calls() {
+        // atlas-backstage #1044: darkenColor, clamp and toHex came in because
+        // the changed file imports Utils.ts and other code in Utils.ts calls
+        // them; the change calls none of them. They took four of seven added
+        // entries ahead of a helper the change does call.
+        let body = "a\nb\nc\nd\n";
+        let report = json!({"entries":[
+            {"id":"darken","revision":"r","side":"head","kind":"function","file":"a/Utils.ts","text":body,"reasons":[{"reason":"dependency","path":["s","darken"],
+                "steps":[{"relation":"potential_import"},{"relation":"may_call"}]}]},
+            {"id":"called","revision":"r","side":"head","kind":"function","file":"b/time.ts","text":body,"reasons":[{"reason":"dependency","path":["s","called"],"steps":[{"relation":"may_call"}]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["called", "darken"]));
     }
 
     #[test]
