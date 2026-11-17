@@ -49,6 +49,8 @@ mod basic_precise;
 pub(crate) mod basic_proto;
 #[path = "review_basic_refs.rs"]
 mod basic_refs;
+#[path = "review_keys.rs"]
+mod keys;
 #[path = "review_basic_sql.rs"]
 mod basic_sql;
 #[path = "review_components.rs"]
@@ -874,6 +876,15 @@ fn add_reason(reasons: &mut Vec<Value>, reason: Value) {
 }
 
 /// Byte ranges, per file, of the calls to a declaration this change seeds.
+/// The changed call sites an entry's window keeps. A file entry keeps only
+/// those outside the file's declarations: a call inside a function is that
+/// function's entry's to show (siren #188).
+fn own_calls(sites: &[(usize, usize)], kind: &str, declarations: &[(usize, usize)]) -> Vec<(usize, usize)> {
+    sites.iter().copied()
+        .filter(|&(a, b)| kind != "basic_file" || !declarations.iter().any(|&(x, y)| x <= a && b <= y))
+        .collect()
+}
+
 fn changed_call_sites(analysis: &Analysis, selection: &BTreeMap<String, Vec<Value>>) -> BTreeMap<String, Vec<(usize, usize)>> {
     let seeds: BTreeSet<(&str, &str)> = selection
         .iter()
@@ -1455,7 +1466,10 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             Ok(selected)
         };
     let selected_a = select_scope(a, &seeds_a, &fallback_a)?;
-    let selected_b = select_scope(b, &seeds_b, &fallback_b)?;
+    let mut selected_b = select_scope(b, &seeds_b, &fallback_b)?;
+    for (id, reason) in keys::reasons(base, a, head, b, &seeds_b) {
+        add_reason(selected_b.reasons.entry(id).or_default(), reason);
+    }
     let (mut issues, admission_a) = admission::assess(base, a, "base");
     let (issues_b, admission_b) = admission::assess(head, b, "head");
     issues.extend(issues_b);
@@ -1494,8 +1508,15 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             if world.starts_with("basic:") {
                 basic::annotate(&mut value, analysis, &symbol.file);
             }
-            let inside: Vec<_> = changed_calls.get(&symbol.file).into_iter().flatten()
-                .filter(|&&(a, b)| symbol.start <= a && b <= symbol.end).map(|&(a, b)| json!([a, b])).collect();
+            let sites: Vec<_> = changed_calls.get(&symbol.file).into_iter().flatten().copied()
+                .filter(|&(a, b)| symbol.start <= a && b <= symbol.end).collect();
+            let declarations: Vec<_> = analysis.symbols.values()
+                .filter(|(w, other)| w == world && other.file == symbol.file && other.kind != symbol.kind)
+                .map(|(_, other)| (other.start, other.end)).collect();
+            let inside: Vec<_> = own_calls(&sites, &symbol.kind, &declarations).into_iter().map(|(a, b)| json!([a, b])).collect();
+            if symbol.kind == "basic_file" && !declarations.is_empty() {
+                value["_declarations"] = json!(declarations.iter().map(|&(a, b)| json!([a, b])).collect::<Vec<_>>());   // never on the wire
+            }
             if !inside.is_empty() && is_head_change(&value) {
                 value["_changed_calls"] = json!(inside);   // the window keeps these lines; never on the wire
             }
@@ -1807,6 +1828,7 @@ fn pack_encoding(
     for entry in &mut entries {
         let marks = entry.as_object_mut().unwrap();
         marks.remove("_changed_calls");
+        marks.remove("_declarations");
         marks.remove("_generated");
         let typed = marks.remove("_type_only");
         let replaced = marks.remove("_generated_with_source");
@@ -2083,6 +2105,11 @@ fn pack_encoding(
                 (1, 0)
             } else if is_required_code(entry) {
                 (0, 0)
+            } else if uses_key(entry) && s(entry, "text").lines().count() > 3 {
+                // Shares a dict key with a changed line: a string match, after
+                // the declarations calls link (siren #185: key readers ranked
+                // as callers pushed with_value_now out of a 19k packet).
+                (0, 3)
             } else {
                 (0, 4)
             }
@@ -2581,6 +2608,10 @@ fn is_call_consumer(entry: &Value) -> bool {
                     })
             })
         })
+}
+
+fn uses_key(entry: &Value) -> bool {
+    entry["reasons"].as_array().is_some_and(|rs| rs.iter().any(|r| r["steps"][0]["relation"] == "uses_key"))
 }
 
 fn is_required_code(entry: &Value) -> bool {
@@ -3262,6 +3293,16 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_file_entry_keeps_only_the_calls_outside_its_declarations() {
+        // siren #188: a new module import made server.py's file entry a change,
+        // and every metrics.* call inside its functions windowed 184 of 287 lines.
+        let sites = [(5, 9), (40, 44), (90, 94)];
+        let declarations = [(30, 60), (80, 120)];
+        assert_eq!(own_calls(&sites, "basic_file", &declarations), vec![(5, 9)]);
+        assert_eq!(own_calls(&sites, "function", &declarations), sites.to_vec(), "a declaration keeps its own");
+    }
+
+    #[test]
     fn a_type_use_of_changed_code_is_not_a_changed_call_site() {
         // odin #196: `new(entity.EntityOpts)` on a handler's first line counted
         // as a call to the changed struct and marked 31 handlers unseen.
@@ -3511,6 +3552,22 @@ mod tests {
         let ids: Vec<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
         assert_eq!(ids, vec!["q"]);
         assert_eq!(packet["coverage"]["provided_diff"]["generated_with_source_entries"], 1);
+    }
+
+    #[test]
+    fn a_dict_key_link_ranks_after_the_declarations_calls_link() {
+        // siren #185: key readers ranked as required callers pushed
+        // with_value_now, a real caller, out of a 19k packet.
+        let body = "def f(x):\n    a = 1\n    b = 2\n    return a\n";
+        let report = json!({"entries":[
+            {"id":"reader","revision":"r","side":"head","text":body,"reasons":[{"reason":"potential_consumer","path":["s","reader"],"steps":[{"relation":"uses_key"}]}]},
+            {"id":"callee","revision":"r","side":"head","text":body,"_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","callee"],"steps":[{"relation":"calls"}]}]},
+            {"id":"caller","revision":"r","side":"head","text":body,"reasons":[{"reason":"potential_consumer","path":["s","caller"],"steps":[{"relation":"calls"}]},
+                {"reason":"dependency","path":["s","caller"],"steps":[{"relation":"uses_key"}]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["caller", "callee", "reader"]));
     }
 
     #[test]

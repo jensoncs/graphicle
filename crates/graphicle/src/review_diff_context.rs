@@ -525,7 +525,13 @@ impl Context {
             }
             return false;
         }
-        let touched = self.touched(exact, entry, path, true);
+        // A file entry anchors only on lines outside the file's declarations:
+        // a line inside a function is that function's entry's to show (siren #188).
+        let inner = byte_pairs(&entry["_declarations"]);
+        let own = |i: usize| !inner.iter().any(|&(x, y)| x <= spans[i].0 && spans[i].1 <= y);
+        let touched: Vec<bool> = self.touched(exact, entry, path, true).into_iter().enumerate().map(|(i, t)| t && own(i)).collect();
+        let flows: Vec<usize> = flows.iter().copied().filter(|&i| own(i)).collect();
+        let flows = flows.as_slice();
         let calls = byte_pairs(&entry["_changed_calls"]);
         let mut keep = vec![false; spans.len()];
         let mut needed = vec![false; spans.len()];   // calls and flow lines, not padding
@@ -1018,6 +1024,22 @@ mod tests {
         assert_eq!(written("if a && b { x = &y.z }\n"), vec!["x", "y.z"]);
         assert!(written("ok := a == b\n").is_empty(), "ok is noise");
         assert_eq!(written("val total: Int = 3\n"), vec!["total"]);
+    }
+
+    #[test]
+    fn a_file_entry_windows_only_the_changes_outside_its_declarations() {
+        // siren #188: a new module import made server.py's file entry a change;
+        // its window repeated every changed line inside the file's functions.
+        let (_, at) = lines_file();
+        let mut file = declaration("head", "file", 1, 200, json!([{"reason":"change_seed"}]));
+        file["_declarations"] = json!([[at[39], at[120]]]);   // lines 40-120: a function with its own entry
+        file["_changed_calls"] = json!([[at[149], at[150]]]);   // a module-level call on line 150
+        let mut r = report(vec![file]);
+        r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[at[2], at[3]], [at[79], at[80]]],"_changed_base":[]}]);
+        context_with(vec![("head", 1, 6), ("head", 77, 83)]).annotate(&mut r);
+        let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
+            .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
+        assert_eq!(shown, vec![(1, 8), (150, 150)], "line 80 is the function's to show");
     }
 
     #[test]

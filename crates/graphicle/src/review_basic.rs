@@ -1458,6 +1458,23 @@ mod tests {
     }
 
     #[test]
+    fn a_dict_key_a_changed_line_writes_selects_the_declarations_that_read_it() {
+        // siren #187: parse_rule gained a "drop_inf" key that _kept reads; no
+        // call links them, so the reader never reached the block.
+        let parse = |extra: &str| format!("def parse(raw):\n    return {{\n        \"expr\": raw[\"expr\"],\n{extra}    }}\n");
+        let usage = "def keep(rule, points):\n    if rule.get(\"drop_inf\"):\n        return [p for p in points if p != 0]\n    return points\n\n\ndef other(rule):\n    return rule[\"expr\"]\n";
+        let tests = "def test_keep():\n    assert keep({\"drop_inf\": True}, [1]) == [1]\n";
+        let files = |rules: String| input(&[("repo/svc/rules.py", rules.as_str()), ("repo/svc/use.py", usage), ("repo/svc/test_use.py", tests)]);
+        let r = report(&files(parse("")), &files(parse("        \"drop_inf\": raw.get(\"drop_inf\", False),\n")));
+        let named = |name: &str| r["entries"].as_array().unwrap().iter().find(|e| e["side"] == "head" && e["name"] == name).cloned();
+        let keep = named("keep").unwrap_or_else(|| panic!("{r}"));
+        assert!(keep["reasons"].as_array().unwrap().iter().any(|x| x["reason"] == "potential_consumer"
+            && x["steps"][0]["relation"] == "uses_key" && x["steps"][0]["spelling"] == "drop_inf"), "{keep}");
+        assert!(named("other").is_none(), "its key is not on a changed line");
+        assert!(named("test_keep").is_none(), "a test is not a contract");
+    }
+
+    #[test]
     fn python_imports_include_unchanged_consumers_without_claiming_calls() {
         let caller = "from tax import calculate\ncalculate = replacement\ndef run():\n    return calculate()\n";
         let base = input(&[
