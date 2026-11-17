@@ -881,7 +881,7 @@ fn add_reason(reasons: &mut Vec<Value>, reason: Value) {
 /// function's entry's to show (siren #188).
 fn own_calls(sites: &[(usize, usize)], kind: &str, declarations: &[(usize, usize)]) -> Vec<(usize, usize)> {
     sites.iter().copied()
-        .filter(|&(a, b)| kind != "basic_file" || !declarations.iter().any(|&(x, y)| x <= a && b <= y))
+        .filter(|&(a, _)| kind != "basic_file" || !declarations.iter().any(|&(x, y)| x <= a && a < y))
         .collect()
 }
 
@@ -1511,7 +1511,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             let sites: Vec<_> = changed_calls.get(&symbol.file).into_iter().flatten().copied()
                 .filter(|&(a, b)| symbol.start <= a && b <= symbol.end).collect();
             let declarations: Vec<_> = analysis.symbols.values()
-                .filter(|(w, other)| w == world && other.file == symbol.file && other.kind != symbol.kind)
+                .filter(|(_, other)| other.file == symbol.file && other.kind != symbol.kind)
                 .map(|(_, other)| (other.start, other.end)).collect();
             let inside: Vec<_> = own_calls(&sites, &symbol.kind, &declarations).into_iter().map(|(a, b)| json!([a, b])).collect();
             if symbol.kind == "basic_file" && !declarations.is_empty() {
@@ -2090,6 +2090,11 @@ fn pack_encoding(
                 (1, 0)
             } else if entry_distance(entry) == usize::MAX {
                 (2, 0)
+            } else if keys::is_test(s(entry, "file")) {
+                // Test code after production context, before what the diff
+                // covers (siren #187: a test file's window and its helpers took
+                // the packet ahead of the readers of the key the change added).
+                (0, 5)
             } else if mostly_unseen.contains(id) {
                 (0, 1)
             } else if callees.contains(id) && s(entry, "text").lines().count() > 3 {
@@ -3296,7 +3301,7 @@ mod tests {
     fn a_file_entry_keeps_only_the_calls_outside_its_declarations() {
         // siren #188: a new module import made server.py's file entry a change,
         // and every metrics.* call inside its functions windowed 184 of 287 lines.
-        let sites = [(5, 9), (40, 44), (90, 94)];
+        let sites = [(5, 9), (40, 44), (90, 94), (118, 124)];   // the last ends past its declaration's end
         let declarations = [(30, 60), (80, 120)];
         assert_eq!(own_calls(&sites, "basic_file", &declarations), vec![(5, 9)]);
         assert_eq!(own_calls(&sites, "function", &declarations), sites.to_vec(), "a declaration keeps its own");
@@ -3568,6 +3573,21 @@ mod tests {
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
         assert_eq!(packet["context_order"], json!(["caller", "callee", "reader"]));
+    }
+
+    #[test]
+    fn test_code_ranks_after_production_context() {
+        // siren #187: a changed test file's window and its helpers took a 19k
+        // packet ahead of the production readers of the key the change added.
+        let body = "def f(x):\n    a = 1\n    b = 2\n    return a\n";
+        let report = json!({"entries":[
+            {"id":"tests","revision":"r","side":"head","file":"svc/test_agent.py","text":body,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"change_seed"}]},
+            {"id":"helper","revision":"r","side":"head","file":"svc/test_agent.py","text":body,"_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","helper"],"steps":[{"relation":"calls"}]}]},
+            {"id":"reader","revision":"r","side":"head","file":"svc/agent.py","text":body,"reasons":[{"reason":"potential_consumer","path":["s","reader"],"steps":[{"relation":"uses_key"}]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["reader", "tests", "helper"]));
     }
 
     #[test]

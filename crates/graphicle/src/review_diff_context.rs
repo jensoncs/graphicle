@@ -528,7 +528,7 @@ impl Context {
         // A file entry anchors only on lines outside the file's declarations:
         // a line inside a function is that function's entry's to show (siren #188).
         let inner = byte_pairs(&entry["_declarations"]);
-        let own = |i: usize| !inner.iter().any(|&(x, y)| x <= spans[i].0 && spans[i].1 <= y);
+        let own = |i: usize| !inner.iter().any(|&(x, y)| x <= spans[i].0 && spans[i].0 < y);   // by its start: a declaration's end can stop short of its last line's newline
         let touched: Vec<bool> = self.touched(exact, entry, path, true).into_iter().enumerate().map(|(i, t)| t && own(i)).collect();
         let flows: Vec<usize> = flows.iter().copied().filter(|&i| own(i)).collect();
         let flows = flows.as_slice();

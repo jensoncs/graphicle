@@ -66,10 +66,10 @@ pub(super) fn changed_lines(head: &str, base: &str, at: usize) -> Vec<(usize, us
     out
 }
 
-fn is_test(file: &str) -> bool {
+pub(super) fn is_test(file: &str) -> bool {
     let name = file.rsplit('/').next().unwrap_or(file);
-    name.starts_with("test_") || name.ends_with("_test.py") || name.contains(".test.") || name.contains(".spec.")
-        || name == "conftest.py" || file.contains("/tests/") || file.contains("/__tests__/")
+    name.starts_with("test_") || name.contains("_test.") || name.contains(".test.") || name.contains(".spec.")
+        || name == "conftest.py" || ["tests/", "test/", "__tests__/"].iter().any(|d| file.starts_with(d) || file.contains(&format!("/{d}")))
 }
 
 fn text<'a>(input: &'a Input, symbol: &Symbol) -> &'a str {
@@ -140,6 +140,16 @@ mod tests {
         assert_eq!(named("v = s.get('values', [])\n"), vec![("values".into(), false)]);
         assert_eq!(named("if \"queries\" in rule:\n"), vec![("queries".into(), false)]);
         assert!(named("print(\"a: b\")\nx = \"not a key\"\n").is_empty());
+    }
+
+    #[test]
+    fn test_files_are_known_by_name_or_directory() {
+        for f in ["svc/test_agent.py", "pkg/a_test.go", "web/a.test.ts", "web/a.spec.js", "app/src/test/kotlin/A.kt", "tests/x.py", "svc/conftest.py"] {
+            assert!(is_test(f), "{f}");
+        }
+        for f in ["svc/agent.py", "pkg/testing.go", "web/contest.ts", "latest/a.go"] {
+            assert!(!is_test(f), "{f}");
+        }
     }
 
     #[test]

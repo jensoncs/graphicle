@@ -1458,6 +1458,19 @@ mod tests {
     }
 
     #[test]
+    fn a_python_file_entry_knows_the_declarations_its_window_leaves_to_them() {
+        // siren #187: agent.py's file entry, changed by a new constant, windowed
+        // whole functions because Python's functions are in another world.
+        let module = |limit: &str| format!("LIMIT = {limit}\n\n\ndef run(x):\n    return x + LIMIT\n");
+        let repo = |limit: &str| input(&[("repo/go.mod", "module example.com/app\n\ngo 1.22\n"), ("repo/main.go", "package main\n\nfunc main() {}\n"),
+            ("repo/svc/a.py", module(limit).as_str())]);
+        let r = report(&repo("1"), &repo("2"));
+        let file = r["entries"].as_array().unwrap().iter().find(|e| e["side"] == "head" && e["kind"] == "basic_file").unwrap_or_else(|| panic!("{r}"));
+        let run_at = module("2").find("def run").unwrap();
+        assert!(file["_declarations"].as_array().is_some_and(|d| d.iter().any(|p| p[0].as_u64() == Some(run_at as u64))), "{file}");
+    }
+
+    #[test]
     fn a_dict_key_a_changed_line_writes_selects_the_declarations_that_read_it() {
         // siren #187: parse_rule gained a "drop_inf" key that _kept reads; no
         // call links them, so the reader never reached the block.
