@@ -897,7 +897,10 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
             .as_array()
             .into_iter()
             .flatten()
-            .filter(|e| e["kind"] == "imports")
+            // A barrel's `export .. from` is no link of its own: an importer
+            // reaches the barrel, and calls reach what it re-exports by name
+            // (atlas-backstage #1035: a theme import walked into RjsfForm).
+            .filter(|e| e["kind"] == "imports" && e["reexport"] != true)
         {
             let from = format!("{repo}/{}", s(edge, "source"));
             let to = format!("{repo}/{}", s(edge, "target"));
@@ -1468,6 +1471,18 @@ mod tests {
         let file = r["entries"].as_array().unwrap().iter().find(|e| e["side"] == "head" && e["kind"] == "basic_file").unwrap_or_else(|| panic!("{r}"));
         let run_at = module("2").find("def run").unwrap();
         assert!(file["_declarations"].as_array().is_some_and(|d| d.iter().any(|p| p[0].as_u64() == Some(run_at as u64))), "{file}");
+    }
+
+    #[test]
+    fn an_import_reaches_a_barrel_not_every_module_it_re_exports() {
+        // atlas-backstage #1035: DataCatalogPage imported theme constants from
+        // ui-core; the import walked its `export *` barrels into RjsfForm.
+        let page = |v: &str| format!("import {{ GREEN }} from './lib';\nexport function page() {{\n  return GREEN + {v};\n}}\n");
+        let repo = |v: &str| input(&[("repo/ui/page.ts", page(v).as_str()), ("repo/ui/lib/index.ts", "export * from './theme';\nexport * from './form';\n"),
+            ("repo/ui/lib/theme.ts", "export const GREEN = 'g';\n"), ("repo/ui/lib/form.ts", "export function render() {\n  return 1;\n}\nrender();\n")]);
+        let r = report(&repo("1"), &repo("2"));
+        let files: Vec<&str> = r["entries"].as_array().unwrap().iter().map(|e| s(e, "file")).collect();
+        assert!(!files.iter().any(|f| f.ends_with("form.ts")), "{files:?}");
     }
 
     #[test]

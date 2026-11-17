@@ -125,6 +125,7 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
                 + c["provided_diff"]["entries"].as_u64().unwrap()
                 + c["provided_diff"]["identical_base_entries"].as_u64().unwrap()
                 + c["provided_diff"]["type_only_entries"].as_u64().unwrap()
+                + c["provided_diff"]["import_only_entries"].as_u64().unwrap()
                 + c["provided_diff"]["generated_with_source_entries"].as_u64().unwrap()
                 + c["budget_omitted_entries"].as_u64().unwrap()
         );
@@ -173,10 +174,11 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
             assert!(target.get("text").is_none());
             let shown: Vec<_> = target["excerpts"].as_array().unwrap().iter()
                 .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
-            // The signature, the changed line 3 with five lines either side,
-            // and the call that receives the value it assigns.
-            assert_eq!(shown, vec![(2, 8), (304, 304)]);
-            assert!(target["excerpts"][1]["text"].as_str().unwrap().contains("return Dependency(rate)"));
+            // The signature, five lines after the changed line 3 (the hunk is
+            // the diff's to show), and the call that receives the value it
+            // assigns.
+            assert_eq!(shown, vec![(2, 2), (4, 8), (304, 304)]);
+            assert!(target["excerpts"][2]["text"].as_str().unwrap().contains("return Dependency(rate)"));
             assert_eq!(target["text_window"]["lines"], json!(304));
         }
         if budget == 9000 {

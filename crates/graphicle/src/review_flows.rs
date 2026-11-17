@@ -102,8 +102,11 @@ pub(super) fn pack(
             continue;
         }
         let reasons = annotations.get(s(entry, "id")).unwrap_or(&entry["reasons"]);
+        let carried = entry["reasons"].as_array().map_or(0, Vec::len);
         for (ri, reason) in reasons.as_array().into_iter().flatten().enumerate() {
-            if reason.get("execution_flow").is_none() {
+            // A reason the packed entry no longer carries has nothing to cite
+            // (atlas-backstage #1035: upgrading it panicked the review).
+            if reason.get("execution_flow").is_none() || ri >= carried {
                 continue;
             }
             if segments.len() >= 128 {
@@ -295,6 +298,21 @@ mod tests {
         assert_eq!(report["execution_flows"]["paths"], json!([]));
         assert_eq!(report["execution_flows"]["coverage"]["omitted"], 1);
         assert_eq!(report["entries"][0]["text"], "required code");
+    }
+
+    #[test]
+    fn a_flow_reason_the_packed_entry_no_longer_carries_is_not_cited() {
+        // atlas-backstage #1035: the annotation kept two reasons, the packed
+        // entry one; upgrading reasons[1] panicked the review.
+        let mut selected = vec![segment("one", "head", "a", "b")];
+        let mut reasons = selected[0].1["reasons"].clone();
+        reasons.as_array_mut().unwrap().push(json!({"execution_flow":{"kind":"potential_static"},"path":["a","c"],"steps":[{"caller":"a","callee":"c"}]}));
+        let annotations = BTreeMap::from([("one".to_owned(), reasons)]);
+        let mut report = json!({"coverage":{"max_depth":8}});
+        pack(&mut report, &mut selected, &annotations, 10000);
+        let paths = report["execution_flows"]["paths"].as_array().unwrap();
+        assert!(paths.iter().all(|p| p["steps"].as_array().unwrap().iter().all(|s| s["reason_index"] == 0)), "{paths:?}");
+        assert_eq!(selected[0].1["reasons"].as_array().unwrap().len(), 1);
     }
 
     #[test]

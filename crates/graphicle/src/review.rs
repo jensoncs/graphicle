@@ -1968,6 +1968,13 @@ fn pack_encoding(
         let before = entries.len();
         entries.retain(|e| !type_only.contains(s(e, "id")) || is_required_code(e));
         report["coverage"]["provided_diff"]["type_only_entries"] = json!(before - entries.len());
+        // A file the change only imports (a barrel, a package.json): the diff
+        // shows the import, and the file says nothing of what the change uses
+        // (atlas-backstage #1035: five of them refilled a 20 KB block). An
+        // importer of the change stays: its use may not resolve to a call.
+        let before = entries.len();
+        entries.retain(|e| !(import_only(e) && e["reasons"].as_array().is_some_and(|rs| rs.iter().all(|r| r["reason"] == "dependency"))) || is_required_code(e));
+        report["coverage"]["provided_diff"]["import_only_entries"] = json!(before - entries.len());
         // A generated callee whose source goes as a callee (odin #196: sqlc
         // wrappers ahead of the queries they run).
         let before = entries.len();
@@ -3625,7 +3632,7 @@ mod tests {
         // changed components call.
         let body = "a\nb\nc\nd\n";
         let report = json!({"entries":[
-            {"id":"barrel","revision":"r","side":"head","kind":"basic_file","file":"a/index.ts","text":body,"reasons":[{"reason":"dependency","path":["s","barrel"],"steps":[{"relation":"potential_import"}]},
+            {"id":"barrel","revision":"r","side":"head","kind":"basic_file","file":"a/index.ts","text":body,"reasons":[{"reason":"potential_consumer","path":["s","barrel"],"steps":[{"relation":"potential_import"}]},
                 {"reason":"dependency","path":["s","barrel"],"steps":[{"relation":"configuration_scope"}]}]},
             {"id":"client","revision":"r","side":"head","kind":"method","file":"api/iam.ts","text":body,"reasons":[{"reason":"dependency","path":["s","client"],"steps":[{"relation":"may_call"}]}]},
             {"id":"used","revision":"r","side":"head","kind":"basic_file","file":"api/q.sql","text":body,"reasons":[{"reason":"dependency","path":["s","used"],"steps":[{"relation":"potential_import"},{"relation":"uses_table"}]}]}
@@ -3633,6 +3640,25 @@ mod tests {
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
         assert_eq!(packet["context_order"], json!(["client", "used", "barrel"]));
+    }
+
+    #[test]
+    fn a_file_the_change_only_imports_is_not_sent_in_a_supplemental_packet() {
+        // atlas-backstage #1035: three package.json files and two barrels
+        // filled the room the RjsfForm walk left; the diff shows the import.
+        let step = |relation: &str| json!([{"reason":"dependency","path":["s","x"],"steps":[{"relation":relation}]}]);
+        let report = json!({"entries":[
+            {"id":"barrel","revision":"r","side":"head","kind":"basic_file","file":"ui/index.ts","text":"export * from './a';","reasons":step("potential_import")},
+            {"id":"manifest","revision":"r","side":"head","kind":"basic_file","file":"ui/package.json","text":"{}","reasons":step("configuration_scope")},
+            {"id":"importer","revision":"r","side":"head","kind":"basic_file","file":"app.py","text":"import tax","reasons":[{"reason":"potential_consumer","path":["s","importer"],"steps":[{"relation":"potential_import"}]}]},
+            {"id":"f","revision":"r","side":"head","text":"func f() {}","reasons":step("may_call")}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        let mut ids: Vec<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
+        ids.sort();
+        assert_eq!(ids, vec!["f", "importer"], "an importer of the change stays: its use may not resolve");
+        assert_eq!(packet["coverage"]["provided_diff"]["import_only_entries"], 2);
     }
 
     #[test]

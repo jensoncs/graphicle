@@ -1558,7 +1558,11 @@ pub fn graph(analyses: &Value) -> Result<Value> {
                     if target != *path
                         && seen.insert((path.clone(), target.clone(), line, relation.to_owned()))
                     {
-                        edges.push(json!({"source":path,"target":target,"line":line,"kind":relation,"basis":"static_source_resolution","module":module}));
+                        let mut edge = json!({"source":path,"target":target,"line":line,"kind":relation,"basis":"static_source_resolution","module":module});
+                        if item["reexport"] == true {
+                            edge["reexport"] = json!(true);   // `export .. from`: says nothing of which names an importer uses
+                        }
+                        edges.push(edge);
                     }
                 } else if targets.len() > 1 || submodules.is_empty() {
                     let reason = if targets.is_empty() && !ambiguous_submodule {

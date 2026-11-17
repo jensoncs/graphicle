@@ -566,6 +566,13 @@ impl Context {
         // hunks; padding around changed lines is the diff again (argus #111:
         // two values files, 4.6 KB of the block).
         let shown = self.ranges(s(entry, "side"), path, s(entry, "file_sha256"));
+        // The hunks are the diff's to show; the first line stays to place the
+        // rest (atlas-backstage #1046: re-printed hunks, 14.6 of a 26 KB block).
+        for (i, &(a, b)) in spans.iter().enumerate().skip(1) {
+            if shown.iter().any(|&(x, y)| x <= a && b <= y) {
+                keep[i] = false;
+            }
+        }
         let unseen = spans.iter().zip(&needed).skip(1)
             .any(|(&(a, b), k)| *k && !shown.iter().any(|&(x, y)| x <= a && b <= y));
         if !unseen {
@@ -843,12 +850,14 @@ mod tests {
         assert!(big.get("text").is_none());
         let shown: Vec<_> = big["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
-        assert_eq!(shown, vec![(1, 1), (95, 105), (150, 150)]);
+        // The hunk (line 100) is the diff's to show (atlas-backstage #1046:
+        // re-printed hunks took 14.6 of a 26 KB block); its padding is not.
+        assert_eq!(shown, vec![(1, 1), (95, 99), (101, 105), (150, 150)]);
         assert_eq!(big["excerpts"][1]["text"].as_str().unwrap().lines().next(), Some("line 095"));
         assert_eq!(big["excerpts"][1]["byte_start"], json!(at[94]));
-        assert_eq!(big["excerpts"][1]["byte_end"], json!(at[105]));
+        assert_eq!(big["excerpts"][2]["byte_end"], json!(at[105]));
         assert_eq!(big["text_window"]["lines"], json!(200));
-        assert_eq!(big["text_window"]["shown_lines"], json!(13));
+        assert_eq!(big["text_window"]["shown_lines"], json!(12));
         assert!(r["entries"][1].get("text").is_some(), "100 lines stay whole");
         assert!(r["entries"][1].get("excerpts").is_none());
     }
@@ -944,7 +953,7 @@ mod tests {
         context.annotate(&mut r);
         let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
-        assert_eq!(shown, vec![(1, 1), (15, 25), (60, 62)], "60 and 62 joined across the one-line gap");
+        assert_eq!(shown, vec![(1, 1), (15, 19), (21, 25), (60, 62)], "60 and 62 joined across the one-line gap; the hunk at 20 is the diff's");
         assert_eq!(r["entries"][1]["_provided_diff_flow_callee"], json!(true), "reached by value flow, ranked after");
         assert!(r["entries"][2].get("_provided_diff_flow_callee").is_none(), "generated code is not a callee worth ranking");
     }
@@ -1039,7 +1048,7 @@ mod tests {
         context_with(vec![("head", 1, 6), ("head", 77, 83)]).annotate(&mut r);
         let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
-        assert_eq!(shown, vec![(1, 8), (150, 150)], "line 80 is the function's to show");
+        assert_eq!(shown, vec![(1, 1), (7, 8), (150, 150)], "line 80 is the function's to show; the hunk is the diff's");
     }
 
     #[test]
@@ -1054,7 +1063,7 @@ mod tests {
         context_with(vec![("head", 77, 83), ("head", 89, 95)]).annotate(&mut r);
         let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
-        assert_eq!(shown, vec![(1, 1), (75, 97), (150, 150)], "75-85 and 87-97 joined across the one-line gap at 86");
+        assert_eq!(shown, vec![(1, 1), (75, 76), (84, 88), (96, 97), (150, 150)], "75-85 and 87-97 joined across the one-line gap at 86, less the hunks");
     }
 
     #[test]
