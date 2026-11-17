@@ -862,11 +862,17 @@ fn add_reason(reasons: &mut Vec<Value>, reason: Value) {
                 .as_array()
                 .is_some_and(|steps| steps.iter().any(|s| s["discarded_error"] == true))
         };
+        // At one length a call beats a key, type or import link: it is what
+        // the code runs, and only a call marks a callee of changed lines
+        // (siren #187: query_range kept a uses_key reason that sorted first).
+        let call = |r: &Value| matches!(r["steps"][0]["relation"].as_str(), Some("calls" | "may_call" | "references_callable"));
         if length(&reason) < length(old)
             || (length(&reason) == length(old)
-                && (discarded(&reason) && !discarded(old)
-                    || discarded(&reason) == discarded(old)
-                        && reason.to_string().cmp(&old.to_string()).is_lt()))
+                && (call(&reason) && !call(old)
+                    || call(&reason) == call(old)
+                        && (discarded(&reason) && !discarded(old)
+                            || discarded(&reason) == discarded(old)
+                                && reason.to_string().cmp(&old.to_string()).is_lt())))
         {
             *old = reason;
         }
@@ -4311,6 +4317,25 @@ mod tests {
             json!({"reason":"change_seed","path":["changed"]}),
         );
         assert_eq!(reasons.len(), 2);
+    }
+
+    #[test]
+    fn a_call_outranks_a_key_or_type_link_of_the_same_length() {
+        // siren #187: query_range, called from a changed line of
+        // fetch_metric, kept a "uses_key" dependency that sorted first as
+        // text, so it was never a callee of the changed lines and ranked
+        // 18th behind key readers.
+        let call = json!({"reason":"dependency","path":["seed","t"],"steps":[{"relation":"may_call","spelling":"query_range"}]});
+        for other in ["uses_key", "uses_type", "potential_import"] {
+            let link = json!({"reason":"dependency","path":["a","t"],"steps":[{"relation":other,"spelling":"a"}]});
+            for order in [[call.clone(), link.clone()], [link.clone(), call.clone()]] {
+                let mut reasons = vec![];
+                for reason in order {
+                    super::add_reason(&mut reasons, reason);
+                }
+                assert_eq!(reasons, vec![call.clone()], "{other}");
+            }
+        }
     }
 
     #[test]
