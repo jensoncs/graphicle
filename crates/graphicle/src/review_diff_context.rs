@@ -26,6 +26,8 @@ const WINDOW_FROM: usize = 100;
 const AROUND: usize = 5;
 /// A skipped run this short costs more as a marker than as its lines.
 const FILL_GAP: usize = 3;
+/// A caller's call site needs the logic around it, not only its line.
+const CALLER_AROUND: usize = 15;
 /// ponytail: lexical def-use, not data flow: at most this many calls per
 /// declaration that receive a value assigned on a changed line. A real def-use
 /// graph per language would replace it.
@@ -95,6 +97,72 @@ fn assigned(line: &str) -> Vec<&str> {
 fn has_word(line: &str, word: &str) -> bool {
     let ident = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
     line.match_indices(word).any(|(i, _)| !ident(line[..i].chars().last()) && !ident(line[i + word.len()..].chars().next()))
+}
+
+/// Shows skipped runs of FILL_GAP lines or fewer: a marker costs more.
+fn fill(keep: &mut [bool]) {
+    let mut gap = 0;
+    for i in 0..keep.len() {
+        if !keep[i] {
+            gap += 1;
+            continue;
+        }
+        if (1..=FILL_GAP).contains(&gap) {
+            keep[i - gap..i].fill(true);
+        }
+        gap = 0;
+    }
+}
+
+/// Replaces the entry's text with excerpts of the kept lines.
+fn cut(entry: &mut Value, spans: &[(usize, usize)], keep: &[bool], policy: &str) {
+    let text = entry["text"].as_str().unwrap().to_owned();
+    let (start, first) = (spans[0].0, entry["line"].as_u64().unwrap_or(1) as usize);
+    let mut excerpts = vec![];
+    let mut i = 0;
+    while i < spans.len() {
+        if !keep[i] {
+            i += 1;
+            continue;
+        }
+        let j = (i..spans.len()).take_while(|&k| keep[k]).last().unwrap();
+        let (a, b) = (spans[i].0, spans[j].1);
+        excerpts.push(json!({"line":first + i,"end_line":first + j,"byte_start":a,"byte_end":b,"text":&text[a - start..b - start]}));
+        i = j + 1;
+    }
+    entry["excerpts"] = json!(excerpts);
+    entry["text_window"] = json!({"lines":spans.len(),"shown_lines":keep.iter().filter(|k| **k).count(),"policy":policy});
+    entry.as_object_mut().unwrap().remove("text");
+}
+
+/// A long caller goes as its first line and CALLER_AROUND lines either side
+/// of each call it is in the packet for (argus #111: two callers of 114 and
+/// 116 lines took 11 KB for one call each).
+fn window_caller(entry: &mut Value, path: &str) {
+    let spans = line_spans(entry);
+    if spans.len() <= WINDOW_FROM || entry.get("text").is_none() {
+        return;
+    }
+    let sites: Vec<(u64, u64)> = entry["reasons"].as_array().into_iter().flatten()
+        .filter(|r| r["reason"] == "potential_consumer")
+        .flat_map(|r| r["steps"].as_array().cloned().unwrap_or_default())
+        .filter(|st| s(st, "source_file") == path)
+        .filter_map(|st| Some((st["byte_start"].as_u64()?, st["byte_end"].as_u64()?)))
+        .collect();
+    let mut keep = vec![false; spans.len()];
+    keep[0] = true;
+    for (i, &(a, b)) in spans.iter().enumerate() {
+        if sites.iter().any(|&(x, y)| x < b as u64 && (a as u64) < y) {
+            keep[i.saturating_sub(CALLER_AROUND)..=(i + CALLER_AROUND).min(spans.len() - 1)].fill(true);
+        }
+    }
+    if keep.iter().filter(|k| **k).count() == 1 {
+        return;   // no call site inside: send it whole
+    }
+    fill(&mut keep);
+    if !keep.iter().all(|k| *k) {
+        cut(entry, &spans, &keep, "first_line_and_15_around_calls_v1");
+    }
 }
 
 fn indent(line: &str) -> usize {
@@ -362,14 +430,17 @@ impl Context {
     }
 
     /// Replace a long changed declaration's text with its window (WINDOW_FROM).
-    fn window(&self, exact: &Exact, entry: &mut Value, path: &str, flows: &[usize]) {
+    /// Windows a large declaration; true when the window would show nothing
+    /// the reviewers' hunks do not, beyond padding (the entry is then covered).
+    fn window(&self, exact: &Exact, entry: &mut Value, path: &str, flows: &[usize]) -> bool {
         let spans = line_spans(entry);
         if spans.len() <= WINDOW_FROM {
-            return;
+            return false;
         }
         let touched = self.touched(exact, entry, path, true);
         let calls = byte_pairs(&entry["_changed_calls"]);
         let mut keep = vec![false; spans.len()];
+        let mut needed = vec![false; spans.len()];   // calls and flow lines, not padding
         keep[0] = true;
         for (i, &(a, b)) in spans.iter().enumerate() {
             if touched[i] {
@@ -377,54 +448,29 @@ impl Context {
             }
             if calls.iter().any(|&(x, y)| x < b && a < y) {
                 keep[i] = true;
+                needed[i] = true;
             }
         }
         for &i in flows {
             keep[i] = true;
+            needed[i] = true;
         }
-        let mut gap = 0;
-        for i in 0..keep.len() {
-            if !keep[i] {
-                gap += 1;
-                continue;
-            }
-            if (1..=FILL_GAP).contains(&gap) {
-                keep[i - gap..i].fill(true);
-            }
-            gap = 0;
-        }
+        fill(&mut keep);
         if keep.iter().all(|k| *k) {
-            return;
+            return false;
         }
-        // Ranked as unseen code only when the window shows a line beyond the
-        // signature that the reviewers' hunks do not (argus #111: two values
-        // files whose windows were the diff again).
+        // Unseen only when a call or flow line is outside the reviewers'
+        // hunks; padding around changed lines is the diff again (argus #111:
+        // two values files, 4.6 KB of the block).
         let shown = self.ranges(s(entry, "side"), path, s(entry, "file_sha256"));
-        let unseen = spans.iter().zip(&keep).skip(1)
+        let unseen = spans.iter().zip(&needed).skip(1)
             .any(|(&(a, b), k)| *k && !shown.iter().any(|&(x, y)| x <= a && b <= y));
-        if unseen {
-            entry["_provided_diff_mostly_unseen"] = json!(true);
-        } else {
-            entry.as_object_mut().unwrap().remove("_provided_diff_mostly_unseen");
+        if !unseen {
+            return true;
         }
-        let text = entry["text"].as_str().unwrap().to_owned();
-        let (start, first) = (spans[0].0, entry["line"].as_u64().unwrap_or(1) as usize);
-        let mut excerpts = vec![];
-        let mut i = 0;
-        while i < spans.len() {
-            if !keep[i] {
-                i += 1;
-                continue;
-            }
-            let j = (i..spans.len()).take_while(|&k| keep[k]).last().unwrap();
-            let (a, b) = (spans[i].0, spans[j].1);
-            excerpts.push(json!({"line":first + i,"end_line":first + j,"byte_start":a,"byte_end":b,"text":&text[a - start..b - start]}));
-            i = j + 1;
-        }
-        entry["excerpts"] = json!(excerpts);
-        entry["text_window"] = json!({"lines":spans.len(),"shown_lines":keep.iter().filter(|k| **k).count(),
-            "policy":"first_line_changed_lines_5_around_and_calls_to_changed_v1"});
-        entry.as_object_mut().unwrap().remove("text");
+        entry["_provided_diff_mostly_unseen"] = json!(true);
+        cut(entry, &spans, &keep, "first_line_changed_lines_5_around_and_calls_to_changed_v1");
+        false
     }
 
     /// Head seeds whose change is one inserted line, nothing removed or
@@ -538,7 +584,15 @@ impl Context {
                     entry["_provided_diff_mostly_unseen"] = json!(true);
                 }
                 let lines = flows.get(s(entry, "id")).cloned().unwrap_or_default();
-                self.window(&exact, entry, &path, &lines);
+                if self.window(&exact, entry, &path, &lines) {
+                    let marks = entry.as_object_mut().unwrap();
+                    marks.remove("_provided_diff_overlap");
+                    marks.remove("_provided_diff_mostly_unseen");
+                    marks.insert("_provided_diff".into(), json!(true));
+                    entries += 1;
+                }
+            } else {
+                window_caller(entry, &path);
             }
         }
         for diff in report["diffs"].as_array_mut().unwrap() {
@@ -708,9 +762,12 @@ mod tests {
         let mut r = report(vec![declaration("head", "big", 1, 200, json!([{"reason":"change_seed"}]))]);
         r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[at[99], at[100]]],"_changed_base":[]}]);
         context_with(vec![("head", 97, 103)]).annotate(&mut r);
-        let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
-            .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
-        assert_eq!(shown, vec![(1, 1), (95, 105)]);
+        // Its window would be the signature and the hunk with two lines of
+        // padding: the diff again (argus #111: two values files, 4.6 KB). It
+        // counts as covered and goes as history only.
+        assert_eq!(r["entries"][0]["_provided_diff"], json!(true));
+        assert!(r["entries"][0].get("_provided_diff_overlap").is_none());
+        assert_eq!(r["coverage"]["provided_diff"]["entries"], json!(1));
     }
 
     /// A declaration of 150 lines whose line 20 assigns `info` and whose line
@@ -809,12 +866,27 @@ mod tests {
         // A removed guard leaves no head line changed: the window keeps the
         // line after it. Gaps of three lines or fewer cost more as a marker.
         let (_, at) = lines_file();
-        let mut r = report(vec![declaration("head", "big", 1, 200, json!([{"reason":"change_seed"}]))]);
+        let mut big = declaration("head", "big", 1, 200, json!([{"reason":"change_seed"}]));
+        big["_changed_calls"] = json!([[at[149], at[150]]]);   // line 150 calls changed code: the window has news
+        let mut r = report(vec![big]);
         r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[at[79], at[79]], [at[91], at[92]]],"_changed_base":[[0, 9]]}]);
         context_with(vec![("head", 77, 83), ("head", 89, 95)]).annotate(&mut r);
         let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
-        assert_eq!(shown, vec![(1, 1), (75, 97)], "75-85 and 87-97 joined across the one-line gap at 86");
+        assert_eq!(shown, vec![(1, 1), (75, 97), (150, 150)], "75-85 and 87-97 joined across the one-line gap at 86");
+    }
+
+    #[test]
+    fn a_long_caller_goes_as_its_signature_and_the_logic_around_its_call() {
+        let (_, at) = lines_file();
+        let step = json!({"relation":"calls","source_file":"app/code.go","byte_start":at[149],"byte_end":at[149] + 4});
+        let caller = declaration("head", "caller", 60, 190, json!([{"reason":"potential_consumer","path":["one","caller"],"steps":[step]}]));
+        let mut r = report(vec![declaration("head", "one", 10, 20, json!([{"reason":"change_seed"}])), caller]);
+        r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[at[14], at[15]]],"_changed_base":[]}]);
+        context_with(vec![("head", 12, 18)]).annotate(&mut r);
+        let shown: Vec<_> = r["entries"][1]["excerpts"].as_array().unwrap().iter()
+            .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
+        assert_eq!(shown, vec![(60, 60), (135, 165)], "the call on line 150, 15 lines either side");
     }
 
     #[test]

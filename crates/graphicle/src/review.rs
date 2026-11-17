@@ -1907,6 +1907,16 @@ fn pack_encoding(
         .collect();
     entries.retain(|e| e["_provided_diff"] != true);
     diffs.retain(|e| e["_provided_diff"] != true);
+    // A base copy byte-identical to its head copy says nothing the head copy
+    // does not (argus #111: Constants, GrafanaConfig on both sides).
+    let heads: BTreeSet<(String, String)> = entries.iter().filter(|e| s(e, "side") == "head")
+        .map(|e| (s(e, "symbol_id").to_owned(), s(e, "text_sha256").to_owned())).collect();
+    let before = entries.len();
+    entries.retain(|e| !supplemental || s(e, "side") != "base" || s(e, "text_sha256").is_empty()
+        || !heads.contains(&(s(e, "symbol_id").to_owned(), s(e, "text_sha256").to_owned())));
+    if supplemental {
+        report["coverage"]["provided_diff"]["identical_base_entries"] = json!(before - entries.len());
+    }
     let eligible_entries = entries.len();
     let eligible_diffs = diffs.len();
     let total = entries.len() + diffs.len();
@@ -3420,6 +3430,22 @@ mod tests {
             1
         );
         assert!(!packet.to_string().contains("_provided_diff"));
+    }
+
+    #[test]
+    fn a_base_copy_identical_to_its_head_copy_is_not_sent_twice() {
+        // argus #111: Constants and GrafanaConfig went on both sides, byte-identical.
+        let report = json!({"entries":[
+            {"id":"head-c","symbol_id":"c","text_sha256":"same","revision":"r","side":"head","text":"const A = 1","reasons":[{"reason":"dependency","path":["s","c"]}]},
+            {"id":"base-c","symbol_id":"c","text_sha256":"same","revision":"r","side":"base","text":"const A = 1","reasons":[{"reason":"dependency","path":["s","c"]}]},
+            {"id":"base-d","symbol_id":"d","text_sha256":"old","revision":"r","side":"base","text":"const B = 1","reasons":[{"reason":"dependency","path":["s","d"]}]},
+            {"id":"head-d","symbol_id":"d","text_sha256":"new","revision":"r","side":"head","text":"const B = 2","reasons":[{"reason":"dependency","path":["s","d"]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        let ids: BTreeSet<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
+        assert_eq!(ids, BTreeSet::from(["head-c", "base-d", "head-d"]));
+        assert_eq!(packet["coverage"]["provided_diff"]["identical_base_entries"], 1);
     }
 
     #[test]

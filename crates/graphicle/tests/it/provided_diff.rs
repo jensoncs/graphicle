@@ -123,6 +123,7 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
             c["required_entries"].as_u64().unwrap(),
             extra["entries"].as_array().unwrap().len() as u64
                 + c["provided_diff"]["entries"].as_u64().unwrap()
+                + c["provided_diff"]["identical_base_entries"].as_u64().unwrap()
                 + c["budget_omitted_entries"].as_u64().unwrap()
         );
     }
@@ -180,8 +181,10 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
             assert!(has(&extra, "head", "Dependency"), "{}", extra["coverage"]);
         }
         assert!(outside_count(&extra) >= outside_count(&plain));
-        assert_eq!(extra["coverage"]["provided_diff"]["entries"], 0);
-        assert_eq!(extra["coverage"]["provided_diff"]["overlapping_entries"], 2);
+        // The base Target's window would be its old hunk and padding: the
+        // diff again, so it counts as covered (argus #111).
+        assert_eq!(extra["coverage"]["provided_diff"]["entries"], 1);
+        assert_eq!(extra["coverage"]["provided_diff"]["overlapping_entries"], 1);
         assert_eq!(
             extra["coverage"]["provided_diff"]["selected_outside_entries"],
             outside_count(&extra)
