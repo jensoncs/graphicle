@@ -19,10 +19,10 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
     let f = Fixture::new();
     let repo = f.repo("supplemental-context");
     let before = format!(
-        "package tax\nfunc Target() int {{\n v := 1\n{} return Dependency(v)\n}}\n",
-        (0..300).map(|i| format!(" v += {i}\n")).collect::<String>()
+        "package tax\nfunc Target() int {{\n rate := 1\n{} return Dependency(rate)\n}}\n",
+        (0..300).map(|i| format!(" rate += {i}\n")).collect::<String>()
     );
-    let after = before.replace("v := 1", "v := 2");
+    let after = before.replace("rate := 1", "rate := 2");
     let files = |source| {
         [
             ("go.mod", MOD),
@@ -170,7 +170,10 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
             assert!(target.get("text").is_none());
             let shown: Vec<_> = target["excerpts"].as_array().unwrap().iter()
                 .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
-            assert_eq!(shown, vec![(2, 8)], "the signature and the changed line 3 with five lines either side");
+            // The signature, the changed line 3 with five lines either side,
+            // and the call that receives the value it assigns.
+            assert_eq!(shown, vec![(2, 8), (304, 304)]);
+            assert!(target["excerpts"][1]["text"].as_str().unwrap().contains("return Dependency(rate)"));
             assert_eq!(target["text_window"]["lines"], json!(304));
         }
         if budget == 9000 {

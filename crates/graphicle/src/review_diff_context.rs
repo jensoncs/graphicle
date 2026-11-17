@@ -24,6 +24,144 @@ struct File {
 /// 185-400 lines took the packet for a few changed lines each).
 const WINDOW_FROM: usize = 100;
 const AROUND: usize = 5;
+/// A skipped run this short costs more as a marker than as its lines.
+const FILL_GAP: usize = 3;
+/// ponytail: lexical def-use, not data flow: at most this many calls per
+/// declaration that receive a value assigned on a changed line. A real def-use
+/// graph per language would replace it.
+const FLOW_CALLS: usize = 8;
+const NOT_NAMES: &[&str] = &["var", "val", "let", "const", "final", "auto", "if", "for", "while", "return", "else",
+    "def", "fun", "func", "_", "err", "ok", "ctx", "self", "this"];
+
+/// Names a line writes: those it assigns (`a, b :=`, `x =`, `val x: T =`,
+/// `x +=`) and those it passes by address (`&x`: Go, Rust, C++; a reference
+/// argument in Kotlin, Java or Python has no such mark), lexically.
+fn written(line: &str) -> Vec<&str> {
+    let mut out = assigned(line);
+    let b = line.as_bytes();
+    for i in (0..b.len()).filter(|&i| b[i] == b'&' && b.get(i + 1) != Some(&b'&') && (i == 0 || b[i - 1] != b'&')) {
+        let name: &str = line[i + 1..].split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '.')).next().unwrap_or("");
+        let name = name.trim_end_matches('.');
+        if !name.is_empty() && !name.starts_with(|c: char| c.is_ascii_digit() || c.is_uppercase() && !name.contains('.'))
+            && !NOT_NAMES.contains(&name) && !out.contains(&name)
+        {
+            out.push(name);
+        }
+    }
+    out
+}
+
+fn assign_op(line: &str) -> Option<usize> {
+    let b = line.as_bytes();
+    (0..b.len()).find(|&i| {
+        b[i] == b'=' && !matches!(b.get(i + 1), Some(b'=' | b'>')) && !(i > 0 && matches!(b[i - 1], b'=' | b'!' | b'<' | b'>'))
+    })
+}
+
+/// The last statement's left-hand side, when the line assigns.
+fn lhs(line: &str) -> Option<&str> {
+    line[..assign_op(line)?].rsplit(['{', ';', '(', ')']).next()
+}
+
+/// Whether the line replaces `name`'s value without reading it: not `x += 1`,
+/// not `x = f(x)`, and not a pass by address.
+fn replaces(line: &str, name: &str) -> bool {
+    let Some(op) = assign_op(line) else { return false };
+    let compound = op > 0 && ":+-*/%&|^".contains(line.as_bytes()[op - 1] as char) && line.as_bytes()[op - 1] != b':';
+    assigned(line).contains(&name) && !compound && !has_word(&line[op + 1..], name)
+}
+
+/// Whether the assignment declares its names, so they end with the block:
+/// Go's `:=`, a declaring keyword, or a type before the name (`String x =`).
+/// A plain `=` writes a name declared further out (or, in Python, the
+/// function's), which outlives the block.
+fn declares(line: &str) -> bool {
+    let Some(lhs) = lhs(line) else { return false };
+    let words: Vec<&str> = lhs.trim_end_matches(|c| ":+-*/%&|^".contains(c)).split_whitespace().collect();
+    lhs.ends_with(':')
+        || words.iter().any(|w| matches!(*w, "var" | "val" | "let" | "const" | "final" | "auto"))
+        || words.len() >= 2 && !words[words.len() - 2].ends_with(',') && !lhs.contains(':')
+}
+
+fn assigned(line: &str) -> Vec<&str> {
+    let Some(lhs) = lhs(line) else { return vec![] };
+    let lhs = lhs.trim_end_matches(|c| ":+-*/%&|^".contains(c));
+    let lhs = lhs.split(':').next().unwrap_or(lhs);   // a type annotation: name: Type =
+    lhs.split(|c: char| !(c.is_alphanumeric() || c == '_' || c == '.'))
+        .filter(|w| !w.is_empty() && !w.starts_with(|c: char| c.is_ascii_digit()) && !NOT_NAMES.contains(w))
+        .collect()
+}
+
+fn has_word(line: &str, word: &str) -> bool {
+    let ident = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+    line.match_indices(word).any(|(i, _)| !ident(line[..i].chars().last()) && !ident(line[i + word.len()..].chars().next()))
+}
+
+fn indent(line: &str) -> usize {
+    line.len() - line.trim_start().len()
+}
+
+fn is_comment(line: &str) -> bool {
+    let line = line.trim_start();
+    ["//", "#", "/*", "*", "--"].iter().any(|mark| line.starts_with(mark))
+}
+
+/// Where a call's argument list opens on the line: a `(` after a name or a
+/// closing bracket, not Go's type assertion `.(`.
+fn call_open(line: &str) -> Option<usize> {
+    let b = line.as_bytes();
+    (1..b.len()).find(|&i| b[i] == b'(' && b[i - 1] != b'.' && (b[i - 1].is_ascii_alphanumeric() || matches!(b[i - 1], b'_' | b']' | b')' | b'>')))
+}
+
+/// Lines (indexes) after the first changed one that call with a value a
+/// changed line wrote: the line naming it and the line opening the call it is
+/// an argument of (argus #111: triggerInfo -> gateExecution, payload ->
+/// parkForApproval). A name flows until indentation falls below the line
+/// that wrote it or a later line writes it again; one line per callee.
+fn flow_lines(entry: &Value, touched: &[bool]) -> Vec<usize> {
+    let lines: Vec<&str> = entry["text"].as_str().unwrap_or("").split_inclusive('\n').collect();
+    let Some(first) = touched.iter().position(|t| *t) else {
+        return vec![];
+    };
+    let mut live: BTreeMap<&str, usize> = BTreeMap::new();
+    let mut out = vec![];
+    let mut callees = BTreeSet::new();
+    for i in first..lines.len() {
+        let line = lines[i];
+        if line.trim().is_empty() || is_comment(line) {
+            continue;
+        }
+        live.retain(|_, depth| indent(line) >= *depth);
+        let wrote = written(line);
+        if touched[i] {
+            let depth = if declares(line) { indent(line) } else { 0 };
+            live.extend(wrote.into_iter().filter(|w| w.len() >= 3).map(|w| (w, depth)));
+            continue;
+        }
+        let uses = |at: usize| live.keys().any(|n| !replaces(line, n) && line.get(at..).is_some_and(|rest| has_word(rest, n)));
+        let mut depth = 0i64;
+        let call = match call_open(line) {
+            Some(open) if uses(open) => Some(i),
+            Some(_) => None,
+            None if uses(0) => (i.saturating_sub(8)..i).rev().find(|&k| {
+                depth += lines[k].matches('(').count() as i64 - lines[k].matches(')').count() as i64;
+                depth > 0
+            }),
+            None => None,
+        };
+        for w in wrote.iter().filter(|w| replaces(line, w)) {
+            live.remove(w);
+        }
+        let Some(k) = call else { continue };
+        let callee = lines[k][..call_open(lines[k]).unwrap_or(0)].trim().rsplit([' ', '\t', '=', ',']).next().unwrap_or("").to_owned();
+        if out.len() / 2 < FLOW_CALLS && callees.insert(callee) {
+            out.extend([k, i]);
+        }
+    }
+    out.sort_unstable();
+    out.dedup();
+    out
+}
 
 /// Each line of an entry's text as an absolute [start, end) byte range.
 fn line_spans(entry: &Value) -> Vec<(usize, usize)> {
@@ -214,19 +352,22 @@ impl Context {
         exact.get(&(side.to_owned(), path.to_owned())).map_or_else(|| self.ranges(side, path, sha), Vec::as_slice)
     }
 
-    /// Lines of the entry the change touches.
-    fn touched(&self, exact: &Exact, entry: &Value, path: &str) -> Vec<bool> {
+    /// Lines of the entry the change touches; with `anchors`, a deletion (an
+    /// empty range) touches the line it left.
+    fn touched(&self, exact: &Exact, entry: &Value, path: &str, anchors: bool) -> Vec<bool> {
         let ranges = self.changed(exact, s(entry, "side"), path, s(entry, "file_sha256"));
-        line_spans(entry).iter().map(|&(a, b)| ranges.iter().any(|&(x, y)| x < b && a < y)).collect()
+        line_spans(entry).iter()
+            .map(|&(a, b)| ranges.iter().any(|&(x, y)| (x < b && a < y) || (anchors && x == y && a <= x && x < b)))
+            .collect()
     }
 
     /// Replace a long changed declaration's text with its window (WINDOW_FROM).
-    fn window(&self, exact: &Exact, entry: &mut Value, path: &str) {
+    fn window(&self, exact: &Exact, entry: &mut Value, path: &str, flows: &[usize]) {
         let spans = line_spans(entry);
         if spans.len() <= WINDOW_FROM {
             return;
         }
-        let touched = self.touched(exact, entry, path);
+        let touched = self.touched(exact, entry, path, true);
         let calls = byte_pairs(&entry["_changed_calls"]);
         let mut keep = vec![false; spans.len()];
         keep[0] = true;
@@ -238,8 +379,33 @@ impl Context {
                 keep[i] = true;
             }
         }
+        for &i in flows {
+            keep[i] = true;
+        }
+        let mut gap = 0;
+        for i in 0..keep.len() {
+            if !keep[i] {
+                gap += 1;
+                continue;
+            }
+            if (1..=FILL_GAP).contains(&gap) {
+                keep[i - gap..i].fill(true);
+            }
+            gap = 0;
+        }
         if keep.iter().all(|k| *k) {
             return;
+        }
+        // Ranked as unseen code only when the window shows a line beyond the
+        // signature that the reviewers' hunks do not (argus #111: two values
+        // files whose windows were the diff again).
+        let shown = self.ranges(s(entry, "side"), path, s(entry, "file_sha256"));
+        let unseen = spans.iter().zip(&keep).skip(1)
+            .any(|(&(a, b), k)| *k && !shown.iter().any(|&(x, y)| x <= a && b <= y));
+        if unseen {
+            entry["_provided_diff_mostly_unseen"] = json!(true);
+        } else {
+            entry.as_object_mut().unwrap().remove("_provided_diff_mostly_unseen");
         }
         let text = entry["text"].as_str().unwrap().to_owned();
         let (start, first) = (spans[0].0, entry["line"].as_u64().unwrap_or(1) as usize);
@@ -267,7 +433,7 @@ impl Context {
     /// A rewritten line (return 1 -> return 2) keeps its callers required.
     fn minor_seeds(&self, exact: &Exact, entries: &[Value]) -> BTreeSet<String> {
         let seed = |e: &Value| e["reasons"].as_array().is_some_and(|rs| rs.iter().any(|r| r["reason"] == "change_seed"));
-        let lines = |e: &Value| self.path(e).map_or(usize::MAX, |p| self.touched(exact, e, &p).iter().filter(|t| **t).count());
+        let lines = |e: &Value| self.path(e).map_or(usize::MAX, |p| self.touched(exact, e, &p, false).iter().filter(|t| **t).count());
         let base: BTreeMap<&str, &Value> = entries.iter().filter(|e| e["side"] == "base" && seed(e)).map(|e| (s(e, "symbol_id"), e)).collect();
         entries.iter()
             .filter(|e| e["side"] == "head" && seed(e) && lines(e) <= 1)
@@ -284,6 +450,17 @@ impl Context {
         let mut diffs = 0;
         let exact = exact_changes(report);
         let minor = self.minor_seeds(&exact, report["entries"].as_array().unwrap());
+        // Calls on unchanged lines that receive a value a changed line assigned.
+        let mut flows: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        let mut flow_spans: BTreeMap<String, Vec<(usize, usize)>> = BTreeMap::new();
+        for entry in report["entries"].as_array().unwrap() {
+            let seed = entry["reasons"].as_array().is_some_and(|rs| rs.iter().any(|r| r["reason"] == "change_seed"));
+            let Some(path) = self.path(entry).filter(|_| seed && entry["side"] == "head") else { continue };
+            let lines = flow_lines(entry, &self.touched(&exact, entry, &path, false));
+            let spans = line_spans(entry);
+            flow_spans.entry(path).or_default().extend(lines.iter().map(|&i| spans[i]));
+            flows.insert(s(entry, "id").to_owned(), lines);
+        }
         for entry in report["entries"].as_array_mut().unwrap() {
             for reason in entry["reasons"].as_array_mut().into_iter().flatten() {
                 let path = reason["path"].as_array().map_or(&[][..], Vec::as_slice);
@@ -293,19 +470,34 @@ impl Context {
             }
             // A callee the changed lines call ranks with required code.
             let side = s(entry, "side").to_owned();
-            let from_changed_lines = entry["reasons"].as_array().is_some_and(|rs| rs.iter().any(|r| {
-                side == "head" && r["reason"] == "dependency" && r["path"].as_array().is_some_and(|p| p.len() == 2)
-                    && r["steps"].as_array().is_some_and(|steps| steps.iter().any(|step| {
-                        // calls only: a type the changed lines name is not what they run
-                        if !matches!(step["relation"].as_str(), Some("calls" | "may_call" | "references_callable")) { return false }
-                        let (Some(a), Some(b)) = (step["byte_start"].as_u64(), step["byte_end"].as_u64()) else { return false };
-                        let path = s(step, "source_file");
-                        let sha = self.files.get(&(side.clone(), path.to_owned())).map_or("", |f| f.sha.as_str());
-                        self.changed(&exact, &side, path, sha).iter().any(|&(x, y)| (x as u64) < b && a < y as u64)
-                    }))
-            }));
-            if from_changed_lines {
-                entry["_provided_diff_callee"] = json!(true);
+            // 1: called from a changed line; 2: only from a line receiving a
+            // value a changed line wrote (ranked after).
+            let generated = entry["_generated"] == json!(true);
+            let reach = |r: &Value| -> u8 {
+                if side != "head" || generated || r["reason"] != "dependency" || !r["path"].as_array().is_some_and(|p| p.len() == 2) {
+                    return 0;
+                }
+                let mut best = 0;
+                for step in r["steps"].as_array().into_iter().flatten() {
+                    // calls only: a type the changed lines name is not what they run
+                    if !matches!(step["relation"].as_str(), Some("calls" | "may_call" | "references_callable")) { continue }
+                    let (Some(a), Some(b)) = (step["byte_start"].as_u64(), step["byte_end"].as_u64()) else { continue };
+                    let path = s(step, "source_file");
+                    let sha = self.files.get(&(side.clone(), path.to_owned())).map_or("", |f| f.sha.as_str());
+                    let hit = |ranges: &[(usize, usize)]| ranges.iter().any(|&(x, y)| (x as u64) < b && a < y as u64);
+                    if hit(self.changed(&exact, &side, path, sha)) {
+                        return 1;
+                    }
+                    if hit(flow_spans.get(path).map_or(&[][..], Vec::as_slice)) {
+                        best = 2;
+                    }
+                }
+                best
+            };
+            match entry["reasons"].as_array().into_iter().flatten().map(reach).filter(|r| *r > 0).min() {
+                Some(1) => entry["_provided_diff_callee"] = json!(true),
+                Some(_) => entry["_provided_diff_flow_callee"] = json!(true),
+                None => {}
             }
             let side = s(entry, "side");
             let Some(directory) = self
@@ -345,7 +537,8 @@ impl Context {
                 if mostly_unseen {
                     entry["_provided_diff_mostly_unseen"] = json!(true);
                 }
-                self.window(&exact, entry, &path);
+                let lines = flows.get(s(entry, "id")).cloned().unwrap_or_default();
+                self.window(&exact, entry, &path, &lines);
             }
         }
         for diff in report["diffs"].as_array_mut().unwrap() {
@@ -518,6 +711,110 @@ mod tests {
         let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
         assert_eq!(shown, vec![(1, 1), (95, 105)]);
+    }
+
+    /// A declaration of 150 lines whose line 20 assigns `info` and whose line
+    /// 60 opens a call that receives it on line 62 (argus #111: triggerInfo
+    /// set on a changed line, passed to gateExecution ten lines later).
+    fn flowing() -> (String, Value) {
+        let mut text: String = (1..=150).map(|n| format!("x{n:03} := 0\n")).collect();
+        text = text.replace("x020 := 0\n", "info := build()\n").replace("x060 := 0\n", "gate(ctx,\n")
+            .replace("x061 := 0\n", "  first,\n").replace("x062 := 0\n", "  &Opts{T: info})\n");
+        let entry = json!({"id":"head-f","symbol_id":"f","side":"head","repository_id":"repo","file":"code.go","file_sha256":"hash",
+            "byte_start":0,"byte_end":text.len(),"line":1,"end_line":150,"text":text,"reasons":[{"reason":"change_seed"}]});
+        (text, entry)
+    }
+
+    fn line_range(text: &str, line: usize) -> (usize, usize) {
+        let start: usize = text.split_inclusive('\n').take(line - 1).map(str::len).sum();
+        (start, start + text.split_inclusive('\n').nth(line - 1).unwrap().len())
+    }
+
+    #[test]
+    fn a_call_receiving_a_value_assigned_on_a_changed_line_is_kept_and_its_callee_marked() {
+        let (text, entry) = flowing();
+        let (a, b) = line_range(&text, 20);
+        let (call, _) = line_range(&text, 60);
+        let callee = json!({"id":"head-gate","side":"head","repository_id":"repo","file":"gate.go","reasons":[{"reason":"dependency","path":["f","gate"],
+            "steps":[{"relation":"calls","source_file":"app/code.go","byte_start":call,"byte_end":call + 4}]}]});
+        let mut wrapper = callee.clone();
+        wrapper["id"] = json!("head-sqlc");
+        wrapper["_generated"] = json!(true);
+        let mut r = report(vec![entry, callee, wrapper]);
+        r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[a, b]],"_changed_base":[]}]);
+        let context = Context { files: BTreeMap::from([(("head".into(), "app/code.go".into()), File { sha: "hash".into(), ranges: vec![(a, b)] })]),
+            directories: BTreeMap::from([(("head".into(), "repo".into()), "app".into())]) };
+        context.annotate(&mut r);
+        let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
+            .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
+        assert_eq!(shown, vec![(1, 1), (15, 25), (60, 62)], "60 and 62 joined across the one-line gap");
+        assert_eq!(r["entries"][1]["_provided_diff_flow_callee"], json!(true), "reached by value flow, ranked after");
+        assert!(r["entries"][2].get("_provided_diff_flow_callee").is_none(), "generated code is not a callee worth ranking");
+    }
+
+    fn flow_of(lines: &[&str], changed: &[usize]) -> Vec<usize> {
+        let text: String = lines.iter().map(|l| format!("{l}\n")).collect();
+        let touched: Vec<bool> = (0..lines.len()).map(|i| changed.contains(&i)).collect();
+        flow_lines(&json!({"text":text}), &touched)
+    }
+
+    #[test]
+    fn value_flow_ends_with_its_scope_or_a_reassignment_and_ignores_non_calls() {
+        // argus #111: opts assigned in one changed closure matched every
+        // sibling closure's own `opts, ok := payload.(*Opts)`.
+        let lines = [
+            "\tSanitize: func(raw any) {",
+            "\t\topts := clean(raw)",          // changed
+            "\t\tsend(ctx, opts)",             // a use inside its scope
+            "\t},",
+            "\tRun: func(payload any) {",
+            "\t\topts, ok := payload.(*Opts)", // a sibling's own opts: scope ended
+            "\t\trun(opts)",
+            "\t},",
+        ];
+        assert_eq!(flow_of(&lines, &[1]), vec![2]);
+        // argus #111: Submit reassigns its parameter inside an if and parks it
+        // after the block: a plain assignment outlives the block it is in.
+        let lines = [
+            "\tif strip {",
+            "\t\tpayload = sanitized", // changed
+            "\t\tString label = name(payload)", // changed: a typed declaration
+            "\t}",
+            "\treturn park(ctx, payload)",
+            "\tlog(label)",
+        ];
+        assert_eq!(flow_of(&lines, &[1, 2]), vec![4]);
+        let lines = ["total := sum(xs)", "// log(total) in a comment", "y := total.(int)", "total = 0", "emit(total)"];
+        assert!(flow_of(&lines, &[0]).is_empty(), "a comment, a type assertion and a reassignment are not uses");
+        let lines = ["rate := 1", "rate += step", "rate = clamp(rate)", "emit(rate)"];
+        assert_eq!(flow_of(&lines, &[0]), vec![2, 3], "updates that read the value carry it on");
+        let lines = ["id := next()", "store(id)"];
+        assert!(flow_of(&lines, &[0]).is_empty(), "names under three characters are too common to follow");
+        let lines = ["record := build()", "log.Info(\"a\", record)", "log.Info(\"b\", record)", "save(record)"];
+        assert_eq!(flow_of(&lines, &[0]), vec![1, 3], "one line per callee");
+    }
+
+    #[test]
+    fn a_name_passed_by_address_on_a_changed_line_is_written_there() {
+        // argus #111: resolveChange(ctx, &triggerInfo, ...) fills triggerInfo,
+        // which gateExecution receives fourteen lines later.
+        assert_eq!(written("\tal.resolveChange(ctx, &triggerInfo, sub, \"\")\n"), vec!["triggerInfo"]);
+        assert_eq!(written("if a && b { x = &y.z }\n"), vec!["x", "y.z"]);
+        assert!(written("ok := a == b\n").is_empty(), "ok is noise");
+        assert_eq!(written("val total: Int = 3\n"), vec!["total"]);
+    }
+
+    #[test]
+    fn a_deletion_only_change_anchors_its_window_and_short_gaps_are_filled() {
+        // A removed guard leaves no head line changed: the window keeps the
+        // line after it. Gaps of three lines or fewer cost more as a marker.
+        let (_, at) = lines_file();
+        let mut r = report(vec![declaration("head", "big", 1, 200, json!([{"reason":"change_seed"}]))]);
+        r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[at[79], at[79]], [at[91], at[92]]],"_changed_base":[[0, 9]]}]);
+        context_with(vec![("head", 77, 83), ("head", 89, 95)]).annotate(&mut r);
+        let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
+            .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
+        assert_eq!(shown, vec![(1, 1), (75, 97)], "75-85 and 87-97 joined across the one-line gap at 86");
     }
 
     #[test]

@@ -1290,7 +1290,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                     .filter(|op| op.tag() != similar::DiffTag::Equal)
                     .map(|op| if old { [offsets_a[op.old_range().start], offsets_a[op.old_range().end]] }
                         else { [offsets_b[op.new_range().start], offsets_b[op.new_range().end]] })
-                    .filter(|r| r[0] < r[1])
+                    // an empty range is a deletion: it anchors the window
                     .collect()
             };
             diffs.push(json!({"file":file,"hunk":hunk,"base_sha256":old.map(|s|&s.sha),"head_sha256":new.map(|s|&s.sha),"base_bytes":[range_a.start,range_a.end],"head_bytes":[range_b.start,range_b.end],"before":&before[range_a],"after":&after[range_b],
@@ -1496,6 +1496,10 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
                 .filter(|&&(a, b)| symbol.start <= a && b <= symbol.end).map(|&(a, b)| json!([a, b])).collect();
             if !inside.is_empty() && is_head_change(&value) {
                 value["_changed_calls"] = json!(inside);   // the window keeps these lines; never on the wire
+            }
+            let header = input.sources[&symbol.file].content.text().unwrap_or("").lines().take(4).collect::<Vec<_>>().join("\n");
+            if header.contains("Code generated") && header.contains("DO NOT EDIT") {
+                value["_generated"] = json!(true);   // not a callee worth ranking (argus #111: sqlc wrappers); never on the wire
             }
             if let Some(boundary) = analysis.services.nodes.get(&id) {
                 if symbol.kind == "environment_input" {
@@ -1795,20 +1799,28 @@ fn pack_encoding(
     let mut overlapping = BTreeSet::new();
     let mut mostly_unseen = BTreeSet::new();
     let mut callees = BTreeSet::new();
+    let mut flow_callees = BTreeSet::new();
     for entry in &mut entries {
         let marks = entry.as_object_mut().unwrap();
         marks.remove("_changed_calls");
-        if marks.remove("_provided_diff_callee") == Some(json!(true)) {
+        marks.remove("_generated");
+        let (callee, flow) = (marks.remove("_provided_diff_callee"), marks.remove("_provided_diff_flow_callee"));
+        if callee == Some(json!(true)) {
             callees.insert(s(entry, "id").to_owned());
+        }
+        if flow == Some(json!(true)) {
+            flow_callees.insert(s(entry, "id").to_owned());
         }
         let marks = entry.as_object_mut().unwrap();
         // A windowed declaration costs its window: it ranks with the changed
         // code the diff mostly leaves out (argus #111: ExecuteDeployment).
-        let unseen = marks.remove("_provided_diff_mostly_unseen") == Some(json!(true)) || marks.contains_key("excerpts");
+        let unseen = marks.remove("_provided_diff_mostly_unseen") == Some(json!(true));
         if marks.remove("_provided_diff_overlap") == Some(json!(true)) {
             let id = s(entry, "id").to_owned();
-            // Only the head copy: the base body is what the change replaced.
-            if unseen && s(entry, "side") == "head" {
+            // Only the head copy of a changed declaration: the base body is
+            // what the change replaced, and an unchanged declaration beside the
+            // hunks is context like any other (argus #111: config types).
+            if unseen && is_head_change(entry) {
                 mostly_unseen.insert(id.clone());
             }
             overlapping.insert(id);
@@ -2031,12 +2043,16 @@ fn pack_encoding(
                 // diff mostly leaves out; a one-line helper waits with the rest
                 // (argus #111: cerr.New took Submit's place).
                 (0, 2)
+            } else if flow_callees.contains(id) && s(entry, "text").lines().count() > 3 {
+                // Receives a value a changed line wrote: after the callees of
+                // the changed lines themselves.
+                (0, 3)
             } else if overlapping.contains(id) {
                 (1, 0)
             } else if is_required_code(entry) {
                 (0, 0)
             } else {
-                (0, 3)
+                (0, 4)
             }
         });
     }
@@ -2091,6 +2107,13 @@ fn pack_encoding(
         .enumerate()
         .map(|(i, (_, e, _))| (s(e, "id").to_owned(), i + 1))
         .collect();
+    // GRAPHICLE_DEBUG_PACK=<file>: the packing order with each candidate's
+    // measured cost; the selected ids are appended after packing (diagnostics only).
+    let debug_pack: Option<(std::ffi::OsString, Vec<Value>)> = std::env::var_os("GRAPHICLE_DEBUG_PACK").map(|path| {
+        (path, candidates.iter().take(400).map(|(c, e, _)| json!({"collection":c,"id":e["id"],"name":e["name"],"side":e["side"],
+            "callee":callees.contains(s(e, "id")),"unseen":mostly_unseen.contains(s(e, "id")),"required":is_required_code(e),
+            "cost":PackingCost::measured(e).exact})).collect())
+    });
     if let Some((_, entry, cost)) = candidates.iter_mut().find(|(c, _, _)| *c == "entries") {
         report["coverage"]["packing"]["first_entry_tokens"] = json!(cost.exact(entry));
     }
@@ -2342,6 +2365,11 @@ fn pack_encoding(
             selected.push((collection, entry));
         }
     }
+    if let Some((path, order)) = &debug_pack {
+        let chosen: Vec<_> = selected.iter().map(|(_, e)| e["id"].clone()).collect();
+        let _ = std::fs::write(path, json!({"order":order,"selected":chosen,"used":used,"max_tokens":max_tokens,
+            "flow_used":flow_used,"metadata":report["coverage"]["packing"]["metadata_tokens"]}).to_string());
+    }
     let head_selected = selected
         .iter()
         .filter(|(c, e)| *c == "entries" && is_head_change(e))
@@ -2566,10 +2594,25 @@ fn covered_history(
         })
         .collect();
     items.sort_by(|a, b| (!a.0, !a.1, a.2, s(&a.3, "id")).cmp(&(!b.0, !b.1, b.2, s(&b.3, "id"))));
-    let (mut kept, mut used) = (vec![], 0);
-    for (_, _, cost, item) in items {
+    // An item with no facts and no history renders nothing (argus #111: 28 of
+    // 29), and a fact already kept is not sent again.
+    let (mut kept, mut used, mut seen) = (vec![], 0, BTreeSet::new());
+    for (_, _, cost, mut item) in items {
+        let context = &mut item["business_context"];
+        let facts: Vec<Value> = context["repository_facts"].as_array().cloned().unwrap_or_default();
+        let fresh: Vec<Value> = facts.iter().filter(|f| !seen.contains(&(f["pr"].to_string(), s(f, "statement").to_owned()))).cloned().collect();
+        if !analyzed(context) && fresh.is_empty() {
+            continue;
+        }
+        let cost = if fresh.len() == facts.len() {
+            cost
+        } else {
+            context["repository_facts"] = json!(fresh);
+            packing::count(&item.to_string()) + 1
+        };
         if used + cost <= allowance {
             used += cost;
+            seen.extend(fresh.iter().map(|f| (f["pr"].to_string(), s(f, "statement").to_owned())));
             kept.push(item);
         }
     }
@@ -3362,13 +3405,15 @@ mod tests {
             {"id":"seen","revision":"r","side":"head","text":"changed()","_provided_diff_overlap":true,"reasons":[{"reason":"change_seed"}]},
             {"id":"unseen","revision":"r","side":"head","text":"long_changed()","_provided_diff_overlap":true,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"change_seed"}]},
             {"id":"old","revision":"r","side":"base","text":"long_before()","_provided_diff_overlap":true,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"change_seed"}]},
-            {"id":"outside","revision":"r","side":"head","text":"dependency()","reasons":[{"reason":"dependency","path":["seen","outside"]}]}
+            {"id":"outside","revision":"r","side":"head","text":"dependency()","reasons":[{"reason":"dependency","path":["seen","outside"]}]},
+            // argus #111: an unchanged type beside the hunks is not changed code
+            {"id":"beside","revision":"r","side":"head","text":"type Config struct{}","_provided_diff_overlap":true,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"dependency","path":["seen","beside"]}]}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":2,"entries":0,"diffs":0}},"impact":"incomplete"});
-        let (packet, _) = pack(report, 3500, None, None).unwrap();
+        let (packet, _) = pack(report, 4500, None, None).unwrap();
         assert_eq!(
             packet["context_order"],
-            json!(["unseen", "outside", "seen", "old"])
+            json!(["unseen", "outside", "seen", "old", "beside"])
         );
         assert_eq!(
             packet["coverage"]["provided_diff"]["mostly_unseen_entries"],
@@ -3814,6 +3859,25 @@ mod tests {
             Some("c5".to_owned()),
             "{kept:?}"
         );
+    }
+
+    #[test]
+    fn covered_history_sends_only_items_with_something_to_say_and_each_fact_once() {
+        // argus #111: 28 of 29 items carried no facts or history (7,385 tokens
+        // of a share the reader renders as 970 chars), and directory facts
+        // repeated on every declaration in the directory.
+        let fact = json!({"pr":5,"statement":"zones never repeat"});
+        let covered: Vec<Value> = (0..4).map(|i| json!({"id":format!("c{i}"),"file":"route.go","_head_change":true})).collect();
+        let contexts: BTreeMap<String, Value> = [
+            ("c0", json!({"criticality":"unknown","evolution":{"function_history":[]}})),
+            ("c1", json!({"repository_facts":[fact.clone()]})),
+            ("c2", json!({"repository_facts":[fact.clone()]})),
+            ("c3", json!({"repository_facts":[fact.clone(), {"pr":6,"statement":"holds expire"}]})),
+        ].into_iter().map(|(k, v)| (k.to_owned(), v)).collect();
+        let (kept, _) = covered_history(&covered, &contexts, 100_000);
+        let facts: Vec<_> = kept.iter().flat_map(|k| k["business_context"]["repository_facts"].as_array().cloned().unwrap_or_default()).collect();
+        assert_eq!(facts.len(), 2, "{kept:?}");
+        assert_eq!(kept.len(), 2, "c0 says nothing and one of c1/c2 repeats the other");
     }
 
     #[test]
