@@ -2112,7 +2112,9 @@ fn pack_encoding(
         // lines a missed defect needed inside a changed function).
         candidates.sort_by_key(|(collection, entry)| {
             let id = s(entry, "id");
-            if *collection == "diffs" {
+            // Within a tier a key link ranks by how many declarations share
+            // its key, rarest first (siren #188: "verdict", "mode").
+            let tier = if *collection == "diffs" {
                 (1, 0)
             } else if entry_distance(entry) == usize::MAX {
                 (2, 0)
@@ -2143,7 +2145,8 @@ fn pack_encoding(
                 (0, 3)
             } else {
                 (0, 4)
-            }
+            };
+            (tier.0, tier.1, key_sharers(entry))
         });
     }
     let mut candidates: Vec<_> = candidates
@@ -2665,6 +2668,21 @@ fn through_import(entry: &Value) -> bool {
         !rs.is_empty()
             && rs.iter().all(|r| matches!(r["steps"][0]["relation"].as_str(), Some("potential_import" | "configuration_scope")))
     })
+}
+
+/// The fewest declarations sharing a key the entry is linked by; 0 when no
+/// key links it or a call does (siren #185: a called function that also
+/// reads a common key is in for the call, not the key).
+fn key_sharers(entry: &Value) -> u64 {
+    let reasons = entry["reasons"].as_array().into_iter().flatten();
+    if reasons.clone().any(|r| matches!(r["steps"][0]["relation"].as_str(), Some("calls" | "may_call" | "references_callable"))) {
+        return 0;
+    }
+    reasons
+        .filter(|r| r["steps"][0]["relation"] == "uses_key")
+        .filter_map(|r| r["steps"][0]["sharers"].as_u64())
+        .min()
+        .unwrap_or(0)
 }
 
 fn uses_key(entry: &Value) -> bool {
@@ -3657,6 +3675,30 @@ mod tests {
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
         assert_eq!(packet["context_order"], json!(["client", "barrel", "used"]));
+    }
+
+    #[test]
+    fn a_rare_key_link_ranks_ahead_of_a_common_one() {
+        // siren #188: readers of "verdict" and "mode", keys half the module
+        // reads, took the room of the readers of keys the change made.
+        let body = "a\nb\nc\nd\n";
+        let key = |id: &str, file: &str, sharers: u64| json!({"id":id,"revision":"r","side":"head","kind":"function","file":file,"text":body,
+            "reasons":[{"reason":"potential_consumer","path":["s",id],"steps":[{"relation":"uses_key","sharers":sharers}]}]});
+        let report = json!({"entries":[key("common", "a/agent.py", 9), key("rare", "b/rules.py", 1)],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["rare", "common"]));
+        // siren #185: summarize_series, called and also a reader of a common
+        // key, fell behind Siren, linked only by the rare key "from".
+        let mut called = key("called", "a/agent.py", 9);
+        called["reasons"].as_array_mut().unwrap().push(json!({"reason":"dependency","path":["s","called"],"steps":[{"relation":"may_call"}]}));
+        called["_provided_diff_flow_callee"] = json!(true);
+        let mut keyed = key("keyed", "b/server.py", 1);
+        keyed["_provided_diff_flow_callee"] = json!(true);
+        let report = json!({"entries":[keyed, called],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["called", "keyed"]));
     }
 
     #[test]

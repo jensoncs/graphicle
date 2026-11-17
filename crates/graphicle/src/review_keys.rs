@@ -100,22 +100,28 @@ pub(super) fn reasons(base: &Input, a: &Analysis, head: &Input, b: &Analysis, se
         if touched.is_empty() {
             continue;
         }
-        for (id, (w, other)) in &b.symbols {
-            if id == seed || other.kind == "basic_file" || is_test(&other.file) || dir(&other.file) != dir(&symbol.file)
-                || (other.file == symbol.file && ((other.start <= symbol.start && symbol.end <= other.end) || (symbol.start <= other.start && other.end <= symbol.end))) {
-                continue;
-            }
-            let theirs = keys(text(head, other), other.start);
+        let others: Vec<_> = b.symbols.iter().filter(|(id, (_, other))| {
+            *id != seed && other.kind != "basic_file" && !is_test(&other.file) && dir(&other.file) == dir(&symbol.file)
+                && !(other.file == symbol.file && ((other.start <= symbol.start && symbol.end <= other.end) || (symbol.start <= other.start && other.end <= symbol.end)))
+        }).map(|(id, (w, other))| (id, w, other, keys(text(head, other), other.start))).collect();
+        // How many declarations each touched key links: a key read all over
+        // the directory ("error", "verdict") is weaker evidence than one only
+        // a few read (siren #188), and ranks so.
+        let sharers = |k: &Key| others.iter().filter(|(.., theirs)| theirs.iter().any(|t| t.write != k.write && t.name == k.name)).count();
+        for (id, w, other, theirs) in &others {
+            let (id, w, other) = (*id, *w, *other);
             let consumer = touched.iter().filter(|k| k.write)
-                .find_map(|k| theirs.iter().find(|t| !t.write && t.name == k.name).map(|t| (other, t, other, symbol)));
+                .filter_map(|k| theirs.iter().find(|t| !t.write && t.name == k.name).map(|t| (other, t, other, symbol, sharers(k))))
+                .min_by_key(|link| link.4);
             let dependency = touched.iter().filter(|k| !k.write)
-                .find_map(|k| theirs.iter().any(|t| t.write && t.name == k.name).then_some((symbol, k, symbol, other)));
+                .filter_map(|k| theirs.iter().any(|t| t.write && t.name == k.name).then_some((symbol, k, symbol, other, sharers(k))))
+                .min_by_key(|link| link.4);
             for (reason, link) in [("potential_consumer", consumer), ("dependency", dependency)] {
-                let Some((at, k, reader, writer)) = link else { continue };
+                let Some((at, k, reader, writer, n)) = link else { continue };
                 out.push((id.clone(), json!({"reason":reason,"path":[seed,id],"steps":[{
                     "relation":"uses_key","source_file":at.file,"source_location":format!("L{}", line_of(head, &at.file, k.start)),
                     "byte_start":k.start,"byte_end":k.end,"spelling":k.name,"caller":key(w,&reader.key),"callee":key(w,&writer.key),
-                    "discarded_error":false,"evidence":"string_key"}]})));
+                    "discarded_error":false,"evidence":"string_key","sharers":n}]})));
             }
         }
     }

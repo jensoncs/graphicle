@@ -1517,6 +1517,22 @@ mod tests {
     }
 
     #[test]
+    fn a_key_link_says_how_many_declarations_share_the_key() {
+        // siren #185/#188: "error" and "verdict" are read all over the
+        // module; a reader of one is weaker evidence than of "drop_inf".
+        let parse = |extra: &str| format!("def parse(raw):\n    return {{\n        \"expr\": raw[\"expr\"],\n{extra}    }}\n");
+        let usage = "def keep(rule):\n    return rule.get(\"drop_inf\")\n\n\ndef a(r):\n    return r[\"error\"]\n\n\ndef b(r):\n    return r.get(\"error\")\n\n\ndef c(r):\n    return \"error\" in r\n";
+        let files = |rules: String| input(&[("repo/svc/rules.py", rules.as_str()), ("repo/svc/use.py", usage)]);
+        let r = report(&files(parse("")), &files(parse("        \"drop_inf\": 1,\n        \"error\": 2,\n")));
+        let sharers = |name: &str| {
+            let e = r["entries"].as_array().unwrap().iter().find(|e| e["side"] == "head" && e["name"] == name).unwrap_or_else(|| panic!("{name}: {r}"));
+            e["reasons"].as_array().unwrap().iter().find(|x| x["steps"][0]["relation"] == "uses_key").map(|x| x["steps"][0]["sharers"].clone())
+        };
+        assert_eq!(sharers("keep"), Some(json!(1)));
+        assert_eq!((sharers("a"), sharers("b"), sharers("c")), (Some(json!(3)), Some(json!(3)), Some(json!(3))));
+    }
+
+    #[test]
     fn python_imports_include_unchanged_consumers_without_claiming_calls() {
         let caller = "from tax import calculate\ncalculate = replacement\ndef run():\n    return calculate()\n";
         let base = input(&[
