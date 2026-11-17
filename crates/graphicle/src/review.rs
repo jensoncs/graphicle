@@ -879,9 +879,9 @@ fn add_reason(reasons: &mut Vec<Value>, reason: Value) {
 /// The changed call sites an entry's window keeps. A file entry keeps only
 /// those outside the file's declarations: a call inside a function is that
 /// function's entry's to show (siren #188).
-fn own_calls(sites: &[(usize, usize)], kind: &str, declarations: &[(usize, usize)]) -> Vec<(usize, usize)> {
+fn own_calls(sites: &[(usize, usize)], declarations: &[(usize, usize)]) -> Vec<(usize, usize)> {
     sites.iter().copied()
-        .filter(|&(a, _)| kind != "basic_file" || !declarations.iter().any(|&(x, y)| x <= a && a < y))
+        .filter(|&(a, _)| !declarations.iter().any(|&(x, y)| x <= a && a < y))
         .collect()
 }
 
@@ -1493,6 +1493,10 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     ] {
         let bindings:BTreeMap<_,_>=analysis.packages.iter().map(|p|((s(p,"consumer_build"),s(p,"path")),json!({"instance":p["instance"],"content_instance":p["content_instance"],"consumer_build":p["consumer_build"],"module":p["module"],"version":p["version"],"replacement":p["replacement"]}))).collect();
         let changed_calls = if side == "head" { changed_call_sites(analysis, &selection) } else { BTreeMap::new() };
+        let seeds: Vec<&Symbol> = selection.iter()
+            .filter(|(_, reasons)| reasons.iter().any(|r| r["reason"] == "change_seed"))
+            .filter_map(|(id, _)| analysis.symbols.get(id).map(|(_, s)| s)).collect();
+        let seeds: Vec<(String, usize, usize)> = seeds.iter().map(|s| (s.file.clone(), s.start, s.end)).collect();
         for (id, reasons) in selection {
             let (world, symbol) = &analysis.symbols[&id];
             let mut value = entry(
@@ -1510,11 +1514,20 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             }
             let sites: Vec<_> = changed_calls.get(&symbol.file).into_iter().flatten().copied()
                 .filter(|&(a, b)| symbol.start <= a && b <= symbol.end).collect();
-            let declarations: Vec<_> = analysis.symbols.values()
-                .filter(|(_, other)| other.file == symbol.file && other.kind != symbol.kind)
-                .map(|(_, other)| (other.start, other.end)).collect();
-            let inside: Vec<_> = own_calls(&sites, &symbol.kind, &declarations).into_iter().map(|(a, b)| json!([a, b])).collect();
-            if symbol.kind == "basic_file" && !declarations.is_empty() {
+            // What another entry shows: a file entry's declarations, and a
+            // declaration's nested changed declarations (atlas-backstage #1046:
+            // a component re-showed its changed render helpers' windows).
+            let declarations: Vec<_> = if symbol.kind == "basic_file" {
+                analysis.symbols.values()
+                    .filter(|(_, other)| other.file == symbol.file && other.kind != symbol.kind)
+                    .map(|(_, other)| (other.start, other.end)).collect()
+            } else {
+                seeds.iter()
+                    .filter(|(file, a, b)| *file == symbol.file && symbol.start <= *a && *b <= symbol.end && (*a, *b) != (symbol.start, symbol.end))
+                    .map(|&(_, a, b)| (a, b)).collect()
+            };
+            let inside: Vec<_> = own_calls(&sites, &declarations).into_iter().map(|(a, b)| json!([a, b])).collect();
+            if !declarations.is_empty() {
                 value["_declarations"] = json!(declarations.iter().map(|&(a, b)| json!([a, b])).collect::<Vec<_>>());   // never on the wire
             }
             if !inside.is_empty() && is_head_change(&value) {
@@ -2090,7 +2103,7 @@ fn pack_encoding(
                 (1, 0)
             } else if entry_distance(entry) == usize::MAX {
                 (2, 0)
-            } else if keys::is_test(s(entry, "file")) {
+            } else if keys::is_test(s(entry, "file")) || import_only(entry) {
                 // Test code after production context, before what the diff
                 // covers (siren #187: a test file's window and its helpers took
                 // the packet ahead of the readers of the key the change added).
@@ -2613,6 +2626,21 @@ fn is_call_consumer(entry: &Value) -> bool {
                     })
             })
         })
+}
+
+/// Linked to the change by the import graph or configuration scope alone, no
+/// call or use of a declaration: a barrel, a package.json, an app's route list
+/// (atlas-backstage #1046: these filled the packet before the client methods
+/// the changed components call).
+fn import_only(entry: &Value) -> bool {
+    entry["reasons"].as_array().is_some_and(|rs| {
+        !rs.is_empty()
+            && rs.iter().all(|r| {
+                r["steps"].as_array().is_some_and(|st| {
+                    !st.is_empty() && st.iter().all(|st| matches!(st["relation"].as_str(), Some("potential_import" | "configuration_scope")))
+                })
+            })
+    })
 }
 
 fn uses_key(entry: &Value) -> bool {
@@ -3303,8 +3331,8 @@ mod tests {
         // and every metrics.* call inside its functions windowed 184 of 287 lines.
         let sites = [(5, 9), (40, 44), (90, 94), (118, 124)];   // the last ends past its declaration's end
         let declarations = [(30, 60), (80, 120)];
-        assert_eq!(own_calls(&sites, "basic_file", &declarations), vec![(5, 9)]);
-        assert_eq!(own_calls(&sites, "function", &declarations), sites.to_vec(), "a declaration keeps its own");
+        assert_eq!(own_calls(&sites, &declarations), vec![(5, 9)]);
+        assert_eq!(own_calls(&sites, &[]), sites.to_vec(), "a declaration keeps its own");
     }
 
     #[test]
@@ -3588,6 +3616,23 @@ mod tests {
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
         assert_eq!(packet["context_order"], json!(["reader", "tests", "helper"]));
+    }
+
+    #[test]
+    fn a_file_reached_only_by_imports_ranks_after_the_code_calls_reach() {
+        // atlas-backstage #1046: barrels, package.json and App.tsx, linked by
+        // imports alone, took the packet ahead of the client methods the
+        // changed components call.
+        let body = "a\nb\nc\nd\n";
+        let report = json!({"entries":[
+            {"id":"barrel","revision":"r","side":"head","kind":"basic_file","file":"a/index.ts","text":body,"reasons":[{"reason":"dependency","path":["s","barrel"],"steps":[{"relation":"potential_import"}]},
+                {"reason":"dependency","path":["s","barrel"],"steps":[{"relation":"configuration_scope"}]}]},
+            {"id":"client","revision":"r","side":"head","kind":"method","file":"api/iam.ts","text":body,"reasons":[{"reason":"dependency","path":["s","client"],"steps":[{"relation":"may_call"}]}]},
+            {"id":"used","revision":"r","side":"head","kind":"basic_file","file":"api/q.sql","text":body,"reasons":[{"reason":"dependency","path":["s","used"],"steps":[{"relation":"potential_import"},{"relation":"uses_table"}]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["client", "used", "barrel"]));
     }
 
     #[test]

@@ -802,7 +802,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                 "lua"=>"Top-level functions are declarations; a call by a declared name links its caller to it within the file, and require links to the one source ending in the module path; metatables, upvalues, dynamic requires and host APIs (Envoy, nginx) are not resolved",
                 "c"|"cpp"=>"File level; #include \"...\" links to the header beside the file or the one source ending in that path; include paths, macros, system headers and calls are not resolved",
                 "hcl"=>"File level; literal paths in the file link to snapshot files; HCL evaluation and tool-specific semantics (Terragrunt, Packer, Nomad) are not resolved",
-                "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates, calls bound by name through a visible declaration or explicit import, and, in repositories within 64 MiB of sources, calls the oxc binder resolves (new, and methods on a receiver typed by an annotation or made by new); node_modules, package exports, CommonJS require, dynamic import(), bundler aliases, JSX, callbacks and untyped receivers are not resolved",
+                "typescript"|"javascript"=>"Relative and tsconfig/jsconfig path import candidates, calls bound by name through a visible declaration or explicit import, and, in repositories within 64 MiB of sources, calls the oxc binder resolves (new, and methods on a receiver typed by an annotation, made by new, or from a Backstage useApi ref or a hook returning one; an interface binds to the one class implementing it); node_modules, package exports, CommonJS require, dynamic import(), bundler aliases, JSX, callbacks and untyped receivers are not resolved",
                 _=>"Local module candidates and calls bound by name through a visible declaration or explicit import only; Cargo resolution, cfg, macros, build scripts, method calls and trait dispatch are not resolved"
             }})));
     }
@@ -1468,6 +1468,20 @@ mod tests {
         let file = r["entries"].as_array().unwrap().iter().find(|e| e["side"] == "head" && e["kind"] == "basic_file").unwrap_or_else(|| panic!("{r}"));
         let run_at = module("2").find("def run").unwrap();
         assert!(file["_declarations"].as_array().is_some_and(|d| d.iter().any(|p| p[0].as_u64() == Some(run_at as u64))), "{file}");
+    }
+
+    #[test]
+    fn a_declaration_leaves_its_nested_changed_declarations_to_their_own_entries() {
+        // atlas-backstage #1046: KeySystemsDialog re-showed the changes inside
+        // renderRow and runAsync, each also an entry: 9.7 of a 25.8 KB block.
+        let module = |v: &str| format!("export const Dialog = () => {{\n  const a = 1;\n  const renderRow = () => {{\n    return {v};\n  }};\n  return renderRow();\n}};\n");
+        let repo = |v: &str| input(&[("repo/ui/Dialog.tsx", module(v).as_str())]);
+        let r = report(&repo("1"), &repo("2"));
+        let named = |name: &str| r["entries"].as_array().unwrap().iter().find(|e| e["side"] == "head" && e["name"] == name).cloned().unwrap_or_else(|| panic!("{name}: {r}"));
+        let row_at = module("2").find("renderRow = ").unwrap();
+        let dialog = named("Dialog");
+        assert!(dialog["_declarations"].as_array().is_some_and(|d| d.iter().any(|p| p[0].as_u64() <= Some(row_at as u64) && p[1].as_u64() > Some(row_at as u64))), "{dialog}");
+        assert!(named("Dialog.renderRow").get("_declarations").is_none());
     }
 
     #[test]
