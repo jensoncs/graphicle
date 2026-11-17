@@ -27,7 +27,7 @@ const AROUND: usize = 5;
 /// A skipped run this short costs more as a marker than as its lines.
 const FILL_GAP: usize = 3;
 /// A caller's call site needs the logic around it, not only its line.
-const CALLER_AROUND: usize = 15;
+const CALLER_AROUND: usize = 5;
 /// ponytail: lexical def-use, not data flow: at most this many calls per
 /// declaration that receive a value assigned on a changed line. A real def-use
 /// graph per language would replace it.
@@ -99,6 +99,74 @@ fn has_word(line: &str, word: &str) -> bool {
     line.match_indices(word).any(|(i, _)| !ident(line[..i].chars().last()) && !ident(line[i + word.len()..].chars().next()))
 }
 
+/// A definition and the guard after it, at most this many lines each.
+const CONTEXT_SPAN: usize = 12;
+/// Names per anchor whose last write is kept.
+const CONTEXT_NAMES: usize = 4;
+
+fn depth(line: &str) -> i64 {
+    line.chars().map(|c| match c { '(' | '{' | '[' => 1, ')' | '}' | ']' => -1, _ => 0 }).sum()
+}
+
+fn opens_block(line: &str) -> bool {
+    let t = line.trim();
+    t.ends_with('{') || t.ends_with(':') && ["if ", "for ", "while ", "def ", "with ", "try", "elif ", "else", "class "].iter().any(|k| t.starts_with(k))
+}
+
+/// Lines (indexes) before each anchor that a reader needs to judge it,
+/// lexically: the enclosing block headers, and for up to CONTEXT_NAMES names
+/// it uses the nearest earlier line that writes the name, through its
+/// closing bracket, with the `if` guard right after it (argus #111:
+/// `githubSvc, err := github.New(` and its panic; `triggerOpts := &Opts{`).
+fn context_lines(lines: &[&str], anchors: &[usize]) -> BTreeSet<usize> {
+    let mut out = BTreeSet::new();
+    for &i in anchors {
+        let mut level = indent(lines[i]);
+        for k in (0..i).rev() {
+            if level == 0 {
+                break;
+            }
+            if !lines[k].trim().is_empty() && indent(lines[k]) < level && opens_block(lines[k]) {
+                out.insert(k);
+                level = indent(lines[k]);
+            }
+        }
+        let names: Vec<&str> = lines[i].split(|c: char| !(c.is_alphanumeric() || c == '_'))
+            .filter(|w| w.len() >= 3 && !w.starts_with(|c: char| c.is_ascii_digit()) && !NOT_NAMES.contains(w)).collect();
+        let mut found = 0;
+        for name in names {
+            if found == CONTEXT_NAMES {
+                break;
+            }
+            let Some(k) = (0..i).rev().find(|&k| !is_comment(lines[k]) && written(lines[k]).contains(&name)) else { continue };
+            found += 1;
+            let mut end = k;
+            let mut open = depth(lines[k]);
+            while open > 0 && end + 1 < i && end - k < CONTEXT_SPAN {
+                end += 1;
+                open += depth(lines[end]);
+            }
+            out.extend(k..=end);
+            let guard = end + 1;
+            // Every name the line assigns, err and ok included: the guard tests those.
+            let wrote: Vec<&str> = lhs(lines[k]).unwrap_or("").split(|c: char| !(c.is_alphanumeric() || c == '_'))
+                .filter(|w| !w.is_empty() && !matches!(*w, "var" | "val" | "let" | "const" | "final" | "auto")).collect();
+            if guard < i && lines[guard].trim_start().starts_with("if ") && wrote.iter().any(|w| has_word(lines[guard], w)) {
+                let base = indent(lines[guard]);
+                let mut last = guard;
+                while last + 1 < i && last - guard < CONTEXT_SPAN && (indent(lines[last + 1]) > base || lines[last + 1].trim().is_empty()) {
+                    last += 1;
+                }
+                if last + 1 < i && indent(lines[last + 1]) == base && lines[last + 1].trim_start().starts_with('}') {
+                    last += 1;
+                }
+                out.extend(guard..=last);
+            }
+        }
+    }
+    out
+}
+
 /// Shows skipped runs of FILL_GAP lines or fewer: a marker costs more.
 fn fill(keep: &mut [bool]) {
     let mut gap = 0;
@@ -135,8 +203,8 @@ fn cut(entry: &mut Value, spans: &[(usize, usize)], keep: &[bool], policy: &str)
     entry.as_object_mut().unwrap().remove("text");
 }
 
-/// A long caller goes as its first line and CALLER_AROUND lines either side
-/// of each call it is in the packet for (argus #111: two callers of 114 and
+/// A long caller goes as its first line, CALLER_AROUND lines either side of
+/// each call it is in the packet for, and those calls' context_lines (argus #111: two callers of 114 and
 /// 116 lines took 11 KB for one call each).
 fn window_caller(entry: &mut Value, path: &str) {
     let spans = line_spans(entry);
@@ -151,17 +219,25 @@ fn window_caller(entry: &mut Value, path: &str) {
         .collect();
     let mut keep = vec![false; spans.len()];
     keep[0] = true;
+    let mut anchors = vec![];
     for (i, &(a, b)) in spans.iter().enumerate() {
         if sites.iter().any(|&(x, y)| x < b as u64 && (a as u64) < y) {
             keep[i.saturating_sub(CALLER_AROUND)..=(i + CALLER_AROUND).min(spans.len() - 1)].fill(true);
+            anchors.push(i);
         }
     }
-    if keep.iter().filter(|k| **k).count() == 1 {
+    if anchors.is_empty() {
         return;   // no call site inside: send it whole
+    }
+    let lines: Vec<&str> = entry["text"].as_str().unwrap_or("").split_inclusive('\n').collect();
+    if lines.len() == spans.len() {
+        for k in context_lines(&lines, &anchors) {
+            keep[k] = true;
+        }
     }
     fill(&mut keep);
     if !keep.iter().all(|k| *k) {
-        cut(entry, &spans, &keep, "first_line_and_15_around_calls_v1");
+        cut(entry, &spans, &keep, "first_line_5_around_calls_and_their_definitions_v1");
     }
 }
 
@@ -455,6 +531,15 @@ impl Context {
             keep[i] = true;
             needed[i] = true;
         }
+        let text = entry["text"].as_str().unwrap_or("");
+        let lines: Vec<&str> = text.split_inclusive('\n').collect();
+        if lines.len() == spans.len() {
+            let anchors: Vec<usize> = (0..spans.len()).filter(|&i| touched[i] || (needed[i] && !flows.contains(&i))).collect();
+            for k in context_lines(&lines, &anchors) {
+                keep[k] = true;
+                needed[k] = true;
+            }
+        }
         fill(&mut keep);
         if keep.iter().all(|k| *k) {
             return false;
@@ -469,7 +554,7 @@ impl Context {
             return true;
         }
         entry["_provided_diff_mostly_unseen"] = json!(true);
-        cut(entry, &spans, &keep, "first_line_changed_lines_5_around_and_calls_to_changed_v1");
+        cut(entry, &spans, &keep, "first_line_changed_lines_5_around_calls_to_changed_and_definitions_v1");
         false
     }
 
@@ -507,6 +592,8 @@ impl Context {
             flow_spans.entry(path).or_default().extend(lines.iter().map(|&i| spans[i]));
             flows.insert(s(entry, "id").to_owned(), lines);
         }
+        let generated_ids: BTreeSet<String> = report["entries"].as_array().unwrap().iter()
+            .filter(|e| e["_generated"] == json!(true)).map(|e| s(e, "symbol_id").to_owned()).collect();
         for entry in report["entries"].as_array_mut().unwrap() {
             for reason in entry["reasons"].as_array_mut().into_iter().flatten() {
                 let path = reason["path"].as_array().map_or(&[][..], Vec::as_slice);
@@ -520,7 +607,12 @@ impl Context {
             // value a changed line wrote (ranked after).
             let generated = entry["_generated"] == json!(true);
             let reach = |r: &Value| -> u8 {
-                if side != "head" || generated || r["reason"] != "dependency" || !r["path"].as_array().is_some_and(|p| p.len() == 2) {
+                let path = r["path"].as_array().map_or(&[][..], Vec::as_slice);
+                // Or the source a generated callee is generated from: the
+                // query behind a sqlc wrapper (argus #111: ORDER BY).
+                let through_generated = path.len() == 3 && generated_ids.contains(path[1].as_str().unwrap_or(""))
+                    && r["steps"].as_array().and_then(|st| st.last()).is_some_and(|st| st["relation"] == "generated_from");
+                if side != "head" || generated || r["reason"] != "dependency" || !(path.len() == 2 || through_generated) {
                     return 0;
                 }
                 let mut best = 0;
@@ -544,6 +636,22 @@ impl Context {
                 Some(1) => entry["_provided_diff_callee"] = json!(true),
                 Some(_) => entry["_provided_diff_flow_callee"] = json!(true),
                 None => {}
+            }
+            // Linked only by type uses away from the changed lines: the
+            // reviewers judge the change, not every type its code names.
+            let off_change = |st: &Value| {
+                let (Some(a), Some(b)) = (st["byte_start"].as_u64(), st["byte_end"].as_u64()) else { return true };
+                let path = s(st, "source_file");
+                let sha = self.files.get(&(side.clone(), path.to_owned())).map_or("", |f| f.sha.as_str());
+                !self.changed(&exact, &side, path, sha).iter().any(|&(x, y)| (x as u64) < b && a < y as u64)
+            };
+            let reasons = entry["reasons"].as_array().map_or(&[][..], Vec::as_slice);
+            let type_only = !reasons.is_empty() && reasons.iter().all(|r| {
+                matches!(r["reason"].as_str(), Some("dependency" | "potential_consumer"))
+                    && r["steps"].as_array().is_some_and(|st| !st.is_empty() && st.iter().all(|st| st["relation"] == "uses_type" && off_change(st)))
+            });
+            if type_only {
+                entry["_type_only"] = json!(true);
             }
             let side = s(entry, "side");
             let Some(directory) = self
@@ -852,6 +960,31 @@ mod tests {
     }
 
     #[test]
+    fn an_anchor_keeps_where_its_names_were_last_written_and_the_blocks_around_it() {
+        // argus #111: githubSvc's guard sat 82 lines above the changed line
+        // (a nil-client alarm the block could not rule out), and a caller's
+        // triggerOpts literal and for header ended just outside its window.
+        let lines = [
+            "func New(cfg Config) *App {",
+            "\tclient, err := github.New(cfg.Token,",
+            "\t\tcfg.Org)",
+            "\tif err != nil {",
+            "\t\tpanic(err)",
+            "\t}",
+            "\tunrelated := 0",
+            "\tfor _, sd := range subs {",
+            "\t\topts := &Opts{",
+            "\t\t\tTag: sd.Tag,",
+            "\t\t}",
+            "\t\tcount := 1",
+            "\t\tcount = 2",
+            "\t\trepo := newRepo(client, opts, count)",
+        ];
+        let kept: Vec<usize> = context_lines(&lines, &[13]).into_iter().collect();
+        assert_eq!(kept, vec![0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 12]);
+    }
+
+    #[test]
     fn a_name_passed_by_address_on_a_changed_line_is_written_there() {
         // argus #111: resolveChange(ctx, &triggerInfo, ...) fills triggerInfo,
         // which gateExecution receives fourteen lines later.
@@ -886,7 +1019,7 @@ mod tests {
         context_with(vec![("head", 12, 18)]).annotate(&mut r);
         let shown: Vec<_> = r["entries"][1]["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
-        assert_eq!(shown, vec![(60, 60), (135, 165)], "the call on line 150, 15 lines either side");
+        assert_eq!(shown, vec![(60, 60), (145, 155)], "the call on line 150, 5 lines either side (its definitions: none here)");
     }
 
     #[test]
@@ -898,12 +1031,39 @@ mod tests {
         typed["reasons"][0]["steps"][0]["relation"] = json!("uses_type");
         let mut bound = callee("Bind", 13);
         bound["reasons"][0]["steps"][0]["relation"] = json!("references_callable");   // argus #111: Bind: al.bindExecute
-        let mut r = report(vec![callee("gate", 12), callee("other", 30), typed, bound]);
+        // argus #111: the sqlc wrapper is generated; the query it is generated
+        // from (ORDER BY) is what the caller's assumption rests on.
+        let mut wrapper = callee("wrap", 12);
+        wrapper["_generated"] = json!(true);
+        let mut query = callee("query", 12);
+        query["reasons"][0]["path"] = json!(["seed", "wrap", "query"]);
+        query["reasons"][0]["steps"] = json!([wrapper["reasons"][0]["steps"][0], {"relation":"generated_from","source_file":"gen.go"}]);
+        let mut beyond = query.clone();
+        beyond["reasons"][0]["path"] = json!(["seed", "gate", "query"]);   // through a hand-written callee: no
+        let mut r = report(vec![callee("gate", 12), callee("other", 30), typed, bound, wrapper, query, beyond]);
         context_with(vec![("head", 10, 14)]).annotate(&mut r);
+        assert!(r["entries"][4].get("_provided_diff_callee").is_none());
+        assert_eq!(r["entries"][5]["_provided_diff_callee"], json!(true));
+        assert!(r["entries"][6].get("_provided_diff_callee").is_none());
         assert_eq!(r["entries"][0]["_provided_diff_callee"], json!(true));
         assert!(r["entries"][1].get("_provided_diff_callee").is_none());
         assert!(r["entries"][2].get("_provided_diff_callee").is_none(), "argus #111: config types crowded out changed code");
+        assert!(r["entries"][2].get("_type_only").is_none(), "a type a changed line uses stays");
+        assert_eq!(r["entries"][1].get("_type_only"), None, "a call is not a type use");
         assert_eq!(r["entries"][3]["_provided_diff_callee"], json!(true));
+    }
+
+    #[test]
+    fn a_declaration_linked_only_by_a_type_use_away_from_the_change_is_marked() {
+        // argus #111: Constants, GrafanaConfig, DataSourceDefinitions refilled
+        // 7 KB the windows freed, through fields of a changed struct.
+        let (_, at) = lines_file();
+        let typed = |id: &str, line: usize| declaration("head", id, 150, 160, json!([{"reason":"dependency","path":["seed", id],
+            "steps":[{"relation":"uses_type","source_file":"app/code.go","byte_start":at[line - 1] + 1,"byte_end":at[line - 1] + 4}]}]));
+        let mut r = report(vec![typed("far", 40), typed("near", 12)]);
+        context_with(vec![("head", 10, 14)]).annotate(&mut r);
+        assert_eq!(r["entries"][0]["_type_only"], json!(true));
+        assert!(r["entries"][1].get("_type_only").is_none());
     }
 
     #[test]

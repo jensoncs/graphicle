@@ -124,6 +124,7 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
             extra["entries"].as_array().unwrap().len() as u64
                 + c["provided_diff"]["entries"].as_u64().unwrap()
                 + c["provided_diff"]["identical_base_entries"].as_u64().unwrap()
+                + c["provided_diff"]["type_only_entries"].as_u64().unwrap()
                 + c["budget_omitted_entries"].as_u64().unwrap()
         );
     }

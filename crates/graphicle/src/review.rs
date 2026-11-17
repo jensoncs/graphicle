@@ -1800,16 +1800,21 @@ fn pack_encoding(
     let mut mostly_unseen = BTreeSet::new();
     let mut callees = BTreeSet::new();
     let mut flow_callees = BTreeSet::new();
+    let mut type_only = BTreeSet::new();
     for entry in &mut entries {
         let marks = entry.as_object_mut().unwrap();
         marks.remove("_changed_calls");
         marks.remove("_generated");
+        let typed = marks.remove("_type_only");
         let (callee, flow) = (marks.remove("_provided_diff_callee"), marks.remove("_provided_diff_flow_callee"));
         if callee == Some(json!(true)) {
             callees.insert(s(entry, "id").to_owned());
         }
         if flow == Some(json!(true)) {
             flow_callees.insert(s(entry, "id").to_owned());
+        }
+        if typed == Some(json!(true)) {
+            type_only.insert(s(entry, "id").to_owned());
         }
         let marks = entry.as_object_mut().unwrap();
         // A windowed declaration costs its window: it ranks with the changed
@@ -1916,6 +1921,11 @@ fn pack_encoding(
         || !heads.contains(&(s(e, "symbol_id").to_owned(), s(e, "text_sha256").to_owned())));
     if supplemental {
         report["coverage"]["provided_diff"]["identical_base_entries"] = json!(before - entries.len());
+        // Linked only by type uses away from the changed lines (argus #111:
+        // 7 KB of config types refilled the room the windows freed).
+        let before = entries.len();
+        entries.retain(|e| !type_only.contains(s(e, "id")) || is_required_code(e));
+        report["coverage"]["provided_diff"]["type_only_entries"] = json!(before - entries.len());
     }
     let eligible_entries = entries.len();
     let eligible_diffs = diffs.len();
@@ -3446,6 +3456,20 @@ mod tests {
         let ids: BTreeSet<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
         assert_eq!(ids, BTreeSet::from(["head-c", "base-d", "head-d"]));
         assert_eq!(packet["coverage"]["provided_diff"]["identical_base_entries"], 1);
+    }
+
+    #[test]
+    fn a_type_only_link_is_not_sent_in_a_supplemental_packet() {
+        let report = json!({"entries":[
+            {"id":"t","symbol_id":"t","revision":"r","side":"head","text":"type Grafana struct{}","_type_only":true,"reasons":[{"reason":"dependency","path":["s","t"]}]},
+            {"id":"f","symbol_id":"f","revision":"r","side":"head","text":"func f() {}","reasons":[{"reason":"dependency","path":["s","f"]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        let ids: Vec<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
+        assert_eq!(ids, vec!["f"]);
+        assert_eq!(packet["coverage"]["provided_diff"]["type_only_entries"], 1);
+        assert!(!packet.to_string().contains("_type_only"));
     }
 
     #[test]
