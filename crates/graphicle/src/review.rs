@@ -883,7 +883,9 @@ fn changed_call_sites(analysis: &Analysis, selection: &BTreeMap<String, Vec<Valu
         .collect();
     let mut out: BTreeMap<String, Vec<(usize, usize)>> = BTreeMap::new();
     for (world, call) in &analysis.calls {
-        if call.reason.is_empty() && seeds.contains(&(world.as_str(), call.target.as_str())) {
+        // A type use is not a call: naming a changed struct says nothing about
+        // how the change is used (odin #196).
+        if call.reason.is_empty() && call.relation != "uses_type" && seeds.contains(&(world.as_str(), call.target.as_str())) {
             out.entry(call.file.clone()).or_default().push((call.start, call.end));
         }
     }
@@ -3258,6 +3260,36 @@ pub fn properties() -> Value {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_type_use_of_changed_code_is_not_a_changed_call_site() {
+        // odin #196: `new(entity.EntityOpts)` on a handler's first line counted
+        // as a call to the changed struct and marked 31 handlers unseen.
+        let symbol = |key: &str| Symbol {
+            key: key.into(), file: "app/a.go".into(), package: "app".into(), name: key.into(),
+            kind: "function".into(), parent: String::new(), start: 0, end: 1, body_start: 0, line: 1,
+            end_line: 1, revision: String::new(), signature: String::new(), implementation: String::new(),
+            correspondence: String::new(),
+        };
+        let call = |target: &str, relation: &str, start: usize| Call {
+            boundary: Value::Null, caller: "Handler".into(), target: target.into(), target_file: String::new(),
+            target_package: String::new(), target_offset: 0, spelling: target.into(), file: "app/h.go".into(),
+            start, end: start + 4, line: 1, relation: relation.into(), reason: String::new(),
+            evidence: String::new(), discarded_error: false,
+        };
+        let analysis = Analysis {
+            package_diagnostics: BTreeMap::new(), diagnostics: vec![], diagnostic_count: 0,
+            symbols: [("s1".to_string(), ("app".to_string(), symbol("Opts"))), ("s2".to_string(), ("app".to_string(), symbol("Add")))]
+                .into_iter().collect(),
+            calls: vec![("app".into(), call("Opts", "uses_type", 10)), ("app".into(), call("Add", "calls", 50))],
+            packages: vec![], issues: vec![], analyzer: String::new(), toolchain: String::new(), inputs: vec![],
+            raw: None, package_cache: crate::review_cache::PackageResult::default(),
+            services: services::Links::default(), unresolved_callers: BTreeMap::new(),
+        };
+        let seed = vec![json!({"reason": "change_seed"})];
+        let selection: BTreeMap<String, Vec<Value>> = [("s1".to_string(), seed.clone()), ("s2".to_string(), seed)].into_iter().collect();
+        assert_eq!(changed_call_sites(&analysis, &selection)["app/h.go"], vec![(50, 54)]);
+    }
     #[test]
     fn packing_is_independent_of_store_ids_at_budget_boundaries() {
         let report = |hex: &str| {

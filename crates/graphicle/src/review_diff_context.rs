@@ -511,6 +511,18 @@ impl Context {
     fn window(&self, exact: &Exact, entry: &mut Value, path: &str, flows: &[usize]) -> bool {
         let spans = line_spans(entry);
         if spans.len() <= WINDOW_FROM {
+            // Sent whole; unseen code only when a call to changed code or a
+            // flow line is outside the hunks (odin #196: 31 one-line handler
+            // changes outranked the queries the change relies on).
+            let shown = self.ranges(s(entry, "side"), path, s(entry, "file_sha256"));
+            let calls = byte_pairs(&entry["_changed_calls"]);
+            let outside = |&(a, b): &(usize, usize)| !shown.iter().any(|&(x, y)| x <= a && b <= y);
+            let unseen = spans.iter().enumerate().skip(1).any(|(i, &(a, b))| {
+                (flows.contains(&i) || calls.iter().any(|&(x, y)| x < b && a < y)) && outside(&(a, b))
+            });
+            if !unseen {
+                entry.as_object_mut().unwrap().remove("_provided_diff_mostly_unseen");
+            }
             return false;
         }
         let touched = self.touched(exact, entry, path, true);
@@ -1021,6 +1033,23 @@ mod tests {
         let shown: Vec<_> = r["entries"][0]["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
         assert_eq!(shown, vec![(1, 1), (75, 97), (150, 150)], "75-85 and 87-97 joined across the one-line gap at 86");
+    }
+
+    #[test]
+    fn a_short_change_is_unseen_code_only_when_a_call_to_changed_code_is_outside_the_hunks() {
+        // odin #196: 31 handlers each gained one line; their unseen rest was
+        // parse/validate/respond boilerplate and ranked above the SQL callees.
+        let (_, at) = lines_file();
+        let mut quiet = declaration("head", "quiet", 10, 40, json!([{"reason":"change_seed"}]));
+        quiet["_changed_calls"] = json!([[at[20], at[20] + 4]]);   // the call on line 21, inside the hunk
+        let mut loud = declaration("head", "loud", 50, 80, json!([{"reason":"change_seed"}]));
+        loud["_changed_calls"] = json!([[at[74], at[74] + 4]]);    // line 75, outside the hunk
+        let mut r = report(vec![quiet, loud]);
+        r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[at[19], at[20]], [at[54], at[55]]],"_changed_base":[]}]);
+        context_with(vec![("head", 17, 23), ("head", 52, 58)]).annotate(&mut r);
+        assert!(r["entries"][0].get("_provided_diff_mostly_unseen").is_none(), "its unseen lines call nothing changed");
+        assert_eq!(r["entries"][0]["_provided_diff_overlap"], json!(true), "still eligible as overlap");
+        assert_eq!(r["entries"][1]["_provided_diff_mostly_unseen"], json!(true));
     }
 
     #[test]
