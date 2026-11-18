@@ -493,6 +493,7 @@ pub(super) fn edge(
             reason: String::new(),
             evidence: evidence.into(),
             discarded_error: false,
+            error_handling: String::new(),
         },
     ));
 }
@@ -600,7 +601,7 @@ pub(super) fn extend(input: &Input, out: &mut Analysis) -> Result<()> {
                         file:path.clone(),start:operation["byte_start"].as_u64().unwrap_or(0) as usize,end:operation["byte_end"].as_u64().unwrap_or(0) as usize,
                         line:operation["line"].as_u64().unwrap_or(1) as usize,
                         relation:if operation["kind"]=="write"{"writes_environment"}else{"reads_environment"}.into(),
-                        reason:String::new(),evidence:"python_import_binding".into(),discarded_error:false,
+                        reason:String::new(),evidence:"python_import_binding".into(),discarded_error:false,error_handling:String::new(),
                     }));
                 }
             }
@@ -1952,6 +1953,7 @@ mod tests {
                 reason: String::new(),
                 evidence: String::new(),
                 discarded_error: false,
+                error_handling: String::new(),
             })
             .collect();
         out.calls

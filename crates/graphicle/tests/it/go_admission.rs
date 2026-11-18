@@ -431,3 +431,31 @@ fn large_vendor_assets_are_admitted_without_losing_owned_go_impact() {
         "{error}"
     );
 }
+
+#[test]
+fn a_sibling_that_handles_a_callees_error_differently_is_stated_in_the_packet() {
+    // nexus #963: the changed cluster builder returns a failed config read; the
+    // route builder beside it carries on without the configs.
+    let f = Fixture::new();
+    let repo = f.repo("error-sites");
+    let load = "package a\nimport \"errors\"\nfunc Load() (int, error) { return 0, errors.New(\"x\") }\n";
+    let routes = "package a\nfunc Routes() int { n := 0; if v, err := Load(); err == nil { n = v }; return n }\n";
+    let base_files = [
+        ("a/go.mod", "module example/a\ngo 1.23\n"),
+        ("a/load.go", load),
+        ("a/routes.go", routes),
+        ("a/clusters.go", "package a\nfunc Clusters() (int, error) {\n\tv, err := Load()\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\treturn v, nil\n}\n"),
+    ];
+    let base = f.pin(&repo, "app", 'a', &base_files);
+    let mut files = base_files;
+    files[3].1 = "package a\nfunc Clusters() (int, error) {\n\tv, err := Load()\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\treturn v + 1, nil\n}\n";
+    let head = f.pin(&repo, "app", 'b', &files);
+    let packet = f.run(&request(&repo, vec![base], vec![head]));
+    let stated = &packet["error_handling"];
+    assert_eq!(stated.as_array().map(Vec::len), Some(1), "{stated}");
+    let sites: Vec<(String, String)> = stated[0]["sites"].as_array().unwrap().iter()
+        .map(|s| (s["file"].as_str().unwrap().into(), s["handling"].as_str().unwrap().into())).collect();
+    let files: Vec<&str> = packet["entries"].as_array().unwrap().iter().filter_map(|e| e["file"].as_str()).collect();
+    assert!(files.contains(&"a/clusters.go"), "entry files {files:?}");
+    assert_eq!(sites, vec![("a/clusters.go".into(), "returns_on_error".into()), ("a/routes.go".into(), "proceeds_on_error".into())]);
+}

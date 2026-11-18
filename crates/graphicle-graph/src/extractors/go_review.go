@@ -115,6 +115,7 @@ type reviewCall struct {
 	Reason         string          `json:"reason,omitempty"`
 	Evidence       string          `json:"evidence,omitempty"`
 	DiscardedError bool            `json:"discarded_error,omitempty"`
+	ErrorHandling  string          `json:"error_handling,omitempty"`
 }
 type reviewPackage struct {
 	AnalysisRole  string            `json:"analysis_role"`
@@ -1007,6 +1008,7 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 		}
 		directReferences := map[token.Pos]bool{}
 		discarded := discardedErrors(f, info)
+		handling := errorHandling(f, info)
 		ast.Inspect(f, func(n ast.Node) bool {
 			call, ok := n.(*ast.CallExpr)
 			if !ok {
@@ -1028,6 +1030,9 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 			position := l.fset.PositionFor(call.Pos(), false)
 			site := reviewCall{Caller: owner(call.Pos()), File: relative, Start: position.Offset, End: l.fset.PositionFor(call.End(), false).Offset, Line: position.Line, Relation: "calls", Reason: "unresolved_dynamic_target"}
 			site.DiscardedError = valid && discarded[call]
+			if valid {
+				site.ErrorHandling = handling[call]
+			}
 			fun := boundExpression(call.Fun, bindings, info)
 			if index, ok := fun.(*ast.IndexExpr); ok {
 				fun = unparen(index.X)
@@ -1951,4 +1956,174 @@ func cgoGated(dir string, ignored []string, goos, goarch string, tags []string) 
 		}
 	}
 	return false
+}
+
+// errorHandling says, per call with a compiler-typed error result, what the
+// call site does with that error: "discarded" (no error variable, or `_`),
+// "returned" (`return f()`), or, for an error variable the next statement (or
+// the if's own init) tests against nil, "returns_on_error",
+// "continues_on_error", "breaks_on_error", "logs_on_error" (tests it and goes
+// on) or "proceeds_on_error" (uses the result only when err == nil, no else).
+// A site whose error is tested later or elsewhere has no entry. Source evidence
+// only: it says what the code does, not that the callee fails.
+func errorHandling(file *ast.File, info *types.Info) map[*ast.CallExpr]string {
+	out := map[*ast.CallExpr]string{}
+	errorAt := func(expr ast.Expr) (*ast.CallExpr, int, int) {
+		call, ok := unparen(expr).(*ast.CallExpr)
+		if !ok {
+			return nil, -1, 0
+		}
+		sig, ok := info.TypeOf(call.Fun).(*types.Signature)
+		if !ok {
+			return nil, -1, 0
+		}
+		for i := 0; i < sig.Results().Len(); i++ {
+			if types.Identical(sig.Results().At(i).Type(), types.Universe.Lookup("error").Type()) {
+				return call, i, sig.Results().Len()
+			}
+		}
+		return nil, -1, 0
+	}
+	// The error variable an assignment binds from a call, or "_".
+	bound := func(s ast.Stmt) (*ast.CallExpr, string) {
+		as, ok := s.(*ast.AssignStmt)
+		if !ok || len(as.Rhs) != 1 {
+			return nil, ""
+		}
+		call, i, n := errorAt(as.Rhs[0])
+		if call == nil || len(as.Lhs) != n {
+			return nil, ""
+		}
+		id, ok := as.Lhs[i].(*ast.Ident)
+		if !ok {
+			return nil, ""
+		}
+		return call, id.Name
+	}
+	visit := func(list []ast.Stmt) {
+		for i, s := range list {
+			switch s := s.(type) {
+			case *ast.ExprStmt:
+				if call, _, _ := errorAt(s.X); call != nil {
+					out[call] = "discarded"
+				}
+			case *ast.ReturnStmt:
+				if len(s.Results) == 1 {
+					if call, _, _ := errorAt(s.Results[0]); call != nil {
+						out[call] = "returned"
+					}
+				}
+			case *ast.IfStmt:
+				if s.Init != nil {
+					if call, name := bound(s.Init); call != nil {
+						if name == "_" {
+							out[call] = "discarded"
+						} else if h := tested(s, name); h != "" {
+							out[call] = h
+						}
+					}
+				}
+			case *ast.AssignStmt:
+				call, name := bound(s)
+				if call == nil {
+					continue
+				}
+				if name == "_" {
+					out[call] = "discarded"
+				} else if i+1 < len(list) {
+					if h := tested(list[i+1], name); h != "" {
+						out[call] = h
+					}
+				}
+			}
+		}
+	}
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.BlockStmt:
+			visit(n.List)
+		case *ast.CaseClause:
+			visit(n.Body)
+		case *ast.CommClause:
+			visit(n.Body)
+		}
+		return true
+	})
+	return out
+}
+
+// tested is what if-statement s does when error variable name is non-nil, or
+// "" when s does not compare name with nil.
+func tested(s ast.Stmt, name string) string {
+	ifs, ok := s.(*ast.IfStmt)
+	if !ok {
+		return ""
+	}
+	bin, ok := unparen(ifs.Cond).(*ast.BinaryExpr)
+	if !ok {
+		return ""
+	}
+	x, ok1 := unparen(bin.X).(*ast.Ident)
+	y, ok2 := unparen(bin.Y).(*ast.Ident)
+	if !ok1 || !ok2 || x.Name != name || y.Name != "nil" {
+		return ""
+	}
+	switch bin.Op {
+	case token.NEQ:
+		return exits(ifs.Body)
+	case token.EQL:
+		if ifs.Else == nil {
+			return "proceeds_on_error"
+		}
+		return exits(ifs.Else)
+	}
+	return ""
+}
+
+// exits is how a failure branch leaves: the strongest of return (or panic),
+// continue and break it holds. A function literal's return leaves the literal,
+// and a nested loop or switch takes its own break and continue.
+func exits(branch ast.Stmt) string {
+	rank := map[string]int{"logs_on_error": 0, "breaks_on_error": 1, "continues_on_error": 2, "returns_on_error": 3}
+	best := "logs_on_error"
+	raise := func(h string) {
+		if rank[h] > rank[best] {
+			best = h
+		}
+	}
+	var walk func(n ast.Node, nested bool)
+	walk = func(root ast.Node, nested bool) {
+		ast.Inspect(root, func(n ast.Node) bool {
+			if n == root {
+				return true
+			}
+			switch n := n.(type) {
+			case *ast.FuncLit:
+				return false
+			case *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
+				if !nested {
+					walk(n, true)
+					return false
+				}
+			case *ast.ReturnStmt:
+				raise("returns_on_error")
+			case *ast.BranchStmt:
+				if nested || n.Label != nil {
+					break
+				}
+				if n.Tok == token.CONTINUE {
+					raise("continues_on_error")
+				} else if n.Tok == token.BREAK {
+					raise("breaks_on_error")
+				}
+			case *ast.CallExpr:
+				if id, ok := unparen(n.Fun).(*ast.Ident); ok && id.Name == "panic" {
+					raise("returns_on_error")
+				}
+			}
+			return true
+		})
+	}
+	walk(branch, false)
+	return best
 }

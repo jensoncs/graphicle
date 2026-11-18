@@ -51,6 +51,8 @@ pub(crate) mod basic_proto;
 mod basic_refs;
 #[path = "review_keys.rs"]
 mod keys;
+#[path = "review_error_sites.rs"]
+mod error_sites;
 #[path = "review_basic_sql.rs"]
 mod basic_sql;
 #[path = "review_components.rs"]
@@ -205,6 +207,9 @@ struct Call {
     evidence: String,
     #[serde(default)]
     discarded_error: bool,
+    /// Go: what the site does with the callee's error (go_review.go errorHandling).
+    #[serde(default)]
+    error_handling: String,
 }
 #[derive(Deserialize)]
 struct World {
@@ -1519,6 +1524,11 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             json!(correspondence.len()),
         ));
     }
+    let error_handling = {
+        let seeds: BTreeSet<(&str, &str)> = seeds_b.iter().filter_map(|id| b.symbols.get(id))
+            .map(|(world, symbol)| (world.as_str(), symbol.key.as_str())).collect();
+        error_sites::divergence(&b.calls, &seeds, |file| head.sources.get(file).map(|s| s.path.clone()))
+    };
     let mut entries = vec![];
     for (side, input, analysis, selection) in [
         ("base", base, a, selected_a.reasons),
@@ -1628,7 +1638,7 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     let complete = issues.is_empty();
     Ok(
         json!({"format":FORMAT,"base":base.pins,"head":head.pins,"profile":r.profile,"analyzer":a.analyzer,"toolchain":{"base":a.toolchain,"head":b.toolchain},"changes":changes,"correspondence":correspondence,"dependency_binding_changed":dependency_changed,
-        "diffs":diffs,"entries":entries,"file_changes":file_changes,"package_instances":{"base":a.packages,"head":b.packages},"service_graph":{"base":a.services.summary(),"head":b.services.summary()},"coverage":{"complete":complete,"source_admission":{"base":admission_a,"head":admission_b},"analysis_diagnostics":{"base":diagnostics::summary(a,r.max_tokens/32),"head":diagnostics::summary(b,r.max_tokens/32)},"scope":"supplied snapshot set; Go compiler facts and basic Terraform/Helm/Bash/Python/Rust source dependencies","behavioral_propagation_proven":false,"path_selection":"shortest_example_per_direction","issues":issues,"max_depth":r.max_depth},
+        "diffs":diffs,"entries":entries,"error_handling":error_handling,"file_changes":file_changes,"package_instances":{"base":a.packages,"head":b.packages},"service_graph":{"base":a.services.summary(),"head":b.services.summary()},"coverage":{"complete":complete,"source_admission":{"base":admission_a,"head":admission_b},"analysis_diagnostics":{"base":diagnostics::summary(a,r.max_tokens/32),"head":diagnostics::summary(b,r.max_tokens/32)},"scope":"supplied snapshot set; Go compiler facts and basic Terraform/Helm/Bash/Python/Rust source dependencies","behavioral_propagation_proven":false,"path_selection":"shortest_example_per_direction","issues":issues,"max_depth":r.max_depth},
         "impact":if !complete{"incomplete"}else if seeds_a.is_empty()&&seeds_b.is_empty()&&diffs.is_empty()&&!dependency_changed{"no_changes_in_scope"}else{"potential_impact"}}),
     )
 }
@@ -3420,7 +3430,7 @@ mod tests {
             boundary: Value::Null, caller: "Handler".into(), target: target.into(), target_file: String::new(),
             target_package: String::new(), target_offset: 0, spelling: target.into(), file: "app/h.go".into(),
             start, end: start + 4, line: 1, relation: relation.into(), reason: String::new(),
-            evidence: String::new(), discarded_error: false,
+            evidence: String::new(), discarded_error: false, error_handling: String::new(),
         };
         let analysis = Analysis {
             package_diagnostics: BTreeMap::new(), diagnostics: vec![], diagnostic_count: 0,
