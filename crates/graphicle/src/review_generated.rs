@@ -5,12 +5,12 @@
 
 /// Whether `text` carries a generated-code marker in its leading lines: Go's
 /// `// Code generated ... DO NOT EDIT.` or the `@generated` tag other
-/// languages' generators write.
+/// languages' generators write, in a comment.
 pub(super) fn generated(text: &str) -> bool {
     text.lines().take(10).any(|line| {
         let line = line.trim();
         (line.starts_with("// Code generated ") && line.ends_with("DO NOT EDIT."))
-            || line.contains("@generated")
+            || ["//", "#", "/*", "*", "--"].iter().any(|c| line.starts_with(c)) && line.contains("@generated")
     })
 }
 
@@ -25,5 +25,6 @@ mod tests {
         assert!(generated("/**\n * @generated\n */\nexport const a = 1;\n"));
         assert!(!generated("package app\n\n// Code generated elsewhere is not ours\nfunc A() {}\n"));
         assert!(!generated("package app\nfunc A() {}\n"));
+        assert!(!generated("const tag = \"@generated\"\nexport const a = 1;\n"), "a string, not a comment");
     }
 }

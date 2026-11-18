@@ -1291,12 +1291,14 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
         seeds_b.insert(id);
     }
     // A generated declaration is output of a change the diff shows at its
-    // source; reported as changed, it seeds no consumers or callees.
-    let generated_in = |input: &Input, file: &str| {
-        input.sources.get(file).and_then(|s| s.content.text()).is_some_and(generated::generated)
+    // source; reported as changed, it seeds no consumers or callees. Only a
+    // file both sides mark: a marker the change adds hides nothing.
+    let generated_in = |file: &str| {
+        let marked = |input: &Input| input.sources.get(file).and_then(|s| s.content.text()).is_some_and(generated::generated);
+        marked(base) && marked(head)
     };
-    seeds_a.retain(|id| !generated_in(base, &a.symbols[id].1.file));
-    seeds_b.retain(|id| !generated_in(head, &b.symbols[id].1.file));
+    seeds_a.retain(|id| !generated_in(&a.symbols[id].1.file));
+    seeds_b.retain(|id| !generated_in(&b.symbols[id].1.file));
     let files: BTreeSet<_> = base
         .sources
         .keys()
