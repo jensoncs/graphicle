@@ -33,11 +33,11 @@ pub(super) fn divergence(calls: &[(String, Call)], seeds: &BTreeSet<(&str, &str)
         let dir = |f: &str| f.rsplit_once('/').map_or("", |(d, _)| d).to_owned();
         let mut others: Vec<&Call> = sites.iter().copied()
             .filter(|c| !seeds.contains(&(world, c.caller.as_str())))
-            .filter(|c| mine.iter().all(|m| m.error_handling != c.error_handling))
+            .filter(|c| mine.iter().all(|m| kind(&m.error_handling) != kind(&c.error_handling)))
             .collect();
         others.sort_by_key(|c| (c.file != first.file, dir(&c.file) != dir(&first.file), c.file.clone(), c.start));
         let mut kinds = BTreeSet::new();
-        others.retain(|c| kinds.insert(c.error_handling.as_str()));
+        others.retain(|c| kinds.insert(kind(&c.error_handling)));
         if others.is_empty() {
             continue;
         }
@@ -50,6 +50,15 @@ pub(super) fn divergence(calls: &[(String, Call)], seeds: &BTreeSet<(&str, &str)
         }
     }
     out
+}
+
+/// Handlings that agree: passing the failure up, by `return f()`, by returning
+/// the error, or by stopping where there is nothing to return it to.
+fn kind(handling: &str) -> &str {
+    match handling {
+        "returned" | "stops_on_error" => "returns_on_error",
+        other => other,
+    }
 }
 
 #[cfg(test)]
@@ -76,6 +85,9 @@ mod tests {
             call("Clusters", "Same", "b/cluster.go", 140, "returns_on_error"),
             call("Routes", "Same", "b/route.go", 90, "returns_on_error"),   // agrees: nothing to say
             call("Routes", "Unrelated", "b/route.go", 95, "discarded"),   // no changed caller
+            call("Clusters", "Pass", "b/cluster.go", 150, "returns_on_error"),
+            call("Routes", "Pass", "b/route.go", 99, "returned"),   // both pass the failure up
+            call("Handler", "Pass", "h/http.go", 9, "stops_on_error"),   // a handler with nothing to return stops
         ];
         let seeds: BTreeSet<(&str, &str)> = [("app", "Clusters")].into_iter().collect();
         let got = divergence(&calls, &seeds, |f| Some(f.to_owned()));

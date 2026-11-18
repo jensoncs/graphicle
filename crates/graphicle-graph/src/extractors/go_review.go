@@ -1962,7 +1962,9 @@ func cgoGated(dir string, ignored []string, goos, goarch string, tags []string) 
 // call site does with that error: "discarded" (no error variable, or `_`),
 // "returned" (`return f()`), or, for an error variable the next statement (or
 // the if's own init) tests against nil, "returns_on_error",
-// "continues_on_error", "breaks_on_error", "logs_on_error" (tests it and goes
+// "falls_back_on_error" (returns without it), "stops_on_error" (bare return),
+// "continues_on_error",
+// "breaks_on_error", "logs_on_error" (tests it and goes
 // on) or "proceeds_on_error" (uses the result only when err == nil, no else).
 // A site whose error is tested later or elsewhere has no entry. Source evidence
 // only: it says what the code does, not that the callee fails.
@@ -2018,7 +2020,7 @@ func errorHandling(file *ast.File, info *types.Info) map[*ast.CallExpr]string {
 					if call, name := bound(s.Init); call != nil {
 						if name == "_" {
 							out[call] = "discarded"
-						} else if h := tested(s, name); h != "" {
+						} else if h := tested(s, name, info); h != "" {
 							out[call] = h
 						}
 					}
@@ -2031,7 +2033,7 @@ func errorHandling(file *ast.File, info *types.Info) map[*ast.CallExpr]string {
 				if name == "_" {
 					out[call] = "discarded"
 				} else if i+1 < len(list) {
-					if h := tested(list[i+1], name); h != "" {
+					if h := tested(list[i+1], name, info); h != "" {
 						out[call] = h
 					}
 				}
@@ -2054,7 +2056,7 @@ func errorHandling(file *ast.File, info *types.Info) map[*ast.CallExpr]string {
 
 // tested is what if-statement s does when error variable name is non-nil, or
 // "" when s does not compare name with nil.
-func tested(s ast.Stmt, name string) string {
+func tested(s ast.Stmt, name string, info *types.Info) string {
 	ifs, ok := s.(*ast.IfStmt)
 	if !ok {
 		return ""
@@ -2070,21 +2072,48 @@ func tested(s ast.Stmt, name string) string {
 	}
 	switch bin.Op {
 	case token.NEQ:
-		return exits(ifs.Body)
+		return exits(ifs.Body, name, info)
 	case token.EQL:
 		if ifs.Else == nil {
 			return "proceeds_on_error"
 		}
-		return exits(ifs.Else)
+		return exits(ifs.Else, name, info)
 	}
 	return ""
 }
 
 // exits is how a failure branch leaves: the strongest of return (or panic),
-// continue and break it holds. A function literal's return leaves the literal,
-// and a nested loop or switch takes its own break and continue.
-func exits(branch ast.Stmt) string {
-	rank := map[string]int{"logs_on_error": 0, "breaks_on_error": 1, "continues_on_error": 2, "returns_on_error": 3}
+// continue and break it holds. A return passes the failure on when a result
+// names the error variable or is another non-nil error ("returns_on_error");
+// any other return hands back a fallback without it ("falls_back_on_error",
+// argus #111: a failed query read as "nothing deployed yet"); a bare return
+// stops ("stops_on_error", an HTTP handler that has answered). A function
+// literal's return leaves the literal, and a nested loop or switch takes its
+// own break and continue.
+func exits(branch ast.Stmt, name string, info *types.Info) string {
+	rank := map[string]int{"logs_on_error": 0, "breaks_on_error": 1, "continues_on_error": 2, "falls_back_on_error": 3, "stops_on_error": 4, "returns_on_error": 5}
+	errType := types.Universe.Lookup("error").Type()
+	carries := func(r *ast.ReturnStmt) bool {
+		for _, e := range r.Results {
+			if id, ok := unparen(e).(*ast.Ident); ok && id.Name == "nil" {
+				continue
+			}
+			if t := info.TypeOf(e); t != nil && types.Implements(t, errType.Underlying().(*types.Interface)) {
+				return true
+			}
+			found := false
+			ast.Inspect(e, func(n ast.Node) bool {
+				if id, ok := n.(*ast.Ident); ok && id.Name == name {
+					found = true
+				}
+				return !found
+			})
+			if found {
+				return true
+			}
+		}
+		return false
+	}
 	best := "logs_on_error"
 	raise := func(h string) {
 		if rank[h] > rank[best] {
@@ -2106,7 +2135,13 @@ func exits(branch ast.Stmt) string {
 					return false
 				}
 			case *ast.ReturnStmt:
-				raise("returns_on_error")
+				if len(n.Results) == 0 {
+					raise("stops_on_error")
+				} else if carries(n) {
+					raise("returns_on_error")
+				} else {
+					raise("falls_back_on_error")
+				}
 			case *ast.BranchStmt:
 				if nested || n.Label != nil {
 					break

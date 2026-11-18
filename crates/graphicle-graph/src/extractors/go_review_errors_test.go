@@ -14,7 +14,10 @@ import (
 // failed config read, a sibling builds routes without the configs).
 func TestEachCallSiteSaysWhatItDoesWithTheError(t *testing.T) {
 	const src = `package app
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 func Load() (int, error) { return 0, errors.New("x") }
 func log(error) {}
 func returns() (int, error) { v, err := Load(); if err != nil { return 0, err }; return v, nil }
@@ -25,6 +28,10 @@ func logs() { _, err := Load(); if err != nil { log(err) } }
 func drops() { v, _ := Load(); _ = v }
 func ignores() { Load() }
 func elsewhere() { _, err := Load(); _ = 1; _ = err }
+func wraps() (int, error) { v, err := Load(); if err != nil { return 0, fmt.Errorf("load: %w", err) }; return v, nil }
+func replaces() (int, error) { v, err := Load(); if err != nil { return 0, errors.New("no load") }; return v, nil }
+func fallsBack() string { _, err := Load(); if err != nil { log(err); return "" }; return "x" }
+func stops() { _, err := Load(); if err != nil { return } }
 `
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "app.go", src, 0)
@@ -52,7 +59,8 @@ func elsewhere() { _, err := Load(); _ = 1; _ = err }
 		})
 	}
 	want := map[string]string{"returns": "returns_on_error", "forwards": "returned", "proceeds": "proceeds_on_error",
-		"continues": "continues_on_error", "logs": "logs_on_error", "drops": "discarded", "ignores": "discarded", "elsewhere": ""}
+		"continues": "continues_on_error", "logs": "logs_on_error", "drops": "discarded", "ignores": "discarded", "elsewhere": "",
+		"wraps": "returns_on_error", "replaces": "returns_on_error", "fallsBack": "falls_back_on_error", "stops": "stops_on_error"}
 	for name, w := range want {
 		if got[name] != w {
 			t.Errorf("%s: got %q, want %q", name, got[name], w)
