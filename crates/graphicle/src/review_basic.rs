@@ -1280,7 +1280,8 @@ fn sql_tables(
         let mut touching = BTreeMap::<String, Vec<&str>>::new();
         for file in files
             .keys()
-            .filter(|p| p.ends_with(".sql") && super::basic_sql::under(p, &config.schema))
+            // A down migration only undoes an up migration the snapshot also holds.
+            .filter(|p| p.ends_with(".sql") && !p.ends_with(".down.sql") && super::basic_sql::under(p, &config.schema))
         {
             let content = input.sources[file].content.text().unwrap_or("");
             for table in super::basic_sql::touched(content) {
@@ -1298,14 +1299,17 @@ fn sql_tables(
                 if !declared.contains(&caller) {
                     continue;
                 }
-                let migrations: BTreeSet<&str> =
-                    super::basic_sql::used(&content[q.body_start..q.end])
-                        .iter()
-                        .filter_map(|t| touching.get(t))
-                        .flatten()
-                        .copied()
-                        .collect();
-                for migration in migrations {
+                // Each migration with the tables it shares with the query: the
+                // edge spells them, so a reader (and the window) knows which
+                // statements of a long schema file it is for.
+                let mut migrations = BTreeMap::<&str, Vec<&str>>::new();
+                let used = super::basic_sql::used(&content[q.body_start..q.end]);
+                for t in &used {
+                    for migration in touching.get(t).into_iter().flatten() {
+                        migrations.entry(*migration).or_default().push(t);
+                    }
+                }
+                for (migration, tables) in migrations {
                     edge(
                         out,
                         (file, &caller),
@@ -1315,6 +1319,9 @@ fn sql_tables(
                         q.line,
                         q.start..q.body_start,
                     );
+                    if let Some((_, call)) = out.calls.last_mut().filter(|(_, c)| c.relation == "uses_table") {
+                        call.spelling = tables.join(",");
+                    }
                 }
             }
         }
@@ -1749,6 +1756,7 @@ mod tests {
                     "CREATE TABLE IF NOT EXISTS users (id int);\nCREATE TABLE \"orders\" (id int);\n",
                 ),
                 ("repo/db/migrations/002_email.up.sql", migration),
+                ("repo/db/migrations/002_email.down.sql", "ALTER TABLE users DROP COLUMN email;\n"),
                 (
                     "repo/db/queries/users.sql",
                     "-- name: GetUser :one\nSELECT * FROM users WHERE id = $1;\n",
@@ -1777,6 +1785,10 @@ mod tests {
         assert!(uses(&get_user, "repo/db/migrations/001_init.up.sql"));
         assert!(uses(&list_orders, "repo/db/migrations/001_init.up.sql"));
         assert!(!uses(&list_orders, "repo/db/migrations/002_email.up.sql"));
+        // A down migration only undoes; the edge names the tables it links by.
+        assert!(!uses(&get_user, "repo/db/migrations/002_email.down.sql"));
+        assert!(a.calls.iter().any(|(_, c)| c.relation == "uses_table" && c.caller == get_user
+            && c.target_file == "repo/db/migrations/001_init.up.sql" && c.spelling == "users"));
         let r = report(&base, &head);
         assert!(selected(&r, "head", "db/queries/users.sql"), "{r}");
         assert!(!selected(&r, "head", "db/queries/orders.sql"));

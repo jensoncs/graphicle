@@ -53,6 +53,8 @@ mod basic_refs;
 mod keys;
 #[path = "review_error_sites.rs"]
 mod error_sites;
+#[path = "review_generated.rs"]
+mod generated;
 #[path = "review_basic_sql.rs"]
 mod basic_sql;
 #[path = "review_components.rs"]
@@ -1288,6 +1290,13 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
         changes.push(json!({"kind":"added","head":id}));
         seeds_b.insert(id);
     }
+    // A generated declaration is output of a change the diff shows at its
+    // source; reported as changed, it seeds no consumers or callees.
+    let generated_in = |input: &Input, file: &str| {
+        input.sources.get(file).and_then(|s| s.content.text()).is_some_and(generated::generated)
+    };
+    seeds_a.retain(|id| !generated_in(base, &a.symbols[id].1.file));
+    seeds_b.retain(|id| !generated_in(head, &b.symbols[id].1.file));
     let files: BTreeSet<_> = base
         .sources
         .keys()

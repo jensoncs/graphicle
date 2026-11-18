@@ -241,6 +241,37 @@ fn window_caller(entry: &mut Value, path: &str) {
     }
 }
 
+/// A schema file reached by a query's `uses_table` link goes as the statements
+/// that create or change the tables the link names, not the whole file
+/// (platform-rbac #638: a 549-line initial schema for one table).
+fn window_schema(entry: &mut Value) {
+    let tables: BTreeSet<String> = entry["reasons"].as_array().into_iter().flatten()
+        .flat_map(|r| r["steps"].as_array().cloned().unwrap_or_default())
+        .filter(|st| st["relation"] == "uses_table")
+        .flat_map(|st| s(&st, "spelling").split(',').map(str::to_owned).collect::<Vec<_>>())
+        .filter(|t| !t.is_empty())
+        .collect();
+    let spans = line_spans(entry);
+    if tables.is_empty() || spans.is_empty() {
+        return;
+    }
+    let lines: Vec<String> = entry["text"].as_str().unwrap_or("").split_inclusive('\n').map(str::to_owned).collect();
+    let mut keep = vec![false; spans.len()];
+    let mut start = 0;
+    for i in 0..lines.len() {
+        if lines[i].trim_end().ends_with(';') || i + 1 == lines.len() {
+            let statement: String = lines[start..=i].concat();
+            if super::basic_sql::touched(&statement).iter().any(|t| tables.contains(t)) {
+                keep[start..=i].fill(true);
+            }
+            start = i + 1;
+        }
+    }
+    if keep.iter().any(|k| *k) && !keep.iter().all(|k| *k) {
+        cut(entry, &spans, &keep, "statements_of_the_linked_tables_v1");
+    }
+}
+
 fn indent(line: &str) -> usize {
     line.len() - line.trim_start().len()
 }
@@ -730,6 +761,7 @@ impl Context {
                     entries += 1;
                 }
             } else {
+                window_schema(entry);
                 window_caller(entry, &path);
             }
         }
@@ -840,6 +872,22 @@ mod tests {
 
     fn report(entries: Vec<Value>) -> Value {
         json!({"entries":entries,"diffs":[],"coverage":{}})
+    }
+
+    #[test]
+    fn a_schema_file_reached_by_a_query_shows_only_the_statements_of_its_tables() {
+        // platform-rbac #638: a uses_table link sent a 549-line initial schema (20.6 KB) for one table.
+        let text = "CREATE TABLE users (\n  id int,\n  email text\n);\n\nCREATE TABLE orders (\n  id int\n);\nCREATE INDEX users_email ON users (email);\nALTER TABLE orders ADD COLUMN total int;\n";
+        let mut entry = json!({"kind":"basic_file","file":"db/migrations/001_init.up.sql","line":1,"byte_start":0,"byte_end":text.len(),"text":text,
+            "reasons":[{"reason":"dependency","steps":[{"relation":"potential_import"},{"relation":"uses_table","spelling":"users"}]}]});
+        window_schema(&mut entry);
+        let shown: Vec<_> = entry["excerpts"].as_array().unwrap().iter()
+            .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
+        assert_eq!(shown, vec![(1, 4), (9, 9)], "{entry}");
+        let mut other = json!({"kind":"basic_file","file":"db/q.sql","line":1,"byte_start":0,"byte_end":text.len(),"text":text,
+            "reasons":[{"reason":"dependency","steps":[{"relation":"calls","spelling":"users"}]}]});
+        window_schema(&mut other);
+        assert!(other.get("text").is_some(), "no uses_table link: left whole");
     }
 
     #[test]
