@@ -162,6 +162,28 @@ type reviewCollector struct {
 	world              *reviewWorld
 	concreteTypes      []*types.Named
 	interfaceCalls     []interfaceCall
+	standard           map[string]bool
+}
+
+// standardLibrary reports whether method is declared by the built-in error
+// interface or a standard-library package. A value of such an interface is
+// mostly the standard library's own (nexus #943: `fnv.New32a()` linked to
+// every Write in the repository), so its calls stay unexpanded.
+func (r *reviewCollector) standardLibrary(method *types.Func) bool {
+	if method.Pkg() == nil {
+		return true
+	}
+	path := method.Pkg().Path()
+	if known, ok := r.standard[path]; ok {
+		return known
+	}
+	p, err := build.Default.Import(path, "", build.FindOnly)
+	std := err == nil && p.Goroot
+	if r.standard == nil {
+		r.standard = map[string]bool{}
+	}
+	r.standard[path] = std
+	return std
 }
 
 // Keep actionable compiler evidence separately from per-reference limitations.
@@ -1126,7 +1148,9 @@ func (r *reviewCollector) collect(l *loader, m *metadata, files []*ast.File, inf
 			if valid && site.Caller != "" && dynamic && contract != nil {
 				if method, ok := obj.(*types.Func); ok {
 					site.Reason = "interface_dispatch"
-					r.interfaceCalls = append(r.interfaceCalls, interfaceCall{len(r.world.Calls), contract, method})
+					if !r.standardLibrary(method) {
+						r.interfaceCalls = append(r.interfaceCalls, interfaceCall{len(r.world.Calls), contract, method})
+					}
 				}
 			} else if valid && site.Caller != "" && site.TargetFile == "" && site.Boundary == nil {
 				candidates, limited := flow.candidates(call.Fun)

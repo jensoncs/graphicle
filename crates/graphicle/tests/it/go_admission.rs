@@ -491,3 +491,20 @@ fn a_marker_the_change_adds_does_not_hide_a_files_consumers() {
         .filter(|e| e["side"] == "head").filter_map(|e| e["file"].as_str()).collect();
     assert!(head_files.contains(&"a/shut.go"), "head entry files {head_files:?}");
 }
+
+#[test]
+fn a_call_on_a_standard_library_interface_does_not_fan_out_to_the_repositorys_methods() {
+    // nexus #943: `h := fnv.New32a(); h.Write(b)` was linked to every Write
+    // method in the repository; the value is the standard library's own.
+    let f = Fixture::new();
+    let repo = f.repo("stdlib-interface");
+    let sum = |n: &str| format!("package a\nimport \"hash/fnv\"\nfunc Sum(b []byte) uint32 {{\n\th := fnv.New32a()\n\t_, _ = h.Write(b)\n\treturn h.Sum32() + {n}\n}}\n");
+    let writer = "package a\ntype Log struct{ n int }\nfunc (l *Log) Write(p []byte) (int, error) { l.n += len(p); return len(p), nil }\n";
+    let (old, new) = (sum("0"), sum("1"));
+    let base = f.pin(&repo, "app", 'a', &[("a/go.mod", "module example/a\ngo 1.23\n"), ("a/sum.go", &old), ("a/log.go", writer)]);
+    let head = f.pin(&repo, "app", 'b', &[("a/go.mod", "module example/a\ngo 1.23\n"), ("a/sum.go", &new), ("a/log.go", writer)]);
+    let packet = f.run(&request(&repo, vec![base], vec![head]));
+    let files: Vec<&str> = packet["entries"].as_array().unwrap().iter().filter_map(|e| e["file"].as_str()).collect();
+    assert!(files.contains(&"a/sum.go"), "entry files {files:?}");
+    assert!(!files.contains(&"a/log.go"), "entry files {files:?}");
+}
