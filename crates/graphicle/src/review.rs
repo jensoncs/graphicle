@@ -1538,7 +1538,12 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     let error_handling = {
         let seeds: BTreeSet<(&str, &str)> = seeds_b.iter().filter_map(|id| b.symbols.get(id))
             .map(|(world, symbol)| (world.as_str(), symbol.key.as_str())).collect();
-        error_sites::divergence(&b.calls, &seeds, |file| head.sources.get(file).map(|s| s.path.clone()))
+        let changed_lines: Vec<(&str, usize, usize)> = diffs.iter()
+            .flat_map(|d| d["_changed_head"].as_array().into_iter().flatten().map(move |r| (d["file"].as_str().unwrap_or(""), r)))
+            .filter_map(|(file, r)| Some((file, r[0].as_u64()? as usize, r[1].as_u64()? as usize)))
+            .collect();
+        let changed = |file: &str, start: usize, end: usize| changed_lines.iter().any(|&(f, a, b)| f == file && start < b && a < end.max(start + 1));
+        error_sites::divergence(&b.calls, &seeds, |file| head.sources.get(file).map(|s| s.path.clone()), changed)
     };
     let mut entries = vec![];
     for (side, input, analysis, selection) in [

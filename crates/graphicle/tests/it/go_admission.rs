@@ -461,6 +461,25 @@ fn a_sibling_that_handles_a_callees_error_differently_is_stated_in_the_packet() 
 }
 
 #[test]
+fn an_added_discard_beside_a_checked_call_in_the_same_function_is_stated() {
+    // odin #196: the diff adds `oldList, _ := GetList()` to a function whose
+    // existing `list, err := GetList()` returns the error.
+    let f = Fixture::new();
+    let repo = f.repo("added-discard");
+    let list = "package a\nimport \"errors\"\nfunc GetList() (int, error) { return 0, errors.New(\"x\") }\n";
+    let sync = |extra: &str| format!("package a\nfunc Sync() (int, error) {{\n{extra}\tlist, err := GetList()\n\tif err != nil {{\n\t\treturn 0, err\n\t}}\n\treturn list, nil\n}}\n");
+    let base = f.pin(&repo, "app", 'a', &[("a/go.mod", "module example/a\ngo 1.23\n"), ("a/list.go", list), ("a/sync.go", &sync(""))]);
+    let head = f.pin(&repo, "app", 'b', &[("a/go.mod", "module example/a\ngo 1.23\n"), ("a/list.go", list),
+        ("a/sync.go", &sync("\toldList, _ := GetList()\n\t_ = oldList\n"))]);
+    let packet = f.run(&request(&repo, vec![base], vec![head]));
+    let stated = &packet["error_handling"];
+    assert_eq!(stated.as_array().map(Vec::len), Some(1), "{stated}");
+    let sites: Vec<(u64, String, bool)> = stated[0]["sites"].as_array().unwrap().iter()
+        .map(|s| (s["line"].as_u64().unwrap(), s["handling"].as_str().unwrap().into(), s["in_changed_code"].as_bool().unwrap())).collect();
+    assert_eq!(sites, vec![(3, "discarded".into(), true), (5, "returns_on_error".into(), false)]);
+}
+
+#[test]
 fn a_regenerated_method_pulls_in_no_callers_of_the_interface_it_implements() {
     // siren #174: sqlc rewrote `(*Queries).Close` and every `io.Closer.Close`
     // call in the repository became a potential consumer of the change.

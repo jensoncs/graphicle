@@ -8,13 +8,16 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::Call;
 
-/// For each callee a changed declaration calls, when a changed site loses the
-/// callee's error (see `loses`) and a site outside the changed declarations
-/// handles it differently from every changed site: the changed sites and, per
-/// other handling, the site nearest them (same file, then same directory). Test files are left out. `path`
+/// For each callee a changed declaration calls on a changed line, when such a
+/// site loses the callee's error (see `loses`) and a site on an unchanged line,
+/// the changed declaration's own included, handles it differently from every
+/// changed site: the changed sites and, per other handling, the site nearest
+/// them (same file, then same directory). Test files are left out. `path`
 /// names a call's file as the snapshot does; a statement with a site it
-/// cannot name is dropped.
-pub(super) fn divergence(calls: &[(String, Call)], seeds: &BTreeSet<(&str, &str)>, path: impl Fn(&str) -> Option<String>) -> Vec<Value> {
+/// cannot name is dropped. `changed(file, start, end)` says whether a call's
+/// bytes meet a line the diff changes.
+pub(super) fn divergence(calls: &[(String, Call)], seeds: &BTreeSet<(&str, &str)>, path: impl Fn(&str) -> Option<String>,
+                         changed: impl Fn(&str, usize, usize) -> bool) -> Vec<Value> {
     let mut by_callee: BTreeMap<(&str, &str), Vec<&Call>> = BTreeMap::new();
     let mut seen = BTreeSet::new();
     for (world, call) in calls {
@@ -28,14 +31,15 @@ pub(super) fn divergence(calls: &[(String, Call)], seeds: &BTreeSet<(&str, &str)
     }
     let mut out = vec![];
     for ((world, _), sites) in by_callee {
-        let mine: Vec<&Call> = sites.iter().copied().filter(|c| seeds.contains(&(world, c.caller.as_str()))).collect();
+        let on_change = |c: &Call| seeds.contains(&(world, c.caller.as_str())) && changed(&c.file, c.start, c.end);
+        let mine: Vec<&Call> = sites.iter().copied().filter(|c| on_change(c)).collect();
         let Some(first) = mine.first() else { continue };
         if !mine.iter().any(|c| loses(&c.error_handling)) {
             continue;
         }
         let dir = |f: &str| f.rsplit_once('/').map_or("", |(d, _)| d).to_owned();
         let mut others: Vec<&Call> = sites.iter().copied()
-            .filter(|c| !seeds.contains(&(world, c.caller.as_str())))
+            .filter(|c| !on_change(c))
             .filter(|c| mine.iter().all(|m| kind(&m.error_handling) != kind(&c.error_handling)))
             .collect();
         others.sort_by_key(|c| (c.file != first.file, dir(&c.file) != dir(&first.file), c.file.clone(), c.start));
@@ -98,7 +102,7 @@ mod tests {
             call("Clusters", "Unrelated", "b/cluster.go", 95, "discarded"),   // no changed caller
         ];
         let seeds: BTreeSet<(&str, &str)> = [("app", "Routes")].into_iter().collect();
-        let got = divergence(&calls, &seeds, |f| Some(f.to_owned()));
+        let got = divergence(&calls, &seeds, |f| Some(f.to_owned()), |f, _, _| f == "b/route.go");
         assert_eq!(got.len(), 1);
         assert_eq!(got[0]["callee"], "Load");
         let sites: Vec<(String, u64, String)> = got[0]["sites"].as_array().unwrap().iter()
@@ -117,9 +121,35 @@ mod tests {
             call("Other", "Lose", "b/b.go", 40, "returns_on_error"),
         ];
         let seeds: BTreeSet<(&str, &str)> = [("app", "Changed")].into_iter().collect();
-        let got = divergence(&calls, &seeds, |f| Some(f.to_owned()));
+        let got = divergence(&calls, &seeds, |f| Some(f.to_owned()), |f, _, _| f == "b/a.go");
         let callees: Vec<&str> = got.iter().map(|s| s["callee"].as_str().unwrap()).collect();
         assert_eq!(callees, vec!["Lose"]);
+    }
+
+    #[test]
+    fn a_lead_needs_the_losing_site_on_a_changed_line() {
+        // argus #111: two of three leads cited only lines the diff leaves alone.
+        let calls = vec![
+            call("Changed", "Lose", "b/a.go", 10, "discarded"),
+            call("Other", "Lose", "b/b.go", 40, "returns_on_error"),
+        ];
+        let seeds: BTreeSet<(&str, &str)> = [("app", "Changed")].into_iter().collect();
+        assert!(divergence(&calls, &seeds, |f| Some(f.to_owned()), |_, start, _| start == 300).is_empty());
+    }
+
+    #[test]
+    fn the_contrast_may_sit_in_the_changed_function_itself() {
+        // odin #196: the diff adds `oldList, _ := GetList()` beside the
+        // existing `list, err := GetList()` in the same function.
+        let calls = vec![
+            call("Changed", "GetList", "b/a.go", 10, "returns_on_error"),
+            call("Changed", "GetList", "b/a.go", 30, "discarded"),
+        ];
+        let seeds: BTreeSet<(&str, &str)> = [("app", "Changed")].into_iter().collect();
+        let got = divergence(&calls, &seeds, |f| Some(f.to_owned()), |_, start, _| start == 300);
+        let sites: Vec<(u64, bool)> = got[0]["sites"].as_array().unwrap().iter()
+            .map(|s| (s["line"].as_u64().unwrap(), s["in_changed_code"].as_bool().unwrap())).collect();
+        assert_eq!(sites, vec![(30, true), (10, false)]);
     }
 
     #[test]
@@ -134,6 +164,6 @@ mod tests {
             calls.extend([a, b]);
         }
         let seeds: BTreeSet<(&str, &str)> = [("app", "Changed")].into_iter().collect();
-        assert_eq!(divergence(&calls, &seeds, |f| Some(f.to_owned())).len(), 1);
+        assert_eq!(divergence(&calls, &seeds, |f| Some(f.to_owned()), |f, _, _| f == "b/a.go").len(), 1);
     }
 }
