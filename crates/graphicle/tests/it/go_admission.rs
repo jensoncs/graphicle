@@ -434,8 +434,8 @@ fn large_vendor_assets_are_admitted_without_losing_owned_go_impact() {
 
 #[test]
 fn a_sibling_that_handles_a_callees_error_differently_is_stated_in_the_packet() {
-    // nexus #963: the changed cluster builder returns a failed config read; the
-    // route builder beside it carries on without the configs.
+    // nexus #963: the changed route builder carries on without a failed config
+    // read; the cluster builder beside it returns the error.
     let f = Fixture::new();
     let repo = f.repo("error-sites");
     let load = "package a\nimport \"errors\"\nfunc Load() (int, error) { return 0, errors.New(\"x\") }\n";
@@ -448,7 +448,7 @@ fn a_sibling_that_handles_a_callees_error_differently_is_stated_in_the_packet() 
     ];
     let base = f.pin(&repo, "app", 'a', &base_files);
     let mut files = base_files;
-    files[3].1 = "package a\nfunc Clusters() (int, error) {\n\tv, err := Load()\n\tif err != nil {\n\t\treturn 0, err\n\t}\n\treturn v + 1, nil\n}\n";
+    files[2].1 = "package a\nfunc Routes() int { n := 0; if v, err := Load(); err == nil { n = v + 1 }; return n }\n";
     let head = f.pin(&repo, "app", 'b', &files);
     let packet = f.run(&request(&repo, vec![base], vec![head]));
     let stated = &packet["error_handling"];
@@ -456,8 +456,8 @@ fn a_sibling_that_handles_a_callees_error_differently_is_stated_in_the_packet() 
     let sites: Vec<(String, String)> = stated[0]["sites"].as_array().unwrap().iter()
         .map(|s| (s["file"].as_str().unwrap().into(), s["handling"].as_str().unwrap().into())).collect();
     let files: Vec<&str> = packet["entries"].as_array().unwrap().iter().filter_map(|e| e["file"].as_str()).collect();
-    assert!(files.contains(&"a/clusters.go"), "entry files {files:?}");
-    assert_eq!(sites, vec![("a/clusters.go".into(), "returns_on_error".into()), ("a/routes.go".into(), "proceeds_on_error".into())]);
+    assert!(files.contains(&"a/routes.go"), "entry files {files:?}");
+    assert_eq!(sites, vec![("a/routes.go".into(), "proceeds_on_error".into()), ("a/clusters.go".into(), "returns_on_error".into())]);
 }
 
 #[test]

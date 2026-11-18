@@ -8,10 +8,10 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use super::Call;
 
-/// For each callee a changed declaration calls, when a site outside the
-/// changed declarations handles the callee's error differently from every
-/// changed site: the changed sites and, per other handling, the site nearest
-/// them (same file, then same directory). Test files are left out. `path`
+/// For each callee a changed declaration calls, when a changed site loses the
+/// callee's error (see `loses`) and a site outside the changed declarations
+/// handles it differently from every changed site: the changed sites and, per
+/// other handling, the site nearest them (same file, then same directory). Test files are left out. `path`
 /// names a call's file as the snapshot does; a statement with a site it
 /// cannot name is dropped.
 pub(super) fn divergence(calls: &[(String, Call)], seeds: &BTreeSet<(&str, &str)>, path: impl Fn(&str) -> Option<String>) -> Vec<Value> {
@@ -30,6 +30,9 @@ pub(super) fn divergence(calls: &[(String, Call)], seeds: &BTreeSet<(&str, &str)
     for ((world, _), sites) in by_callee {
         let mine: Vec<&Call> = sites.iter().copied().filter(|c| seeds.contains(&(world, c.caller.as_str()))).collect();
         let Some(first) = mine.first() else { continue };
+        if !mine.iter().any(|c| loses(&c.error_handling)) {
+            continue;
+        }
         let dir = |f: &str| f.rsplit_once('/').map_or("", |(d, _)| d).to_owned();
         let mut others: Vec<&Call> = sites.iter().copied()
             .filter(|c| !seeds.contains(&(world, c.caller.as_str())))
@@ -50,6 +53,14 @@ pub(super) fn divergence(calls: &[(String, Call)], seeds: &BTreeSet<(&str, &str)
         }
     }
     out
+}
+
+/// Handlings under which the caller's caller never sees the failure. Two
+/// sites that differ while the changed one passes the error up name no
+/// hazard (16 of 26 statements in the Go blocks); a loop that skips an item
+/// on failure is a choice, not a loss.
+fn loses(handling: &str) -> bool {
+    matches!(handling, "discarded" | "falls_back_on_error" | "proceeds_on_error" | "logs_on_error")
 }
 
 /// Handlings that agree: passing the failure up, by `return f()`, by returning
@@ -78,24 +89,37 @@ mod tests {
     #[test]
     fn a_sibling_that_handles_the_callees_error_differently_is_stated() {
         let calls = vec![
-            call("Clusters", "Load", "b/cluster.go", 131, "returns_on_error"),
             call("Routes", "Load", "b/route.go", 79, "proceeds_on_error"),
-            call("Other", "Load", "c/x.go", 5, "proceeds_on_error"),   // same handling as route.go: one site per kind
+            call("Clusters", "Load", "b/cluster.go", 131, "returns_on_error"),
+            call("Other", "Load", "c/x.go", 5, "returned"),   // passes it up like cluster.go: one site per kind
             call("Tests", "Load", "b/route_test.go", 9, "discarded"),
-            call("Clusters", "Same", "b/cluster.go", 140, "returns_on_error"),
-            call("Routes", "Same", "b/route.go", 90, "returns_on_error"),   // agrees: nothing to say
-            call("Routes", "Unrelated", "b/route.go", 95, "discarded"),   // no changed caller
-            call("Clusters", "Pass", "b/cluster.go", 150, "returns_on_error"),
-            call("Routes", "Pass", "b/route.go", 99, "returned"),   // both pass the failure up
-            call("Handler", "Pass", "h/http.go", 9, "stops_on_error"),   // a handler with nothing to return stops
+            call("Routes", "Same", "b/route.go", 90, "discarded"),
+            call("Clusters", "Same", "b/cluster.go", 140, "discarded"),   // agrees: nothing to say
+            call("Clusters", "Unrelated", "b/cluster.go", 95, "discarded"),   // no changed caller
         ];
-        let seeds: BTreeSet<(&str, &str)> = [("app", "Clusters")].into_iter().collect();
+        let seeds: BTreeSet<(&str, &str)> = [("app", "Routes")].into_iter().collect();
         let got = divergence(&calls, &seeds, |f| Some(f.to_owned()));
         assert_eq!(got.len(), 1);
         assert_eq!(got[0]["callee"], "Load");
         let sites: Vec<(String, u64, String)> = got[0]["sites"].as_array().unwrap().iter()
             .map(|s| (s["file"].as_str().unwrap().into(), s["line"].as_u64().unwrap(), s["handling"].as_str().unwrap().into())).collect();
-        assert_eq!(sites, vec![("b/cluster.go".into(), 131, "returns_on_error".into()), ("b/route.go".into(), 79, "proceeds_on_error".into())]);
+        assert_eq!(sites, vec![("b/route.go".into(), 79, "proceeds_on_error".into()), ("b/cluster.go".into(), 131, "returns_on_error".into())]);
+    }
+
+    #[test]
+    fn a_divergence_is_stated_only_when_changed_code_loses_the_error() {
+        // 16 of 26 statements in the Go blocks named no hazard: changed code
+        // that returns the error beside a sibling that logs is no lead.
+        let calls = vec![
+            call("Changed", "Keep", "b/a.go", 10, "returns_on_error"),
+            call("Other", "Keep", "b/b.go", 20, "logs_on_error"),
+            call("Changed", "Lose", "b/a.go", 30, "falls_back_on_error"),
+            call("Other", "Lose", "b/b.go", 40, "returns_on_error"),
+        ];
+        let seeds: BTreeSet<(&str, &str)> = [("app", "Changed")].into_iter().collect();
+        let got = divergence(&calls, &seeds, |f| Some(f.to_owned()));
+        let callees: Vec<&str> = got.iter().map(|s| s["callee"].as_str().unwrap()).collect();
+        assert_eq!(callees, vec!["Lose"]);
     }
 
     #[test]
@@ -103,8 +127,8 @@ mod tests {
         // an interface method and its implementation: the same sites reach both targets
         let mut calls = vec![];
         for target in ["Store.Add", "pgStore.Add"] {
-            let mut a = call("Changed", target, "b/a.go", 10, "returns_on_error");
-            let mut b = call("Other", target, "b/b.go", 20, "proceeds_on_error");
+            let mut a = call("Changed", target, "b/a.go", 10, "proceeds_on_error");
+            let mut b = call("Other", target, "b/b.go", 20, "returns_on_error");
             a.1.spelling = "db.Add".into();
             b.1.spelling = "db.Add".into();
             calls.extend([a, b]);
