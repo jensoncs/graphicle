@@ -643,11 +643,16 @@ impl Context {
                 let mut best = 0;
                 for step in r["steps"].as_array().into_iter().flatten() {
                     // calls only: a type the changed lines name is not what they run
-                    if !matches!(step["relation"].as_str(), Some("calls" | "may_call" | "references_callable")) { continue }
-                    let (Some(a), Some(b)) = (step["byte_start"].as_u64(), step["byte_end"].as_u64()) else { continue };
+                    if !matches!(step["relation"].as_str(), Some("calls" | "may_call" | "references_callable" | "renders")) { continue }
+                    // Every site the caller calls from, not only the one shown
+                    let spans: Vec<(u64, u64)> = step["sites"].as_array().into_iter().flatten()
+                        .filter_map(|p| Some((p[0].as_u64()?, p[1].as_u64()?)))
+                        .chain(step["byte_start"].as_u64().zip(step["byte_end"].as_u64()))
+                        .collect();
+                    if spans.is_empty() { continue }
                     let path = s(step, "source_file");
                     let sha = self.files.get(&(side.clone(), path.to_owned())).map_or("", |f| f.sha.as_str());
-                    let hit = |ranges: &[(usize, usize)]| ranges.iter().any(|&(x, y)| (x as u64) < b && a < y as u64);
+                    let hit = |ranges: &[(usize, usize)]| ranges.iter().any(|&(x, y)| spans.iter().any(|&(a, b)| (x as u64) < b && a < y as u64));
                     if hit(self.changed(&exact, &side, path, sha)) {
                         return 1;
                     }
@@ -1094,6 +1099,19 @@ mod tests {
         let shown: Vec<_> = r["entries"][1]["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
         assert_eq!(shown, vec![(60, 60), (145, 155)], "the call on line 150, 5 lines either side (its definitions: none here)");
+    }
+
+    #[test]
+    fn a_callee_called_from_a_changed_line_and_an_unchanged_one_is_marked() {
+        // odin #196: the reason shows the unchanged call; the changed one is
+        // among the caller's other sites.
+        let (_, at) = lines_file();
+        let mut callee = declaration("head", "helper", 150, 160, json!([{"reason":"dependency","path":["seed", "helper"],
+            "steps":[{"relation":"calls","source_file":"app/code.go","byte_start":at[29] + 1,"byte_end":at[29] + 4}]}]));
+        callee["reasons"][0]["steps"][0]["sites"] = json!([[at[29] + 1, at[29] + 4], [at[11] + 1, at[11] + 4]]);
+        let mut r = report(vec![callee]);
+        context_with(vec![("head", 10, 14)]).annotate(&mut r);
+        assert_eq!(r["entries"][0]["_provided_diff_callee"], json!(true));
     }
 
     #[test]

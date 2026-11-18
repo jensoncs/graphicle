@@ -1517,6 +1517,21 @@ mod tests {
     }
 
     #[test]
+    fn a_component_rendering_a_changed_component_is_a_consumer_by_reference() {
+        // atlas-backstage #1044/#1046: JSX is how a component is called; a
+        // parent rendering a changed one is linked, but not as a required
+        // caller ahead of the code the change itself calls.
+        let modal = |v: &str| format!("export const Modal = () => <div>{v}</div>;\n");
+        let page = "import { Modal } from './Modal';\nexport const Page = () => (\n  <section>\n    <Modal />\n  </section>\n);\n";
+        let repo = |v: &str| input(&[("repo/ui/Modal.tsx", modal(v).as_str()), ("repo/ui/Page.tsx", page)]);
+        let r = report(&repo("a"), &repo("b"));
+        let entry = r["entries"].as_array().unwrap().iter().find(|e| e["side"] == "head" && e["name"] == "Page").unwrap_or_else(|| panic!("{r}"));
+        let steps: Vec<&str> = entry["reasons"].as_array().unwrap().iter()
+            .filter(|x| x["reason"] == "potential_consumer").map(|x| s(&x["steps"][0], "relation")).collect();
+        assert_eq!(steps, ["renders"], "{entry}");
+    }
+
+    #[test]
     fn a_key_link_says_how_many_declarations_share_the_key() {
         // siren #185/#188: "error" and "verdict" are read all over the
         // module; a reader of one is weaker evidence than of "drop_inf".

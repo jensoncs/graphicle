@@ -84,6 +84,8 @@ enum Target {
     Method { class: Ref, name: String },
     /// `new C()`
     New(Ref),
+    /// `<C />`: the component `C` rendered as a JSX element
+    Render(Ref),
     /// `recv.m()` where `recv` is a method call's result or a field: `m` of
     /// the class `recv` is declared to hold.
     Chain { receiver: Recv, name: String },
@@ -756,6 +758,21 @@ impl<'a> Reader<'_, 'a> {
                             callers,
                             line: self.line(call.span.start),
                             target,
+                        });
+                    }
+                }
+                // `<Modal />` calls the component `Modal` (atlas-backstage
+                // #1044); a lowercase tag is an intrinsic element, not a reference.
+                AstKind::JSXOpeningElement(el) => {
+                    let callers = self.callers(node.id());
+                    if !callers.is_empty()
+                        && let oxc_ast::ast::JSXElementName::IdentifierReference(ident) = &el.name
+                        && let Some(Binding::Decl(r)) = self.binding(ident, 0)
+                    {
+                        out.sites.push(Site {
+                            callers,
+                            line: self.line(el.span.start),
+                            target: Target::Render(r),
                         });
                     }
                 }

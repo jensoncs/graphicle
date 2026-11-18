@@ -113,7 +113,9 @@ pub(super) fn calls(input: &Input, repo: &str, declared: &BTreeSet<String>, out:
             out,
             (&from, &caller),
             (&to, &target),
-            "may_call",
+            // A JSX element references the component it renders: linked, but
+            // not a required caller (atlas-backstage #1046).
+            if bound.resolution == "oxc_jsx" { "renders" } else { "may_call" },
             bound.resolution,
             bound.line,
             line_span(source, bound.line),

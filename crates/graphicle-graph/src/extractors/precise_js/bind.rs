@@ -212,14 +212,14 @@ pub(super) fn bind<Fs: FileSystem + 'static, N: Nodes>(
             });
             let Some(caller) = caller else { continue };
             let (target, resolution) = match &site.target {
-                Target::Function(reference) => {
+                Target::Function(reference) | Target::Render(reference) => {
                     let Some((file, Ref::Local { name, line })) = r.declaration(fi, reference)
                     else {
                         continue;
                     };
                     (
                         nodes.function(&summaries[file].key, &name, line),
-                        "oxc_binding",
+                        if matches!(site.target, Target::Render(_)) { "oxc_jsx" } else { "oxc_binding" },
                     )
                 }
                 Target::Namespace { spec, name } => {
@@ -642,6 +642,39 @@ mod tests {
         assert_eq!(
             lines,
             [("ui/Keys.tsx#Keys", 6), ("ui/Keys.tsx#Keys", 7), ("ui/Keys.tsx#direct", 9)],
+            "{bound:#?}"
+        );
+    }
+
+    /// A component rendered as a JSX element is called by its parent
+    /// (atlas-backstage #1044: DeploymentTabs renders the changed
+    /// DeleteDeploymentModal at line 358; the block showed its imports only).
+    #[test]
+    fn binds_jsx_elements_to_the_components_they_render() {
+        let root = Path::new("/snapshot/repo");
+        let files: Vec<(PathBuf, Arc<str>)> = [
+            ("ui/DeleteModal.tsx", "export const DeleteModal = ({ id }: { id: string }) => <div>{id}</div>;\n"),
+            (
+                "ui/Tabs.tsx",
+                "import { DeleteModal } from './DeleteModal';\nfunction Row() { return <span />; }\nexport const Tabs = () => {\n  return (\n    <div>\n      <Row />\n      <DeleteModal id=\"x\" />\n    </div>\n  );\n};\n",
+            ),
+        ]
+        .into_iter()
+        .map(|(p, t)| (root.join(p), Arc::<str>::from(t)))
+        .collect();
+        let names = Names(
+            ["ui/DeleteModal.tsx#DeleteModal", "ui/Tabs.tsx#Row", "ui/Tabs.tsx#Tabs"].into_iter().map(String::from).collect(),
+        );
+        let bound = bind_snapshot(&files, root, &names);
+        let mut found: Vec<(&str, &str, usize, &str)> =
+            bound.iter().map(|b| (b.caller.as_str(), b.target.as_str(), b.line, b.resolution)).collect();
+        found.sort();
+        // oxc_jsx, not oxc_binding: a parent rendering a changed component is a
+        // consumer, not a required caller (atlas-backstage #1046: RootPage and
+        // IAMHomePage pushed out the client methods the change calls).
+        assert_eq!(
+            found,
+            [("ui/Tabs.tsx#Tabs", "ui/DeleteModal.tsx#DeleteModal", 7, "oxc_jsx"), ("ui/Tabs.tsx#Tabs", "ui/Tabs.tsx#Row", 6, "oxc_jsx")],
             "{bound:#?}"
         );
     }

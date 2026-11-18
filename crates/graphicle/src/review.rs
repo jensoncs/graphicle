@@ -788,6 +788,31 @@ fn call_evidence(world: &str, call: &Call) -> Value {
     json!({"relation":call.relation,"source_file":call.file,"source_location":format!("L{}",call.line),"byte_start":call.start,"byte_end":call.end,"spelling":call.spelling,"caller":key(world,&call.caller),"callee":key(world,&call.target),"discarded_error":call.discarded_error,"evidence":if !call.evidence.is_empty(){call.evidence.as_str()}else if call.relation=="may_call"{"function_value_candidate"}else{"go/types"}})
 }
 
+type Sites<'a> = BTreeMap<(&'a str, &'a str, &'a str, &'a str), Vec<(usize, usize)>>;
+
+/// Every site each caller calls each callee from. call_links keeps one call
+/// per caller and callee; a step names that one, and `sites` the rest, so a
+/// call from a changed line marks the callee whichever site the step shows
+/// (odin #196: GetAuditHistory calls GetInt64FromReqQuery on lines 519, 526
+/// and added line 533).
+fn call_sites(calls: &[(String, Call)]) -> Sites<'_> {
+    let mut out: Sites = BTreeMap::new();
+    for (world, call) in calls.iter().filter(|(_, c)| c.reason.is_empty()) {
+        out.entry((world.as_str(), call.caller.as_str(), call.target.as_str(), call.relation.as_str()))
+            .or_default()
+            .push((call.start, call.end));
+    }
+    out
+}
+
+fn sited_evidence(sites: &Sites, world: &str, call: &Call) -> Value {
+    let mut evidence = call_evidence(world, call);
+    if let Some(all) = sites.get(&(world, call.caller.as_str(), call.target.as_str(), call.relation.as_str())).filter(|all| all.len() > 1) {
+        evidence["sites"] = json!(all);
+    }
+    evidence
+}
+
 fn graph(analysis: &Analysis, reverse: bool) -> Result<Graph> {
     let links = call_links(analysis, 500_000)?;
     let mut graph = Graph::with_capacity(
@@ -865,7 +890,7 @@ fn add_reason(reasons: &mut Vec<Value>, reason: Value) {
         // At one length a call beats a key, type or import link: it is what
         // the code runs, and only a call marks a callee of changed lines
         // (siren #187: query_range kept a uses_key reason that sorted first).
-        let call = |r: &Value| matches!(r["steps"][0]["relation"].as_str(), Some("calls" | "may_call" | "references_callable"));
+        let call = |r: &Value| matches!(r["steps"][0]["relation"].as_str(), Some("calls" | "may_call" | "references_callable" | "renders"));
         if length(&reason) < length(old)
             || (length(&reason) == length(old)
                 && (call(&reason) && !call(old)
@@ -917,6 +942,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
     if seeds.is_empty() {
         return Ok(out);
     }
+    let sites = call_sites(&analysis.calls);
     // Seed immediate failure-contract context before transitive traversal can
     // exhaust its budget. Interface implementations remain potential targets.
     if depth > 0 {
@@ -937,7 +963,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
             }
             add_reason(
                 out.reasons.entry(callee.to_owned()).or_default(),
-                json!({"reason":"dependency","path":[caller,callee],"steps":[call_evidence(world,call)]}),
+                json!({"reason":"dependency","path":[caller,callee],"steps":[sited_evidence(&sites,world,call)]}),
             );
             direct += 1;
         }
@@ -948,6 +974,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
         "uses_type".into(),
         "uses_value".into(),
         "references_callable".into(),
+        "renders".into(),
         "invokes_boundary".into(),
         "handles_boundary".into(),
         "http_calls".into(),
@@ -1016,7 +1043,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
                 } else {
                     let (world, call) =
                         &analysis.calls[reference["call_index"].as_u64().unwrap() as usize];
-                    call_evidence(world, call)
+                    sited_evidence(&sites, world, call)
                 };
                 let mut path = paths[&predecessor].clone();
                 path.push(hit.node_id.clone());
@@ -2662,11 +2689,13 @@ fn import_only(entry: &Value) -> bool {
 /// Every reason starts at an import: the entry is what the imported module
 /// reaches, not what the change uses (atlas-backstage #1044: Utils.ts helpers
 /// other code in the imported file calls). A call the change makes into the
-/// module is its own may_call step and keeps its rank.
+/// module is its own may_call step and keeps its rank. A component that only
+/// renders a changed one ranks here too (atlas-backstage #1046: the pages
+/// rendering a changed tab pushed out the API methods the tab calls).
 fn through_import(entry: &Value) -> bool {
     entry["reasons"].as_array().is_some_and(|rs| {
         !rs.is_empty()
-            && rs.iter().all(|r| matches!(r["steps"][0]["relation"].as_str(), Some("potential_import" | "configuration_scope")))
+            && rs.iter().all(|r| matches!(r["steps"][0]["relation"].as_str(), Some("potential_import" | "configuration_scope" | "renders")))
     })
 }
 
@@ -2675,7 +2704,7 @@ fn through_import(entry: &Value) -> bool {
 /// reads a common key is in for the call, not the key).
 fn key_sharers(entry: &Value) -> u64 {
     let reasons = entry["reasons"].as_array().into_iter().flatten();
-    if reasons.clone().any(|r| matches!(r["steps"][0]["relation"].as_str(), Some("calls" | "may_call" | "references_callable"))) {
+    if reasons.clone().any(|r| matches!(r["steps"][0]["relation"].as_str(), Some("calls" | "may_call" | "references_callable" | "renders"))) {
         return 0;
     }
     reasons
@@ -3678,6 +3707,21 @@ mod tests {
     }
 
     #[test]
+    fn a_component_linked_only_by_rendering_ranks_after_the_code_the_change_calls() {
+        // atlas-backstage #1046: RootPage, IAMHomePage and ProfilePage, which
+        // render changed components, pushed out the IAMApiV2 methods the
+        // changed components call.
+        let body = "a\nb\nc\nd\n";
+        let report = json!({"entries":[
+            {"id":"parent","revision":"r","side":"head","kind":"function","file":"a/Root.tsx","text":body,"reasons":[{"reason":"potential_consumer","path":["s","parent"],"steps":[{"relation":"renders"}]}]},
+            {"id":"client","revision":"r","side":"head","kind":"method","file":"b/iam.ts","text":body,"reasons":[{"reason":"dependency","path":["s","client"],"steps":[{"relation":"may_call"}]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["client", "parent"]));
+    }
+
+    #[test]
     fn a_rare_key_link_ranks_ahead_of_a_common_one() {
         // siren #188: readers of "verdict" and "mode", keys half the module
         // reads, took the room of the readers of keys the change made.
@@ -4359,6 +4403,20 @@ mod tests {
             json!({"reason":"change_seed","path":["changed"]}),
         );
         assert_eq!(reasons.len(), 2);
+    }
+
+    #[test]
+    fn a_call_step_keeps_every_site_the_caller_calls_from() {
+        // odin #196: GetAuditHistory calls GetInt64FromReqQuery on unchanged
+        // lines and on added line 533; the step named one unchanged site, so
+        // the helper was not a callee of the changed lines.
+        let call = |target: &str, start: usize| -> (String, Call) {
+            ("w".into(), serde_json::from_value(json!({"caller":"c","target":target,"target_offset":0,"spelling":"f","file":"a.go","start":start,"end":start + 4,"line":1,"relation":"calls"})).unwrap())
+        };
+        let calls = vec![call("t", 10), call("t", 90), call("u", 50)];
+        let sites = super::call_sites(&calls);
+        assert_eq!(super::sited_evidence(&sites, "w", &calls[0].1)["sites"], json!([[10, 14], [90, 94]]));
+        assert!(super::sited_evidence(&sites, "w", &calls[2].1).get("sites").is_none(), "one site: the step says it");
     }
 
     #[test]
