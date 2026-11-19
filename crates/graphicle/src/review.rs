@@ -2229,6 +2229,17 @@ fn pack_encoding(
         let before = candidates.len();
         candidates.retain(|(collection, entry)| *collection != "entries" || !below_floor(entry, &callees, &flow_callees, &overlapping, &mostly_unseen));
         report["coverage"]["provided_diff"]["below_floor_entries"] = json!(before - candidates.len());
+        // A file reached only by import, beside a declaration in it the change
+        // calls or renders, says less than that declaration (atlas-backstage
+        // #1044: DeploymentTabs.tsx beside DeploymentTabs).
+        let linked: BTreeSet<(String, String)> = candidates.iter()
+            .filter(|(collection, entry)| *collection == "entries" && s(entry, "kind") != "basic_file" && entry["reasons"].as_array().is_some_and(|rs| rs.iter()
+                .any(|r| r["steps"].as_array().is_some_and(|st| st.iter().any(|st| matches!(st["relation"].as_str(), Some("calls" | "may_call" | "references_callable" | "renders")))))))
+            .map(|(_, entry)| (s(entry, "side").to_owned(), s(entry, "file").to_owned())).collect();
+        let before = candidates.len();
+        candidates.retain(|(collection, entry)| *collection != "entries" || s(entry, "kind") != "basic_file" || !import_only(entry)
+            || !linked.contains(&(s(entry, "side").to_owned(), s(entry, "file").to_owned())));
+        report["coverage"]["provided_diff"]["file_beside_linked_entries"] = json!(before - candidates.len());
     }
     let mut candidates: Vec<_> = candidates
         .into_iter()
@@ -2742,8 +2753,11 @@ fn below_floor(entry: &Value, callees: &BTreeSet<String>, flows: &BTreeSet<Strin
     let reasons = entry["reasons"].as_array().map_or(&[][..], Vec::as_slice);
     let linked = |relations: &[&str]| reasons.iter()
         .any(|r| r["steps"].as_array().is_some_and(|st| st.iter().any(|st| relations.contains(&st["relation"].as_str().unwrap_or("")))));
+    // Not through configuration scope: a module sharing a requirements file
+    // consumes nothing the change made (siren #188: pattern.py).
     let direct_consumer = reasons.iter()
-        .any(|r| r["reason"] == "potential_consumer" && r["path"].as_array().is_some_and(|p| p.len() <= 2));
+        .any(|r| r["reason"] == "potential_consumer" && r["path"].as_array().is_some_and(|p| p.len() <= 2)
+            && !r["steps"].as_array().is_some_and(|st| st.iter().any(|st| st["relation"] == "configuration_scope")));
     let seed = reasons.iter().any(|r| r["reason"] == "change_seed");
     !(seed || is_required_code(entry) || entry_distance(entry) == usize::MAX || overlapping.contains(id) || unseen.contains(id)
         || keys::is_test(s(entry, "file")) || callees.contains(id) || flows.contains(id) || uses_key(entry)
@@ -3946,6 +3960,11 @@ mod tests {
             e("value", "function", "a/b.go", "dependency", &["s", "value"], "uses_value"),
             e("props", "type", "a/types.ts", "dependency", &["s", "props"], "uses_type"),
             e("test", "function", "a/b_test.go", "dependency", &["s", "test"], "uses_value"),
+            // siren #188: pattern.py, linked only through requirements.txt
+            e("config", "basic_file", "a/pattern.py", "potential_consumer", &["s", "config"], "configuration_scope"),
+            // atlas-backstage #1044: DeploymentTabs.tsx beside the DeploymentTabs it renders
+            e("stub", "basic_file", "a/Page.tsx", "potential_consumer", &["s", "stub"], "potential_import"),
+            e("lone", "basic_file", "a/Lone.tsx", "potential_consumer", &["s", "lone"], "potential_import"),
             // the old side of a change the provided diff does not cover is the only view of it
             json!({"id":"old","symbol_id":"old","revision":"r","side":"base","kind":"function","file":"b/c.go","text":body,"reasons":[{"reason":"change_seed","path":["old"]}]})
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
@@ -3953,9 +3972,10 @@ mod tests {
         let (packet, _) = pack(report, 9000, None, None).unwrap();
         let mut ids: Vec<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
         ids.sort();
-        assert_eq!(ids, vec!["direct", "old", "props", "test"]);
+        assert_eq!(ids, vec!["direct", "lone", "old", "props", "test"]);
         assert_eq!(packet["coverage"]["provided_diff"]["import_only_entries"], 1);
-        assert_eq!(packet["coverage"]["provided_diff"]["below_floor_entries"], 2, "the ancestor and the value-only link");
+        assert_eq!(packet["coverage"]["provided_diff"]["below_floor_entries"], 3, "the ancestor, the value-only link and the configuration scope");
+        assert_eq!(packet["coverage"]["provided_diff"]["file_beside_linked_entries"], 1);
     }
 
     #[test]
