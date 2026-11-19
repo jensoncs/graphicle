@@ -1409,6 +1409,19 @@ pub fn graph(analyses: &Value) -> Result<Value> {
                             absolute = "<outside-manifest>".into();
                         }
                     }
+                    // A script directory (no __init__.py) is on sys.path when
+                    // its scripts run, so `import agent` beside agent.py names
+                    // that file (siren alert-review/server.py calling agent.watch).
+                    if level == 0 && !modules.contains_key(&absolute) {
+                        let dir = Path::new(path).parent().and_then(Path::to_str).unwrap_or("");
+                        let near = format!("{}.{module}", dir.replace('/', "."));
+                        if !dir.is_empty()
+                            && !paths.contains(&format!("{dir}/__init__.py"))
+                            && modules.contains_key(&near)
+                        {
+                            absolute = near;
+                        }
+                    }
                     let base = modules.get(&absolute);
                     if let Some(found) = base {
                         targets.extend(found.iter().cloned());

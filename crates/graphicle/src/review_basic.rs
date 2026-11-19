@@ -1545,6 +1545,22 @@ mod tests {
     }
 
     #[test]
+    fn a_module_attribute_call_from_another_file_is_a_direct_caller() {
+        // siren #187: server.py does `import agent` and calls agent.watch;
+        // changing watch reported no caller in server.py.
+        let agent = |v: &str| format!("def watch(a):\n    return {v}\n");
+        let server = "import agent\n\n\ndef watch_alert(a):\n    return agent.watch(a)\n";
+        let files = |v: &str| input(&[("repo/svc/agent.py", agent(v).as_str()), ("repo/svc/server.py", server)]);
+        let r = report(&files("a"), &files("a + 1"));
+        let caller = |r: &Value| r["entries"].as_array().unwrap().iter().any(|e| e["side"] == "head" && e["name"] == "watch_alert");
+        assert!(caller(&r), "{r}");
+        // In a package, Python 3 has no implicit relative import.
+        let package = |v: &str| input(&[("repo/svc/__init__.py", ""), ("repo/svc/agent.py", agent(v).as_str()), ("repo/svc/server.py", server)]);
+        let r = report(&package("a"), &package("a + 1"));
+        assert!(!caller(&r), "{r}");
+    }
+
+    #[test]
     fn a_key_the_change_both_writes_and_reads_links_older_ends_only_by_a_call() {
         // siren #188: triage newly writes the decision "error" that a new
         // record line reads; fetch_metric's older metric "error" is another dict.
