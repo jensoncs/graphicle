@@ -454,6 +454,24 @@ fn exact_changes(report: &Value) -> Exact {
     out
 }
 
+/// Where the value a type use at `at` annotates ends: the brackets that open
+/// after the type on its line, once closed (`body: Payload = {` .. `};`), else
+/// that line. A parameter's `f(o: Opts) {` closes its `(` first, so a
+/// function body is not its parameter's value. `text` starts at byte `start`.
+/// ponytail: brackets inside strings are counted; a parser would not.
+fn annotated_end(text: &str, start: usize, at: usize) -> usize {
+    let mut depth = 0i64;
+    for (i, c) in text.get(at.saturating_sub(start)..).unwrap_or("").char_indices() {
+        match c {
+            '(' | '[' | '{' => depth += 1,
+            ')' | ']' | '}' => depth -= 1,
+            '\n' if depth <= 0 => return at + i + 1,
+            _ => {}
+        }
+    }
+    start + text.len()
+}
+
 pub(super) struct Context {
     files: BTreeMap<(String, String), File>,
     directories: BTreeMap<(String, String), String>,
@@ -731,6 +749,11 @@ impl Context {
             flow_spans.entry(path).or_default().extend(lines.iter().chain(&reads).map(|&i| spans[i]));
             flows.insert(s(entry, "id").to_owned(), lines);
         }
+        // The changed declarations' text, where a type use on a changed line sits.
+        let seed_texts: Vec<(String, String, usize, String)> = report["entries"].as_array().unwrap().iter()
+            .filter(|e| e["reasons"].as_array().is_some_and(|rs| rs.iter().any(|r| r["reason"] == "change_seed")))
+            .filter_map(|e| Some((s(e, "side").to_owned(), self.path(e)?, e["byte_start"].as_u64()? as usize, e["text"].as_str()?.to_owned())))
+            .collect();
         let generated_ids: BTreeSet<String> = report["entries"].as_array().unwrap().iter()
             .filter(|e| e["_generated"] == json!(true)).map(|e| s(e, "symbol_id").to_owned()).collect();
         for entry in report["entries"].as_array_mut().unwrap() {
@@ -786,6 +809,11 @@ impl Context {
             let off_change = |st: &Value| {
                 let (Some(a), Some(b)) = (st["byte_start"].as_u64(), st["byte_end"].as_u64()) else { return true };
                 let path = s(st, "source_file");
+                // and the value it annotates (atlas-backstage #1044: the
+                // DeleteDeploymentPayload literal whose fields the diff edits)
+                let b = seed_texts.iter()
+                    .find(|(sd, p, start, text)| *sd == side && p == path && *start as u64 <= a && b <= (*start + text.len()) as u64)
+                    .map_or(b, |(_, _, start, text)| b.max(annotated_end(text, *start, b as usize) as u64));
                 let sha = self.files.get(&(side.clone(), path.to_owned())).map_or("", |f| f.sha.as_str());
                 !self.changed(&exact, &side, path, sha).iter().any(|&(x, y)| (x as u64) < b && a < y as u64)
             };
@@ -794,7 +822,26 @@ impl Context {
                 matches!(r["reason"].as_str(), Some("dependency" | "potential_consumer"))
                     && r["steps"].as_array().is_some_and(|st| !st.is_empty() && st.iter().all(|st| st["relation"] == "uses_type" && off_change(st)))
             });
-            if type_only {
+            // A path per type is kept, so the recorded use may be another
+            // declaration's: a changed declaration in the type's own file
+            // that names it on, or in a value annotated by, a changed line
+            // keeps it (atlas-backstage #1044: deleteDeployment's
+            // DeleteDeploymentPayload body, recorded only from the modal).
+            let named = || {
+                let name = s(entry, "name").rsplit('.').next().unwrap_or("");
+                let Some(file) = self.path(entry) else { return false };
+                !name.is_empty() && seed_texts.iter().filter(|(sd, p, ..)| *sd == side && *p == file).any(|(_, p, start, text)| {
+                    let sha = self.files.get(&(side.clone(), p.clone())).map_or("", |f| f.sha.as_str());
+                    let changed = self.changed(&exact, &side, p, sha);
+                    let ident = |c: char| c.is_alphanumeric() || c == '_';
+                    text.match_indices(name).filter(|(i, _)| !text[..*i].ends_with(ident) && !text[*i + name.len()..].starts_with(ident))
+                        .any(|(i, _)| {
+                            let (a, b) = (start + i, annotated_end(text, *start, start + i + name.len()));
+                            changed.iter().any(|&(x, y)| x < b && a < y)
+                        })
+                })
+            };
+            if type_only && !named() {
                 entry["_type_only"] = json!(true);
             }
             let side = s(entry, "side");
@@ -1284,6 +1331,40 @@ mod tests {
         let shown: Vec<_> = r["entries"][1]["excerpts"].as_array().unwrap().iter()
             .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
         assert_eq!(shown, vec![(60, 60), (145, 155)], "the call on line 150, 5 lines either side (its definitions: none here)");
+    }
+
+    #[test]
+    fn a_type_annotating_a_value_a_changed_line_builds_is_no_type_only_link() {
+        // atlas-backstage #1044: `const body: DeleteDeploymentPayload = {` is
+        // unchanged; the diff edits the literal's fields, which the type decides.
+        let text = "fn f() {\n  let body: Payload = {\n    a: 1,\n    b: 2,\n  };\n  send(body);\n}\n";
+        let at = |needle: &str| text.find(needle).unwrap();
+        let only = |changed: &str| {
+            let seed = json!({"id":"head-seed","symbol_id":"seed","side":"head","repository_id":"repo","file":"code.go","file_sha256":"hash",
+                "byte_start":0,"byte_end":text.len(),"line":1,"end_line":7,"text":text,"reasons":[{"reason":"change_seed"}]});
+            let ty = json!({"id":"head-payload","symbol_id":"payload","side":"head","repository_id":"repo","file":"types.go","file_sha256":"hash",
+                "byte_start":0,"byte_end":10,"line":1,"end_line":1,"text":"type P {}\n","reasons":[{"reason":"dependency","path":["seed","payload"],
+                "steps":[{"relation":"uses_type","source_file":"app/code.go","byte_start":at("Payload"),"byte_end":at("Payload") + 7}]}]});
+            let mut r = report(vec![seed, ty]);
+            let line = at(changed);
+            r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[line, line + changed.len()]],"_changed_base":[]}]);
+            context_with(vec![("head", 1, 1)]).annotate(&mut r);
+            r["entries"][1].get("_type_only").is_some()
+        };
+        assert!(!only("    b: 2,\n"), "a changed field of the annotated literal");
+        assert!(only("  send(body);\n"), "a later use of the value is not the annotated expression");
+        // The packet keeps one path per type: the recorded one may be another
+        // declaration's off-change use (atlas-backstage #1044: the modal's).
+        let seed = json!({"id":"head-seed","symbol_id":"seed","side":"head","repository_id":"repo","file":"code.go","file_sha256":"hash",
+            "byte_start":0,"byte_end":text.len(),"line":1,"end_line":7,"text":text,"reasons":[{"reason":"change_seed"}]});
+        let ty = json!({"id":"head-payload","symbol_id":"payload","name":"Payload","kind":"type","side":"head","repository_id":"repo","file":"code.go",
+            "file_sha256":"hash","byte_start":text.len(),"byte_end":text.len() + 10,"line":8,"end_line":8,"text":"type P {}\n",
+            "reasons":[{"reason":"dependency","path":["modal","payload"],"steps":[{"relation":"uses_type","source_file":"app/modal.tsx","byte_start":5,"byte_end":12}]}]});
+        let mut r = report(vec![seed, ty]);
+        let line = at("    b: 2,\n");
+        r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[line, line + 10]],"_changed_base":[]}]);
+        context_with(vec![("head", 1, 1)]).annotate(&mut r);
+        assert!(r["entries"][1].get("_type_only").is_none(), "{}", r["entries"][1]);
     }
 
     #[test]

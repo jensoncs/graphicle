@@ -2783,7 +2783,8 @@ fn below_floor(entry: &Value, callees: &BTreeSet<String>, flows: &BTreeSet<Strin
     let seed = reasons.iter().any(|r| r["reason"] == "change_seed");
     // A type the changed code names itself, not one a callee's callee names
     // (atlas-backstage #1046: ApiResponse, Params three calls away).
-    let named_type = s(entry, "kind") == "type" && reasons.iter().any(|r| r["path"].as_array().is_some_and(|p| p.len() <= 2));
+    // A TS interface is a type too (atlas-backstage #1044: DeleteDeploymentPayload).
+    let named_type = matches!(s(entry, "kind"), "type" | "interface") && reasons.iter().any(|r| r["path"].as_array().is_some_and(|p| p.len() <= 2));
     if !seed && keys::is_test(s(entry, "file")) && !tests_the_change(reasons) {
         return true;
     }
@@ -4089,6 +4090,7 @@ mod tests {
             e("imported", "function", "a/Utils.ts", "dependency", &["s", "imported"], "potential_import"),
             e("value", "function", "a/b.go", "dependency", &["s", "value"], "uses_value"),
             e("props", "type", "a/types.ts", "dependency", &["s", "props"], "uses_type"),
+            e("payload", "interface", "a/api.ts", "dependency", &["s", "payload"], "uses_type"),
             e("test", "function", "a/b_test.go", "dependency", &["s", "test"], "uses_value"),
             // siren #188: pattern.py, linked only through requirements.txt
             e("config", "basic_file", "a/pattern.py", "potential_consumer", &["s", "config"], "configuration_scope"),
@@ -4113,7 +4115,7 @@ mod tests {
         let (packet, _) = pack(report, 9000, None, None).unwrap();
         let mut ids: Vec<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
         ids.sort();
-        assert_eq!(ids, vec!["ci_new", "direct", "lone", "old", "props", "test"]);
+        assert_eq!(ids, vec!["ci_new", "direct", "lone", "old", "payload", "props", "test"]);
         assert_eq!(packet["coverage"]["provided_diff"]["import_only_entries"], 1);
         assert_eq!(packet["coverage"]["provided_diff"]["below_floor_entries"], 7, "the ancestor, the value-only link, the configuration scope, the deep type, the test scaffolding and the build step naming an edited file");
         assert_eq!(packet["coverage"]["provided_diff"]["file_beside_linked_entries"], 1);
