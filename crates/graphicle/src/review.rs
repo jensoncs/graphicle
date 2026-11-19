@@ -2767,9 +2767,24 @@ fn below_floor(entry: &Value, callees: &BTreeSet<String>, flows: &BTreeSet<Strin
     // A type the changed code names itself, not one a callee's callee names
     // (atlas-backstage #1046: ApiResponse, Params three calls away).
     let named_type = s(entry, "kind") == "type" && reasons.iter().any(|r| r["path"].as_array().is_some_and(|p| p.len() <= 2));
+    if !seed && keys::is_test(s(entry, "file")) && !tests_the_change(reasons) {
+        return true;
+    }
     !(seed || is_required_code(entry) || entry_distance(entry) == usize::MAX || overlapping.contains(id) || unseen.contains(id)
         || keys::is_test(s(entry, "file")) || callees.contains(id) || flows.contains(id) || uses_key(entry)
         || named_type || linked(&["uses_table", "generated_from"]) || direct_consumer)
+}
+
+/// A test links to the change itself: it calls or reaches changed code, or
+/// changed production code reaches it. Not a helper only test code calls, nor
+/// a test file sharing a requirements file (siren #188: siren_row,
+/// test_pattern.py).
+fn tests_the_change(reasons: &[Value]) -> bool {
+    reasons.iter().any(|r| {
+        let first = &r["steps"][0];
+        !matches!(first["relation"].as_str(), Some("potential_import" | "configuration_scope"))
+            && (r["reason"] == "potential_consumer" || !keys::is_test(s(first, "source_file")))
+    })
 }
 
 /// Every reason is a dependency reached only by calls.
@@ -3996,6 +4011,11 @@ mod tests {
             // atlas-backstage #1044: DeploymentTabs.tsx beside the DeploymentTabs it renders
             e("stub", "basic_file", "a/Page.tsx", "potential_consumer", &["s", "stub"], "potential_import"),
             e("lone", "basic_file", "a/Lone.tsx", "potential_consumer", &["s", "lone"], "potential_import"),
+            // siren #188: test_pattern.py, linked only through requirements.txt
+            e("test_scope", "basic_file", "a/test_pattern.py", "potential_consumer", &["s", "test_scope"], "configuration_scope"),
+            // siren #188: siren_row, a helper only the changed test calls
+            json!({"id":"scaffold","symbol_id":"scaffold","revision":"r","side":"head","kind":"function","file":"a/test_server.py","text":body,
+                "_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["t","scaffold"],"steps":[{"relation":"may_call","source_file":"a/test_server.py"}]}]}),
             // atlas-backstage #1046: ApiResponse, named by a callee of a callee, not by the change
             e("deep", "type", "a/common.ts", "dependency", &["s", "callee", "deep"], "uses_type"),
             // the old side of a change the provided diff does not cover is the only view of it
@@ -4007,7 +4027,7 @@ mod tests {
         ids.sort();
         assert_eq!(ids, vec!["direct", "lone", "old", "props", "test"]);
         assert_eq!(packet["coverage"]["provided_diff"]["import_only_entries"], 1);
-        assert_eq!(packet["coverage"]["provided_diff"]["below_floor_entries"], 4, "the ancestor, the value-only link, the configuration scope and the deep type");
+        assert_eq!(packet["coverage"]["provided_diff"]["below_floor_entries"], 6, "the ancestor, the value-only link, the configuration scope, the deep type and the test scaffolding");
         assert_eq!(packet["coverage"]["provided_diff"]["file_beside_linked_entries"], 1);
     }
 
