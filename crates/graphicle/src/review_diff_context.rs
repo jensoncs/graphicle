@@ -94,6 +94,17 @@ fn assigned(line: &str) -> Vec<&str> {
         .collect()
 }
 
+/// `word` read as a value of its own, not as `word.x`, `word?.x`, `word!.x`,
+/// `word[k]`, another value's member `y.word`, or a quoted `"word"`.
+fn whole(line: &str, word: &str) -> bool {
+    let ident = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
+    line.match_indices(word).any(|(i, _)| {
+        let (before, after) = (line[..i].trim_end(), line[i + word.len()..].trim_start());
+        !ident(line[..i].chars().last()) && !ident(line[i + word.len()..].chars().next())
+            && !before.ends_with(['.', '"', '\'', '`']) && !after.starts_with(['.', '[', '"', '\'', '`']) && !after.starts_with("?.") && !after.starts_with("!.")
+    })
+}
+
 fn has_word(line: &str, word: &str) -> bool {
     let ident = |c: Option<char>| c.is_some_and(|c| c.is_alphanumeric() || c == '_');
     line.match_indices(word).any(|(i, _)| !ident(line[..i].chars().last()) && !ident(line[i + word.len()..].chars().next()))
@@ -389,9 +400,15 @@ fn result_lines(entry: &Value, touched: &[bool]) -> Vec<usize> {
         let mut live: Vec<String> = bound(&lhs).into_iter().filter(|n| !NOT_NAMES.contains(n)).map(str::to_owned).collect();
         for j in i + 1..lines.len() {
             let reads = live.iter().any(|n| has_word(lines[j], n) && !replaces(lines[j], n));
-            if reads && touched[j] {
-                out.push(i);
-                break;
+            // A changed line reading only a member (`entity.ID`) leaves the
+            // callee's body nothing to add: the compiler checks the member
+            // (odin #196: AddEntity). It must take the value whole.
+            if touched[j] {
+                if live.iter().any(|n| whole(lines[j], n) && !replaces(lines[j], n)) {
+                    out.push(i);
+                    break;
+                }
+                continue;
             }
             if reads {
                 live.extend(written(lines[j]).into_iter().filter(|w| !live.iter().any(|n| n == w)).map(str::to_owned).collect::<Vec<_>>());
@@ -1110,6 +1127,25 @@ mod tests {
             "  return <ApiKeysTab pods={pods} />;",
         ];
         assert_eq!(results_of(&lines, &[8]), vec![3, 4], "listOther's result is never read by a changed line");
+        // odin #196: the added audit line reads only entity.ID, a member the
+        // compiler checks; AddEntity's body adds nothing. The update's row is
+        // read whole by structToJSON, and its RETURNING columns matter.
+        let lines = [
+            "\tentity, err := al.sqlDbRepo.AddEntity(ctx, params)",
+            "\tif err != nil {",
+            "\t\treturn nil, err",
+            "\t}",
+            "\tgo al.insertAdminAudit(ctx, \"entity\", entity.ID, structToJSON(opts))",
+        ];
+        assert!(results_of(&lines, &[4]).is_empty());
+        let lines = [
+            "\tentity, err := al.sqlDbRepo.UpdateEntity(ctx, params)",
+            "\tif err != nil {",
+            "\t\treturn nil, err",
+            "\t}",
+            "\tchangeDetails := diffCommonFields(oldJSON, structToJSON(entity))",
+        ];
+        assert_eq!(results_of(&lines, &[4]), vec![0]);
     }
 
     fn flow_of(lines: &[&str], changed: &[usize]) -> Vec<usize> {
