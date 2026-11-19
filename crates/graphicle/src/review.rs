@@ -2209,15 +2209,15 @@ fn pack_encoding(
                 // unseen lines are what that code relies on (siren #188:
                 // triage's returns, which the new metrics code reads).
                 (0, 1)
-            } else if callees.contains(id) && s(entry, "text").lines().count() > 3 {
-                // Called from the changed lines, after the changed code the
-                // diff mostly leaves out; a one-line helper waits with the rest
-                // (argus #111: cerr.New took Submit's place).
+            } else if (callees.contains(id) || flow_callees.contains(id)) && s(entry, "text").lines().count() > 3 {
+                // Called from the changed lines, or receives a value a changed
+                // line wrote or returns one a changed line reads, after the
+                // changed code the diff mostly leaves out; a one-line helper
+                // waits with the rest (argus #111: cerr.New took Submit's
+                // place). One changed function's calls go together, in its
+                // order (odin #196: GetSubnetworkList and the UpdateSubnetwork
+                // whose result a changed line reads).
                 (0, 2)
-            } else if flow_callees.contains(id) && s(entry, "text").lines().count() > 3 {
-                // Receives a value a changed line wrote: after the callees of
-                // the changed lines themselves.
-                (0, 3)
             } else if overlapping.contains(id) {
                 (1, 0)
             } else if is_required_code(entry) {
@@ -4066,7 +4066,11 @@ mod tests {
         let callee = |id: &str, file: &str, line: u64, at: u64| json!({"id":id,"symbol_id":id,"revision":"r","side":"head","kind":"sql_query",
             "file":file,"line":line,"text":body,"_provided_diff_callee":true,
             "reasons":[{"reason":"dependency","path":["s", id],"steps":[{"relation":"may_call","source_file":"a/svc.go","byte_start":at}]}]});
-        let report = json!({"entries":[callee("other", "a/b.sql", 1, 300), callee("upd", "a/q.sql", 10, 200), callee("sel", "a/q.sql", 100, 100)],
+        let mut upd = callee("upd", "a/q.sql", 10, 200);
+        // the write's call is unchanged; a changed line reads its result
+        upd.as_object_mut().unwrap().remove("_provided_diff_callee");
+        upd["_provided_diff_flow_callee"] = json!(true);
+        let report = json!({"entries":[callee("other", "a/b.sql", 1, 300), upd, callee("sel", "a/q.sql", 100, 100)],
             "diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         assert_eq!(pack(report, 9000, None, None).unwrap().0["context_order"], json!(["sel", "upd", "other"]));
