@@ -80,6 +80,57 @@ fn line_of(input: &Input, file: &str, at: usize) -> usize {
     input.sources.get(file).and_then(|s| s.content.text()).map_or(1, |t| t[..at.min(t.len())].matches('\n').count() + 1)
 }
 
+/// The keys the base side's files in `dir` write or read, by name and
+/// whether written, tests aside.
+fn base_keys(base: &Input, dir: Option<&Path>) -> BTreeSet<(String, bool)> {
+    base.sources.iter().filter(|(file, _)| Path::new(file.as_str()).parent() == dir && !is_test(file))
+        .filter_map(|(_, source)| source.content.text()).flat_map(|t| keys(t, 0)).map(|k| (k.name, k.write)).collect()
+}
+
+/// Head calls by declaration, both ways.
+struct Graph<'a> {
+    callees: BTreeMap<(&'a str, &'a str), BTreeSet<&'a str>>,
+    callers: BTreeMap<(&'a str, &'a str), BTreeSet<&'a str>>,
+}
+
+impl<'a> Graph<'a> {
+    fn new(b: &'a Analysis) -> Self {
+        let mut graph = Graph { callees: BTreeMap::new(), callers: BTreeMap::new() };
+        for (world, call) in &b.calls {
+            if matches!(call.relation.as_str(), "calls" | "may_call" | "references_callable" | "renders") {
+                graph.callees.entry((world.as_str(), call.caller.as_str())).or_default().insert(call.target.as_str());
+                graph.callers.entry((world.as_str(), call.target.as_str())).or_default().insert(call.caller.as_str());
+            }
+        }
+        graph
+    }
+
+    fn reaches(&self, world: &str, from: &str, to: &str) -> bool {
+        let mut seen = BTreeSet::from([from]);
+        let mut next = vec![from];
+        while let Some(at) = next.pop() {
+            for &callee in self.callees.get(&(world, at)).into_iter().flatten() {
+                if callee == to {
+                    return true;
+                }
+                if seen.insert(callee) {
+                    next.push(callee);
+                }
+            }
+        }
+        false
+    }
+}
+
+/// Whether one declaration's calls reach the other's, or one function calls
+/// both: the caller passing what one returns to the other (siren #185:
+/// fetch_metric hands query_range's result to alert_points).
+fn joined(graph: &Graph, (world, a): (&str, &str), (_, b): (&str, &str)) -> bool {
+    let callers = |x| graph.callers.get(&(world, x));
+    graph.reaches(world, a, b) || graph.reaches(world, b, a)
+        || callers(a).zip(callers(b)).is_some_and(|(x, y)| !x.is_disjoint(y))
+}
+
 /// For each changed head declaration, the reasons that link it to the
 /// declarations in its directory sharing a key its changed lines touch: a
 /// reader of a key it writes is a potential consumer, a writer of a key it
@@ -87,19 +138,33 @@ fn line_of(input: &Input, file: &str, at: usize) -> usize {
 pub(super) fn reasons(base: &Input, a: &Analysis, head: &Input, b: &Analysis, seeds: &BTreeSet<String>) -> Vec<(String, Value)> {
     let old: BTreeMap<&str, &str> = a.symbols.values().map(|(_, s)| (s.key.as_str(), text(base, s))).collect();
     let dir = |file: &str| Path::new(file).parent().map(Path::to_path_buf);
+    let graph = Graph::new(b);
+    let mut old_keys = BTreeMap::new();
     let mut out = vec![];
-    for seed in seeds {
-        let Some((_, symbol)) = b.symbols.get(seed) else { continue };
+    // The keys each changed declaration's changed lines touch.
+    let changed: Vec<(&String, &Symbol, Vec<Key>)> = seeds.iter().filter_map(|seed| {
+        let (_, symbol) = b.symbols.get(seed)?;
         if symbol.kind == "basic_file" || is_test(&symbol.file) {
-            continue;
+            return None;
         }
         let body = text(head, symbol);
         let lines = changed_lines(body, old.get(symbol.key.as_str()).copied().unwrap_or(""), symbol.start);
         let touched: Vec<Key> = keys(body, symbol.start).into_iter()
             .filter(|k| lines.iter().any(|&(x, y)| x <= k.start && k.end <= y)).collect();
-        if touched.is_empty() {
-            continue;
-        }
+        (!touched.is_empty()).then_some((seed, symbol, touched))
+    }).collect();
+    // Keys one changed declaration writes and another reads: the diff holds
+    // both ends. Not a copy across dicts within one (siren #187:
+    // `"drop_inf": raw.get("drop_inf")`).
+    let role = |write: bool| changed.iter()
+        .flat_map(|(seed, _, ks)| ks.iter().filter(move |k| k.write == write).map(move |k| (k.name.as_str(), seed.as_str())))
+        .collect::<BTreeSet<_>>();
+    let (writes, reads) = (role(true), role(false));
+    let both: BTreeSet<&str> = writes.iter()
+        .filter(|(name, writer)| reads.iter().any(|(n, reader)| n == name && reader != writer))
+        .map(|(name, _)| *name).collect();
+    for (seed, symbol, touched) in &changed {
+        let (seed, symbol) = (*seed, *symbol);
         let others: Vec<_> = b.symbols.iter().filter(|(id, (_, other))| {
             *id != seed && other.kind != "basic_file" && !is_test(&other.file) && dir(&other.file) == dir(&symbol.file)
                 && !(other.file == symbol.file && ((other.start <= symbol.start && symbol.end <= other.end) || (symbol.start <= other.start && other.end <= symbol.end)))
@@ -108,13 +173,24 @@ pub(super) fn reasons(base: &Input, a: &Analysis, head: &Input, b: &Analysis, se
         // the directory ("error", "verdict") is weaker evidence than one only
         // a few read (siren #188), and ranks so.
         let sharers = |k: &Key| others.iter().filter(|(.., theirs)| theirs.iter().any(|t| t.write != k.write && t.name == k.name)).count();
+        let used = old_keys.entry(dir(&symbol.file)).or_insert_with_key(|d| base_keys(base, d.as_deref()));
         for (id, w, other, theirs) in &others {
             let (id, w, other) = (*id, *w, *other);
+            // A key the directory already wrote (or read) links only ends a
+            // call joins (siren #185: _fire_value reads a firing's "values",
+            // not what the changed query_range returns); a write (or read)
+            // the change introduces has no older one to confuse it with
+            // (siren #187: "drop_inf" was read, never written, before),
+            // unless the change also adds its other end (siren #188: the
+            // decision "error" triage writes, not fetch_metric's).
+            let joined = joined(&graph, (w, &symbol.key), (w, &other.key));
+            let introduced = |k: &Key| !used.contains(&(k.name.clone(), k.write)) && !both.contains(k.name.as_str());
+            let touched: Vec<&Key> = touched.iter().filter(|k| joined || introduced(k)).collect();
             let consumer = touched.iter().filter(|k| k.write)
                 .filter_map(|k| theirs.iter().find(|t| !t.write && t.name == k.name).map(|t| (other, t, other, symbol, sharers(k))))
                 .min_by_key(|link| link.4);
             let dependency = touched.iter().filter(|k| !k.write)
-                .filter_map(|k| theirs.iter().any(|t| t.write && t.name == k.name).then_some((symbol, k, symbol, other, sharers(k))))
+                .filter_map(|k| theirs.iter().any(|t| t.write && t.name == k.name).then_some((symbol, *k, symbol, other, sharers(k))))
                 .min_by_key(|link| link.4);
             for (reason, link) in [("potential_consumer", consumer), ("dependency", dependency)] {
                 let Some((at, k, reader, writer, n)) = link else { continue };

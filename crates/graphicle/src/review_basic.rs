@@ -1525,6 +1525,40 @@ mod tests {
     }
 
     #[test]
+    fn an_old_key_links_only_ends_a_call_path_joins() {
+        // siren #185: a changed query_range line writes "values", a key the
+        // module already used; _fire_value reads a firing's "values" and no
+        // call joins it to query_range, while fetch passes query_range's
+        // result to alert_points. A key the change introduces needs no path.
+        let query = |v: &str| format!("def query_range(q):\n    return {{\"values\": {v}}}\n");
+        let usage = "def alert_points(r):\n    return r[\"values\"]\n\n\ndef fetch(q):\n    return alert_points(query_range(q))\n\n\n\
+            def fire_value(f):\n    return f[\"values\"]\n\n\ndef history(fs):\n    return [fire_value(f) for f in fs]\n\n\n\
+            def uses_fresh(r):\n    return r.get(\"fresh\")\n";
+        let files = |q: String| input(&[("repo/svc/agent.py", format!("{q}\n\n{usage}").as_str())]);
+        let r = report(&files(query("q")), &files(query("q, \"fresh\": 1")));
+        let keyed = |name: &str| r["entries"].as_array().unwrap().iter()
+            .find(|e| e["side"] == "head" && e["name"] == name)
+            .is_some_and(|e| e["reasons"].as_array().unwrap().iter().any(|x| x["steps"][0]["relation"] == "uses_key"));
+        assert!(keyed("alert_points"), "{r}");
+        assert!(keyed("uses_fresh"), "{r}");
+        assert!(!keyed("fire_value"), "{r}");
+    }
+
+    #[test]
+    fn a_key_the_change_both_writes_and_reads_links_older_ends_only_by_a_call() {
+        // siren #188: triage newly writes the decision "error" that a new
+        // record line reads; fetch_metric's older metric "error" is another dict.
+        let code = |triage: &str, record: &str| format!("def fetch_metric(q):\n    return {{\"error\": q}}\n\n\n\
+            def triage(x):\n    return {triage}\n\n\ndef record(d):\n    return {record}\n");
+        let files = |c: String| input(&[("repo/svc/agent.py", c.as_str())]);
+        let r = report(&files(code("{\"verdict\": x}", "0")), &files(code("{\"verdict\": x, \"error\": None}", "d.get(\"error\")")));
+        let keyed = r["entries"].as_array().unwrap().iter()
+            .find(|e| e["side"] == "head" && e["name"] == "fetch_metric")
+            .is_some_and(|e| e["reasons"].as_array().unwrap().iter().any(|x| x["steps"][0]["relation"] == "uses_key"));
+        assert!(!keyed, "{r}");
+    }
+
+    #[test]
     fn a_component_rendering_a_changed_component_is_a_consumer_by_reference() {
         // atlas-backstage #1044/#1046: JSX is how a component is called; a
         // parent rendering a changed one is linked, but not as a required
