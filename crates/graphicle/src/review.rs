@@ -2219,7 +2219,12 @@ fn pack_encoding(
             } else {
                 (0, 4)
             };
-            (tier.0, tier.1, key_sharers(entry))
+            // Callees of the changed lines in source order, not by the
+            // round-robin turn another link earned them (siren #187: losing a
+            // key link moved query_range ahead of summarize_series).
+            let place = matches!(tier, (0, 2) | (0, 3))
+                .then(|| (entry_distance(entry), s(entry, "file").to_owned(), entry["line"].as_u64().unwrap_or(0)));
+            (tier.0, tier.1, key_sharers(entry), place)
         });
         // The relevance floor: what no changed line calls, reads, types or
         // keys goes as nothing rather than as filler. Filling to the budget
@@ -3944,6 +3949,29 @@ mod tests {
         ids.sort();
         assert_eq!(ids, vec!["base-q", "base-r", "head-p", "head-q", "head-r"]);
         assert_eq!(packet["coverage"]["provided_diff"]["base_shown_by_diff_entries"], 1);
+    }
+
+    #[test]
+    fn callees_of_changed_lines_keep_their_order_whatever_else_links_them() {
+        // siren #187: query_range lost a key link, changed round-robin
+        // bucket, and pushed summarize_series out of the printed block.
+        let body = "a\nb\nc\nd\ne\n";
+        let callee = |id: &str, line: u64, consumer: bool| {
+            let mut reasons = vec![json!({"reason":"dependency","path":["s", id],"steps":[{"relation":"may_call"}]})];
+            if consumer {
+                reasons.push(json!({"reason":"potential_consumer","path":["s", id],"steps":[{"relation":"uses_key"}]}));
+            }
+            json!({"id":id,"symbol_id":id,"revision":"r","side":"head","kind":"function","file":"a/agent.py","line":line,"text":body,
+                "_provided_diff_callee":true,"reasons":reasons})
+        };
+        let order = |late_is_consumer: bool| {
+            let report = json!({"entries":[callee("early", 10, false), callee("late", 50, late_is_consumer)],
+                "diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+                "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+            pack(report, 9000, None, None).unwrap().0["context_order"].clone()
+        };
+        assert_eq!(order(true), json!(["early", "late"]));
+        assert_eq!(order(false), json!(["early", "late"]));
     }
 
     #[test]
