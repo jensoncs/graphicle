@@ -2230,11 +2230,13 @@ fn pack_encoding(
             } else {
                 (0, 4)
             };
-            // Callees of the changed lines in source order, not by the
-            // round-robin turn another link earned them (siren #187: losing a
-            // key link moved query_range ahead of summarize_series).
+            // Callees of the changed lines in the order the change calls them,
+            // not by the round-robin turn another link earned them (siren
+            // #187: losing a key link moved query_range ahead of
+            // summarize_series), nor by their own files (odin #196: a read and
+            // the write after it sat 8 KB apart).
             let place = matches!(tier, (0, 2) | (0, 3))
-                .then(|| (entry_distance(entry), s(entry, "file").to_owned(), entry["line"].as_u64().unwrap_or(0)));
+                .then(|| (entry_distance(entry), call_site(entry).map_or((true, None), |site| (false, Some(site))), s(entry, "file").to_owned(), entry["line"].as_u64().unwrap_or(0)));
             (tier.0, tier.1, key_sharers(entry), place)
         });
         // The relevance floor: what no changed line calls, reads, types or
@@ -2800,6 +2802,18 @@ fn tests_the_change(reasons: &[Value]) -> bool {
         !matches!(first["relation"].as_str(), Some("potential_import" | "configuration_scope"))
             && (r["reason"] == "potential_consumer" || !keys::is_test(s(first, "source_file")))
     })
+}
+
+/// The first call in changed code that leads to this entry: the file and
+/// byte of the first step of its earliest dependency path.
+fn call_site(entry: &Value) -> Option<(String, u64)> {
+    entry["reasons"].as_array()?.iter()
+        .filter(|r| r["reason"] == "dependency")
+        .filter_map(|r| {
+            let first = &r["steps"][0];
+            Some((s(first, "source_file").to_owned(), first["byte_start"].as_u64()?))
+        })
+        .min()
 }
 
 /// Another changed declaration reads a key this one writes or returns. A call
@@ -4041,6 +4055,21 @@ mod tests {
         };
         assert_eq!(order(true), json!(["early", "late"]));
         assert_eq!(order(false), json!(["early", "late"]));
+    }
+
+    #[test]
+    fn callees_of_changed_lines_go_in_the_order_the_change_calls_them() {
+        // odin #196: UpdateSubnetwork reads GetSubnetworkList, then writes
+        // UpdateSubnetwork; ordered by their own files, the twelve list
+        // queries came before every update and the pair sat 8 KB apart.
+        let body = "a\nb\nc\nd\ne\n";
+        let callee = |id: &str, file: &str, line: u64, at: u64| json!({"id":id,"symbol_id":id,"revision":"r","side":"head","kind":"sql_query",
+            "file":file,"line":line,"text":body,"_provided_diff_callee":true,
+            "reasons":[{"reason":"dependency","path":["s", id],"steps":[{"relation":"may_call","source_file":"a/svc.go","byte_start":at}]}]});
+        let report = json!({"entries":[callee("other", "a/b.sql", 1, 300), callee("upd", "a/q.sql", 10, 200), callee("sel", "a/q.sql", 100, 100)],
+            "diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        assert_eq!(pack(report, 9000, None, None).unwrap().0["context_order"], json!(["sel", "upd", "other"]));
     }
 
     #[test]
