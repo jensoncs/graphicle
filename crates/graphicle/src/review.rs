@@ -2076,6 +2076,14 @@ fn pack_encoding(
         .filter(|c| c["kind"] == "deleted")
         .map(|c| s(c, "base"))
         .collect();
+    // Changed in place: the path a build step names still exists as it was.
+    let edited: BTreeSet<String> = changes
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["kind"] == "modified")
+        .flat_map(|c| [s(c, "base").to_owned(), s(c, "head").to_owned()])
+        .collect();
     report["changes"] = json!({"count":changes.as_array().unwrap().len(),"digest":crate::digest(&changes),"examples":changes.as_array().unwrap().iter().take(20).collect::<Vec<_>>()});
     if let Some(files) = report["file_changes"].as_array() {
         let files = files.clone();
@@ -2235,7 +2243,7 @@ fn pack_encoding(
         // import reach (atlas-backstage #1044, #1046). A type stays: the
         // off-change ones are gone already, so it is named by a changed line.
         let before = candidates.len();
-        candidates.retain(|(collection, entry)| *collection != "entries" || !below_floor(entry, &callees, &flow_callees, &overlapping, &mostly_unseen));
+        candidates.retain(|(collection, entry)| *collection != "entries" || !below_floor(entry, &callees, &flow_callees, &overlapping, &mostly_unseen, &edited));
         report["coverage"]["provided_diff"]["below_floor_entries"] = json!(before - candidates.len());
         // A file reached only by import, beside a declaration in it the change
         // calls or renders, says less than that declaration (atlas-backstage
@@ -2756,16 +2764,20 @@ fn is_call_consumer(entry: &Value) -> bool {
 /// consumer of a changed declaration (an importer's use may not resolve, a
 /// renderer sees the changed props). What is left is reach: ancestors beyond
 /// the direct site and what an import brings along.
-fn below_floor(entry: &Value, callees: &BTreeSet<String>, flows: &BTreeSet<String>, overlapping: &BTreeSet<String>, unseen: &BTreeSet<String>) -> bool {
+fn below_floor(entry: &Value, callees: &BTreeSet<String>, flows: &BTreeSet<String>, overlapping: &BTreeSet<String>, unseen: &BTreeSet<String>, edited: &BTreeSet<String>) -> bool {
     let id = s(entry, "id");
     let reasons = entry["reasons"].as_array().map_or(&[][..], Vec::as_slice);
     let linked = |relations: &[&str]| reasons.iter()
         .any(|r| r["steps"].as_array().is_some_and(|st| st.iter().any(|st| relations.contains(&st["relation"].as_str().unwrap_or("")))));
     // Not through configuration scope: a module sharing a requirements file
     // consumes nothing the change made (siren #188: pattern.py).
+    // Nor a build step naming a file the change only edits: the path it names
+    // is unchanged (siren #188: lint.yaml's check job and requirements.txt).
+    let build_step = matches!(s(entry, "kind"), "workflow_job" | "docker_stage" | "make_target");
     let direct_consumer = reasons.iter()
         .any(|r| r["reason"] == "potential_consumer" && r["path"].as_array().is_some_and(|p| p.len() <= 2)
-            && !r["steps"].as_array().is_some_and(|st| st.iter().any(|st| st["relation"] == "configuration_scope")));
+            && !r["steps"].as_array().is_some_and(|st| st.iter().any(|st| st["relation"] == "configuration_scope"))
+            && !(build_step && r["path"][0].as_str().is_some_and(|seed| edited.contains(seed))));
     let seed = reasons.iter().any(|r| r["reason"] == "change_seed");
     // A type the changed code names itself, not one a callee's callee names
     // (atlas-backstage #1046: ApiResponse, Params three calls away).
@@ -4058,15 +4070,19 @@ mod tests {
             // atlas-backstage #1046: ApiResponse, named by a callee of a callee, not by the change
             e("deep", "type", "a/common.ts", "dependency", &["s", "callee", "deep"], "uses_type"),
             // the old side of a change the provided diff does not cover is the only view of it
-            json!({"id":"old","symbol_id":"old","revision":"r","side":"base","kind":"function","file":"b/c.go","text":body,"reasons":[{"reason":"change_seed","path":["old"]}]})
-        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            json!({"id":"old","symbol_id":"old","revision":"r","side":"base","kind":"function","file":"b/c.go","text":body,"reasons":[{"reason":"change_seed","path":["old"]}]}),
+            // siren #188: lint.yaml's check job names requirements.txt, which the change edits in place
+            e("ci", "workflow_job", ".github/workflows/lint.yaml", "potential_consumer", &["req", "ci"], "potential_import"),
+            // a build step naming a file the change adds still sees the change
+            e("ci_new", "workflow_job", ".github/workflows/build.yaml", "potential_consumer", &["new", "ci_new"], "potential_import")
+        ],"diffs":[],"changes":[{"kind":"modified","base":"req","head":"req"},{"kind":"added","head":"new"}],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
         let mut ids: Vec<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
         ids.sort();
-        assert_eq!(ids, vec!["direct", "lone", "old", "props", "test"]);
+        assert_eq!(ids, vec!["ci_new", "direct", "lone", "old", "props", "test"]);
         assert_eq!(packet["coverage"]["provided_diff"]["import_only_entries"], 1);
-        assert_eq!(packet["coverage"]["provided_diff"]["below_floor_entries"], 6, "the ancestor, the value-only link, the configuration scope, the deep type and the test scaffolding");
+        assert_eq!(packet["coverage"]["provided_diff"]["below_floor_entries"], 7, "the ancestor, the value-only link, the configuration scope, the deep type, the test scaffolding and the build step naming an edited file");
         assert_eq!(packet["coverage"]["provided_diff"]["file_beside_linked_entries"], 1);
     }
 
