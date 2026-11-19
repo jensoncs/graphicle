@@ -25,8 +25,9 @@ pub struct Bound<Id> {
     pub target: Id,
     pub file: String,
     pub line: usize,
-    /// `oxc_binding` (scope and module resolution) or `oxc_type` (a receiver
-    /// typed by an annotation or `new`).
+    /// `oxc_binding` (scope and module resolution), `oxc_type` (a receiver
+    /// typed by an annotation or `new`), `oxc_jsx` (a rendered component) or
+    /// `oxc_type_ref` (a type a declaration names).
     pub resolution: &'static str,
 }
 
@@ -212,14 +213,18 @@ pub(super) fn bind<Fs: FileSystem + 'static, N: Nodes>(
             });
             let Some(caller) = caller else { continue };
             let (target, resolution) = match &site.target {
-                Target::Function(reference) | Target::Render(reference) => {
+                Target::Function(reference) | Target::Render(reference) | Target::TypeRef(reference) => {
                     let Some((file, Ref::Local { name, line })) = r.declaration(fi, reference)
                     else {
                         continue;
                     };
                     (
                         nodes.function(&summaries[file].key, &name, line),
-                        if matches!(site.target, Target::Render(_)) { "oxc_jsx" } else { "oxc_binding" },
+                        match site.target {
+                            Target::Render(_) => "oxc_jsx",
+                            Target::TypeRef(_) => "oxc_type_ref",
+                            _ => "oxc_binding",
+                        },
                     )
                 }
                 Target::Namespace { spec, name } => {
@@ -675,6 +680,36 @@ mod tests {
         assert_eq!(
             found,
             [("ui/Tabs.tsx#Tabs", "ui/DeleteModal.tsx#DeleteModal", 7, "oxc_jsx"), ("ui/Tabs.tsx#Tabs", "ui/Tabs.tsx#Row", 6, "oxc_jsx")],
+            "{bound:#?}"
+        );
+    }
+
+    /// A type a declaration names, an imported interface or type alias, is a
+    /// link the review can follow (atlas-backstage #1035: the changed lines
+    /// read `access.principalExists`; `LakehouseAccessStatus` was no candidate).
+    #[test]
+    fn binds_type_references_to_the_interfaces_and_aliases_they_name() {
+        let root = Path::new("/snapshot/repo");
+        let files: Vec<(PathBuf, Arc<str>)> = [
+            ("api/types.ts", "export interface LakehouseAccessStatus {\n  principalExists: boolean;\n}\nexport type Subject = { name: string };\n"),
+            (
+                "ui/Page.tsx",
+                "import { LakehouseAccessStatus, Subject } from '../api/types';\nexport const Page = ({ access }: { access: LakehouseAccessStatus }) => {\n  const s: Subject = { name: 'x' };\n  return access.principalExists ? s.name : '';\n};\n",
+            ),
+        ]
+        .into_iter()
+        .map(|(p, t)| (root.join(p), Arc::<str>::from(t)))
+        .collect();
+        let names = Names(
+            ["api/types.ts#LakehouseAccessStatus", "api/types.ts#Subject", "ui/Page.tsx#Page"].into_iter().map(String::from).collect(),
+        );
+        let bound = bind_snapshot(&files, root, &names);
+        let mut found: Vec<(&str, &str, usize, &str)> =
+            bound.iter().map(|b| (b.caller.as_str(), b.target.as_str(), b.line, b.resolution)).collect();
+        found.sort();
+        assert_eq!(
+            found,
+            [("ui/Page.tsx#Page", "api/types.ts#LakehouseAccessStatus", 2, "oxc_type_ref"), ("ui/Page.tsx#Page", "api/types.ts#Subject", 3, "oxc_type_ref")],
             "{bound:#?}"
         );
     }

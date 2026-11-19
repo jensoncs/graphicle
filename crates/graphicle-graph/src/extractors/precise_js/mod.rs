@@ -86,6 +86,8 @@ enum Target {
     New(Ref),
     /// `<C />`: the component `C` rendered as a JSX element
     Render(Ref),
+    /// `x: T`: the interface, type alias or class `T` a declaration names
+    TypeRef(Ref),
     /// `recv.m()` where `recv` is a method call's result or a field: `m` of
     /// the class `recv` is declared to hold.
     Chain { receiver: Recv, name: String },
@@ -455,6 +457,17 @@ impl<'a> Reader<'_, 'a> {
             _ => None,
         }
     }
+    /// The declaration a type name refers to: a local type alias, or what
+    /// [`Self::binding`] finds (an interface, a class, an import).
+    fn type_ref(&self, ident: &IdentifierReference<'a>) -> Option<Ref> {
+        if let AstKind::TSTypeAliasDeclaration(a) = self.kind(self.declaration(ident)?) {
+            return Some(Ref::Local { name: a.id.name.to_string(), line: self.line(a.span.start) });
+        }
+        match self.binding(ident, 0)? {
+            Binding::Decl(r) | Binding::Class(r) => Some(r),
+            _ => None,
+        }
+    }
     /// `C`, `C | null`, `C | undefined` as a class reference.
     fn annotated(&self, ty: &TSType<'a>) -> Option<Ref> {
         match ty {
@@ -776,6 +789,21 @@ impl<'a> Reader<'_, 'a> {
                         });
                     }
                 }
+                // `access: LakehouseAccessStatus` names the type the changed
+                // lines read (atlas-backstage #1035).
+                AstKind::TSTypeReference(ty) => {
+                    let callers = self.callers(node.id());
+                    if !callers.is_empty()
+                        && let TSTypeName::IdentifierReference(ident) = &ty.type_name
+                        && let Some(r) = self.type_ref(ident)
+                    {
+                        out.sites.push(Site {
+                            callers,
+                            line: self.line(ty.span.start),
+                            target: Target::TypeRef(r),
+                        });
+                    }
+                }
                 AstKind::NewExpression(new) => {
                     let callers = self.callers(node.id());
                     if !callers.is_empty()
@@ -849,6 +877,15 @@ impl<'a> Reader<'_, 'a> {
                             if let (Some(id), Some(r)) = (&c.id, self.class_local(c)) {
                                 out.exports.insert(id.name.to_string(), Export::Local(r));
                             }
+                        }
+                        Some(Declaration::TSTypeAliasDeclaration(a)) => {
+                            out.exports.insert(
+                                a.id.name.to_string(),
+                                Export::Local(Ref::Local {
+                                    name: a.id.name.to_string(),
+                                    line: self.line(a.span.start),
+                                }),
+                            );
                         }
                         Some(Declaration::TSInterfaceDeclaration(i)) => {
                             out.exports.insert(
@@ -1234,7 +1271,8 @@ pub fn resolve(
         canonical: |p| p.canonicalize().unwrap_or_else(|_| p.to_path_buf()),
     };
     let mut added = vec![];
-    for b in bind::bind(&mut r, |key| emit.contains(key), &index) {
+    // ponytail: type references are review links, not calls; the graph keeps calls only.
+    for b in bind::bind(&mut r, |key| emit.contains(key), &index).into_iter().filter(|b| b.resolution != "oxc_type_ref") {
         if pairs.insert((b.caller, b.target)) {
             added.push(edge(b.caller, b.target, b.line, &b.file, b.resolution));
         }

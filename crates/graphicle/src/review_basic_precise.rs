@@ -96,14 +96,30 @@ pub(super) fn calls(input: &Input, repo: &str, declared: &BTreeSet<String>, out:
         .filter(|(_, c)| c.relation == "may_call")
         .map(|(_, c)| (c.caller.clone(), c.target.clone()))
         .collect();
-    for bound in bind_snapshot(
+    let bound = bind_snapshot(
         &files,
         &root,
         &Declared {
             repo,
             keys: declared,
         },
-    ) {
+    );
+    // A pair the binder sees only as a type reference is no call, whatever
+    // the name-based binder made of the identifier.
+    // `make(): Price { return new Price() }` calls Price whichever comes first.
+    let called: BTreeSet<(String, String)> = bound.iter().filter(|b| b.resolution != "oxc_type_ref")
+        .map(|b| (b.caller.1.clone(), b.target.1.clone())).collect();
+    let typed: BTreeSet<(String, String)> = bound.iter()
+        .map(|b| (b.caller.1.clone(), b.target.1.clone()))
+        .filter(|pair| !called.contains(pair)).collect();
+    for (_, call) in out.calls.iter_mut().filter(|(_, c)| c.relation == "may_call" && typed.contains(&(c.caller.clone(), c.target.clone()))) {
+        call.relation = "uses_type".into();
+        call.evidence = "oxc_type_ref".into();
+    }
+    for bound in bound {
+        if bound.resolution == "oxc_type_ref" && called.contains(&(bound.caller.1.clone(), bound.target.1.clone())) {
+            continue;
+        }
         let ((from, caller), (to, target)) = (bound.caller, bound.target);
         if !pairs.insert((caller.clone(), target.clone())) {
             continue;
@@ -115,7 +131,11 @@ pub(super) fn calls(input: &Input, repo: &str, declared: &BTreeSet<String>, out:
             (&to, &target),
             // A JSX element references the component it renders: linked, but
             // not a required caller (atlas-backstage #1046).
-            if bound.resolution == "oxc_jsx" { "renders" } else { "may_call" },
+            match bound.resolution {
+                "oxc_jsx" => "renders",
+                "oxc_type_ref" => "uses_type",
+                _ => "may_call",
+            },
             bound.resolution,
             bound.line,
             line_span(source, bound.line),

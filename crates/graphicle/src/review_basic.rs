@@ -1559,6 +1559,20 @@ mod tests {
     }
 
     #[test]
+    fn a_type_a_changed_component_names_is_its_dependency() {
+        // atlas-backstage #1035: the changed lines read access.principalExists,
+        // and LakehouseAccessStatus, which says what that field is, was no candidate.
+        let types = "export interface LakehouseAccessStatus {\n  principalExists: boolean;\n}\n";
+        let page = |v: &str| format!("import {{ LakehouseAccessStatus }} from './types';\nexport const Page = ({{ access }}: {{ access: LakehouseAccessStatus }}) => (\n  <div>{{access.principalExists ? '{v}' : ''}}</div>\n);\n");
+        let repo = |v: &str| input(&[("repo/ui/types.ts", types), ("repo/ui/Page.tsx", page(v).as_str())]);
+        let r = report(&repo("a"), &repo("b"));
+        let entry = r["entries"].as_array().unwrap().iter().find(|e| e["side"] == "head" && e["name"] == "LakehouseAccessStatus").unwrap_or_else(|| panic!("{r}"));
+        let steps: Vec<&str> = entry["reasons"].as_array().unwrap().iter()
+            .filter(|x| x["reason"] == "dependency").map(|x| s(&x["steps"][0], "relation")).collect();
+        assert_eq!(steps, ["uses_type"], "{entry}");
+    }
+
+    #[test]
     fn a_component_rendering_a_changed_component_is_a_consumer_by_reference() {
         // atlas-backstage #1044/#1046: JSX is how a component is called; a
         // parent rendering a changed one is linked, but not as a required
