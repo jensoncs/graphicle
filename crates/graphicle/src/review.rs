@@ -2011,6 +2011,19 @@ fn pack_encoding(
                 "_head_change":is_head_change(e)})
         })
         .collect();
+    if supplemental {
+        // The old side of a declaration whose head the diff shows reprints
+        // the hunks' removed lines (atlas-backstage #1035: base copies of
+        // DataCatalogPage and mount). The old side of a change the diff does
+        // not show stays: it is the only view of it, as does an old side the
+        // diff supplies none of (only the head hunks were provided).
+        let shown: BTreeSet<String> = entries.iter()
+            .filter(|e| s(e, "side") == "head" && (e["_provided_diff"] == true || overlapping.contains(s(e, "id"))))
+            .map(|e| s(e, "symbol_id").to_owned()).filter(|id| !id.is_empty()).collect();
+        let before = entries.len();
+        entries.retain(|e| s(e, "side") != "base" || !overlapping.contains(s(e, "id")) || !shown.contains(s(e, "symbol_id")));
+        report["coverage"]["provided_diff"]["base_shown_by_diff_entries"] = json!(before - entries.len());
+    }
     entries.retain(|e| e["_provided_diff"] != true);
     diffs.retain(|e| e["_provided_diff"] != true);
     // A base copy byte-identical to its head copy says nothing the head copy
@@ -3888,6 +3901,35 @@ mod tests {
         ids.sort();
         assert_eq!(ids, vec!["flow", "on", "table"]);
         assert_eq!(packet["coverage"]["provided_diff"]["off_change_callee_entries"], 1);
+    }
+
+    #[test]
+    fn a_base_copy_of_a_declaration_the_diff_shows_is_not_sent() {
+        // atlas-backstage #1035: DataCatalogPage and mount went as head and
+        // base copies of the hunks the reviewer already reads.
+        let body = "a\nb\nc\nd\n";
+        let seed = |id: &str, symbol: &str, side: &str, overlap: bool| {
+            let mut e = json!({"id":id,"symbol_id":symbol,"revision":"r","side":side,"kind":"function","file":"a/p.tsx","text":format!("{side}{body}"),
+                "reasons":[{"reason":"change_seed","path":[symbol]}]});
+            if overlap {
+                e["_provided_diff_overlap"] = json!(true);
+                e["_provided_diff_mostly_unseen"] = json!(true);
+            }
+            e
+        };
+        let report = json!({"entries":[
+            seed("head-p", "p", "head", true), seed("base-p", "p", "base", true),
+            // the diff does not show this one's head: its old side is the only view of it
+            seed("head-q", "q", "head", false), seed("base-q", "q", "base", false),
+            // the diff shows this one's head but supplies none of its old side
+            seed("head-r", "r", "head", true), seed("base-r", "r", "base", false)
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        let mut ids: Vec<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
+        ids.sort();
+        assert_eq!(ids, vec!["base-q", "base-r", "head-p", "head-q", "head-r"]);
+        assert_eq!(packet["coverage"]["provided_diff"]["base_shown_by_diff_entries"], 1);
     }
 
     #[test]
