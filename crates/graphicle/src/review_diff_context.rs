@@ -216,10 +216,17 @@ fn cut(entry: &mut Value, spans: &[(usize, usize)], keep: &[bool], policy: &str)
 
 /// A long caller goes as its first line, CALLER_AROUND lines either side of
 /// each call it is in the packet for, and those calls' context_lines (argus #111: two callers of 114 and
-/// 116 lines took 11 KB for one call each).
-fn window_caller(entry: &mut Value, path: &str) {
+/// 116 lines took 11 KB for one call each). So does a caller of any length
+/// when every changed declaration it calls kept its signature: the call and
+/// what feeds and reads it is what the change can affect there (argus #111,
+/// siren #188: such callers took 17 KB whole).
+fn window_caller(entry: &mut Value, path: &str, same_signature: &BTreeSet<String>) {
     let spans = line_spans(entry);
-    if spans.len() <= WINDOW_FROM || entry.get("text").is_none() {
+    let kept = entry["reasons"].as_array().is_some_and(|rs| {
+        let consumers: Vec<_> = rs.iter().filter(|r| r["reason"] == "potential_consumer").collect();
+        !consumers.is_empty() && consumers.iter().all(|r| r["path"][0].as_str().is_some_and(|seed| same_signature.contains(seed)))
+    });
+    if (spans.len() <= WINDOW_FROM && !kept) || entry.get("text").is_none() {
         return;
     }
     let sites: Vec<(u64, u64)> = entry["reasons"].as_array().into_iter().flatten()
@@ -735,6 +742,9 @@ impl Context {
         let mut diffs = 0;
         let exact = exact_changes(report);
         let minor = self.minor_seeds(&exact, report["entries"].as_array().unwrap());
+        let same_signature: BTreeSet<String> = report["changes"].as_array().into_iter().flatten()
+            .filter(|c| c["kind"] == "modified" && c["signature_changed"] == false)
+            .map(|c| s(c, "head").to_owned()).collect();
         // Calls on unchanged lines that receive a value a changed line assigned.
         let mut flows: BTreeMap<String, Vec<usize>> = BTreeMap::new();
         let mut flow_spans: BTreeMap<String, Vec<(usize, usize)>> = BTreeMap::new();
@@ -892,7 +902,7 @@ impl Context {
                 }
             } else {
                 window_schema(entry);
-                window_caller(entry, &path);
+                window_caller(entry, &path, &same_signature);
             }
         }
         // A generated callee whose source ranks as a callee gives way to it:
@@ -1365,6 +1375,25 @@ mod tests {
         r["diffs"] = json!([{"file":"app/code.go","_changed_head":[[line, line + 10]],"_changed_base":[]}]);
         context_with(vec![("head", 1, 1)]).annotate(&mut r);
         assert!(r["entries"][1].get("_type_only").is_none(), "{}", r["entries"][1]);
+    }
+
+    #[test]
+    fn a_caller_of_code_whose_signature_kept_goes_as_its_call_site_at_any_length() {
+        // argus #111, siren #188: callers of changed functions whose signature
+        // did not change took 17 KB whole; the call and what feeds and reads it
+        // is what the change can affect.
+        let (_, at) = lines_file();
+        let shown = |signature_changed: bool| {
+            let caller = declaration("head", "caller", 1, 40, json!([{"reason":"potential_consumer","path":["seed", "caller"],
+                "steps":[{"relation":"calls","source_file":"app/code.go","byte_start":at[19] + 1,"byte_end":at[19] + 4}]}]));
+            let mut r = report(vec![caller]);
+            r["changes"] = json!([{"kind":"modified","base":"seed","head":"seed","signature_changed":signature_changed,"implementation_changed":true}]);
+            context_with(vec![("head", 150, 150)]).annotate(&mut r);
+            r["entries"][0].get("excerpts").map(|e| e.as_array().unwrap().iter()
+                .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect::<Vec<_>>())
+        };
+        assert_eq!(shown(false), Some(vec![(1, 1), (15, 25)]));
+        assert_eq!(shown(true), None, "a changed signature can break the whole caller");
     }
 
     #[test]
