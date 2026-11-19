@@ -80,6 +80,26 @@ fn line_of(input: &Input, file: &str, at: usize) -> usize {
     input.sources.get(file).and_then(|s| s.content.text()).map_or(1, |t| t[..at.min(t.len())].matches('\n').count() + 1)
 }
 
+/// Whether the dict literal holding byte `at` of `body` is what a `return`
+/// statement returns: its innermost enclosing `{` directly follows `return`.
+/// ponytail: brackets inside strings are counted; a parser would not.
+fn returned(body: &str, at: usize) -> bool {
+    let mut depth = 0usize;
+    for (i, c) in body[..at.min(body.len())].char_indices().rev() {
+        match c {
+            ')' | ']' | '}' => depth += 1,
+            '(' | '[' if depth == 0 => return false,
+            '(' | '[' | '{' if depth > 0 => depth -= 1,
+            '{' => {
+                let line = body[..i].rsplit('\n').next().unwrap_or("");
+                return line.trim() == "return";
+            }
+            _ => {}
+        }
+    }
+    false
+}
+
 /// The keys the base side's files in `dir` write or read, by name and
 /// whether written, tests aside.
 fn base_keys(base: &Input, dir: Option<&Path>) -> BTreeSet<(String, bool)> {
@@ -165,6 +185,7 @@ pub(super) fn reasons(base: &Input, a: &Analysis, head: &Input, b: &Analysis, se
         .map(|(name, _)| *name).collect();
     for (seed, symbol, touched) in &changed {
         let (seed, symbol) = (*seed, *symbol);
+        let body = text(head, symbol);
         let others: Vec<_> = b.symbols.iter().filter(|(id, (_, other))| {
             *id != seed && other.kind != "basic_file" && !is_test(&other.file) && dir(&other.file) == dir(&symbol.file)
                 && !(other.file == symbol.file && ((other.start <= symbol.start && symbol.end <= other.end) || (symbol.start <= other.start && other.end <= symbol.end)))
@@ -186,7 +207,10 @@ pub(super) fn reasons(base: &Input, a: &Analysis, head: &Input, b: &Analysis, se
             let joined = joined(&graph, (w, &symbol.key), (w, &other.key));
             let introduced = |k: &Key| !used.contains(&(k.name.clone(), k.write)) && !both.contains(k.name.as_str());
             let touched: Vec<&Key> = touched.iter().filter(|k| joined || introduced(k)).collect();
-            let consumer = touched.iter().filter(|k| k.write)
+            // What the changed declaration returns never reaches a function
+            // it calls (siren #188: triage's "mode" and _reduce_mode's own).
+            let callee = graph.reaches(w, &symbol.key, &other.key) && !graph.reaches(w, &other.key, &symbol.key);
+            let consumer = touched.iter().filter(|k| k.write && !(callee && returned(body, k.start - symbol.start)))
                 .filter_map(|k| theirs.iter().find(|t| !t.write && t.name == k.name).map(|t| (other, t, other, symbol, sharers(k))))
                 .min_by_key(|link| link.4);
             let dependency = touched.iter().filter(|k| !k.write)
@@ -222,6 +246,16 @@ mod tests {
         assert_eq!(named("v = s.get('values', [])\n"), vec![("values".into(), false)]);
         assert_eq!(named("if \"queries\" in rule:\n"), vec![("queries".into(), false)]);
         assert!(named("print(\"a: b\")\nx = \"not a key\"\n").is_empty());
+    }
+
+    #[test]
+    fn a_dict_literal_after_return_is_returned() {
+        let at = |text: &str| returned(text, text.find("\"a\"").unwrap());
+        assert!(at("    return {\"a\": 1}\n"));
+        assert!(at("    return {**base,\n        \"a\": 1}\n"));
+        assert!(!at("    x = {\"a\": 1}\n"));
+        assert!(!at("    return f({\"a\": 1})\n"));
+        assert!(!at("    return [{\"a\": 1}]\n"));
     }
 
     #[test]

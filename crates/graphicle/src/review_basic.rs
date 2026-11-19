@@ -1559,6 +1559,24 @@ mod tests {
     }
 
     #[test]
+    fn a_key_a_changed_line_returns_links_no_reader_the_function_itself_calls() {
+        // siren #188: triage returns "mode" and "error"; _reduce_mode and the
+        // other helpers triage calls read their own "mode", never its result.
+        let code = |ret: &str| format!("def helper(r):\n    return r[\"mode\"]\n\n\n\
+            def triage(x):\n    helper(x)\n    return {ret}\n\n\n\
+            def server(x):\n    d = triage(x)\n    return d[\"mode\"]\n\n\n\
+            def other(y):\n    return y[\"mode\"]\n");
+        let files = |c: String| input(&[("repo/svc/agent.py", c.as_str())]);
+        let r = report(&files(code("{\"verdict\": x}")), &files(code("{\"verdict\": x, \"mode\": 1}")));
+        let keyed = |name: &str| r["entries"].as_array().unwrap().iter()
+            .find(|e| e["side"] == "head" && e["name"] == name)
+            .is_some_and(|e| e["reasons"].as_array().unwrap().iter().any(|x| x["steps"][0]["relation"] == "uses_key"));
+        assert!(r["entries"].as_array().unwrap().iter().any(|e| e["side"] == "head" && e["name"] == "server"), "the caller receives it: {r}");
+        assert!(keyed("other"), "a key the change introduces needs no path: {r}");
+        assert!(!keyed("helper"), "{r}");
+    }
+
+    #[test]
     fn a_type_a_changed_component_names_is_its_dependency() {
         // atlas-backstage #1035: the changed lines read access.principalExists,
         // and LakehouseAccessStatus, which says what that field is, was no candidate.
