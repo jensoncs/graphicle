@@ -60,7 +60,9 @@ use std::{
 /// no longer binds to its same-named caller.
 /// 26: a Python member named like a namespace builtin (`model.eval()`) no
 /// longer marks the file's receivers as possibly rebound.
-pub const AST_CACHE_SCHEMA: i64 = 26;
+/// 27: a Python directory whose name is not an identifier is a path root, not
+/// a package, so imports below it resolve to other files.
+pub const AST_CACHE_SCHEMA: i64 = 27;
 /// Where an AST entry lists the `target_file` stamps that named an existing
 /// file when it was written; a hit whose target is gone is a miss (#4185).
 pub const CACHED_TARGETS_KEY: &str = "_cached_target_files";

@@ -112,7 +112,9 @@ pub fn content_failure(mut result: Value) -> Value {
 /// method call's result or a field binds through the declared class.
 /// 11: a Python member named like a namespace builtin (`model.eval()`) no
 /// longer drops the file's imported-name calls.
-pub const ASSEMBLY_REVISION: u32 = 11;
+/// 12: a Python directory whose name is not an identifier is a path root,
+/// never a package, even with an `__init__.py`.
+pub const ASSEMBLY_REVISION: u32 = 12;
 /// Files whose interface calls the JVM dispatch pass links to implementations.
 const JVM_DISPATCH: &[&str] = &[".java", ".kt", ".kts"];
 /// Opt-in precise mode (`--precise` / `GRAPHICLE_PRECISE=1`): resolution passes

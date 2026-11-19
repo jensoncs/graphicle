@@ -80,7 +80,13 @@ pub fn absolute_import_alias_files(
             }
             let package = *packages
                 .entry(ancestor.to_path_buf())
-                .or_insert_with(|| crate::inputs::is_file(&ancestor.join("__init__.py")));
+                // a name no import can spell is a path root even with an initializer (is_python_package_dir)
+                .or_insert_with(|| {
+                    ancestor
+                        .file_name()
+                        .is_some_and(|n| is_identifier(&n.to_string_lossy()))
+                        && crate::inputs::is_file(&ancestor.join("__init__.py"))
+                });
             if !package {
                 roots.push(ancestor.to_path_buf());
             }

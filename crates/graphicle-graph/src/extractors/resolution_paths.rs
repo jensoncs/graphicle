@@ -101,8 +101,17 @@ pub fn declared_language_suffixes(targets: &[&str]) -> Vec<String> {
 }
 /// `_is_python_package_dir`: `directory` holds an `__init__` initializer of
 /// one of `suffixes` that is still that language, or of a suffix the
-/// project declares as one of them.
+/// project declares as one of them. A directory whose name is not an
+/// identifier (`ads-ctr-uncertainty/`) is never a package whatever it holds:
+/// no import can name it, so it is only a path root for the files below it.
 pub fn is_python_package_dir(directory: &Path, suffixes: &[&str]) -> bool {
+    if !directory
+        .file_name()
+        .and_then(|n| n.to_str())
+        .is_some_and(crate::extract_python::is_identifier)
+    {
+        return false;
+    }
     let init = |suffix: &str| directory.join(format!("__init__{suffix}"));
     if suffixes.iter().any(|suffix| {
         let path = init(suffix);
