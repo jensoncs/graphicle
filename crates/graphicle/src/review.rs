@@ -2039,6 +2039,13 @@ fn pack_encoding(
         let before = entries.len();
         entries.retain(|e| !with_source.contains(s(e, "id")));
         report["coverage"]["provided_diff"]["generated_with_source_entries"] = json!(before - entries.len());
+        // A callee no changed line calls, directly or through a value a changed
+        // line wrote: the diff does not run it differently (siren #185:
+        // `sys.exit(main())` reached every function; odin #196: handlers of
+        // untouched router lines; 41 of 155 entries across eight blocks).
+        let before = entries.len();
+        entries.retain(|e| callees.contains(s(e, "id")) || flow_callees.contains(s(e, "id")) || !call_only_dependency(e) || is_required_code(e));
+        report["coverage"]["provided_diff"]["off_change_callee_entries"] = json!(before - entries.len());
     }
     let eligible_entries = entries.len();
     let eligible_diffs = diffs.len();
@@ -2201,6 +2208,14 @@ fn pack_encoding(
             };
             (tier.0, tier.1, key_sharers(entry))
         });
+        // The relevance floor: what no changed line calls, reads, types or
+        // keys goes as nothing rather than as filler. Filling to the budget
+        // refilled the room the callee gate freed with render ancestors and
+        // import reach (atlas-backstage #1044, #1046). A type stays: the
+        // off-change ones are gone already, so it is named by a changed line.
+        let before = candidates.len();
+        candidates.retain(|(collection, entry)| *collection != "entries" || !below_floor(entry, &callees, &flow_callees, &overlapping, &mostly_unseen));
+        report["coverage"]["provided_diff"]["below_floor_entries"] = json!(before - candidates.len());
     }
     let mut candidates: Vec<_> = candidates
         .into_iter()
@@ -2701,6 +2716,40 @@ fn is_call_consumer(entry: &Value) -> bool {
 /// call or use of a declaration: a barrel, a package.json, an app's route list
 /// (atlas-backstage #1046: these filled the packet before the client methods
 /// the changed components call).
+/// What no class above the relevance floor admits: not a changed declaration
+/// on either side (the old side of a change the provided diff does not cover
+/// is the only view of it); not required, overlapping
+/// or mostly unseen changed code; not test code; not a callee of the changed
+/// lines or of a value they wrote; not a key, type or table link; not a direct
+/// consumer of a changed declaration (an importer's use may not resolve, a
+/// renderer sees the changed props). What is left is reach: ancestors beyond
+/// the direct site and what an import brings along.
+fn below_floor(entry: &Value, callees: &BTreeSet<String>, flows: &BTreeSet<String>, overlapping: &BTreeSet<String>, unseen: &BTreeSet<String>) -> bool {
+    let id = s(entry, "id");
+    let reasons = entry["reasons"].as_array().map_or(&[][..], Vec::as_slice);
+    let linked = |relations: &[&str]| reasons.iter()
+        .any(|r| r["steps"].as_array().is_some_and(|st| st.iter().any(|st| relations.contains(&st["relation"].as_str().unwrap_or("")))));
+    let direct_consumer = reasons.iter()
+        .any(|r| r["reason"] == "potential_consumer" && r["path"].as_array().is_some_and(|p| p.len() <= 2));
+    let seed = reasons.iter().any(|r| r["reason"] == "change_seed");
+    !(seed || is_required_code(entry) || entry_distance(entry) == usize::MAX || overlapping.contains(id) || unseen.contains(id)
+        || keys::is_test(s(entry, "file")) || callees.contains(id) || flows.contains(id) || uses_key(entry)
+        || s(entry, "kind") == "type" || linked(&["uses_table", "generated_from"]) || direct_consumer)
+}
+
+/// Every reason is a dependency reached only by calls.
+fn call_only_dependency(entry: &Value) -> bool {
+    entry["reasons"].as_array().is_some_and(|rs| {
+        !rs.is_empty()
+            && rs.iter().all(|r| {
+                r["reason"] == "dependency"
+                    && r["steps"].as_array().is_some_and(|st| {
+                        !st.is_empty() && st.iter().all(|st| matches!(st["relation"].as_str(), Some("calls" | "may_call" | "references_callable" | "renders")))
+                    })
+            })
+    })
+}
+
 fn import_only(entry: &Value) -> bool {
     entry["reasons"].as_array().is_some_and(|rs| {
         !rs.is_empty()
@@ -3579,7 +3628,7 @@ mod tests {
             json!({"entries":[
                 {"id":"seed","revision":"r","side":"head","repository_id":"repo","file":"svc/a.go","file_sha256":"a".repeat(64),"name":"Load","kind":"function","line":3,"end_line":9,
                  "text":"func Load() {}","_provided_diff":true,"reasons":[{"reason":"change_seed"}],"business_context":big},
-                {"id":"outside","revision":"r","side":"head","repository_id":"repo","file":"svc/b.go","text":"dependency()","reasons":[{"reason":"dependency","path":["seed","outside"]}]}
+                {"id":"outside","revision":"r","side":"head","repository_id":"repo","file":"svc/b.go","text":"dependency()","_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["seed","outside"]}]}
             ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},"business_context":{"complete":false},
                 "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":1,"diffs":0}},"impact":"incomplete"})
         };
@@ -3638,7 +3687,7 @@ mod tests {
             {"id":"seen","revision":"r","side":"head","text":"changed()","_provided_diff_overlap":true,"reasons":[{"reason":"change_seed"}]},
             {"id":"unseen","revision":"r","side":"head","text":"long_changed()","_provided_diff_overlap":true,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"change_seed"}]},
             {"id":"old","revision":"r","side":"base","text":"long_before()","_provided_diff_overlap":true,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"change_seed"}]},
-            {"id":"outside","revision":"r","side":"head","text":"dependency()","reasons":[{"reason":"dependency","path":["seen","outside"]}]},
+            {"id":"outside","revision":"r","side":"head","text":"dependency()","_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["seen","outside"]}]},
             // argus #111: an unchanged type beside the hunks is not changed code
             {"id":"beside","revision":"r","side":"head","text":"type Config struct{}","_provided_diff_overlap":true,"_provided_diff_mostly_unseen":true,"reasons":[{"reason":"dependency","path":["seen","beside"]}]}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
@@ -3659,10 +3708,10 @@ mod tests {
     fn a_base_copy_identical_to_its_head_copy_is_not_sent_twice() {
         // argus #111: Constants and GrafanaConfig went on both sides, byte-identical.
         let report = json!({"entries":[
-            {"id":"head-c","symbol_id":"c","text_sha256":"same","revision":"r","side":"head","text":"const A = 1","reasons":[{"reason":"dependency","path":["s","c"]}]},
-            {"id":"base-c","symbol_id":"c","text_sha256":"same","revision":"r","side":"base","text":"const A = 1","reasons":[{"reason":"dependency","path":["s","c"]}]},
-            {"id":"base-d","symbol_id":"d","text_sha256":"old","revision":"r","side":"base","text":"const B = 1","reasons":[{"reason":"dependency","path":["s","d"]}]},
-            {"id":"head-d","symbol_id":"d","text_sha256":"new","revision":"r","side":"head","text":"const B = 2","reasons":[{"reason":"dependency","path":["s","d"]}]}
+            {"id":"head-c","symbol_id":"c","text_sha256":"same","revision":"r","side":"head","text":"const A = 1","_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","c"]}]},
+            {"id":"base-c","symbol_id":"c","text_sha256":"same","revision":"r","side":"base","text":"const A = 1","_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","c"]}]},
+            {"id":"base-d","symbol_id":"d","text_sha256":"old","revision":"r","side":"base","text":"const B = 1","_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","d"]}]},
+            {"id":"head-d","symbol_id":"d","text_sha256":"new","revision":"r","side":"head","text":"const B = 2","_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","d"]}]}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
@@ -3724,7 +3773,7 @@ mod tests {
         let report = json!({"entries":[
             {"id":"barrel","revision":"r","side":"head","kind":"basic_file","file":"a/index.ts","text":body,"reasons":[{"reason":"potential_consumer","path":["s","barrel"],"steps":[{"relation":"potential_import"}]},
                 {"reason":"dependency","path":["s","barrel"],"steps":[{"relation":"configuration_scope"}]}]},
-            {"id":"client","revision":"r","side":"head","kind":"method","file":"api/iam.ts","text":body,"reasons":[{"reason":"dependency","path":["s","client"],"steps":[{"relation":"may_call"}]}]},
+            {"id":"client","revision":"r","side":"head","kind":"method","file":"api/iam.ts","text":body,"_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","client"],"steps":[{"relation":"may_call"}]}]},
             {"id":"used","revision":"r","side":"head","kind":"basic_file","file":"api/q.sql","text":body,"reasons":[{"reason":"dependency","path":["s","used"],"steps":[{"relation":"potential_import"},{"relation":"uses_table"}]}]}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
@@ -3740,7 +3789,7 @@ mod tests {
         let body = "a\nb\nc\nd\n";
         let report = json!({"entries":[
             {"id":"parent","revision":"r","side":"head","kind":"function","file":"a/Root.tsx","text":body,"reasons":[{"reason":"potential_consumer","path":["s","parent"],"steps":[{"relation":"renders"}]}]},
-            {"id":"client","revision":"r","side":"head","kind":"method","file":"b/iam.ts","text":body,"reasons":[{"reason":"dependency","path":["s","client"],"steps":[{"relation":"may_call"}]}]}
+            {"id":"client","revision":"r","side":"head","kind":"method","file":"b/iam.ts","text":body,"_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","client"],"steps":[{"relation":"may_call"}]}]}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
@@ -3781,11 +3830,11 @@ mod tests {
         let report = json!({"entries":[
             {"id":"darken","revision":"r","side":"head","kind":"function","file":"a/Utils.ts","text":body,"reasons":[{"reason":"dependency","path":["s","darken"],
                 "steps":[{"relation":"potential_import"},{"relation":"may_call"}]}]},
-            {"id":"called","revision":"r","side":"head","kind":"function","file":"b/time.ts","text":body,"reasons":[{"reason":"dependency","path":["s","called"],"steps":[{"relation":"may_call"}]}]}
+            {"id":"called","revision":"r","side":"head","kind":"function","file":"b/time.ts","text":body,"_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","called"],"steps":[{"relation":"may_call"}]}]}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
-        assert_eq!(packet["context_order"], json!(["called", "darken"]));
+        assert_eq!(packet["context_order"], json!(["called"]), "import reach is below the relevance floor");
     }
 
     #[test]
@@ -3797,7 +3846,7 @@ mod tests {
             {"id":"barrel","revision":"r","side":"head","kind":"basic_file","file":"ui/index.ts","text":"export * from './a';","reasons":step("potential_import")},
             {"id":"manifest","revision":"r","side":"head","kind":"basic_file","file":"ui/package.json","text":"{}","reasons":step("configuration_scope")},
             {"id":"importer","revision":"r","side":"head","kind":"basic_file","file":"app.py","text":"import tax","reasons":[{"reason":"potential_consumer","path":["s","importer"],"steps":[{"relation":"potential_import"}]}]},
-            {"id":"f","revision":"r","side":"head","text":"func f() {}","reasons":step("may_call")}
+            {"id":"f","revision":"r","side":"head","text":"func f() {}","_provided_diff_callee":true,"reasons":step("may_call")}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
@@ -3811,7 +3860,7 @@ mod tests {
     fn a_type_only_link_is_not_sent_in_a_supplemental_packet() {
         let report = json!({"entries":[
             {"id":"t","symbol_id":"t","revision":"r","side":"head","text":"type Grafana struct{}","_type_only":true,"reasons":[{"reason":"dependency","path":["s","t"]}]},
-            {"id":"f","symbol_id":"f","revision":"r","side":"head","text":"func f() {}","reasons":[{"reason":"dependency","path":["s","f"]}]}
+            {"id":"f","symbol_id":"f","revision":"r","side":"head","text":"func f() {}","_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","f"]}]}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, _) = pack(report, 9000, None, None).unwrap();
@@ -3823,11 +3872,56 @@ mod tests {
     }
 
     #[test]
+    fn a_callee_no_changed_line_calls_is_not_sent_in_a_supplemental_packet() {
+        // siren #185: `sys.exit(main())` at file scope reached every function;
+        // odin #196: handlers called from untouched router lines.
+        let call = json!([{"relation":"may_call","source_file":"repo/a.py","byte_start":10,"byte_end":20}]);
+        let report = json!({"entries":[
+            {"id":"off","symbol_id":"off","revision":"r","side":"head","text":"def off(): pass","reasons":[{"reason":"dependency","path":["s","off"],"steps":call}]},
+            {"id":"on","symbol_id":"on","revision":"r","side":"head","text":"def on(): pass","_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["s","on"],"steps":call}]},
+            {"id":"flow","symbol_id":"flow","revision":"r","side":"head","text":"def flow(): pass","_provided_diff_flow_callee":true,"reasons":[{"reason":"dependency","path":["s","flow"],"steps":call}]},
+            {"id":"table","symbol_id":"table","revision":"r","side":"head","text":"CREATE TABLE t (a int);","reasons":[{"reason":"dependency","path":["s","table"],"steps":[{"relation":"uses_table"}]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        let mut ids: Vec<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
+        ids.sort();
+        assert_eq!(ids, vec!["flow", "on", "table"]);
+        assert_eq!(packet["coverage"]["provided_diff"]["off_change_callee_entries"], 1);
+    }
+
+    #[test]
+    fn a_supplemental_packet_sends_nothing_below_the_relevance_floor() {
+        // Filling to the budget refilled the room the gate freed with render
+        // ancestors and import reach (atlas-backstage #1044, #1046).
+        let body = "a\nb\nc\nd\n";
+        let e = |id: &str, kind: &str, file: &str, reason: &str, path: &[&str], relation: &str| json!({"id":id,"symbol_id":id,"revision":"r","side":"head","kind":kind,"file":file,"text":body,
+            "reasons":[{"reason":reason,"path":path,"steps":[{"relation":relation}]}]});
+        let report = json!({"entries":[
+            e("ancestor", "function", "a/Root.tsx", "potential_consumer", &["s", "page", "ancestor"], "renders"),
+            e("direct", "function", "a/Page.tsx", "potential_consumer", &["s", "direct"], "renders"),
+            e("imported", "function", "a/Utils.ts", "dependency", &["s", "imported"], "potential_import"),
+            e("value", "function", "a/b.go", "dependency", &["s", "value"], "uses_value"),
+            e("props", "type", "a/types.ts", "dependency", &["s", "props"], "uses_type"),
+            e("test", "function", "a/b_test.go", "dependency", &["s", "test"], "uses_value"),
+            // the old side of a change the provided diff does not cover is the only view of it
+            json!({"id":"old","symbol_id":"old","revision":"r","side":"base","kind":"function","file":"b/c.go","text":body,"reasons":[{"reason":"change_seed","path":["old"]}]})
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        let mut ids: Vec<&str> = packet["entries"].as_array().unwrap().iter().map(|e| s(e, "id")).collect();
+        ids.sort();
+        assert_eq!(ids, vec!["direct", "old", "props", "test"]);
+        assert_eq!(packet["coverage"]["provided_diff"]["import_only_entries"], 1);
+        assert_eq!(packet["coverage"]["provided_diff"]["below_floor_entries"], 2, "the ancestor and the value-only link");
+    }
+
+    #[test]
     fn supplemental_ranking_keeps_uncertain_scope_after_known_context_and_delta_order() {
         let report = json!({"entries":[
             {"id":"seed","revision":"r","side":"head","text":"changed()","_provided_diff_overlap":true,"reasons":[{"reason":"change_seed"}]},
             {"id":"scope","revision":"r","side":"head","text":"uncertain()","reasons":[{"reason":"conservative_scope","uncertain_scope":true}]},
-            {"id":"outside","revision":"r","side":"head","text":"dependency()","reasons":[{"reason":"dependency","path":["seed","outside"]}]}
+            {"id":"outside","revision":"r","side":"head","text":"dependency()","_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["seed","outside"]}]}
         ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         let (packet, receipt) = pack(report.clone(), 3500, None, None).unwrap();

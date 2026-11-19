@@ -338,6 +338,69 @@ fn flow_lines(entry: &Value, touched: &[bool]) -> Vec<usize> {
     out
 }
 
+/// Names a statement's left-hand side binds, destructuring included:
+/// `[profile, access]`, `{ value: userDetails, loading }`, `v, err`.
+fn bound(lhs: &str) -> Vec<&str> {
+    let inner = lhs.trim().trim_start_matches(|c: char| c.is_alphanumeric() || c == ' ' || c == '_');
+    if !inner.starts_with(['{', '[']) {
+        return assigned(&format!("{lhs}= x")).into_iter().filter_map(|n| lhs.find(n).map(|i| &lhs[i..i + n.len()])).collect();
+    }
+    inner.trim_matches(|c: char| "{}[] \t\n".contains(c)).split(',')
+        .map(|piece| piece.rsplit(':').next().unwrap_or("").split('=').next().unwrap_or("").trim())
+        .filter(|n| n.len() > 1 && n.chars().all(|c| c.is_alphanumeric() || c == '_') && !n.starts_with(|c: char| c.is_ascii_digit()))
+        .collect()
+}
+
+/// Unchanged lines holding a call whose result a changed line reads: the
+/// names the enclosing statement binds, followed through later lines that
+/// derive a value from them (atlas-backstage #1035: `const [profile, access]
+/// = await Promise.all([... getMyAccess() ...])` feeds the added
+/// `if (access && !access.principalExists)`; #1046: `getUserDetails` reaches
+/// `<ApiKeysTab pods={pods} />` through `const pods = userDetails?.pods`).
+/// ponytail: lexical, line-based binding; typed def-use would replace it.
+fn result_lines(entry: &Value, touched: &[bool]) -> Vec<usize> {
+    let lines: Vec<&str> = entry["text"].as_str().unwrap_or("").split_inclusive('\n').collect();
+    if lines.len() != touched.len() {
+        return vec![];
+    }
+    let mut out = vec![];
+    for i in (0..lines.len()).filter(|&i| !touched[i] && !is_comment(lines[i])) {
+        let Some(open) = call_open(lines[i]) else { continue };
+        // The statement: this line when it assigns before the call, else the
+        // nearest line above whose bracket is still open here.
+        let start = if assign_op(lines[i]).is_some_and(|op| op < open) {
+            i
+        } else {
+            let mut d = 0;
+            match (i.saturating_sub(8)..i).rev().find(|&k| { d += depth(lines[k]); d > 0 }) {
+                Some(k) => k,
+                None => continue,
+            }
+        };
+        let Some(op) = assign_op(lines[start]) else { continue };
+        let mut lhs = lines[start][..op].to_owned();
+        // `} = f(...)`: the destructuring opened lines above
+        if lhs.trim_start().starts_with(['}', ']']) {
+            let mut d = depth(&lhs);
+            let Some(k) = (start.saturating_sub(16)..start).rev().find(|&k| { d += depth(lines[k]); d >= 0 }) else { continue };
+            lhs = lines[k..start].concat() + &lhs;
+        }
+        let lhs = lhs.replace('\n', " ");
+        let mut live: Vec<String> = bound(&lhs).into_iter().filter(|n| !NOT_NAMES.contains(n)).map(str::to_owned).collect();
+        for j in i + 1..lines.len() {
+            let reads = live.iter().any(|n| has_word(lines[j], n) && !replaces(lines[j], n));
+            if reads && touched[j] {
+                out.push(i);
+                break;
+            }
+            if reads {
+                live.extend(written(lines[j]).into_iter().filter(|w| !live.iter().any(|n| n == w)).map(str::to_owned).collect::<Vec<_>>());
+            }
+        }
+    }
+    out
+}
+
 /// Each line of an entry's text as an absolute [start, end) byte range.
 fn line_spans(entry: &Value) -> Vec<(usize, usize)> {
     let (Some(text), Some(start)) = (entry["text"].as_str(), entry["byte_start"].as_u64()) else {
@@ -643,9 +706,12 @@ impl Context {
         for entry in report["entries"].as_array().unwrap() {
             let seed = entry["reasons"].as_array().is_some_and(|rs| rs.iter().any(|r| r["reason"] == "change_seed"));
             let Some(path) = self.path(entry).filter(|_| seed && entry["side"] == "head") else { continue };
-            let lines = flow_lines(entry, &self.touched(&exact, entry, &path, false));
+            let touched = self.touched(&exact, entry, &path, false);
+            let lines = flow_lines(entry, &touched);
             let spans = line_spans(entry);
-            flow_spans.entry(path).or_default().extend(lines.iter().map(|&i| spans[i]));
+            // and calls whose result a changed line reads, ranked with them
+            let reads = result_lines(entry, &touched);
+            flow_spans.entry(path).or_default().extend(lines.iter().chain(&reads).map(|&i| spans[i]));
             flows.insert(s(entry, "id").to_owned(), lines);
         }
         let generated_ids: BTreeSet<String> = report["entries"].as_array().unwrap().iter()
@@ -1009,6 +1075,41 @@ mod tests {
         assert_eq!(shown, vec![(1, 1), (15, 19), (21, 25), (60, 62)], "60 and 62 joined across the one-line gap; the hunk at 20 is the diff's");
         assert_eq!(r["entries"][1]["_provided_diff_flow_callee"], json!(true), "reached by value flow, ranked after");
         assert!(r["entries"][2].get("_provided_diff_flow_callee").is_none(), "generated code is not a callee worth ranking");
+    }
+
+    fn results_of(lines: &[&str], changed: &[usize]) -> Vec<usize> {
+        let text: String = lines.iter().map(|l| format!("{l}\n")).collect();
+        let touched: Vec<bool> = (0..lines.len()).map(|i| changed.contains(&i)).collect();
+        result_lines(&json!({"text":text}), &touched)
+    }
+
+    #[test]
+    fn a_call_whose_result_a_changed_line_reads_is_found() {
+        // atlas-backstage #1035: getMyAccess feeds the added principalExists branch.
+        let lines = [
+            "  const load = async () => {",
+            "    const [profile, access] = await Promise.all([",
+            "      identity.getProfileInfo(),",
+            "      // best effort",
+            "      polarisAccess.getMyAccess().catch(() => undefined),",
+            "    ]);",
+            "    if (access && !access.principalExists) {",
+            "      setNoAccess(access);",
+        ];
+        assert_eq!(results_of(&lines, &[6, 7]), vec![1, 2, 4]);
+        // atlas-backstage #1046: the value reaches the added line through `pods`.
+        let lines = [
+            "  const {",
+            "    value: userDetails,",
+            "    loading,",
+            "  } = useAsyncRetry(async () => {",
+            "    return await iamApi.getUserDetails(userEmail || '');",
+            "  });",
+            "  const pods = userDetails?.pods ?? [];",
+            "  const other = listOther();",
+            "  return <ApiKeysTab pods={pods} />;",
+        ];
+        assert_eq!(results_of(&lines, &[8]), vec![3, 4], "listOther's result is never read by a changed line");
     }
 
     fn flow_of(lines: &[&str], changed: &[usize]) -> Vec<usize> {
