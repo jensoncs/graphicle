@@ -3,6 +3,7 @@
 
   competitor_edges.py codegraph REPO/.codegraph/codegraph.db OUT.json
   competitor_edges.py cbm CACHE/<project>.db OUT.json
+  competitor_edges.py crg REPO/.code-review-graph/graph.db OUT.json
 
 Output: {"nodes": [[file, name, line]], "edges": [[caller, callee, call_line]]}
 with caller/callee as [file, name, line] (1-based lines, repo-relative files).
@@ -10,11 +11,14 @@ with caller/callee as [file, name, line] (1-based lines, repo-relative files).
 codegraph (colbymchenry/codegraph): `calls` and `instantiates` edges between
 function, method and class nodes. codebase-memory-mcp (DeusData): `CALLS`
 edges between Function, Method and Class nodes (its `CALL_REFERENCE` edges are
-function references, not calls, and are left out).
+function references, not calls, and are left out). code-review-graph
+(tirth8205): `CALLS` edges whose target is an indexed Function, Class or Test
+node (its absolute file paths made relative to the repository).
 """
 import json
 import sqlite3
 import sys
+from pathlib import Path
 
 
 def codegraph(db):
@@ -46,9 +50,23 @@ def cbm(db):
     return {"nodes": [list(v) for v in nodes.values()], "edges": edges}
 
 
+def crg(db):
+    c = sqlite3.connect(db)
+    kinds = ("Function", "Class", "Test")
+    root = str(Path(db).resolve().parent.parent) + "/"
+    nodes = {q: (f.removeprefix(root), n, l) for q, f, n, l, k in c.execute(
+        "select qualified_name, file_path, name, line_start, kind from nodes") if k in kinds}
+    edges = []
+    # only targets bound to an indexed node: crg's own queries skip unresolved and ambiguous call targets too
+    for s, t, line in c.execute("select source_qualified, target_qualified, line from edges where kind = 'CALLS'"):
+        if s in nodes and t in nodes:
+            edges.append([list(nodes[s]), list(nodes[t]), line or 0])
+    return {"nodes": [list(v) for v in nodes.values()], "edges": edges}
+
+
 def main():
     tool, db, out = sys.argv[1:4]
-    data = {"codegraph": codegraph, "cbm": cbm}[tool](db)
+    data = {"codegraph": codegraph, "cbm": cbm, "crg": crg}[tool](db)
     with open(out, "w") as f:
         json.dump(data, f)
     print(f"{tool}: {len(data['nodes'])} nodes, {len(data['edges'])} call edges")
