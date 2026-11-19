@@ -19,7 +19,8 @@
 //! prompt has fewer than [`MIN_CHARS`] characters besides spaces, when it is
 //! not a code question ([`crate::code_question::is_code_question`], the
 //! classifier `context` itself uses), when the folder is in no Graphicle
-//! project, when `graphicle context` fails or prints no Markdown, and when
+//! project, when `graphicle context` fails or prints no Markdown, when its
+//! packet found nothing the prompt asks about ([`served`]), and when
 //! it has not answered within the budget ([`budget`]: `prompt_context.seconds`,
 //! [`SECONDS`] unless set, counted from the hook's start; it is then
 //! stopped). When it gives up for time, or answers from the quick packet, it
@@ -313,8 +314,23 @@ fn context_of(
     let Some(packet) = serde_json::from_slice::<Value>(&printed).ok() else {
         return Ok(None);
     };
+    Ok(served(&packet))
+}
+
+/// The Markdown the hook serves from `packet` (`graphicle context`'s JSON),
+/// at most [`crate::query::PUSH_CHARS`] characters; `None` when it has none,
+/// when the prompt names code the project does not hold (the identifier
+/// arm's `no_match`), or when the evidence is weak (`evidence_strength`'s
+/// `weak`). On a benchmark of this repository those two left out 9 of 10
+/// questions about code it does not hold, and none it could answer.
+fn served(packet: &Value) -> Option<String> {
+    if packet["identifier_arm"]["status"] == "no_match"
+        || packet["evidence_strength"]["weak"] == true
+    {
+        return None;
+    }
     let markdown = packet["markdown"].as_str().unwrap_or("").trim();
-    Ok((!markdown.is_empty()).then(|| markdown.chars().take(crate::query::PUSH_CHARS).collect()))
+    (!markdown.is_empty()).then(|| markdown.chars().take(crate::query::PUSH_CHARS).collect())
 }
 
 #[cfg(test)]
@@ -398,6 +414,27 @@ mod tests {
         // Without a session id there is nothing to remember it by.
         assert!(note_once(dir.path(), "", "time", "slow").is_some());
         assert!(note_once(dir.path(), "", "time", "slow").is_some());
+    }
+
+    #[test]
+    fn a_packet_that_found_nothing_asked_about_is_not_served() {
+        // The packet shapes `graphicle context --json` prints: the identifier
+        // arm's status and the evidence strength's `weak`.
+        let packet = |status: &str, weak: bool| {
+            json!({"markdown":"Graphicle project evidence\n",
+                "identifier_arm":{"status":status},
+                "evidence_strength":{"weak":weak}})
+        };
+        let evidence = Some("Graphicle project evidence".to_string());
+        assert_eq!(served(&packet("fused", false)), evidence);
+        assert_eq!(served(&packet("no_names", false)), evidence);
+        // The prompt names code the project does not hold.
+        assert_eq!(served(&packet("no_match", false)), None);
+        // The best passages cover little of the prompt.
+        assert_eq!(served(&packet("fused", true)), None);
+        // A packet without the fields is served; one without Markdown is not.
+        assert_eq!(served(&json!({"markdown":"x"})), Some("x".to_string()));
+        assert_eq!(served(&json!({"markdown":"  "})), None);
     }
 
     #[test]
