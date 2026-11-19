@@ -2736,8 +2736,12 @@ fn is_call_contract(entry: &Value) -> bool {
         })
 }
 
+/// A test that calls changed code shows what is covered, not code the change
+/// can break: it ranks with tests, not as a required caller (siren #188: eleven
+/// test_agent.py tests took 8 KB once `import agent` resolved).
 fn is_call_consumer(entry: &Value) -> bool {
     entry["side"] == "head"
+        && !keys::is_test(s(entry, "file"))
         && !is_head_change(entry)
         && !is_call_contract(entry)
         && entry["reasons"].as_array().is_some_and(|reasons| {
@@ -4075,6 +4079,16 @@ mod tests {
             "diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
             "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
         assert_eq!(pack(report, 9000, None, None).unwrap().0["context_order"], json!(["sel", "upd", "other"]));
+    }
+
+    #[test]
+    fn a_test_calling_changed_code_is_no_required_caller() {
+        // siren #188: once `import agent` resolved, eleven test_agent.py tests
+        // became required callers and took 8 KB ahead of production context.
+        let caller = |file: &str| json!({"id":file,"side":"head","file":file,
+            "reasons":[{"reason":"potential_consumer","path":["s", file],"steps":[{"relation":"may_call"}]}]});
+        assert!(is_call_consumer(&caller("a/server.py")));
+        assert!(!is_call_consumer(&caller("a/test_agent.py")));
     }
 
     #[test]
