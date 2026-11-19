@@ -2196,7 +2196,10 @@ fn pack_encoding(
                 // covers (siren #187: a test file's window and its helpers took
                 // the packet ahead of the readers of the key the change added).
                 (0, 5)
-            } else if mostly_unseen.contains(id) {
+            } else if mostly_unseen.contains(id) || (overlapping.contains(id) && is_head_change(entry) && depended_on(entry)) {
+                // and a partly shown change other changed code depends on: its
+                // unseen lines are what that code relies on (siren #188:
+                // triage's returns, which the new metrics code reads).
                 (0, 1)
             } else if callees.contains(id) && s(entry, "text").lines().count() > 3 {
                 // Called from the changed lines, after the changed code the
@@ -2785,6 +2788,18 @@ fn tests_the_change(reasons: &[Value]) -> bool {
         !matches!(first["relation"].as_str(), Some("potential_import" | "configuration_scope"))
             && (r["reason"] == "potential_consumer" || !keys::is_test(s(first, "source_file")))
     })
+}
+
+/// Another changed declaration reads a key this one writes or returns. A call
+/// or registration alone is not enough: odin #196's router registers every
+/// changed handler, and those would push out the queries the handlers call.
+fn depended_on(entry: &Value) -> bool {
+    let id = s(entry, "symbol_id");
+    entry["reasons"].as_array().is_some_and(|rs| rs.iter().any(|r| {
+        r["reason"] == "dependency"
+            && r["path"].as_array().is_some_and(|p| p.len() == 2 && p[0].as_str() != Some(id))
+            && r["steps"][0]["relation"] == "uses_key"
+    }))
 }
 
 /// Every reason is a dependency reached only by calls.
@@ -3967,6 +3982,30 @@ mod tests {
         ids.sort();
         assert_eq!(ids, vec!["base-q", "base-r", "head-p", "head-q", "head-r"]);
         assert_eq!(packet["coverage"]["provided_diff"]["base_shown_by_diff_entries"], 1);
+    }
+
+    #[test]
+    fn a_partly_shown_change_other_changed_code_depends_on_ranks_with_unseen_change() {
+        // siren #188: triage's return shapes are what the new metrics code
+        // reads; the diff shows part of it and it ranked after helpers.
+        let body = "a\nb\nc\nd\ne\n";
+        let report = json!({"entries":[
+            {"id":"helper","symbol_id":"helper","revision":"r","side":"head","kind":"function","file":"a/x.py","line":5,"text":body,
+                "_provided_diff_callee":true,"reasons":[{"reason":"dependency","path":["record","helper"],"steps":[{"relation":"may_call"}]}]},
+            {"id":"triage","symbol_id":"triage","revision":"r","side":"head","kind":"function","file":"a/agent.py","line":1,"text":body,
+                "_provided_diff_overlap":true,"reasons":[{"reason":"change_seed","path":["triage"]},
+                    {"reason":"dependency","path":["record","triage"],"steps":[{"relation":"uses_key"}]}]},
+            {"id":"alone","symbol_id":"alone","revision":"r","side":"head","kind":"function","file":"a/b.py","line":1,"text":body,
+                "_provided_diff_overlap":true,"reasons":[{"reason":"change_seed","path":["alone"]}]},
+            // odin #196: a changed router registering changed handlers is no
+            // data link; the handlers stay behind the queries they call.
+            {"id":"handler","symbol_id":"handler","revision":"r","side":"head","kind":"function","file":"a/c.py","line":1,"text":body,
+                "_provided_diff_overlap":true,"reasons":[{"reason":"change_seed","path":["handler"]},
+                    {"reason":"dependency","path":["router","handler"],"steps":[{"relation":"references_callable"}]}]}
+        ],"diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        let (packet, _) = pack(report, 9000, None, None).unwrap();
+        assert_eq!(packet["context_order"], json!(["triage", "helper", "alone", "handler"]));
     }
 
     #[test]
