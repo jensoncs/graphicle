@@ -14,3 +14,5 @@ __pycache__/
 *.pyc
 .DS_Store
 .tslp-root.wre7j7ev
+# The binary `go build` writes for the Go helper module in the extractors folder.
+/crates/graphicle-graph/src/extractors/gohelper
