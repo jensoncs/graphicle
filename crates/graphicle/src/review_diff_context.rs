@@ -142,40 +142,76 @@ fn context_lines(lines: &[&str], anchors: &[usize]) -> BTreeSet<usize> {
                 level = indent(lines[k]);
             }
         }
-        let names: Vec<&str> = lines[i].split(|c: char| !(c.is_alphanumeric() || c == '_'))
-            .filter(|w| w.len() >= 3 && !w.starts_with(|c: char| c.is_ascii_digit()) && !NOT_NAMES.contains(w)).collect();
-        let mut found = 0;
-        for name in names {
-            if found == CONTEXT_NAMES {
-                break;
-            }
-            let Some(k) = (0..i).rev().find(|&k| !is_comment(lines[k]) && written(lines[k]).contains(&name)) else { continue };
-            found += 1;
-            let mut end = k;
-            let mut open = depth(lines[k]);
-            while open > 0 && end + 1 < i && end - k < CONTEXT_SPAN {
-                end += 1;
-                open += depth(lines[end]);
-            }
-            out.extend(k..=end);
-            let guard = end + 1;
-            // Every name the line assigns, err and ok included: the guard tests those.
-            let wrote: Vec<&str> = lhs(lines[k]).unwrap_or("").split(|c: char| !(c.is_alphanumeric() || c == '_'))
-                .filter(|w| !w.is_empty() && !matches!(*w, "var" | "val" | "let" | "const" | "final" | "auto")).collect();
-            if guard < i && lines[guard].trim_start().starts_with("if ") && wrote.iter().any(|w| has_word(lines[guard], w)) {
-                let base = indent(lines[guard]);
-                let mut last = guard;
-                while last + 1 < i && last - guard < CONTEXT_SPAN && (indent(lines[last + 1]) > base || lines[last + 1].trim().is_empty()) {
-                    last += 1;
+        let names = names_in(lines[i]);
+        let found = names.iter().filter_map(|n| last_write(lines, n, i)).take(CONTEXT_NAMES).collect::<Vec<_>>();
+        // The guards in the call's window decide whether it runs: the write
+        // each one tests (argus #111: `if parked {` without the gateExecution
+        // call that assigns parked).
+        let guards: Vec<&str> = lines[i.saturating_sub(CALLER_AROUND)..i].iter()
+            .filter(|l| ["if ", "} else if ", "elif "].iter().any(|k| l.trim_start().starts_with(k)))
+            .flat_map(|l| names_in(l)).collect();
+        let tested = guards.iter().filter_map(|n| last_write(lines, n, i)).take(CONTEXT_NAMES);
+        for k in found.iter().copied().chain(tested) {
+            keep_write(lines, k, i, &mut out);
+        }
+        // Fields set on a value the call receives, the nearest after its last
+        // whole write, and what each set reads (argus #111: `opts.AutoExecute =
+        // &deploy` before ExecuteDeployment(ctx, opts)). An argument only: the
+        // line's own target is not what the call reads (`config.X = load()`
+        // took the first twelve `config.Y =` lines of loadConfigFromEnv).
+        let args = call_open(lines[i]).map_or(vec![], |at| names_in(&lines[i][at + 1..]));
+        for name in &args {
+            let from = last_write(lines, name, i).map_or(0, |k| k + 1);
+            let sets = (from..i).rev().filter(|&k| !is_comment(lines[k]) && assigned(lines[k]).iter()
+                .any(|w| w.strip_prefix(name).is_some_and(|rest| rest.starts_with('.'))));
+            for k in sets.take(CONTEXT_NAMES).collect::<Vec<_>>() {
+                out.insert(k);
+                let rhs = &lines[k][assign_op(lines[k]).map_or(0, |op| op + 1)..];
+                for w in names_in(rhs).iter().filter_map(|n| last_write(lines, n, k)).take(CONTEXT_NAMES).collect::<Vec<_>>() {
+                    keep_write(lines, w, k, &mut out);
                 }
-                if last + 1 < i && indent(lines[last + 1]) == base && lines[last + 1].trim_start().starts_with('}') {
-                    last += 1;
-                }
-                out.extend(guard..=last);
             }
         }
     }
     out
+}
+
+/// Identifiers on a line worth following: three characters or more, not a keyword or noise name.
+fn names_in(line: &str) -> Vec<&str> {
+    line.split(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .filter(|w| w.len() >= 3 && !w.starts_with(|c: char| c.is_ascii_digit()) && !NOT_NAMES.contains(w)).collect()
+}
+
+/// The nearest line before `before` that writes `name`.
+fn last_write(lines: &[&str], name: &str, before: usize) -> Option<usize> {
+    (0..before).rev().find(|&k| !is_comment(lines[k]) && written(lines[k]).contains(&name))
+}
+
+/// Keeps write `k` through its closing bracket, with the `if` guard right
+/// after it, none of it at or past line `stop`.
+fn keep_write(lines: &[&str], k: usize, stop: usize, out: &mut BTreeSet<usize>) {
+    let mut end = k;
+    let mut open = depth(lines[k]);
+    while open > 0 && end + 1 < stop && end - k < CONTEXT_SPAN {
+        end += 1;
+        open += depth(lines[end]);
+    }
+    out.extend(k..=end);
+    let guard = end + 1;
+    // Every name the line assigns, err and ok included: the guard tests those.
+    let wrote: Vec<&str> = lhs(lines[k]).unwrap_or("").split(|c: char| !(c.is_alphanumeric() || c == '_'))
+        .filter(|w| !w.is_empty() && !matches!(*w, "var" | "val" | "let" | "const" | "final" | "auto")).collect();
+    if guard < stop && lines[guard].trim_start().starts_with("if ") && wrote.iter().any(|w| has_word(lines[guard], w)) {
+        let base = indent(lines[guard]);
+        let mut last = guard;
+        while last + 1 < stop && last - guard < CONTEXT_SPAN && (indent(lines[last + 1]) > base || lines[last + 1].trim().is_empty()) {
+            last += 1;
+        }
+        if last + 1 < stop && indent(lines[last + 1]) == base && lines[last + 1].trim_start().starts_with('}') {
+            last += 1;
+        }
+        out.extend(guard..=last);
+    }
 }
 
 /// Shows skipped runs of FILL_GAP lines or fewer: a marker costs more.
@@ -190,6 +226,12 @@ fn fill(keep: &mut [bool]) {
             keep[i - gap..i].fill(true);
         }
         gap = 0;
+    }
+    // and a short run at the end (argus #111: a lone closing brace went as a
+    // 55-character marker in five call windows)
+    if (1..=FILL_GAP).contains(&gap) && gap < keep.len() {
+        let n = keep.len();
+        keep[n - gap..].fill(true);
     }
 }
 
@@ -1285,6 +1327,60 @@ mod tests {
         ];
         let kept: Vec<usize> = context_lines(&lines, &[13]).into_iter().collect();
         assert_eq!(kept, vec![0, 1, 2, 3, 4, 5, 7, 8, 9, 10, 12]);
+    }
+
+    #[test]
+    fn only_a_call_argument_brings_its_field_writes_and_the_nearest_ones() {
+        // argus #111: `config.ChangeResolution = load()` kept the first twelve
+        // `config.X = ...` lines of loadConfigFromEnv: config is its target, not an argument.
+        let mut lines = vec!["func load(config *Store) {".to_owned()];
+        lines.extend((1..=6).map(|k| format!("\tconfig.F{k} = os.Getenv(\"F{k}\")")));
+        lines.push("\tconfig.ChangeResolution = loadChange()".into());   // 7
+        lines.push("\tsave(config)".into());   // 8
+        let lines: Vec<&str> = lines.iter().map(String::as_str).collect();
+        let kept: Vec<usize> = context_lines(&lines, &[7]).into_iter().collect();
+        assert_eq!(kept, vec![0], "the target's own fields are not context");
+        let kept: Vec<usize> = context_lines(&lines, &[8]).into_iter().collect();
+        assert_eq!(kept, vec![0, 4, 5, 6, 7], "an argument keeps its nearest CONTEXT_NAMES field writes");
+    }
+
+    #[test]
+    fn a_short_run_at_the_end_is_filled_too() {
+        let mut keep = vec![true, false, false, false, false, true, false];
+        fill(&mut keep);
+        assert_eq!(keep, vec![true, false, false, false, false, true, true], "the closing brace, not a marker");
+        let mut keep = vec![true, false, false, false, false];
+        fill(&mut keep);
+        assert_eq!(keep, vec![true, false, false, false, false], "a long tail stays a marker");
+    }
+
+    #[test]
+    fn an_anchor_keeps_the_write_its_guard_reads_and_the_fields_set_on_its_argument() {
+        // argus #111: the fan-out showed `if parked {` and hid the gateExecution
+        // call that assigns parked; the approval closure hid `opts.AutoExecute =
+        // &deploy`, set on the opts its ExecuteDeployment call receives.
+        let lines = [
+            "func f(ctx context.Context, p any) error {",
+            "\topts, ok := p.(*Opts)",
+            "\tif !ok {",
+            "\t\treturn errBad",
+            "\t}",
+            "\tdeploy := true",
+            "\topts.Auto = &deploy",
+            "\t// one",
+            "\t// two",
+            "\tparked, gateErr := gate(ctx, opts)",
+            "\tif gateErr != nil {",
+            "\t\treturn gateErr",
+            "\t}",
+            "\t// three",
+            "\tif parked {",
+            "\t\treturn nil",
+            "\t}",
+            "\t_, err := run(ctx, opts)",
+        ];
+        let kept: Vec<usize> = context_lines(&lines, &[17]).into_iter().collect();
+        assert_eq!(kept, vec![0, 1, 2, 3, 4, 5, 6, 9, 10, 11, 12]);
     }
 
     #[test]
