@@ -4047,7 +4047,9 @@ mod tests {
         let callee = |id: &str, line: u64, consumer: bool| {
             let mut reasons = vec![json!({"reason":"dependency","path":["s", id],"steps":[{"relation":"may_call"}]})];
             if consumer {
-                reasons.push(json!({"reason":"potential_consumer","path":["s", id],"steps":[{"relation":"uses_key"}]}));
+                // siren #187: query_range also reads "values", which nine
+                // declarations share; it sank behind every keyless callee.
+                reasons.push(json!({"reason":"potential_consumer","path":["s", id],"steps":[{"relation":"uses_key","sharers":9}]}));
             }
             json!({"id":id,"symbol_id":id,"revision":"r","side":"head","kind":"function","file":"a/agent.py","line":line,"text":body,
                 "_provided_diff_callee":true,"reasons":reasons})
@@ -4060,6 +4062,10 @@ mod tests {
         };
         assert_eq!(order(true), json!(["early", "late"]));
         assert_eq!(order(false), json!(["early", "late"]));
+        let report = json!({"entries":[callee("early", 10, true), callee("late", 50, false)],
+            "diffs":[],"changes":[],"package_instances":{"base":[],"head":[]},
+            "coverage":{"complete":false,"issues":[],"provided_diff":{"ranges":1,"entries":0,"diffs":0}},"impact":"incomplete"});
+        assert_eq!(pack(report, 9000, None, None).unwrap().0["context_order"], json!(["early", "late"]));
     }
 
     #[test]

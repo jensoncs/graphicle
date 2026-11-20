@@ -222,9 +222,14 @@ fn cut(entry: &mut Value, spans: &[(usize, usize)], keep: &[bool], policy: &str)
 /// siren #188: such callers took 17 KB whole).
 fn window_caller(entry: &mut Value, path: &str, same_signature: &BTreeSet<String>) {
     let spans = line_spans(entry);
-    let kept = entry["reasons"].as_array().is_some_and(|rs| {
+    // Called, not a key reader; and not a callee of the changed lines, whose
+    // body is the context (siren #187: query_range lost its rank).
+    let called = |r: &&Value| r["steps"].as_array().is_some_and(|st| st.iter()
+        .any(|st| matches!(st["relation"].as_str(), Some("calls" | "may_call" | "references_callable" | "renders"))));
+    let callee = entry["_provided_diff_callee"] == json!(true) || entry["_provided_diff_flow_callee"] == json!(true);
+    let kept = !callee && entry["reasons"].as_array().is_some_and(|rs| {
         let consumers: Vec<_> = rs.iter().filter(|r| r["reason"] == "potential_consumer").collect();
-        !consumers.is_empty() && consumers.iter().all(|r| r["path"][0].as_str().is_some_and(|seed| same_signature.contains(seed)))
+        !consumers.is_empty() && consumers.iter().all(|r| called(r) && r["path"][0].as_str().is_some_and(|seed| same_signature.contains(seed)))
     });
     if (spans.len() <= WINDOW_FROM && !kept) || entry.get("text").is_none() {
         return;
@@ -251,6 +256,16 @@ fn window_caller(entry: &mut Value, path: &str, same_signature: &BTreeSet<String
     if lines.len() == spans.len() {
         for k in context_lines(&lines, &anchors) {
             keep[k] = true;
+        }
+        // and the later lines that read what a call line assigns (siren #185:
+        // with_value_now's loop over the `latest` its call returned)
+        for &i in &anchors {
+            let names: Vec<&str> = assigned(lines[i]).into_iter().filter(|n| n.len() >= 3).collect();
+            for (j, line) in lines.iter().enumerate().skip(i + 1) {
+                if names.iter().any(|n| has_word(line, n) && !replaces(line, n)) {
+                    keep[j] = true;
+                }
+            }
         }
     }
     fill(&mut keep);
@@ -1394,6 +1409,42 @@ mod tests {
         };
         assert_eq!(shown(false), Some(vec![(1, 1), (15, 25)]));
         assert_eq!(shown(true), None, "a changed signature can break the whole caller");
+        // siren #187: query_range, a callee of the changed lines that also
+        // reads a key they write, lost its body and its callee rank.
+        let caller = |relation: &str, callee: bool| {
+            let mut e = declaration("head", "caller", 1, 40, json!([{"reason":"potential_consumer","path":["seed", "caller"],
+                "steps":[{"relation":relation,"source_file":"app/code.go","byte_start":at[19] + 1,"byte_end":at[19] + 4}]}]));
+            if callee {
+                e["reasons"].as_array_mut().unwrap().push(json!({"reason":"dependency","path":["seed", "caller"],
+                    "steps":[{"relation":"calls","source_file":"app/code.go","byte_start":at[149] + 1,"byte_end":at[149] + 4}]}));
+            }
+            let mut r = report(vec![e]);
+            r["changes"] = json!([{"kind":"modified","base":"seed","head":"seed","signature_changed":false,"implementation_changed":true}]);
+            context_with(vec![("head", 150, 150)]).annotate(&mut r);
+            r["entries"][0].get("excerpts").is_some()
+        };
+        assert!(!caller("uses_key", false), "a key reader is no caller");
+        assert!(!caller("calls", true), "a callee of the changed lines goes whole");
+    }
+
+    #[test]
+    fn a_call_window_keeps_the_later_lines_that_read_the_calls_result() {
+        // siren #185: with_value_now's window showed docstring around the
+        // _grafana_values call and hid the loop that pops `latest`.
+        let mut lines = vec!["def f(a):\n".to_owned()];
+        lines.extend((2..=9).map(|_| "    x = 1\n".to_owned()));
+        lines.push("    latest = helper(a)\n".into());   // line 10
+        lines.extend((11..=20).map(|_| "    y = 2\n".to_owned()));
+        lines.push("    for s in latest:\n".into());   // line 21
+        lines.extend((22..=30).map(|_| "        z = 3\n".to_owned()));
+        let text = lines.concat();
+        let call = lines[..9].concat().len() + 13;
+        let mut entry = json!({"id":"head-f","side":"head","file":"code.go","line":1,"byte_start":0,"byte_end":text.len(),"text":text,
+            "reasons":[{"reason":"potential_consumer","path":["seed","f"],"steps":[{"relation":"calls","source_file":"app/code.go","byte_start":call,"byte_end":call + 6}]}]});
+        window_caller(&mut entry, "app/code.go", &BTreeSet::from(["seed".to_owned()]));
+        let shown: Vec<_> = entry["excerpts"].as_array().unwrap().iter()
+            .map(|e| (e["line"].as_u64().unwrap(), e["end_line"].as_u64().unwrap())).collect();
+        assert_eq!(shown, vec![(1, 15), (21, 21)]);
     }
 
     #[test]
