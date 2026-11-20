@@ -177,7 +177,7 @@ fn provided_diff_reallocates_budget_to_callers_and_dependencies_and_keeps_proofs
             // The signature, five lines after the changed line 3 (the hunk is
             // the diff's to show), and the call that receives the value it
             // assigns.
-            assert_eq!(shown, vec![(2, 2), (4, 8), (304, 304)]);
+            assert_eq!(shown, vec![(2, 2), (4, 8), (304, 305)]);   // through its closing brace
             assert!(target["excerpts"][2]["text"].as_str().unwrap().contains("return Dependency(rate)"));
             assert_eq!(target["text_window"]["lines"], json!(304));
         }
