@@ -898,13 +898,19 @@ fn add_reason(reasons: &mut Vec<Value>, reason: Value) {
         // the code runs, and only a call marks a callee of changed lines
         // (siren #187: query_range kept a uses_key reason that sorted first).
         let call = |r: &Value| matches!(r["steps"][0]["relation"].as_str(), Some("calls" | "may_call" | "references_callable" | "renders"));
+        // Then a first hop on a changed line: it is the call the change runs
+        // (argus #111: ListExecutions cited an unchanged line of
+        // ExecuteDeployment, not the new liveCommit). Set by select().
+        let from_change = |r: &Value| r["_changed_site"] == true;
         if length(&reason) < length(old)
             || (length(&reason) == length(old)
                 && (call(&reason) && !call(old)
                     || call(&reason) == call(old)
-                        && (discarded(&reason) && !discarded(old)
-                            || discarded(&reason) == discarded(old)
-                                && reason.to_string().cmp(&old.to_string()).is_lt())))
+                        && (from_change(&reason) && !from_change(old)
+                            || from_change(&reason) == from_change(old)
+                                && (discarded(&reason) && !discarded(old)
+                                    || discarded(&reason) == discarded(old)
+                                        && reason.to_string().cmp(&old.to_string()).is_lt()))))
         {
             *old = reason;
         }
@@ -941,7 +947,20 @@ fn changed_call_sites(analysis: &Analysis, selection: &BTreeMap<String, Vec<Valu
     out
 }
 
-fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selection> {
+/// `changed(file, start, end)`: the byte range overlaps a changed line of this
+/// side; a reason whose first hop does is marked for add_reason's tiebreak.
+fn select(analysis: &Analysis, seeds: &[String], depth: usize, changed: &dyn Fn(&str, usize, usize) -> bool) -> Result<Selection> {
+    let marked = |mut reason: Value| {
+        let step = &reason["steps"][0];
+        let on_change = match (step["source_file"].as_str(), step["byte_start"].as_u64(), step["byte_end"].as_u64()) {
+            (Some(file), Some(start), Some(end)) => changed(file, start as usize, end as usize),
+            _ => false,
+        };
+        if on_change {
+            reason["_changed_site"] = json!(true);   // never on the wire: stripped where reasons become entries
+        }
+        reason
+    };
     let mut out = Selection {
         reasons: BTreeMap::new(),
         issues: vec![],
@@ -970,7 +989,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
             }
             add_reason(
                 out.reasons.entry(callee.to_owned()).or_default(),
-                json!({"reason":"dependency","path":[caller,callee],"steps":[sited_evidence(&sites,world,call)]}),
+                marked(json!({"reason":"dependency","path":[caller,callee],"steps":[sited_evidence(&sites,world,call)]})),
             );
             direct += 1;
         }
@@ -1060,7 +1079,7 @@ fn select(analysis: &Analysis, seeds: &[String], depth: usize) -> Result<Selecti
                 evidence_paths.insert(hit.node_id.clone(), steps.clone());
                 add_reason(
                     out.reasons.entry(hit.node_id).or_default(),
-                    json!({"reason":if reverse{"dependency"}else{"potential_consumer"},"path":path,"steps":steps}),
+                    marked(json!({"reason":if reverse{"dependency"}else{"potential_consumer"},"path":path,"steps":steps})),
                 );
             }
             for (id, path) in &paths {
@@ -1477,12 +1496,18 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
         fallback_a.extend(package_scope(a, &changed_bindings));
         fallback_b.extend(package_scope(b, &changed_bindings));
     }
+    let changed_lines: Vec<(&str, usize, usize)> = diffs.iter()
+        .flat_map(|d| d["_changed_head"].as_array().into_iter().flatten().map(move |r| (d["file"].as_str().unwrap_or(""), r)))
+        .filter_map(|(file, r)| Some((file, r[0].as_u64()? as usize, r[1].as_u64()? as usize)))
+        .collect();
+    let changed = |file: &str, start: usize, end: usize| changed_lines.iter().any(|&(f, a, b)| f == file && start < b && a < end.max(start + 1));
     let select_scope =
-        |analysis, seeds: &BTreeSet<String>, fallback: &BTreeSet<String>| -> Result<Selection> {
+        |analysis, seeds: &BTreeSet<String>, fallback: &BTreeSet<String>, changed: &dyn Fn(&str, usize, usize) -> bool| -> Result<Selection> {
             let mut selected = select(
                 analysis,
                 &seeds.iter().cloned().collect::<Vec<_>>(),
                 r.max_depth,
+                changed,
             )?;
             // An unchanged initializer can call a changed function. Include
             // package consumers for that path as well as directly edited init.
@@ -1514,8 +1539,8 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             }
             Ok(selected)
         };
-    let selected_a = select_scope(a, &seeds_a, &fallback_a)?;
-    let mut selected_b = select_scope(b, &seeds_b, &fallback_b)?;
+    let selected_a = select_scope(a, &seeds_a, &fallback_a, &|_, _, _| false)?;
+    let mut selected_b = select_scope(b, &seeds_b, &fallback_b, &changed)?;
     for (id, reason) in keys::reasons(base, a, head, b, &seeds_b) {
         add_reason(selected_b.reasons.entry(id).or_default(), reason);
     }
@@ -1538,11 +1563,6 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
     let error_handling = {
         let seeds: BTreeSet<(&str, &str)> = seeds_b.iter().filter_map(|id| b.symbols.get(id))
             .map(|(world, symbol)| (world.as_str(), symbol.key.as_str())).collect();
-        let changed_lines: Vec<(&str, usize, usize)> = diffs.iter()
-            .flat_map(|d| d["_changed_head"].as_array().into_iter().flatten().map(move |r| (d["file"].as_str().unwrap_or(""), r)))
-            .filter_map(|(file, r)| Some((file, r[0].as_u64()? as usize, r[1].as_u64()? as usize)))
-            .collect();
-        let changed = |file: &str, start: usize, end: usize| changed_lines.iter().any(|&(f, a, b)| f == file && start < b && a < end.max(start + 1));
         error_sites::divergence(&b.calls, &seeds, |file| head.sources.get(file).map(|s| s.path.clone()), changed)
     };
     let mut entries = vec![];
@@ -1556,7 +1576,10 @@ fn compare(base: &Input, head: &Input, a: &Analysis, b: &Analysis, r: &Request) 
             .filter(|(_, reasons)| reasons.iter().any(|r| r["reason"] == "change_seed"))
             .filter_map(|(id, _)| analysis.symbols.get(id).map(|(_, s)| s)).collect();
         let seeds: Vec<(String, usize, usize)> = seeds.iter().map(|s| (s.file.clone(), s.start, s.end)).collect();
-        for (id, reasons) in selection {
+        for (id, mut reasons) in selection {
+            for reason in &mut reasons {
+                if let Some(o) = reason.as_object_mut() { o.remove("_changed_site"); }
+            }
             let (world, symbol) = &analysis.symbols[&id];
             let mut value = entry(
                 side,
@@ -4781,6 +4804,26 @@ mod tests {
                 assert_eq!(reasons, vec![call.clone()], "{other}");
             }
         }
+    }
+
+    #[test]
+    fn a_call_from_a_changed_line_outranks_one_from_an_unchanged_line() {
+        // argus #111: ListExecutions is called from new liveCommit (every line
+        // added) and from an unchanged line of ExecuteDeployment; the latter
+        // sorted first as text, so the block cited a call the change never runs.
+        let unchanged = json!({"reason":"dependency","path":["ExecuteDeployment","t"],"steps":[{"relation":"calls","spelling":"ListExecutions"}]});
+        let changed = json!({"reason":"dependency","path":["liveCommit","t"],"steps":[{"relation":"calls","spelling":"ListExecutions"}],"_changed_site":true});
+        for order in [[unchanged.clone(), changed.clone()], [changed.clone(), unchanged.clone()]] {
+            let mut reasons = vec![];
+            for reason in order {
+                super::add_reason(&mut reasons, reason);
+            }
+            assert_eq!(reasons, vec![changed.clone()]);
+        }
+        let shorter = json!({"reason":"dependency","path":["t"],"steps":[{"relation":"calls"}]});
+        let mut reasons = vec![changed.clone()];
+        super::add_reason(&mut reasons, shorter.clone());
+        assert_eq!(reasons, vec![shorter], "a shorter path still wins");
     }
 
     #[test]

@@ -315,7 +315,7 @@ fn mixed_protocol_paths_share_traversal_depth_limits_and_pinned_provenance() {
     attach(&input, &mut a).unwrap();
     let start = key("checkout", "Handle");
     let end = key("billing", "Handle");
-    let selected = select(&a, std::slice::from_ref(&start), 12).unwrap();
+    let selected = select(&a, std::slice::from_ref(&start), 12, &|_, _, _| false).unwrap();
     assert!(selected.reasons.contains_key(&end));
     let path = selected.reasons[&end]
         .iter()
@@ -327,10 +327,10 @@ fn mixed_protocol_paths_share_traversal_depth_limits_and_pinned_provenance() {
     }
     assert!(steps.iter().all(|s| s["evidence"] == "configured_static"));
     assert!(path.to_string().contains(&input.pins[0].snapshot));
-    let limited = select(&a, &[start], 2).unwrap();
+    let limited = select(&a, &[start], 2, &|_, _, _| false).unwrap();
     assert!(!limited.reasons.contains_key(&end));
     assert!(limited.issues.iter().any(|i| i["reason"] == "depth_limit"));
-    let reverse = select(&a, &[end], 12).unwrap();
+    let reverse = select(&a, &[end], 12, &|_, _, _| false).unwrap();
     assert!(reverse.reasons.contains_key(&key("checkout", "Handle")));
 }
 
